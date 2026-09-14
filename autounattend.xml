@@ -2,7 +2,13 @@
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
   <!--
     Workgroup Windows 11 Pro unattended installation
-    Version: 0.1 (2026-09-12)
+    Version: 0.2 (2026-09-13)
+
+    Hard limits of Windows Setup that this file respects (a violation aborts the install
+    with "The provided unattend file is not valid", 0x80220005):
+      - RunSynchronousCommand/Path must be 259 characters or shorter;
+      - no XML comments inside <component> blocks;
+      - every synchronous command must exit with code 0.
 
     Purpose: baseline for small workgroups (no Active Directory domain) run by
     non-technical staff under constant cyber attack. Security first, no cosmetics.
@@ -19,7 +25,9 @@
          the digital license already bound to the hardware).
       8. Windows 11 Pro is selected without the edition dialog.
 
-    Display (UI) language is NOT changed: it stays whatever the ISO contains.
+    UILanguage must equal the language of the ISO (uk-UA for the Ukrainian ISO used on 2026-09-13):
+    Windows Setup shows the OOBE language/region page for any International-Core value left out,
+    and a value that is not present in the image is ignored. Change it together with the ISO.
     Regional format and non-Unicode code page are set to Ukraine (uk-UA).
 
     Layout:
@@ -38,15 +46,12 @@
     <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <UserData>
         <ProductKey>
-          <!-- Generic (non-activating) key for Windows 11 Pro: selects the edition, skips the key dialog. -->
           <Key>VK7JG-NPHTM-C97JM-9MPGT-3V66T</Key>
           <WillShowUI>OnError</WillShowUI>
         </ProductKey>
         <AcceptEula>true</AcceptEula>
       </UserData>
       <RunSynchronous>
-        <!-- Hardware requirement bypass (TPM 2.0, Secure Boot, CPU, RAM). Keep for older office PCs.
-             It does not weaken machines that meet the requirements. Remove if unwanted. -->
         <RunSynchronousCommand wcm:action="add">
           <Order>1</Order>
           <Description>Bypass TPM check</Description>
@@ -117,7 +122,7 @@
         <RunSynchronousCommand wcm:action="add">
           <Order>1</Order>
           <Description>Extract embedded scripts from this answer file</Description>
-          <Path>powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "$xml = [xml]::new(); $xml.Load('C:\Windows\Panther\unattend.xml'); $sb = [scriptblock]::Create( $xml.unattend.Extensions.ExtractScript ); Invoke-Command -ScriptBlock $sb -ArgumentList $xml;"</Path>
+          <Path>powershell.exe -NoProfile -WindowStyle Hidden -Command "try{$x=[xml]::new();$x.Load('C:\Windows\Panther\unattend.xml');$s=[scriptblock]::Create($x.unattend.Extensions.ExtractScript);icm $s -Args $x}catch{$_>C:\Windows\Temp\ua.err};exit 0"</Path>
         </RunSynchronousCommand>
         <RunSynchronousCommand wcm:action="add">
           <Order>2</Order>
@@ -127,17 +132,11 @@
         <RunSynchronousCommand wcm:action="add">
           <Order>3</Order>
           <Description>Apply machine-wide settings (security baseline, services, updates, Defender, app removal, default user profile)</Description>
-          <Path>powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\ProgramData\Unattend\Scripts\Setup-System.ps1"</Path>
-        </RunSynchronousCommand>
-        <RunSynchronousCommand wcm:action="add">
-          <Order>4</Order>
-          <Description>Enable .NET Framework 3.5 from the installation media if present</Description>
-          <Path>powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "foreach($d in 'C','D','E','F','G','H','I','J','K'){$src=Join-Path ($d+':') 'sources\sxs';if(Test-Path $src\*.cab){dism /Online /Enable-Feature /FeatureName:NetFx3 /All /LimitAccess /Source:$src;break}}"</Path>
+          <Path>powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "try{$p='C:\ProgramData\Unattend\Scripts\Setup-System.ps1';if(Test-Path $p){&amp; $p}else{'no script'>C:\Windows\Temp\ua.err}}catch{$_>C:\Windows\Temp\ua.err};exit 0"</Path>
         </RunSynchronousCommand>
       </RunSynchronous>
     </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <!-- Kyiv time zone. Change in the constructor per site. -->
       <TimeZone>FLE Standard Time</TimeZone>
     </component>
     <component name="Microsoft-Windows-Deployment" processorArchitecture="arm64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -145,7 +144,7 @@
         <RunSynchronousCommand wcm:action="add">
           <Order>1</Order>
           <Description>Extract embedded scripts from this answer file</Description>
-          <Path>powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "$xml = [xml]::new(); $xml.Load('C:\Windows\Panther\unattend.xml'); $sb = [scriptblock]::Create( $xml.unattend.Extensions.ExtractScript ); Invoke-Command -ScriptBlock $sb -ArgumentList $xml;"</Path>
+          <Path>powershell.exe -NoProfile -WindowStyle Hidden -Command "try{$x=[xml]::new();$x.Load('C:\Windows\Panther\unattend.xml');$s=[scriptblock]::Create($x.unattend.Extensions.ExtractScript);icm $s -Args $x}catch{$_>C:\Windows\Temp\ua.err};exit 0"</Path>
         </RunSynchronousCommand>
         <RunSynchronousCommand wcm:action="add">
           <Order>2</Order>
@@ -155,12 +154,7 @@
         <RunSynchronousCommand wcm:action="add">
           <Order>3</Order>
           <Description>Apply machine-wide settings</Description>
-          <Path>powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\ProgramData\Unattend\Scripts\Setup-System.ps1"</Path>
-        </RunSynchronousCommand>
-        <RunSynchronousCommand wcm:action="add">
-          <Order>4</Order>
-          <Description>Enable .NET Framework 3.5 from the installation media if present</Description>
-          <Path>powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "foreach($d in 'C','D','E','F','G','H','I','J','K'){$src=Join-Path ($d+':') 'sources\sxs';if(Test-Path $src\*.cab){dism /Online /Enable-Feature /FeatureName:NetFx3 /All /LimitAccess /Source:$src;break}}"</Path>
+          <Path>powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "try{$p='C:\ProgramData\Unattend\Scripts\Setup-System.ps1';if(Test-Path $p){&amp; $p}else{'no script'>C:\Windows\Temp\ua.err}}catch{$_>C:\Windows\Temp\ua.err};exit 0"</Path>
         </RunSynchronousCommand>
       </RunSynchronous>
     </component>
@@ -170,13 +164,9 @@
   </settings>
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <!-- Input languages for the sign-in screen and every new user, in this order:
-           English (US), Ukrainian (Enhanced layout), Russian.
-           "Russian (Ukraine)" has no numeric locale ID and cannot be written here;
-           Setup-User.ps1 replaces Russian with Russian (Ukraine) at each user's first sign-in.
-           UILanguage is intentionally NOT set: the display language stays as in the ISO. -->
       <InputLocale>0409:00000409;0422:00020422;0419:00000419</InputLocale>
       <SystemLocale>uk-UA</SystemLocale>
+      <UILanguage>uk-UA</UILanguage>
       <UserLocale>uk-UA</UserLocale>
     </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -189,28 +179,25 @@
       </OOBE>
       <UserAccounts>
         <LocalAccounts>
-          <!-- Admin and User are starter accounts with blank passwords by design.
-               Passwords, additional users and group membership are enforced later by a
-               separate user-provisioning project, so nothing here should get in its way. -->
           <LocalAccount wcm:action="add">
-            <Name>Admin</Name>
-            <DisplayName>Admin</DisplayName>
-            <Description>Local administrator</Description>
-            <Group>Administrators</Group>
             <Password>
               <Value></Value>
               <PlainText>true</PlainText>
             </Password>
+            <Description>Local administrator (starter account)</Description>
+            <DisplayName>Admin</DisplayName>
+            <Group>Administrators</Group>
+            <Name>Admin</Name>
           </LocalAccount>
           <LocalAccount wcm:action="add">
-            <Name>User</Name>
-            <DisplayName>User</DisplayName>
-            <Description>Standard user</Description>
-            <Group>Users</Group>
             <Password>
               <Value></Value>
               <PlainText>true</PlainText>
             </Password>
+            <Description>Standard user (starter account)</Description>
+            <DisplayName>User</DisplayName>
+            <Group>Users</Group>
+            <Name>User</Name>
           </LocalAccount>
         </LocalAccounts>
       </UserAccounts>
@@ -218,6 +205,7 @@
     <component name="Microsoft-Windows-International-Core" processorArchitecture="arm64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <InputLocale>0409:00000409;0422:00020422;0419:00000419</InputLocale>
       <SystemLocale>uk-UA</SystemLocale>
+      <UILanguage>uk-UA</UILanguage>
       <UserLocale>uk-UA</UserLocale>
     </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="arm64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -231,24 +219,24 @@
       <UserAccounts>
         <LocalAccounts>
           <LocalAccount wcm:action="add">
-            <Name>Admin</Name>
-            <DisplayName>Admin</DisplayName>
-            <Description>Local administrator</Description>
-            <Group>Administrators</Group>
             <Password>
               <Value></Value>
               <PlainText>true</PlainText>
             </Password>
+            <Description>Local administrator (starter account)</Description>
+            <DisplayName>Admin</DisplayName>
+            <Group>Administrators</Group>
+            <Name>Admin</Name>
           </LocalAccount>
           <LocalAccount wcm:action="add">
-            <Name>User</Name>
-            <DisplayName>User</DisplayName>
-            <Description>Standard user</Description>
-            <Group>Users</Group>
             <Password>
               <Value></Value>
               <PlainText>true</PlainText>
             </Password>
+            <Description>Standard user (starter account)</Description>
+            <DisplayName>User</DisplayName>
+            <Group>Users</Group>
+            <Name>User</Name>
           </LocalAccount>
         </LocalAccounts>
       </UserAccounts>
@@ -292,6 +280,9 @@ $Config = @{
     AdminAccount                = 'Admin'
     UserAccount                 = 'User'
     PasswordNeverExpires        = $true     # blank passwords must not "expire" after 42 days
+
+    # --- Installation media ---
+    EnableNetFx3                = $true     # .NET Framework 3.5 from <media>\sources\sxs if present
 
     # --- Printing ---
     EnsurePrintSpooler          = $true     # Spooler = Automatic, running
@@ -437,7 +428,7 @@ function Set-Reg {
         [Parameter(Mandatory)][string]$Path,
         [Parameter(Mandatory)][string]$Name,
         [Parameter(Mandatory)][ValidateSet('DWord','QWord','String','ExpandString','MultiString','Binary')][string]$Type,
-        [Parameter(Mandatory)]$Value,
+        [Parameter(Mandatory)][AllowEmptyString()][AllowNull()]$Value,
         [string]$Why = ''
     )
     try {
@@ -468,16 +459,22 @@ function Set-ServiceStart {
     else { Write-Log "service $Name not present, skipped" }
 }
 
-function Invoke-Native {
-    param([Parameter(Mandatory)][string]$Command)
+function Invoke-Exe {
+    # Runs a native executable directly (no cmd.exe quoting problems) and logs its exit code.
+    param([Parameter(Mandatory)][string]$File, [string[]]$Arguments = @())
     try {
-        $out = cmd.exe /c $Command 2>&1
-        Write-Log ("{0} -> exit {1}" -f $Command, $LASTEXITCODE) $(if ($LASTEXITCODE -eq 0) { 'OK' } else { 'WARN' })
-        if ($LASTEXITCODE -ne 0 -and $out) { Write-Log (($out | Out-String).Trim()) 'WARN' }
+        $out = & $File @Arguments 2>&1
+        $code = $LASTEXITCODE
+        Write-Log ("{0} {1} -> exit {2}" -f $File, ($Arguments -join ' '), $code) $(if ($code -eq 0) { 'OK' } else { 'WARN' })
+        if ($code -ne 0 -and $out) { Write-Log (($out | Out-String).Trim()) 'WARN' }
     } catch {
-        Write-Log ("FAILED {0}: {1}" -f $Command, $_.Exception.Message) 'ERROR'
+        Write-Log ("FAILED {0} {1}: {2}" -f $File, ($Arguments -join ' '), $_.Exception.Message) 'ERROR'
     }
 }
+
+# Any unexpected terminating error is logged and execution continues with the next statement.
+# Windows Setup aborts the whole installation if this script ends with a non-zero exit code.
+trap { Write-Log ("UNHANDLED: {0} (line {1})" -f $_.Exception.Message, $_.InvocationInfo.ScriptLineNumber) 'ERROR'; continue }
 
 if (-not (Get-PSDrive -Name HKU -ErrorAction SilentlyContinue)) {
     $null = New-PSDrive -Name HKU -PSProvider Registry -Root HKEY_USERS -ErrorAction SilentlyContinue
@@ -488,6 +485,22 @@ Write-Log 'Setup-System.ps1 started'
 Write-Log ("Build: {0}  User: {1}" -f [System.Environment]::OSVersion.Version.Build, $env:USERNAME)
 
 $Pol = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows'
+
+# ============================================================================
+# 0. .NET FRAMEWORK 3.5 FROM THE INSTALLATION MEDIA (needed by older line-of-business apps)
+# ============================================================================
+if ($Config.EnableNetFx3) {
+    $src = $null
+    foreach ($d in [System.IO.DriveInfo]::GetDrives()) {
+        try {
+            if (-not $d.IsReady) { continue }
+            $p = Join-Path $d.RootDirectory.FullName 'sources\sxs'
+            if ((Test-Path $p) -and (Get-ChildItem -Path $p -Filter '*.cab' -ErrorAction SilentlyContinue)) { $src = $p; break }
+        } catch { }
+    }
+    if ($src) { Invoke-Exe 'dism.exe' @('/Online','/Enable-Feature','/FeatureName:NetFx3','/All','/LimitAccess',"/Source:$src",'/NoRestart','/Quiet') }
+    else { Write-Log 'sources\sxs not found on any drive, .NET 3.5 skipped (can be added later from Windows Update)' 'WARN' }
+}
 
 # ============================================================================
 # 1. PRINTING
@@ -595,7 +608,9 @@ Set-Reg -Path $sys -Name 'LocalAccountTokenFilterPolicy' -Type DWord -Value 0 -W
 if ($Config.InactivityLockSeconds -gt 0) {
     Set-Reg -Path $sys -Name 'InactivityTimeoutSecs' -Type DWord -Value $Config.InactivityLockSeconds -Why 'lock after idle'
 }
-Set-Reg -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name 'DisableLockWorkstation' -Type DWord -Value 0 -Why 'Win+L must work'
+# Win+L must work: the lock-workstation policy lives under Policies\System; make sure it is absent everywhere.
+Remove-Reg -Path $sys -Name 'DisableLockWorkstation'
+Remove-Reg -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name 'DisableLockWorkstation'
 
 $lsa = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'
 if ($Config.LSAProtection) { Set-Reg -Path $lsa -Name 'RunAsPPL' -Type DWord -Value 2 -Why 'LSA protection (no UEFI lock)' }
@@ -609,7 +624,12 @@ Set-Reg -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest'
 Set-Reg -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel' -Name 'DisableExceptionChainValidation' -Type DWord -Value 0 -Why 'SEHOP on'
 
 if ($Config.AccountLockout) {
-    Invoke-Native 'net accounts /lockoutthreshold:10 /lockoutduration:15 /lockoutwindow:15'
+    Invoke-Exe 'net.exe' @('accounts','/lockoutthreshold:10','/lockoutduration:15','/lockoutwindow:15')
+}
+if ($Config.PasswordNeverExpires) {
+    # Starter accounts have blank passwords; without this Windows demands a "password change" after 42 days.
+    # Applied here (always runs) and again per account in Post-OOBE.ps1. The user-provisioning project may override it.
+    Invoke-Exe 'net.exe' @('accounts','/maxpwage:unlimited')
 }
 if ($Config.DisableRemoteAssistance) {
     Set-Reg -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Remote Assistance' -Name 'fAllowToGetHelp' -Type DWord -Value 0
@@ -705,14 +725,28 @@ Set-Reg -Path $edge -Name 'BackgroundModeEnabled' -Type DWord -Value 0
 # ============================================================================
 if ($Config.AuditLogging) {
     Set-Reg -Path "$sys\Audit" -Name 'ProcessCreationIncludeCmdLine_Enabled' -Type DWord -Value 1 -Why 'command line in event 4688'
-    foreach ($sub in 'Process Creation','Logon','Logoff','Account Lockout','Special Logon','User Account Management','Security Group Management','Credential Validation','Other Object Access Events','Removable Storage') {
-        Invoke-Native ('auditpol /set /subcategory:"{0}" /success:enable /failure:enable' -f $sub)
+    # Subcategories by GUID: names are localized (Ukrainian image) and auditpol rejects English names there.
+    $auditOn = @{
+        '{0CCE922B-69AE-11D9-BED3-505054503030}' = 'Process Creation'
+        '{0CCE9215-69AE-11D9-BED3-505054503030}' = 'Logon'
+        '{0CCE9216-69AE-11D9-BED3-505054503030}' = 'Logoff'
+        '{0CCE9217-69AE-11D9-BED3-505054503030}' = 'Account Lockout'
+        '{0CCE921B-69AE-11D9-BED3-505054503030}' = 'Special Logon'
+        '{0CCE9235-69AE-11D9-BED3-505054503030}' = 'User Account Management'
+        '{0CCE9237-69AE-11D9-BED3-505054503030}' = 'Security Group Management'
+        '{0CCE923F-69AE-11D9-BED3-505054503030}' = 'Credential Validation'
+        '{0CCE9227-69AE-11D9-BED3-505054503030}' = 'Other Object Access Events'
+        '{0CCE9245-69AE-11D9-BED3-505054503030}' = 'Removable Storage'
     }
-    Invoke-Native 'auditpol /set /subcategory:"Process Termination" /success:disable /failure:disable'
-    Invoke-Native 'wevtutil sl Security /ms:268435456'
-    Invoke-Native 'wevtutil sl System /ms:67108864'
-    Invoke-Native 'wevtutil sl Application /ms:67108864'
-    Invoke-Native 'wevtutil sl "Microsoft-Windows-PowerShell/Operational" /ms:134217728'
+    foreach ($g in $auditOn.GetEnumerator()) {
+        Write-Log ("audit: {0}" -f $g.Value)
+        Invoke-Exe 'auditpol.exe' @('/set',"/subcategory:$($g.Key)",'/success:enable','/failure:enable')
+    }
+    Invoke-Exe 'auditpol.exe' @('/set','/subcategory:{0CCE922C-69AE-11D9-BED3-505054503030}','/success:disable','/failure:disable')
+    Invoke-Exe 'wevtutil.exe' @('sl','Security','/ms:268435456')
+    Invoke-Exe 'wevtutil.exe' @('sl','System','/ms:67108864')
+    Invoke-Exe 'wevtutil.exe' @('sl','Application','/ms:67108864')
+    Invoke-Exe 'wevtutil.exe' @('sl','Microsoft-Windows-PowerShell/Operational','/ms:134217728')
 }
 if ($Config.PowerShellLogging) {
     Set-Reg -Path "$Pol\PowerShell\ScriptBlockLogging" -Name 'EnableScriptBlockLogging' -Type DWord -Value 1
@@ -735,19 +769,18 @@ if ($Config.MinimalTelemetry) {
     Set-Reg -Path "$Pol\DataCollection" -Name 'AllowTelemetry' -Type DWord -Value 1 -Why 'Required (lowest on Pro)'
     Set-Reg -Path "$Pol\DataCollection" -Name 'DoNotShowFeedbackNotifications' -Type DWord -Value 1
     Set-Reg -Path "$Pol\DataCollection" -Name 'AllowDeviceNameInDiagnosticData' -Type DWord -Value 0
-    Set-Reg -Path "$Pol\AppCompat" -Name 'AITEnable' -Type DWord -Value 0
     Set-Reg -Path "$Pol\AdvertisingInfo" -Name 'DisabledByGroupPolicy' -Type DWord -Value 1
     Set-Reg -Path "$Pol\Windows Error Reporting" -Name 'Disabled' -Type DWord -Value 1 -Why 'local crash logs stay in Event Viewer'
     Set-Reg -Path "$Pol\System" -Name 'PublishUserActivities' -Type DWord -Value 0
     Set-Reg -Path "$Pol\System" -Name 'UploadUserActivities' -Type DWord -Value 0
-    Set-ServiceStart -Name 'DiagTrack' -Start 4
-    foreach ($tn in '\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser',
-                    '\Microsoft\Windows\Application Experience\ProgramDataUpdater',
-                    '\Microsoft\Windows\Customer Experience Improvement Program\Consolidator',
+    # DiagTrack stays Manual (not Disabled) and the Application Experience tasks are left alone:
+    # the compatibility appraiser feeds Windows Update feature-update offers, which must keep working.
+    Set-ServiceStart -Name 'DiagTrack' -Start 3
+    foreach ($tn in '\Microsoft\Windows\Customer Experience Improvement Program\Consolidator',
                     '\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip',
                     '\Microsoft\Windows\Feedback\Siuf\DmClient',
                     '\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload') {
-        Invoke-Native ('schtasks /Change /TN "{0}" /Disable' -f $tn)
+        Invoke-Exe 'schtasks.exe' @('/Change','/TN',$tn,'/Disable')
     }
 }
 if ($Config.DisableConsumerContent) {
@@ -846,7 +879,10 @@ if ($loaded) {
         Set-Reg -Path "$du\Software\Microsoft\Windows\CurrentVersion\Privacy" -Name 'TailoredExperiencesWithDiagnosticDataEnabled' -Type DWord -Value 0
     }
     if ($Config.DisableWidgetsAndNews) { Set-Reg -Path $adv -Name 'TaskbarDa' -Type DWord -Value 0 }
-    if ($Config.DisableCopilotAndRecall) { Set-Reg -Path $adv -Name 'ShowCopilotButton' -Type DWord -Value 0 }
+    if ($Config.DisableCopilotAndRecall) {
+        Set-Reg -Path $adv -Name 'ShowCopilotButton' -Type DWord -Value 0
+        Set-Reg -Path "$du\Software\Policies\Microsoft\Windows\WindowsCopilot" -Name 'TurnOffWindowsCopilot' -Type DWord -Value 1 -Why 'user-scope policy'
+    }
     if ($Config.DisableAutoRun) {
         Set-Reg -Path "$du\Software\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers" -Name 'DisableAutoplay' -Type DWord -Value 1
     }
@@ -872,19 +908,46 @@ Set-Reg -Path $as -Name 'IsInstalled' -Type DWord -Value 1
 # ============================================================================
 # 12. POST-OOBE TASK (waits for OOBE to finish, then cleans up)
 # ============================================================================
-try {
-    $action    = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\ProgramData\Unattend\Scripts\Post-OOBE.ps1"'
-    $trigger   = New-ScheduledTaskTrigger -AtStartup
-    $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
-    $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 6)
-    $null = Register-ScheduledTask -TaskName 'Unattend-PostOOBE' -TaskPath '\' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force
-    Write-Log 'Registered task Unattend-PostOOBE' 'OK'
-} catch { Write-Log "Register-ScheduledTask: $($_.Exception.Message)" 'ERROR' }
+# schtasks.exe with a task XML instead of Register-ScheduledTask: the CIM/WMI layer the cmdlet needs is not reliable
+# during specialize, and the XML lets the task run on battery (schtasks /SC defaults to AC power only).
+$taskXml = @'
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo><Description>Unattend post-OOBE cleanup (self-removing)</Description></RegistrationInfo>
+  <Triggers><BootTrigger><Enabled>true</Enabled></BootTrigger></Triggers>
+  <Principals><Principal id="Author"><UserId>S-1-5-18</UserId><RunLevel>HighestAvailable</RunLevel></Principal></Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT6H</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>powershell.exe</Command>
+      <Arguments>-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File C:\ProgramData\Unattend\Scripts\Post-OOBE.ps1</Arguments>
+    </Exec>
+  </Actions>
+</Task>
+'@
+$taskFile = 'C:\ProgramData\Unattend\Scripts\Post-OOBE.task.xml'
+try { $taskXml | Out-File -FilePath $taskFile -Encoding Unicode -Force } catch { Write-Log "task xml: $($_.Exception.Message)" 'ERROR' }
+Invoke-Exe 'schtasks.exe' @('/Create','/F','/TN','Unattend-PostOOBE','/XML',$taskFile)
 
 # Persist the config for Post-OOBE.ps1 (account names, flags)
 try { $Config | ConvertTo-Json | Set-Content -Path 'C:\ProgramData\Unattend\config.json' -Encoding UTF8 } catch { Write-Log "config.json: $($_.Exception.Message)" 'WARN' }
 
 Write-Log 'Setup-System.ps1 finished'
+exit 0
 ]]></File>
     <File path="C:\ProgramData\Unattend\Scripts\Setup-User.ps1"><![CDATA[
 <#
@@ -895,7 +958,8 @@ Write-Log 'Setup-System.ps1 finished'
     Keeps the current display language untouched.
 #>
 $ErrorActionPreference = 'Continue'
-$log = 'C:\ProgramData\Unattend\Logs\Setup-User.log'
+# One log per user: a file created by the first user is not writable by the next one under ProgramData.
+$log = "C:\ProgramData\Unattend\Logs\Setup-User.$($env:USERNAME).log"
 function Write-Log { param([string]$m) try { Add-Content -Path $log -Value ('[{0}] [{1}] {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $env:USERNAME, $m) -Encoding UTF8 } catch {} }
 
 Write-Log 'Setup-User.ps1 started'
@@ -903,24 +967,32 @@ try {
     # Pin the display language to what is installed so that reordering input languages never changes the UI language.
     $ui = [System.Globalization.CultureInfo]::InstalledUICulture.Name
     if ($ui) { Set-WinUILanguageOverride -Language $ui; Write-Log "display language pinned to $ui" }
+} catch { Write-Log "display language override: $($_.Exception.Message)" }
 
+$done = $false
+try {
     $list = New-WinUserLanguageList 'en-US'
     $list.Add('uk-UA')
     $list.Add('ru-UA')          # "Russian (Ukraine)": Windows assigns a transient id (2000:00000419) and the Russian layout itself
     Set-WinUserLanguageList -LanguageList $list -Force 3>$null
-
     $applied = Get-WinUserLanguageList
-    $tags = ($applied | ForEach-Object { $_.LanguageTag }) -join ','
-    Write-Log "language list applied: $tags"
-    if (-not ($applied | Where-Object { $_.LanguageTag -eq 'ru-UA' })) {
-        Write-Log 'ru-UA not accepted on this build, falling back to plain Russian'
+    $ru = $applied | Where-Object { $_.LanguageTag -eq 'ru-UA' }
+    if ($ru -and @($ru.InputMethodTips).Count -gt 0) {
+        $done = $true
+        Write-Log ('applied: ' + (($applied | ForEach-Object { $_.LanguageTag + '[' + ($_.InputMethodTips -join ',') + ']' }) -join ' '))
+    } else {
+        Write-Log 'ru-UA has no keyboard layout after apply, falling back to plain Russian'
+    }
+} catch { Write-Log "ru-UA attempt failed: $($_.Exception.Message)" }
+if (-not $done) {
+    try {
         $list = New-WinUserLanguageList 'en-US'; $list.Add('uk-UA'); $list.Add('ru')
         Set-WinUserLanguageList -LanguageList $list -Force 3>$null
-    }
-} catch {
-    Write-Log "language list failed: $($_.Exception.Message)"
+        Write-Log 'fallback applied: en-US, uk-UA, ru'
+    } catch { Write-Log "fallback failed: $($_.Exception.Message)" }
 }
 Write-Log 'Setup-User.ps1 finished'
+exit 0
 ]]></File>
     <File path="C:\ProgramData\Unattend\Scripts\Post-OOBE.ps1"><![CDATA[
 <#
@@ -959,11 +1031,16 @@ foreach ($name in $accounts) {
         if (-not $cfg -or $cfg.PasswordNeverExpires) { Set-LocalUser -Name $name -PasswordNeverExpires $true -ErrorAction Stop; Write-Log "$name : password never expires" }
     } catch { Write-Log "$name : $($_.Exception.Message)" }
 }
-foreach ($builtin in 'Administrator','Guest') {
-    try {
-        $u = Get-LocalUser -Name $builtin -ErrorAction SilentlyContinue
-        if ($u -and $u.Enabled) { Disable-LocalUser -Name $builtin; Write-Log "$builtin disabled" }
-    } catch { Write-Log "$builtin : $($_.Exception.Message)" }
+# Built-in Administrator (RID 500) and Guest (RID 501) are found by SID: their names are localized on non-English images.
+try {
+    foreach ($u in (Get-LocalUser | Where-Object { $_.SID.Value -match '-50[01]$' })) {
+        if ($u.Enabled) { Disable-LocalUser -SID $u.SID; Write-Log "built-in account $($u.Name) disabled" } else { Write-Log "built-in account $($u.Name) already disabled" }
+    }
+} catch { Write-Log "built-in accounts: $($_.Exception.Message)" }
+
+# Errors written by the specialize-pass wrappers (script missing or crashed) are kept next to the other logs.
+if (Test-Path 'C:\Windows\Temp\ua.err') {
+    try { Get-Content 'C:\Windows\Temp\ua.err' | ForEach-Object { Write-Log "SPECIALIZE ERROR: $_" }; Remove-Item 'C:\Windows\Temp\ua.err' -Force } catch { }
 }
 
 foreach ($f in 'C:\Windows\Panther\unattend.xml','C:\Windows\Panther\unattend-original.xml','C:\Windows\Panther\Unattend\unattend.xml','C:\Windows\System32\Sysprep\unattend.xml','C:\unattend.xml','C:\autounattend.xml') {
@@ -972,8 +1049,9 @@ foreach ($f in 'C:\Windows\Panther\unattend.xml','C:\Windows\Panther\unattend-or
     }
 }
 
-try { Unregister-ScheduledTask -TaskName 'Unattend-PostOOBE' -Confirm:$false -ErrorAction Stop; Write-Log 'task removed' } catch { Write-Log "unregister: $($_.Exception.Message)" }
+try { $null = & schtasks.exe /Delete /TN 'Unattend-PostOOBE' /F 2>&1; Write-Log "task removed (exit $LASTEXITCODE)" } catch { Write-Log "task removal: $($_.Exception.Message)" }
 Write-Log 'Post-OOBE.ps1 finished'
+exit 0
 ]]></File>
   </Extensions>
 </unattend>
