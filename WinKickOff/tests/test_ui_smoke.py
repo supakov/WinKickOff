@@ -156,6 +156,66 @@ class MainWindowSmokeTest(unittest.TestCase):
         var.set(str(param.default))  # back to the default: the override disappears from the profile
         self.assertNotIn(param.name, self.win.profile.rules[rule.id].params)
 
+    def test_parameter_change_is_marked(self) -> None:
+        rule, param = next(
+            (r, p) for r in self.catalog.rules.values() for p in r.params.values()
+            if p.type == "int" and p.max is not None and p.max > p.default
+        )
+        self.win.show_item("r:" + rule.id)
+        mark = self.win._param_marks[param.name]
+        self.assertEqual(str(mark.cget("text")), "")
+        self.win._param_vars[list(rule.params).index(param.name)].set(str(param.default + 1))
+        self.assertEqual(str(mark.cget("text")), "изменено")
+        self.assertIn("changed", self.win.tree.item("r:" + rule.id, "tags"))
+
+    def detail_links(self) -> dict[str, str]:
+        """Text of every link in the description, by tag name."""
+        out = {}
+        for name in self.win._link_tags:
+            ranges = self.win.detail.tag_ranges(name)
+            out[name] = self.win.detail.get(ranges[0], ranges[1])
+        return out
+
+    def click_link(self, name: str) -> None:
+        index = self.win.detail.tag_ranges(name)[0]
+        self.win.detail.see(index)
+        self.win.update()
+        x, y, _w, h = self.win.detail.bbox(index)
+        # Text tag bindings follow the "current" mark, which only mouse motion updates.
+        self.win.detail.event_generate("<Motion>", x=x + 2, y=y + h // 2, when="now")
+        self.win.detail.event_generate("<Button-1>", x=x + 2, y=y + h // 2, when="now")
+        self.win.update()
+
+    def test_dependency_link_opens_the_rule(self) -> None:
+        rule = next(r for r in self.catalog.rules.values() if r.requires)
+        self.win.select_node("r:" + rule.id)
+        self.win.update()
+        target_title = self.catalog.rules[rule.requires[0]].title
+        name = next(n for n, text in self.detail_links().items() if target_title in text)
+        self.click_link(name)
+        self.assertEqual(self.win.tree.selection(), ("r:" + rule.requires[0],))
+
+    def test_reference_link_opens_the_card(self) -> None:
+        rule = next(r for r in self.catalog.rules.values() if "#" in r.doc)
+        self.win.select_node("r:" + rule.id)
+        self.win.update()
+        name = next(n for n, text in self.detail_links().items() if rule.doc in text)
+        with mock.patch("winkickoff.ui.main_window.os.startfile", create=True) as startfile:
+            self.click_link(name)
+        startfile.assert_called_once_with(self.paths.docs_root / rule.doc.split("#", 1)[0])
+
+    def test_verify_and_rollback_are_always_shown(self) -> None:
+        rule = next(r for r in self.catalog.rules.values() if not r.verify and r.actions[0].type == "reg")
+        self.win.show_item("r:" + rule.id)
+        text = self.win.detail.get("1.0", "end")
+        self.assertIn("Сформировано по действиям правила", text)
+        self.assertIn("reg query", text)
+
+    def test_check_catalog(self) -> None:
+        issues = self.win.check_catalog()
+        self.assertEqual([i.level for i in issues], ["info"])
+        self.assertIn("ошибок 0", self.win.status_var.get())
+
     def test_reserved_account_name_is_refused(self) -> None:
         self.win.show_item("data:accounts")
         form = self.win.forms["data:accounts"]

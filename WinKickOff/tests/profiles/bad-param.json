@@ -1,0 +1,16 @@
+{
+  "format_version": 2,
+  "catalog_version": "0.3",
+  "name": "bad-param",
+  "_expect": [
+    "accounts.inactivity-lock"
+  ],
+  "rules": {
+    "accounts.inactivity-lock": {
+      "enabled": true,
+      "params": {
+        "seconds": 999999
+      }
+    }
+  }
+}

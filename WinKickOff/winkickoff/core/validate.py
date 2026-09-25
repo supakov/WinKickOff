@@ -9,12 +9,14 @@ from __future__ import annotations
 import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
-from winkickoff.core.catalog import Catalog
+from winkickoff.core.catalog import Catalog, CatalogError, heading_anchors, load_catalog
 from winkickoff.core.profile import Profile
 from winkickoff.core.render import EDITION_KEYS
 from winkickoff.core.resources import find_keyboard
+from winkickoff.core.verify import rollback_steps, verify_steps
 
 RESERVED_ACCOUNT_NAMES = frozenset(
     {"administrator", "guest", "defaultaccount", "wdagutilityaccount", "system", "local service", "network service"}
@@ -150,6 +152,40 @@ def validate_profile(profile: Profile, catalog: Catalog, keyboards: list[dict[st
 
 def _text(element: ET.Element | None) -> str:
     return (element.text or "").strip() if element is not None else ""
+
+
+# --------------------------------------------------------------------------- catalog
+
+
+def validate_catalog(rules_dir: Path, docs_root: Path | None) -> tuple[Catalog | None, list[Issue]]:
+    """Reload the catalog from disk (command «Проверить каталог»). Loader defects are errors; gaps in
+    the descriptions are warnings: every rule must say how to check it and how to undo it, either
+    in its own text or through steps derived from its actions (core/verify.py)."""
+    try:
+        catalog = load_catalog(rules_dir, docs_root=docs_root)
+    except CatalogError as exc:
+        return None, [Issue("error", exc.rule_id or "catalog", f"Каталог не загружается: {exc}")]
+    issues: list[Issue] = []
+    anchors: dict[Path, set[str]] = {}
+    for rule in catalog.rules.values():
+        params = {name: param.default for name, param in rule.params.items()}
+        if not rule.verify and not verify_steps(rule, params):
+            issues.append(Issue("warning", rule.id, f"«{rule.title}»: нет текста проверки, и по действиям его не вывести", rule.doc))
+        if not rule.rollback and not rollback_steps(rule, params):
+            issues.append(Issue("warning", rule.id, f"«{rule.title}»: нет текста отката, и по действиям его не вывести", rule.doc))
+        if rule.level == "risky" and not rule.risk:
+            issues.append(Issue("warning", rule.id, f"«{rule.title}»: рискованное правило без описания риска", rule.doc))
+        if docs_root is not None and "#" in rule.doc:
+            file_part, anchor = rule.doc.split("#", 1)
+            path = docs_root / file_part
+            if path not in anchors:
+                anchors[path] = heading_anchors(path.read_text(encoding="utf-8"))
+            if anchor not in anchors[path]:
+                issues.append(Issue("warning", rule.id, f"«{rule.title}»: в {file_part} нет заголовка для ссылки #{anchor}", rule.doc))
+    for group_id in catalog.groups:
+        if not catalog.rules_in_group(group_id):
+            issues.append(Issue("info", "catalog", f"Группа {group_id} без правил"))
+    return catalog, issues
 
 
 def validate_xml(text: str) -> list[Issue]:

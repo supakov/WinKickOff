@@ -15,6 +15,7 @@ summary = "Set-WinUILanguageOverride фиксирует язык интерфе�
 effect = "Требование заказчика «язык интерфейса не менять» держится на этой строке."
 versions = "Командлет с Windows 8."
 rollback = "Set-WinUILanguageOverride без параметра снимает закрепление."
+verify = 'Под учётной записью пользователя: Get-WinUILanguageOverride возвращает язык образа (например uk-UA); язык интерфейса после первого входа не изменился.'
 
 [[rule.actions]]
 type = "ps"

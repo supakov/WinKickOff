@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import re
+import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 
@@ -10,10 +13,11 @@ from winkickoff.core.catalog import load_catalog
 from winkickoff.core.profile import Account, Profile
 from winkickoff.core.render import Renderer
 from winkickoff.core.resources import Resources
-from winkickoff.core.validate import check_account_name, has_errors, validate_profile, validate_xml
+from winkickoff.core.validate import check_account_name, has_errors, validate_catalog, validate_profile, validate_xml
 
 ROOT = Path(__file__).resolve().parents[1]
 V02 = ROOT.parent / "autounattend.xml"
+BAD_PROFILES = Path(__file__).resolve().parent / "profiles"
 
 
 def errors(issues, target: str | None = None) -> list[str]:
@@ -99,6 +103,25 @@ class ProfileValidationTest(unittest.TestCase):
         self.assertEqual(errors(issues), [])
         self.assertIn("warning", {i.level for i in issues if i.target == "accounts[0]"})
 
+    def test_enabled_risky_rule_is_a_warning_with_its_risk(self) -> None:
+        rule = next(r for r in self.catalog.rules.values() if r.level == "risky")
+        for req in rule.requires:
+            self.profile.rules[req].enabled = True
+        self.profile.rules[rule.id].enabled = True
+        warnings = [i.message for i in self.check() if i.level == "warning" and i.target == rule.id]
+        self.assertTrue(any(rule.risk[:30] in m for m in warnings), warnings)
+
+    def test_bad_profile_files(self) -> None:
+        files = sorted(BAD_PROFILES.glob("bad-*.json"))
+        self.assertGreaterEqual(len(files), 5)
+        for path in files:
+            with self.subTest(profile=path.name):
+                expected = json.loads(path.read_text(encoding="utf-8"))["_expect"]
+                profile, _ = Profile.load(path, self.catalog)
+                issues = validate_profile(profile, self.catalog, self.keyboards)
+                targets = {i.target for i in issues if i.level == "error"}
+                self.assertTrue(set(expected) <= targets, f"expected errors on {expected}, got {sorted(targets)}")
+
     def test_account_names(self) -> None:
         self.assertIsNone(check_account_name("Admin"))
         self.assertIsNone(check_account_name("Бухгалтерия"))
@@ -122,7 +145,7 @@ class XmlValidationTest(unittest.TestCase):
 
     @unittest.skipUnless(V02.exists(), "v0.2 answer file not found")
     def test_v02_is_clean(self) -> None:
-        self.assertFalse(has_errors(validate_xml(V02.read_text(encoding="utf-8"))))
+        self.assertEqual(validate_xml(V02.read_text(encoding="utf-8")), [])  # no errors and no warnings
 
     def test_broken_xml(self) -> None:
         self.assert_rejected(self.xml[:-40], "XML")
@@ -142,6 +165,10 @@ class XmlValidationTest(unittest.TestCase):
         text = re.sub(r"<UserLocale>[^<]*</UserLocale>", "", self.xml)
         self.assert_rejected(text, "UserLocale")
 
+    def test_bad_input_locale(self) -> None:
+        text = re.sub(r"<InputLocale>[^<]*</InputLocale>", "<InputLocale>0409:0409;english</InputLocale>", self.xml)
+        self.assert_rejected(text, "InputLocale")
+
     def test_no_administrator(self) -> None:
         self.assert_rejected(self.xml.replace("<Group>Administrators</Group>", "<Group>Users</Group>"), "Administrators")
 
@@ -150,5 +177,77 @@ class XmlValidationTest(unittest.TestCase):
         self.assert_rejected(text, "exit 0")
 
 
+GROUPS = """
+[[group]]
+id = "a"
+title = "A"
+order = 1
+"""
+
+RULE = """
+[[rule]]
+id = "a.{name}"
+group = "a"
+phase = "{phase}"
+title = "{name}"
+level = "optional"
+default = true
+doc = "README.md{anchor}"
+summary = "s"
+effect = "e"
+[[rule.actions]]
+{action}
+"""
+
+REG = """type = 'reg'
+path = 'HKLM:\\SOFTWARE\\Policies\\Test'
+name = 'X'
+kind = 'DWord'
+value = 1"""
+
+PS = """type = 'ps'
+script = 'Write-Log 1'"""
+
+README = """# Title
+
+## Section one
+"""
+
+
+class CatalogValidationTest(unittest.TestCase):
+    def check(self, rules: str) -> list:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "rules").mkdir()
+            (root / "rules" / "groups.toml").write_text(textwrap.dedent(GROUPS), encoding="utf-8")
+            (root / "rules" / "10-test.toml").write_text(rules, encoding="utf-8")
+            (root / "README.md").write_text(README, encoding="utf-8")
+            _, issues = validate_catalog(root / "rules", root)
+            return issues
+
+    def test_real_catalog_has_no_remarks(self) -> None:
+        catalog, issues = validate_catalog(ROOT / "rules", ROOT.parent)
+        self.assertIsNotNone(catalog)
+        self.assertEqual([(i.target, i.message) for i in issues], [])
+
+    def test_loader_error_is_reported_not_raised(self) -> None:
+        issues = self.check("[[rule]]\nid = ")
+        self.assertEqual([i.level for i in issues], ["error"])
+        self.assertIn("TOML", issues[0].message)
+
+    def test_missing_anchor_is_a_warning(self) -> None:
+        good = RULE.format(name="one", phase="specialize", anchor="#section-one", action=REG)
+        bad = RULE.format(name="two", phase="specialize", anchor="#no-such-section", action=REG)
+        issues = self.check(good + bad)
+        self.assertEqual([i.target for i in issues], ["a.two"])
+        self.assertEqual(issues[0].level, "warning")
+
+    def test_script_rule_without_texts_is_a_warning(self) -> None:
+        issues = self.check(RULE.format(name="one", phase="specialize", anchor="", action=PS))
+        self.assertEqual(sorted(i.level for i in issues), ["warning", "warning"])
+
+
 if __name__ == "__main__":
     unittest.main()
+
+

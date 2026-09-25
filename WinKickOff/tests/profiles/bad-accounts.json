@@ -1,0 +1,22 @@
+{
+  "format_version": 2,
+  "catalog_version": "0.3",
+  "name": "bad-accounts",
+  "_expect": [
+    "accounts",
+    "accounts[0]",
+    "accounts[1]"
+  ],
+  "accounts": [
+    {
+      "name": "Administrator",
+      "display_name": "A",
+      "group": "Users"
+    },
+    {
+      "name": "Kasa",
+      "display_name": "K",
+      "group": "Power Users"
+    }
+  ]
+}

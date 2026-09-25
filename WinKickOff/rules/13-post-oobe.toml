@@ -15,6 +15,8 @@ doc = "docs/reference/16-post-oobe.md"
 summary = "Для каждой учётной записи из профиля устанавливается PasswordNeverExpires. Дублирует машинную настройку net accounts на случай, если её изменят."
 effect = "Стартовые учётные записи без пароля не получат требование сменить пароль."
 versions = "Set-LocalUser с Windows 10 1607."
+verify = 'Get-LocalUser -Name Admin, User | Select-Object Name, PasswordExpires: поле PasswordExpires пустое.'
+rollback = 'Set-LocalUser -Name <имя> -PasswordNeverExpires $false от имени администратора; делать вместе с назначением паролей.'
 
 [[rule.actions]]
 type = "ps"
@@ -40,6 +42,8 @@ doc = "docs/reference/16-post-oobe.md"
 summary = "Учётные записи с RID 500 и 501 находятся по SID (имена локализованы на украинском образе) и отключаются, если включены."
 effect = "Известные всем имена не могут использоваться для входа."
 versions = "Get-LocalUser с Windows 10 1607."
+verify = "Get-LocalUser | Where-Object { $_.SID.Value -match '-50[01]$' } | Select-Object Name, Enabled: у обеих записей Enabled = False."
+rollback = 'Enable-LocalUser -SID <SID> от имени администратора. Включать встроенного Администратора не рекомендуется: его имя известно всем.'
 
 [[rule.actions]]
 type = "ps"
@@ -62,6 +66,8 @@ tags = ["лог", "ua.err", "specialize", "диагностика"]
 doc = "docs/reference/16-post-oobe.md"
 summary = "Если обёртки команд specialize записали ошибку (скрипт не извлёкся или упал), её текст попадает в Post-OOBE.log с пометкой SPECIALIZE ERROR."
 effect = "Единственный способ узнать, что скрипт машины не выполнился."
+verify = 'C:\ProgramData\Unattend\Logs\Post-OOBE.log: строк SPECIALIZE ERROR нет; файла C:\Windows\Temp\ua.err нет.'
+rollback = 'Не требуется: правило только переносит текст ошибок в лог и удаляет временный файл.'
 
 [[rule.actions]]
 type = "ps"
@@ -83,6 +89,8 @@ doc = "docs/reference/16-post-oobe.md"
 summary = "Windows 11 24H2 оставляет копии файла ответов (с именами учётных записей и паролями, если они были) в C:\\Windows\\Panther; они удаляются."
 effect = "На диске не остаётся описания учётных записей."
 versions = "На Windows 10 сохранялась одна копия, на 24H2 две."
+verify = 'Test-Path C:\Windows\Panther\unattend.xml и Test-Path C:\Windows\Panther\unattend-original.xml возвращают False.'
+rollback = 'Не откатывается и не нужно: работающей системе копии не нужны, исходный файл остаётся на установочном носителе.'
 
 [[rule.actions]]
 type = "ps"

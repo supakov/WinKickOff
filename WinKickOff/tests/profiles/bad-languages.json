@@ -1,0 +1,18 @@
+{
+  "format_version": 2,
+  "catalog_version": "0.3",
+  "name": "bad-languages",
+  "_expect": [
+    "languages.input",
+    "languages.user_locale"
+  ],
+  "languages": {
+    "ui_language": "uk-UA",
+    "system_locale": "uk-UA",
+    "user_locale": "Ukrainian",
+    "input": [
+      "en-US",
+      "xx-XX"
+    ]
+  }
+}

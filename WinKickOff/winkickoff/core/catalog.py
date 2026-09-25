@@ -453,3 +453,27 @@ def _check_cycles(catalog: Catalog) -> None:
 
 def iter_actions(catalog: Catalog, rule_ids: Iterable[str]) -> list[Action]:
     return [action for rule_id in rule_ids for action in catalog.rules[rule_id].actions]
+
+
+_HEADING_RE = re.compile(r"^#{1,6}\s+(.*?)\s*#*\s*$")
+
+
+def heading_anchors(markdown: str) -> set[str]:
+    """Anchors of the headings of a Markdown text, built the way GitHub builds them: lower case,
+    only letters, digits, spaces, hyphens and underscores kept, spaces turned into hyphens,
+    repeated headings numbered -1, -2. Fenced code blocks are skipped."""
+    anchors: set[str] = set()
+    seen: dict[str, int] = {}
+    in_code = False
+    for line in markdown.splitlines():
+        if line.startswith("```"):
+            in_code = not in_code
+            continue
+        match = None if in_code else _HEADING_RE.match(line)
+        if not match:
+            continue
+        slug = "".join(ch for ch in match.group(1).strip().lower() if ch.isalnum() or ch in " -_").replace(" ", "-")
+        count = seen.get(slug, 0)
+        seen[slug] = count + 1
+        anchors.add(slug if count == 0 else f"{slug}-{count}")
+    return anchors

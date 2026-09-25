@@ -1,0 +1,11 @@
+{
+  "format_version": 2,
+  "catalog_version": "0.3",
+  "name": "bad-timezone",
+  "_expect": [
+    "install.time_zone"
+  ],
+  "install": {
+    "time_zone": ""
+  }
+}

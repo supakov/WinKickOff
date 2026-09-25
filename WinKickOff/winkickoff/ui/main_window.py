@@ -30,7 +30,8 @@ from winkickoff.core.profile import Profile
 from winkickoff.core.pscheck import check_scripts
 from winkickoff.core.render import BuildResult, Renderer, RenderError, render_action, substitute
 from winkickoff.core.resources import Resources
-from winkickoff.core.validate import Issue, has_errors, validate_profile, validate_xml
+from winkickoff.core.validate import Issue, has_errors, validate_catalog, validate_profile, validate_xml
+from winkickoff.core.verify import rollback_steps, verify_steps
 from winkickoff.ui.checkimages import make_check_images
 from winkickoff.ui.data_forms import AccountsForm, InstallForm, LanguagesForm
 
@@ -111,6 +112,7 @@ class MainWindow(tk.Tk):
         self._suppress_search = False
         self._open_groups: set[str] = set()
         self._param_vars: list[tk.Variable] = []
+        self._param_marks: dict[str, ttk.Label] = {}
         self._choices: list[tuple[str, Path]] = []
         self._last_output: Path | None = None
         self._issues: list[Issue] = []
@@ -150,6 +152,7 @@ class MainWindow(tk.Tk):
         self.style.configure("H1.TLabel", font=self.font_h1)
         self.style.configure("Note.TLabel", foreground="#555555")
         self.style.configure("Error.TLabel", foreground="#b00020")
+        self.style.configure("Changed.TLabel", foreground="#1f4e79", font=(family, size, "bold"))
 
     def _build_menu(self) -> None:
         menubar = tk.Menu(self)
@@ -170,6 +173,8 @@ class MainWindow(tk.Tk):
         build_menu.add_command(label="Проверить", accelerator="F7", command=self.check)
         build_menu.add_command(label="Собрать autounattend.xml...", accelerator="F9", command=self.build)
         build_menu.add_command(label="Открыть папку результата", command=self.open_output_folder)
+        build_menu.add_separator()
+        build_menu.add_command(label="Проверить каталог правил", command=self.check_catalog)
         menubar.add_cascade(label="Сборка", menu=build_menu)
         help_menu = tk.Menu(menubar, tearoff=False)
         help_menu.add_command(label="Порядок работы", command=lambda: self.select_node(WORKFLOW_NODE))
@@ -245,6 +250,10 @@ class MainWindow(tk.Tk):
         self.detail.tag_configure("mono", font=self.font_mono, lmargin1=12, lmargin2=12)
         self.detail.tag_configure("muted", foreground="#666666")
         self.detail.tag_configure("risk", foreground="#a33333")
+        self.detail.tag_configure("link", foreground="#1a5fb4", underline=True)
+        self.detail.tag_bind("link", "<Enter>", lambda _e: self.detail.configure(cursor="hand2"))
+        self.detail.tag_bind("link", "<Leave>", lambda _e: self.detail.configure(cursor=""))
+        self._link_tags: list[str] = []
         self.params_frame = ttk.LabelFrame(self.detail_view, padding=(10, 6))
         self.detail_view.pack(fill=tk.BOTH, expand=True)
 
@@ -332,8 +341,8 @@ class MainWindow(tk.Tk):
             tags.append("off")
         if rule.level == "risky":
             tags.append("risky")
-        if enabled != rule.default:
-            tags.append("changed")
+        if enabled != rule.default or self.profile.rules[rule.id].params:
+            tags.append("changed")  # differs from the catalog default: state or a parameter
         return tuple(tags)
 
     def _group_counts(self, group_id: str) -> tuple[int, int]:
@@ -553,18 +562,32 @@ class MainWindow(tk.Tk):
         if rule.versions:
             parts += [("h2", "Версии Windows"), ("", rule.versions)]
         parts.append(("h2", "Зависимости"))
-        requires = [self.catalog.rules[r].title for r in rule.requires]
-        dependents = [self.catalog.rules[r].title for r in self.resolver.dependents(rule.id)]
-        parts.append(("", "Требует: " + ("; ".join(requires) if requires else "ничего")))
-        parts.append(("", "Выключится вместе с ним: " + ("; ".join(dependents) if dependents else "ничего")))
-        if rule.conflicts:
-            parts.append(("", "Конфликтует с: " + "; ".join(self.catalog.rules[r].title for r in rule.conflicts)))
+        for caption, ids in (
+            ("Требует", list(rule.requires)),
+            ("Выключится вместе с ним", self.resolver.dependents(rule.id)),
+            ("Конфликтует с", list(rule.conflicts)),
+        ):
+            if not ids and caption == "Конфликтует с":
+                continue
+            parts.append(("", f"{caption}: {'ничего' if not ids else ''}".rstrip()))
+            parts += [(f"link:r:{other}", "    " + self._rule_link_text(other)) for other in ids]
+        parts.append(("h2", "Проверка после установки"))
         if rule.verify:
-            parts += [("h2", "Проверка после установки"), ("mono", rule.verify)]
+            parts.append(("mono", rule.verify))
+        else:
+            parts.append(("muted", "Сформировано по действиям правила:"))
+            parts += [("mono", step) for step in verify_steps(rule, params)]
+        parts.append(("h2", "Откат"))
         if rule.rollback:
-            parts += [("h2", "Откат"), ("", rule.rollback)]
-        parts += [("h2", "Подробнее"), ("muted", rule.doc)]
+            parts.append(("", rule.rollback))
+        else:
+            parts.append(("muted", "Сформировано по действиям правила:"))
+            parts += [("mono", step) for step in rollback_steps(rule, params)]
+        parts += [("h2", "Подробнее"), (f"link:doc:{rule.doc}", "Карточка справочника: " + rule.doc)]
         return parts
+
+    def _rule_link_text(self, rule_id: str) -> str:
+        return f"{self.catalog.rules[rule_id].title} ({'включено' if self.profile.is_enabled(rule_id) else 'выключено'})"
 
     def _group_parts(self, group_id: str) -> list[tuple[str, str]]:
         group = self.catalog.groups[group_id]
@@ -575,7 +598,7 @@ class MainWindow(tk.Tk):
         parts.append(("h2", "Правила группы"))
         for rule in self.catalog.rules_in_group(group_id):
             mark = "[x]" if self.profile.is_enabled(rule.id) else "[ ]"
-            parts.append(("", f"{mark} {rule.title}"))
+            parts.append((f"link:r:{rule.id}", f"{mark} {rule.title}"))
         return parts
 
     def _action_text(self, action: Action, params: dict[str, Any]) -> str:
@@ -591,17 +614,48 @@ class MainWindow(tk.Tk):
             return f"{action.type}: {exc}"
 
     def _write_detail(self, parts: list[tuple[str, str]]) -> None:
+        """Parts are (tag, line). A tag "link:<target>" makes the line clickable: the target is a tree
+        node ("r:<rule>", "g:<group>") or "doc:<path#anchor>" (a card of the reference)."""
         self.detail.configure(state=tk.NORMAL)
         self.detail.delete("1.0", tk.END)
+        for name in self._link_tags:
+            self.detail.tag_delete(name)
+        self._link_tags = []
         for tag, text in parts:
-            self.detail.insert(tk.END, text + "\n", tag or ())
+            if tag.startswith("link:"):
+                name = f"link{len(self._link_tags)}"
+                self._link_tags.append(name)
+                self.detail.insert(tk.END, text, ("link", name))
+                self.detail.insert(tk.END, "\n")
+                self.detail.tag_bind(name, "<Button-1>", lambda _e, target=tag[5:]: self.follow_link(target))
+            else:
+                self.detail.insert(tk.END, text + "\n", tag or ())
         self.detail.configure(state=tk.DISABLED)
         self.detail.yview_moveto(0)
+
+    def follow_link(self, target: str) -> None:
+        if target.startswith("doc:"):
+            self.open_doc(target[4:])
+        else:
+            self.select_node(target)
+
+    def open_doc(self, doc: str) -> None:
+        """Open a card of the reference in the program Windows associates with .md files."""
+        path = self.paths.docs_root / doc.split("#", 1)[0]
+        if not path.exists():
+            self.set_status(f"Карточка справочника не найдена: {path}")
+            return
+        try:
+            os.startfile(path)  # type: ignore[attr-defined]
+            self.set_status(f"Открыта карточка справочника: {path.name}" + (f", раздел «{doc.split('#', 1)[1]}»" if "#" in doc else ""))
+        except OSError as exc:
+            self.set_status(f"Карточка не открылась: {exc}")
 
     def _clear_params(self) -> None:
         for widget in self.params_frame.winfo_children():
             widget.destroy()
         self._param_vars = []
+        self._param_marks = {}
         self.params_frame.pack_forget()
 
     def _build_group_buttons(self, group_id: str) -> None:
@@ -638,6 +692,10 @@ class MainWindow(tk.Tk):
             if param.type == "int" and (param.min is not None or param.max is not None):
                 hint += f", диапазон {param.min}..{param.max}"
             ttk.Label(self.params_frame, text=hint, style="Note.TLabel").grid(row=row, column=2, sticky=tk.W, padx=(10, 0))
+            mark = ttk.Label(self.params_frame, style="Changed.TLabel")
+            mark.grid(row=row, column=3, sticky=tk.W, padx=(10, 0))
+            self._param_marks[param.name] = mark
+            self._update_param_mark(rule, param)
         ttk.Button(self.params_frame, text="Вернуть значения по умолчанию", command=lambda: self._reset_params(rule)).grid(
             row=len(rule.params), column=1, sticky=tk.W, pady=(6, 0)
         )
@@ -672,6 +730,12 @@ class MainWindow(tk.Tk):
         self._param_vars.append(var)
         return widget
 
+    def _update_param_mark(self, rule: Rule, param: Param) -> None:
+        """A parameter that differs from the catalog default is marked next to its hint."""
+        mark = self._param_marks.get(param.name)
+        if mark is not None:
+            mark.configure(text="изменено" if param.name in self.profile.rules[rule.id].params else "")
+
     def _set_param_text(self, rule: Rule, param: Param, raw: str) -> None:
         try:
             value = int(raw)
@@ -694,12 +758,15 @@ class MainWindow(tk.Tk):
             state.params[param.name] = value
         self.mark_dirty()
         self.set_status(f"«{rule.title}»: {param.title} = {self._param_display(param, value)}")
+        self._update_param_mark(rule, param)
+        self.refresh_marks()
         self._write_detail(self._rule_parts(rule))
 
     def _reset_params(self, rule: Rule) -> None:
         if self.profile.rules[rule.id].params:
             self.profile.rules[rule.id].params.clear()
             self.mark_dirty()
+            self.refresh_marks()
         self.show_item("r:" + rule.id)
 
     # ----------------------------------------------------------------- messages
@@ -893,6 +960,18 @@ class MainWindow(tk.Tk):
         errors = sum(1 for i in issues if i.level == "error")
         warnings = sum(1 for i in issues if i.level == "warning")
         self.set_status(f"Проверка: ошибок {errors}, предупреждений {warnings}" + ("; можно собирать (F9)" if not errors else ""))
+        return issues
+
+    def check_catalog(self) -> list[Issue]:
+        """Re-read the rule files from disk and report defects (useful while editing the TOML)."""
+        catalog, issues = validate_catalog(self.paths.rules, self.paths.docs_root)
+        if catalog is not None:
+            issues.append(Issue("info", "catalog", f"Каталог {catalog.version} читается: {len(catalog.rules)} правил, {len(catalog.groups)} групп. "
+                                                   "Изменения файлов каталога вступают в силу после перезапуска программы."))
+        self.show_issues(issues)
+        errors = sum(1 for i in issues if i.level == "error")
+        warnings = sum(1 for i in issues if i.level == "warning")
+        self.set_status(f"Проверка каталога: ошибок {errors}, предупреждений {warnings}")
         return issues
 
     def write_build(self, result: BuildResult, path: Path) -> None:
