@@ -24,13 +24,13 @@ tkinter, портабельная) показывает все правила у
 | Задача агента | Начать с |
 |---|---|
 | Понять, что за набор утилит и что в нём есть | `README.md` в корне, затем `docs/README.md` |
-| Понять, что делает файл ответов | `docs/appendices/B-autounattend-v0.2/README.md`, затем `docs/reference/00-architecture.md` |
-| Найти конкретный параметр и его ключи реестра | `docs/reference/README.md` (индекс по параметрам) |
-| Изменить поведение установки | правило в `WinKickOff/rules/` (файл v0.2 в приложении B заморожен), ограничения Setup в `docs/reference/00-architecture.md` раздел 3 |
+| Понять, что делает файл ответов | `docs/appendices/B-autounattend-v0.2/README.md`, затем `docs/technical/reference/00-architecture.md` |
+| Найти конкретный параметр и его ключи реестра | `docs/technical/reference/README.md` (индекс по параметрам) |
+| Изменить поведение установки | правило в `WinKickOff/rules/` (файл v0.2 в приложении B заморожен), ограничения Setup в `docs/technical/reference/00-architecture.md` раздел 3 |
 | Понять, почему что-то сделано не как в UnattendedWinstall | `docs/appendices/C-critical-review/01-critical-review.md` |
-| Работать над редактором | `draft/install-editor/README.md` (постановка 0.2), затем `draft/install-editor/todo/README.md`, затем `WinKickOff/README.md` |
-| Понять, почему редактор устроен на правилах, а не на `$Config` | `draft/install-editor/06-critical-review-v0.1.md` |
-| Добавить или изменить правило установки в редакторе | `draft/install-editor/03-data-model.md`, файл `WinKickOff/rules/NN-*.toml`, затем `python -m unittest` в `WinKickOff/` |
+| Работать над редактором | `docs/technical/editor/README.md` (постановка 0.2), затем `docs/technical/editor/todo/README.md`, затем `WinKickOff/README.md` |
+| Понять, почему редактор устроен на правилах, а не на `$Config` | `docs/technical/editor/06-critical-review-v0.1.md` |
+| Добавить или изменить правило установки в редакторе | `docs/technical/editor/03-data-model.md`, файл `WinKickOff/rules/NN-*.toml`, затем `python -m unittest` в `WinKickOff/` |
 | Узнать, что уже проверено критиком по v0.2 | `docs/appendices/C-critical-review/03-critic-report-v0.2.docx` (в Word по просьбе заказчика) |
 
 ## 3. Структура каталогов
@@ -97,7 +97,7 @@ Windows installer/
 6. Язык интерфейса Windows не меняется: `UILanguage` равен языку ISO (сейчас uk-UA).
 7. Файлы в `docs/appendices/` заморожены: v0.2 (приложение B) это эталон, с которым тесты сравнивают
    каталог и сборки. Поведение установки меняется правилами в `WinKickOff/rules/` с учётом
-   `docs/reference/00-architecture.md` раздел 3 (Path до 259 символов, без комментариев в компонентах,
+   `docs/technical/reference/00-architecture.md` раздел 3 (Path до 259 символов, без комментариев в компонентах,
    exit 0); затем карточка параметра в справочнике, пресеты (`tools/make_presets.py`) и тесты.
    Если эталон всё же нужно изменить (решение заказчика), меняются вместе файл, его README,
    `test_coverage_v02.py` и контрольная сумма в `docs/appendices/README.md`.
@@ -158,7 +158,7 @@ Get-ChildItem -Recurse -Include *.md,*.ps1,*.py,*.toml,*.json -File | Where-Obje
 - `auditpol` на украинском образе не принимает английские имена подкатегорий; используются GUID.
 - Задача планировщика создаётся из XML, чтобы работать от батареи; `Register-ScheduledTask` в specialize ненадёжен.
 - Все три встроенных скрипта завершаются `exit 0`; обёртки команд перехватывают ошибки в `C:\Windows\Temp\ua.err`.
-- Известные несоответствия v0.2 перечислены в `docs/reference/17-cross-links.md`, раздел 3; в каталоге
+- Известные несоответствия v0.2 перечислены в `docs/technical/reference/17-cross-links.md`, раздел 3; в каталоге
   редактора `MapsBroker` уже привязан к удалению Карт, а не к Xbox.
 - Из 153 действий скрипта v0.2 47 выполнялись безусловно; в редакторе каждое действие принадлежит
   правилу (130 правил: 47 базовых, 18 ASR, 33 приложения и т. д.), любое можно выключить.
@@ -189,26 +189,26 @@ Get-ChildItem -Recurse -Include *.md,*.ps1,*.py,*.toml,*.json -File | Where-Obje
 | Файл ответов v0.2 | Эталон, заморожен; проверен валидатором и критиком; приёмочная установка в ВМ заказчиком не подтверждена | 13.09.2026 | `docs/appendices/B-autounattend-v0.2/` |
 | Критический разбор оригинала | Готов | 12.09.2026 | `docs/appendices/C-critical-review/01-critical-review.md` |
 | Отчёт критика и правки | Готов (9 принято, 3 отклонено) | 13.09.2026 | `docs/appendices/C-critical-review/03-critic-report-v0.2.docx` |
-| Справочник по параметрам | Готов, 18 файлов | 25.09.2026 | `docs/reference/` |
+| Справочник по параметрам | Готов, 18 файлов | 25.09.2026 | `docs/technical/reference/` |
 | Утилита проверки | Готова, 36 проверок, 0 ошибок на v0.2 | 25.09.2026 | `tools/Validate-Unattend.ps1` |
 | Репозиторий GitHub | Подключён, локальная папка и `origin/main` совпадают | 25.09.2026 | https://github.com/supakov/WindowsInstaller |
-| Постановка редактора | Редакция 0.2: модель правил, зависимости, дерево с поиском, внешние TOML | 25.09.2026 | `draft/install-editor/01-06` |
-| Задачи редактора | T01-T11, T17 done (вехи M1-M4); T12-T16 todo | 25.09.2026 | `draft/install-editor/todo/` |
+| Постановка редактора | Редакция 0.2: модель правил, зависимости, дерево с поиском, внешние TOML | 25.09.2026 | `docs/technical/editor/01-06` |
+| Задачи редактора | T01-T11, T17 done (вехи M1-M4); T12-T16 todo | 25.09.2026 | `docs/technical/editor/todo/` |
 | Каталог правил | 0.3: 130 правил, 24 группы, целостность и покрытие v0.2 подтверждены тестами | 25.09.2026 | `WinKickOff/rules/` |
 | Код редактора | 0.2.0: генератор, проверки профиля и XML, импорт встроенного профиля, проверка PowerShell, пресеты, окно с флажками, параметрами, формами, профилями и сборкой; 145 тестов зелёные | 25.09.2026 | `WinKickOff/` |
 | Сборка «Офиса» из редактора | Покрывает все действия v0.2, валидатор 36 из 36; установка в ВМ не проверялась | 25.09.2026 | `WinKickOff/output/` (не версионируется) |
-| Применение правил к работающей Windows | Задача T15 поставлена: аудит только на чтение, применение через UAC, откат | 25.09.2026 | `draft/install-editor/todo/T15-apply-to-running-system.md` |
+| Применение правил к работающей Windows | Задача T15 поставлена: аудит только на чтение, применение через UAC, откат | 25.09.2026 | `docs/technical/editor/todo/T15-apply-to-running-system.md` |
 | Реорганизация репозитория | T17 done: корень описывает набор утилит, XML оригинала и v0.2 и разборы в `docs/appendices/`, история файлов сохранена (`git mv`) | 25.09.2026 | `README.md`, `docs/appendices/` |
-| Разделение документации | T16 todo: техническая на английском, пользовательская на uk, en, ru | 25.09.2026 | `draft/install-editor/todo/T16-docs-split-technical-user.md` |
+| Разделение документации | T16 todo: техническая на английском, пользовательская на uk, en, ru | 25.09.2026 | `docs/technical/editor/todo/T16-docs-split-technical-user.md` |
 | Пункты заказчика к v0.3 | Ожидаются | | |
 
-Открытые вопросы заказчику: `docs/02-constructor-requirements-draft.md`, раздел 6.
+Открытые вопросы заказчику: `docs/appendices/D-requirements-draft/02-constructor-requirements-draft.md`, раздел 6.
 
 ## 8. Как обновлять этот файл
 
 - Изменилась структура каталогов: раздел 3.
 - Появилась команда запуска или проверки: раздел 5.
-- Выполнена или начата задача: раздел 7 и `draft/install-editor/todo/README.md`.
+- Выполнена или начата задача: раздел 7 и `docs/technical/editor/todo/README.md`.
 - Выяснен факт, который влияет на будущие правки: раздел 6.
 - Название набора утилит в корневом README рабочее (по имени репозитория), ждёт решения заказчика.
 - Дата в шапке при каждом изменении.

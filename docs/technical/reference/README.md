@@ -1,7 +1,7 @@
 # Справочник по настройкам autounattend.xml v0.2
 
 Документация к файлу ответов `autounattend.xml` (версия 0.2 от 13.09.2026, лежит в
-[приложении B](../appendices/B-autounattend-v0.2/README.md)); на эти карточки ссылаются правила WinKickOff. Описано каждое направление
+[приложении B](../../appendices/B-autounattend-v0.2/README.md)); на эти карточки ссылаются правила WinKickOff. Описано каждое направление
 и каждый параметр: что именно записывается, каким методом, какой эффект ожидается, на что это влияет
 в других подсистемах, чем отличается поведение на разных версиях Windows, как проверить и как откатить.
 
@@ -63,4 +63,4 @@
 
 Документация Microsoft Learn (Unattended Windows Setup Reference, Group Policy reference, Defender ASR reference),
 результаты установки 13.09.2026 (setupact.log, setuperr.log), проверки на сборке 26200, отчёт независимого
-критика ([приложение C](../appendices/C-critical-review/03-critic-report-v0.2.docx)).
+критика ([приложение C](../../appendices/C-critical-review/03-critic-report-v0.2.docx)).

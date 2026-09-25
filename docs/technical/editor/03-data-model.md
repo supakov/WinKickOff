@@ -34,7 +34,7 @@ default = true
 requires = ["defender.realtime"]
 conflicts = []
 tags = ["defender", "adware", "bundlers"]
-doc = "docs/reference/07-defender.md#defenderpuaprotection"
+doc = "docs/technical/reference/07-defender.md#defenderpuaprotection"
 summary = "Defender блокирует adware, установщики-бандлы и майнеры при скачивании и запуске."
 effect = """
 Пользователь видит уведомление Безопасности Windows и файл не запускается.

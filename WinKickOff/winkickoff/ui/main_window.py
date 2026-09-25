@@ -1130,8 +1130,8 @@ class MainWindow(tk.Tk):
                 ("", f"Настройки программы: {self.paths.settings_file}"),
                 ("", f"Шаблоны рантайма: {self.paths.templates}"),
                 ("h2", "Документация"),
-                ("link:doc:docs/reference/README.md", "Справочник параметров: docs/reference/README.md"),
-                ("muted", "Постановка и план редактора: draft/install-editor/ в репозитории проекта."),
+                ("link:doc:docs/technical/reference/README.md", "Справочник параметров: docs/technical/reference/README.md"),
+                ("muted", "Постановка и план редактора: docs/technical/editor/ в репозитории проекта."),
             ]
         )
 

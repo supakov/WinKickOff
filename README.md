@@ -12,7 +12,7 @@
 | **Validate-Unattend** | Статическая проверка любого файла ответов на ограничения установщика Windows (36 проверок), только чтение | [`tools/Validate-Unattend.ps1`](tools/Validate-Unattend.ps1) | Готова |
 
 Следующая утилита набора, применение выбранных правил к уже установленной Windows с проверкой и откатом,
-описана в [задаче T15](draft/install-editor/todo/T15-apply-to-running-system.md). Пароли и группы назначает
+описана в [задаче T15](docs/technical/editor/todo/T15-apply-to-running-system.md). Пароли и группы назначает
 отдельный проект заказчика после установки.
 
 ## Быстрый старт
@@ -47,7 +47,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 
 - [docs/](docs/README.md): справочник параметров и приложения.
 - [Приложения](docs/appendices/README.md): оригинальный файл UnattendedWinstall, наш написанный вручную
   файл ответов v0.2 (эталон, из которого вырос каталог правил WinKickOff), критический разбор.
-- [draft/install-editor/](draft/install-editor/README.md): постановка и план WinKickOff.
+- [docs/technical/editor/](docs/technical/editor/README.md): постановка и план WinKickOff.
 - [AGENTS.md](AGENTS.md): карта проекта для разработчиков и агентов.
 
 ## Репозиторий

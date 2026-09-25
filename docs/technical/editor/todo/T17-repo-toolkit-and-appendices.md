@@ -25,7 +25,7 @@ Windows installer/                    репозиторий WindowsInstaller
 │       ├── B-autounattend-v0.2/      наш файл v0.2, README с историей версий v0.1-v0.2 и чек-листом ВМ
 │       ├── C-critical-review/        01-critical-review.md, 03-critic-report-v0.2.docx
 │       └── D-winkickoff-office/      пример: autounattend.xml, собранный WinKickOff из пресета «Офис»
-└── draft/install-editor/             постановка (в T16 переезжает в docs/technical/editor/)
+└── docs/technical/editor/             постановка (в T16 переезжает в docs/technical/editor/)
 ```
 
 Приложение D необязательное: пример выхода программы для сравнения с v0.2. Если его добавлять, то
@@ -41,7 +41,7 @@ Windows installer/                    репозиторий WindowsInstaller
 | `README.md` в корне | описание файла v0.2, история версий, как применить, чек-лист ВМ | переезжает в приложение B; корень описывает набор утилит |
 | `AGENTS.md` | структура, правило 7 «Любая правка autounattend.xml» | новая структура; правило 7: v0.2 заморожен как эталон, изменения только через каталог WinKickOff |
 | `docs/01-critical-review.md` | ссылки на `original/` и корневой файл | относительные ссылки внутри приложений |
-| Карточки `docs/reference/` | упоминания корневого `autounattend.xml` | «файл v0.2 (приложение B)» |
+| Карточки `docs/technical/reference/` | упоминания корневого `autounattend.xml` | «файл v0.2 (приложение B)» |
 
 ## Шаги
 
@@ -70,6 +70,6 @@ Windows installer/                    репозиторий WindowsInstaller
 25.09.2026: перенос через `git mv`; SHA-256 обоих XML до и после совпадают (v0.2
 `2fbe72a6...`, оригинал `1906a0bb...`). Тесты берут путь к v0.2 из одной константы `tests/v02_actions.py`
 (`V02`). Валидатор без `-Path` проверяет приложение B: 36 из 36. Бывший корневой README стал README
-приложения B (исправлен путь логов первого входа: `Setup-User.<имя>.log`). `docs/02-constructor-requirements-draft.md`
+приложения B (исправлен путь логов первого входа: `Setup-User.<имя>.log`). `docs/appendices/D-requirements-draft/02-constructor-requirements-draft.md`
 оставлен в `docs/`: в нём открытые вопросы заказчику; его место решит T16. Приложение D (пример выхода
 WinKickOff) не создано: ждёт решения заказчика. Название набора в корневом README рабочее: WindowsInstaller.

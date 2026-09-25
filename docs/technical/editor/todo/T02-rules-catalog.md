@@ -19,7 +19,7 @@
    приложения из `$AppsToRemove` это одно правило с действием `appx` (список) плюс возможность
    выключить отдельные приложения через параметры (решить: список параметров-флажков или отдельные правила).
 3. Для каждого правила: `summary`, `effect`, `risk` (если есть), `versions`, `verify`, `rollback`,
-   `doc` со ссылкой на карточку справочника; тексты сжимаются из `docs/reference/`.
+   `doc` со ссылкой на карточку справочника; тексты сжимаются из `docs/technical/reference/`.
 4. Зависимости по разделу 17 справочника: ASR → `defender.asr`; три облачных правила ASR →
    `defender.cloud`; `logging.powershell` → `logging.eventlog-sizes`; `update.defer-feature` →
    не конфликтует с `privacy.telemetry` (DiagTrack Manual); `accounts.password-never-expires` →
