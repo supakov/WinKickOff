@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import re
+import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
@@ -25,11 +26,12 @@ from winkickoff import APP_NAME, APP_VERSION
 from winkickoff.core.catalog import Action, Catalog, Param, Rule
 from winkickoff.core.deps import Change, Resolver
 from winkickoff.core.importer import IMPORTED_NAME, ImportFailed, import_xml
-from winkickoff.core.paths import AppPaths
+from winkickoff.core.paths import AppPaths, display_path
 from winkickoff.core.profile import Profile
-from winkickoff.core.pscheck import check_scripts
+from winkickoff.core.pscheck import PsCheckResult, check_scripts
 from winkickoff.core.render import BuildResult, Renderer, RenderError, render_action, substitute
 from winkickoff.core.resources import Resources
+from winkickoff.core.settings import Settings
 from winkickoff.core.validate import Issue, has_errors, validate_catalog, validate_profile, validate_xml
 from winkickoff.core.verify import rollback_steps, verify_steps
 from winkickoff.ui.checkimages import make_check_images
@@ -99,9 +101,12 @@ def _profile_name(path: Path) -> str:
 
 
 class MainWindow(tk.Tk):
-    def __init__(self, paths: AppPaths, catalog: Catalog, profile: Profile, resources: Resources) -> None:
+    def __init__(self, paths: AppPaths, catalog: Catalog, profile: Profile, resources: Resources,
+                 settings: Settings | None = None) -> None:
         super().__init__()
         self.paths = paths
+        self.settings = settings if settings is not None else Settings.load(paths.settings_file)
+        self._busy = False
         self.catalog = catalog
         self.profile = profile
         self.resources = resources
@@ -119,7 +124,7 @@ class MainWindow(tk.Tk):
         self._current_item = WORKFLOW_NODE
         self.forms: dict[str, InstallForm | AccountsForm | LanguagesForm] = {}
 
-        self.geometry("1260x800")
+        self.geometry(self.settings.geometry or "1260x800")
         self.minsize(980, 620)
         self._setup_style()
         self.images = make_check_images(self)
@@ -163,6 +168,9 @@ class MainWindow(tk.Tk):
         file_menu.add_cascade(label="Новый профиль из пресета", menu=presets)
         file_menu.add_command(label="Открыть профиль...", accelerator="Ctrl+O", command=self.open_profile_dialog)
         file_menu.add_command(label="Открыть профиль из autounattend.xml...", command=self.import_from_xml)
+        self.recent_menu = tk.Menu(file_menu, tearoff=False)
+        file_menu.add_cascade(label="Недавние", menu=self.recent_menu)
+        self._rebuild_recent_menu()
         file_menu.add_separator()
         file_menu.add_command(label="Сохранить профиль", accelerator="Ctrl+S", command=self.save_profile)
         file_menu.add_command(label="Сохранить профиль как...", command=self.save_profile_as)
@@ -193,8 +201,10 @@ class MainWindow(tk.Tk):
         for text, command in (("Открыть...", self.open_profile_dialog), ("Сохранить", self.save_profile), ("Сохранить как...", self.save_profile_as)):
             ttk.Button(bar, text=text, command=command).pack(side=tk.LEFT, padx=2)
         ttk.Separator(bar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
-        ttk.Button(bar, text="Проверить (F7)", command=self.check).pack(side=tk.LEFT, padx=2)
-        ttk.Button(bar, text="Собрать autounattend.xml (F9)", command=self.build).pack(side=tk.LEFT, padx=2)
+        self.check_button = ttk.Button(bar, text="Проверить (F7)", command=self.check)
+        self.check_button.pack(side=tk.LEFT, padx=2)
+        self.build_button = ttk.Button(bar, text="Собрать autounattend.xml (F9)", command=self.build)
+        self.build_button.pack(side=tk.LEFT, padx=2)
         ttk.Button(bar, text="Папка результата", command=self.open_output_folder).pack(side=tk.LEFT, padx=2)
 
     def _build_body(self) -> None:
@@ -276,7 +286,7 @@ class MainWindow(tk.Tk):
         self.messages.bind("<Double-Button-1>", self._on_message_double)
 
     def _bind_keys(self) -> None:
-        self.bind("<F7>", lambda _e: self.check())
+        self.bind("<F7>", lambda _e: None if self._busy else self.check())
         self.bind("<F9>", lambda _e: self.build())
         self.bind("<Control-KeyPress>", self._on_ctrl_key)
         self.bind("<Escape>", lambda _e: self.clear_search())
@@ -865,9 +875,38 @@ class MainWindow(tk.Tk):
             messagebox.showerror(APP_NAME, f"Профиль не открыт:\n{path}\n\n{exc}", parent=self)
             return False
         self.set_profile(profile, dirty=False, warnings=warnings)
+        if not self._is_preset(path):
+            self.remember_file(path)
         kind = "Пресет" if self._is_preset(path) else "Профиль"
         self.set_status(f"{kind} «{profile.name}» открыт" + (" (изменения сохраняются под новым именем)" if self._is_preset(path) else ""))
         return True
+
+    def remember_file(self, path: Path | None) -> None:
+        if path is None:
+            return
+        self.settings.add_recent(path, self.paths.root)
+        self.settings.save(self.paths.settings_file)
+        self._rebuild_recent_menu()
+
+    def _rebuild_recent_menu(self) -> None:
+        self.recent_menu.delete(0, tk.END)
+        if not self.settings.recent:
+            self.recent_menu.add_command(label="(пусто)", state=tk.DISABLED)
+            return
+        for index, item in enumerate(self.settings.recent, start=1):
+            self.recent_menu.add_command(label=f"{index}. {item}", command=lambda i=item: self.open_recent(i))
+
+    def open_recent(self, item: str) -> bool:
+        path = Settings.resolve(item, self.paths.root)
+        if not path.exists():
+            messagebox.showerror(APP_NAME, f"Файл не найден и убран из списка недавних:\n{path}", parent=self)
+            self.settings.forget(path, self.paths.root)
+            self.settings.save(self.paths.settings_file)
+            self._rebuild_recent_menu()
+            return False
+        if path.suffix.lower() == ".xml":
+            return self.confirm_discard() and self.import_file(path)
+        return self.load_profile_file(path)
 
     def open_profile_dialog(self) -> None:
         name = filedialog.askopenfilename(parent=self, title="Открыть профиль", initialdir=str(self.paths.profiles),
@@ -885,6 +924,7 @@ class MainWindow(tk.Tk):
             return False
         self.dirty = False
         self.update_title()
+        self.remember_file(self.profile.path)
         self.set_status(f"Профиль сохранён: {self.profile.path}")
         return True
 
@@ -910,6 +950,7 @@ class MainWindow(tk.Tk):
         self.dirty = False
         self.refresh_profile_choices()
         self.update_title()
+        self.remember_file(path)
         self.set_status(f"Профиль сохранён: {path}")
         return True
 
@@ -934,6 +975,7 @@ class MainWindow(tk.Tk):
         if by_actions:
             profile.name = f"Импорт {path.stem}"
         self.set_profile(profile, dirty=True, warnings=warnings)
+        self.remember_file(path)
         how = "по действиям файла (сомнения в списке внизу)" if by_actions else "из встроенного профиля"
         self.set_status(f"Профиль «{profile.name}» восстановлен {how}; сохраните его, чтобы использовать повторно")
         return True
@@ -950,16 +992,18 @@ class MainWindow(tk.Tk):
             return None, issues + [Issue("error", "build", f"Сборка невозможна: {exc}")]
         issues += validate_xml(result.xml)
         if with_powershell and not has_errors(issues):
-            ps = check_scripts(result.scripts, self.paths.logs / "tmp")
-            if ps.skipped:
-                issues.append(Issue("info", "powershell", "Проверка синтаксиса PowerShell пропущена: powershell.exe не найден"))
-            elif ps.failure:
-                issues.append(Issue("warning", "powershell", f"Проверка синтаксиса PowerShell не выполнена: {ps.failure}"))
-            else:
-                issues += [Issue("error", "powershell", e) for e in ps.errors]
-                if not ps.errors:
-                    issues.append(Issue("info", "powershell", "Синтаксис скриптов по Windows PowerShell 5.1: ошибок нет"))
+            issues += self._ps_issues(check_scripts(result.scripts, self.paths.logs / "tmp"))
         return result, issues
+
+    @staticmethod
+    def _ps_issues(ps: PsCheckResult) -> list[Issue]:
+        if ps.skipped:
+            return [Issue("info", "powershell", "Проверка синтаксиса PowerShell пропущена: powershell.exe не найден")]
+        if ps.failure:
+            return [Issue("warning", "powershell", f"Проверка синтаксиса PowerShell не выполнена: {ps.failure}")]
+        if ps.errors:
+            return [Issue("error", "powershell", e) for e in ps.errors]
+        return [Issue("info", "powershell", "Синтаксис скриптов по Windows PowerShell 5.1: ошибок нет")]
 
     def check(self) -> list[Issue]:
         result, issues = self.run_checks(with_powershell=False)
@@ -987,13 +1031,51 @@ class MainWindow(tk.Tk):
         path.write_bytes(result.xml.encode("utf-8"))
         self._last_output = path
 
+    def set_busy(self, busy: bool, text: str = "") -> None:
+        """While a background check runs, Check and Build are unavailable (buttons and F7, F9)."""
+        self._busy = busy
+        state = ["disabled"] if busy else ["!disabled"]
+        self.check_button.state(state)
+        self.build_button.state(state)
+        self.configure(cursor="watch" if busy else "")
+        if text:
+            self.set_status(text)
+
     def build(self) -> None:
-        self.configure(cursor="watch")
-        self.update_idletasks()
-        try:
-            result, issues = self.run_checks(with_powershell=True)
-        finally:
-            self.configure(cursor="")
+        """Validate and assemble at once; the PowerShell syntax check (up to a few seconds) runs in a
+        background thread so the window stays responsive; then the file is saved."""
+        if self._busy:
+            return
+        result, issues = self.run_checks(with_powershell=False)
+        if result is None or has_errors(issues):
+            self._finish_build(result, issues)
+            return
+        outcome: dict[str, Any] = {}
+
+        def work() -> None:
+            try:
+                outcome["ps"] = check_scripts(result.scripts, self.paths.logs / "tmp")
+            except Exception as exc:  # noqa: BLE001 - reported to the user, never lost in the thread
+                outcome["error"] = exc
+
+        thread = threading.Thread(target=work, name="pscheck", daemon=True)
+        self.set_busy(True, "Проверка синтаксиса PowerShell...")
+        thread.start()
+
+        def poll() -> None:
+            if thread.is_alive():
+                self.after(100, poll)
+                return
+            self.set_busy(False)
+            if "error" in outcome:
+                extra = [Issue("warning", "powershell", f"Проверка синтаксиса PowerShell не выполнена: {outcome['error']}")]
+            else:
+                extra = self._ps_issues(outcome["ps"])
+            self._finish_build(result, issues + extra)
+
+        self.after(100, poll)
+
+    def _finish_build(self, result: BuildResult | None, issues: list[Issue]) -> None:
         self.show_issues(issues)
         if result is None or has_errors(issues):
             count = sum(1 for i in issues if i.level == "error")
@@ -1045,10 +1127,22 @@ class MainWindow(tk.Tk):
                 ("", f"Папка программы: {self.paths.root}"),
                 ("", f"Профили: {self.paths.profiles}"),
                 ("", f"Собранные файлы по умолчанию: {self.paths.output}"),
-                ("muted", "Документация проекта: draft/install-editor/ и docs/reference/ в репозитории."),
+                ("", f"Настройки программы: {self.paths.settings_file}"),
+                ("", f"Шаблоны рантайма: {self.paths.templates}"),
+                ("h2", "Документация"),
+                ("link:doc:docs/reference/README.md", "Справочник параметров: docs/reference/README.md"),
+                ("muted", "Постановка и план редактора: draft/install-editor/ в репозитории проекта."),
             ]
         )
 
     def on_close(self) -> None:
         if self.confirm_discard():
+            self.save_settings()
             self.destroy()
+
+    def save_settings(self) -> None:
+        if self.state() == "normal":
+            self.settings.geometry = self.geometry()
+        path = self.profile.path
+        self.settings.last_profile = display_path(path, self.paths.root) if path is not None else ""
+        self.settings.save(self.paths.settings_file)

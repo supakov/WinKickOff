@@ -226,6 +226,32 @@ class MainWindowSmokeTest(unittest.TestCase):
         rows = [self.win.messages.item(i, "values")[2] for i in self.win.messages.get_children()]
         self.assertTrue(any("по действиям" in r for r in rows), rows)
 
+    def test_recent_files(self) -> None:
+        target = self.paths.profiles / "Недавний.json"
+        with mock.patch("winkickoff.ui.main_window.filedialog.asksaveasfilename", return_value=str(target)):
+            self.assertTrue(self.win.save_profile_as())
+        self.assertEqual(self.win.settings.recent[0], str(Path("profiles") / "Недавний.json"))
+        self.assertIn("Недавний.json", self.win.recent_menu.entrycget(0, "label"))
+        self.assertTrue(self.win.open_recent(self.win.settings.recent[0]))
+        target.unlink()
+        with mock.patch("winkickoff.ui.main_window.messagebox.showerror") as error:
+            self.assertFalse(self.win.open_recent(str(Path("profiles") / "Недавний.json")))
+        error.assert_called_once()
+        self.assertNotIn(str(Path("profiles") / "Недавний.json"), self.win.settings.recent)
+
+    def test_build_is_blocked_by_errors(self) -> None:
+        self.win.profile.install["product_key_mode"] = "custom"
+        self.win.profile.install["product_key"] = "123"
+        with mock.patch("winkickoff.ui.main_window.messagebox.showerror") as error, \
+             mock.patch("winkickoff.ui.main_window.filedialog.asksaveasfilename") as dialog:
+            self.win.build()
+            self.win.update()
+        error.assert_called_once()
+        dialog.assert_not_called()
+        self.assertFalse(self.win._busy)
+        levels = [self.win.messages.item(i, "values")[0] for i in self.win.messages.get_children()]
+        self.assertIn("ошибка", levels)
+
     def test_reserved_account_name_is_refused(self) -> None:
         self.win.show_item("data:accounts")
         form = self.win.forms["data:accounts"]

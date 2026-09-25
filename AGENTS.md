@@ -61,7 +61,7 @@ Windows installer/
     ├── README.md                  порядок работы пользователя, где что хранится, команды, структура
     ├── pyproject.toml             requires-python >= 3.14, без зависимостей времени выполнения
     ├── winkickoff/                пакет: app.py (старт), core/ (paths, log, catalog, deps, profile, resources,
-    │                              render, validate, verify, actions_parser, importer, pscheck), ui/ (main_window: дерево, поиск,
+    │                              render, validate, verify, actions_parser, importer, pscheck, settings), ui/ (main_window: дерево, поиск,
     │                              описание, параметры, профили, сборка; data_forms: установка, учётные
     │                              записи, языки; checkimages: картинки флажков)
     ├── rules/                     КАТАЛОГ ПРАВИЛ: groups.toml (24 группы), 00-13-*.toml (130 правил), lang/uk.toml
@@ -69,7 +69,7 @@ Windows installer/
     │                              section-*.ps1; README со слотами; VERSION = 0.3
     ├── resources/                 keyboards.json, timezones.json, strings.ru.json
     ├── profiles/                  preset-office.json («Офис» = v0.2), preset-strict.json («Строгий»), README
-    ├── tests/                     unittest, 137 тестов: каталог, резолвер, профиль, рендер, сборка против v0.2,
+    ├── tests/                     unittest, 145 тестов: каталог, резолвер, профиль, рендер, сборка против v0.2,
     │                              проверки, импорт, пресеты, PowerShell, дымовой тест окна
     └── tools/                     make_presets.py (пересоздать пресеты), run-tests.ps1
 ```
@@ -186,9 +186,9 @@ Get-ChildItem -Recurse -Include *.md,*.ps1,*.py,*.toml,*.json -File | Where-Obje
 | Утилита проверки | Готова, 36 проверок, 0 ошибок на v0.2 | 25.09.2026 | `tools/Validate-Unattend.ps1` |
 | Репозиторий GitHub | Подключён, локальная папка и `origin/main` совпадают | 25.09.2026 | https://github.com/supakov/WindowsInstaller |
 | Постановка редактора | Редакция 0.2: модель правил, зависимости, дерево с поиском, внешние TOML | 25.09.2026 | `draft/install-editor/01-06` |
-| Задачи редактора | T01-T10 done; T11 in-progress; T12-T17 todo | 25.09.2026 | `draft/install-editor/todo/` |
+| Задачи редактора | T01-T11 done (вехи M1-M4); T12-T17 todo | 25.09.2026 | `draft/install-editor/todo/` |
 | Каталог правил | 0.3: 130 правил, 24 группы, целостность и покрытие v0.2 подтверждены тестами | 25.09.2026 | `WinKickOff/rules/` |
-| Код редактора | 0.2.0: генератор, проверки профиля и XML, импорт встроенного профиля, проверка PowerShell, пресеты, окно с флажками, параметрами, формами, профилями и сборкой; 137 тестов зелёные | 25.09.2026 | `WinKickOff/` |
+| Код редактора | 0.2.0: генератор, проверки профиля и XML, импорт встроенного профиля, проверка PowerShell, пресеты, окно с флажками, параметрами, формами, профилями и сборкой; 145 тестов зелёные | 25.09.2026 | `WinKickOff/` |
 | Сборка «Офиса» из редактора | Покрывает все действия v0.2, валидатор 36 из 36; установка в ВМ не проверялась | 25.09.2026 | `WinKickOff/output/` (не версионируется) |
 | Применение правил к работающей Windows | Задача T15 поставлена: аудит только на чтение, применение через UAC, откат | 25.09.2026 | `draft/install-editor/todo/T15-apply-to-running-system.md` |
 | Реорганизация репозитория и документации | Задачи T17 (корень как набор утилит, XML в приложения) и T16 (техническая документация на английском, пользовательская на uk, en, ru) поставлены | 25.09.2026 | `draft/install-editor/todo/T16-*.md`, `T17-*.md` |

@@ -14,6 +14,7 @@ from winkickoff.core.log import setup_logging
 from winkickoff.core.paths import AppPaths, app_paths
 from winkickoff.core.profile import Profile
 from winkickoff.core.resources import Resources
+from winkickoff.core.settings import Settings
 
 log = logging.getLogger(__name__)
 DEFAULT_PRESET = "preset-office.json"
@@ -47,8 +48,18 @@ def load_catalog_or_die(paths: AppPaths) -> Catalog:
         raise  # unreachable, keeps type checkers calm
 
 
-def initial_profile(paths: AppPaths, catalog: Catalog) -> Profile:
-    """The office preset if it ships with the application, otherwise catalog defaults."""
+def initial_profile(paths: AppPaths, catalog: Catalog, settings: Settings | None = None) -> Profile:
+    """The profile open at the last exit, else the office preset, else catalog defaults."""
+    if settings is not None and settings.last_profile:
+        last = Settings.resolve(settings.last_profile, paths.root)
+        if last.exists():
+            try:
+                profile, warnings = Profile.load(last, catalog)
+                for warning in warnings:
+                    log.warning("%s: %s", last.name, warning)
+                return profile
+            except (OSError, ValueError) as exc:
+                log.error("last profile %s not loaded: %s", last, exc)
     preset = paths.data / "profiles" / DEFAULT_PRESET
     if preset.exists():
         try:
@@ -73,11 +84,12 @@ def create_app(*, withdraw: bool = False) -> tk.Tk:
     except (OSError, ValueError) as exc:
         _fatal(f"Справочники не загружены.\n\n{exc}")
         raise
-    profile = initial_profile(paths, catalog)
+    settings = Settings.load(paths.settings_file)
+    profile = initial_profile(paths, catalog, settings)
 
     from winkickoff.ui.main_window import MainWindow  # imported late: tkinter window only when needed
 
-    root = MainWindow(paths, catalog, profile, resources)
+    root = MainWindow(paths, catalog, profile, resources, settings)
     if withdraw:
         root.withdraw()
     return root
