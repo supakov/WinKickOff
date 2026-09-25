@@ -99,7 +99,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 
 классы Юникода в этой локали):
 
 ```powershell
-Get-ChildItem -Recurse -Include *.md,*.ps1,*.py,*.json -File | Where-Object FullName -notmatch '\\original\\' | ForEach-Object { $n = ([regex]::Matches([IO.File]::ReadAllText($_.FullName, [Text.Encoding]::UTF8), '[–—]')).Count; if ($n) { "$($_.FullName): $n" } }
+Get-ChildItem -Recurse -Include *.md,*.ps1,*.py,*.json -File | Where-Object FullName -notmatch '\\original\\' | ForEach-Object { $n = ([regex]::Matches([IO.File]::ReadAllText($_.FullName, [Text.Encoding]::UTF8), '[\u2013\u2014]')).Count; if ($n) { "$($_.FullName): $n" } }
 ```
 
 Пустой вывод означает, что тире нет.
