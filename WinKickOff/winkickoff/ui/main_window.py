@@ -24,7 +24,7 @@ from typing import Any
 from winkickoff import APP_NAME, APP_VERSION
 from winkickoff.core.catalog import Action, Catalog, Param, Rule
 from winkickoff.core.deps import Change, Resolver
-from winkickoff.core.importer import ImportFailed, import_xml
+from winkickoff.core.importer import IMPORTED_NAME, ImportFailed, import_xml
 from winkickoff.core.paths import AppPaths
 from winkickoff.core.profile import Profile
 from winkickoff.core.pscheck import check_scripts
@@ -77,7 +77,7 @@ WORKFLOW = [
          "стартовые учётные записи, язык интерфейса (равен языку ISO) и языки ввода."),
     ("h2", "5. Сохранение профиля"),
     ("", "«Сохранить» (Ctrl+S) записывает профиль в папку profiles рядом с программой, чтобы повторять установку на "
-         "других ПК. Профиль также встраивается в каждый собранный файл: «Файл, Открыть профиль из собранного XML» "
+         "других ПК. Профиль также встраивается в каждый собранный файл: «Файл, Открыть профиль из autounattend.xml» "
          "восстанавливает настройки из готового autounattend.xml."),
     ("h2", "6. Проверка и сборка"),
     ("", "«Проверить» (F7) проверяет профиль и файл, который получится. «Собрать autounattend.xml» (F9) собирает файл "
@@ -162,7 +162,7 @@ class MainWindow(tk.Tk):
             presets.add_command(label=_profile_name(path), command=lambda p=path: self.load_profile_file(p))
         file_menu.add_cascade(label="Новый профиль из пресета", menu=presets)
         file_menu.add_command(label="Открыть профиль...", accelerator="Ctrl+O", command=self.open_profile_dialog)
-        file_menu.add_command(label="Открыть профиль из собранного XML...", command=self.import_from_xml)
+        file_menu.add_command(label="Открыть профиль из autounattend.xml...", command=self.import_from_xml)
         file_menu.add_separator()
         file_menu.add_command(label="Сохранить профиль", accelerator="Ctrl+S", command=self.save_profile)
         file_menu.add_command(label="Сохранить профиль как...", command=self.save_profile_as)
@@ -916,18 +916,27 @@ class MainWindow(tk.Tk):
     def import_from_xml(self) -> None:
         if not self.confirm_discard():
             return
-        name = filedialog.askopenfilename(parent=self, title="Открыть профиль из собранного autounattend.xml",
+        name = filedialog.askopenfilename(parent=self, title="Открыть профиль из autounattend.xml",
                                           filetypes=[("Файл ответов", "*.xml"), ("Все файлы", "*.*")])
-        if not name:
-            return
+        if name:
+            self.import_file(Path(name))
+
+    def import_file(self, path: Path) -> bool:
+        """A WinKickOff build gives back its embedded profile; any other answer file of the same
+        family (the hand-written v0.2) is imported by its actions, with a list of what is uncertain."""
         try:
-            text = Path(name).read_text(encoding="utf-8")
-            profile, warnings = import_xml(text, self.catalog)
+            text = path.read_text(encoding="utf-8")
+            profile, warnings = import_xml(text, self.catalog, self.resources.keyboards)
         except (OSError, UnicodeDecodeError, ImportFailed) as exc:
             messagebox.showerror(APP_NAME, f"Профиль не восстановлен:\n{exc}", parent=self)
-            return
+            return False
+        by_actions = profile.name == IMPORTED_NAME
+        if by_actions:
+            profile.name = f"Импорт {path.stem}"
         self.set_profile(profile, dirty=True, warnings=warnings)
-        self.set_status(f"Профиль «{profile.name}» восстановлен из {name}; сохраните его, чтобы использовать повторно")
+        how = "по действиям файла (сомнения в списке внизу)" if by_actions else "из встроенного профиля"
+        self.set_status(f"Профиль «{profile.name}» восстановлен {how}; сохраните его, чтобы использовать повторно")
+        return True
 
     # ----------------------------------------------------------------- check and build
 

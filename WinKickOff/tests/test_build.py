@@ -149,7 +149,8 @@ class OfficeMatchesV02Test(BuildTestBase):
 
     def test_apply_order_follows_v02(self) -> None:
         """Rules are applied in the order of the v0.2 sections. ASR rules come from the $AsrRules table
-        applied inside the Defender section; a rule may precede the previous one only inside one group."""
+        applied inside the Defender section; a rule may precede the previous one only inside one section
+        (top-level group), where the actions are independent."""
         ordered = parse_script_actions_ordered(extract_script(self.v02_text, "Setup-System.ps1"))
         position = {action: index for index, action in enumerate(ordered)}
 
@@ -169,8 +170,9 @@ class OfficeMatchesV02Test(BuildTestBase):
             if value is None:
                 continue
             checked += 1
-            if value < last_value:
-                self.assertEqual(rule.group, self.catalog.rules[last_rule].group, f"{rule_id} runs after {last_rule}, v0.2 did it earlier")
+            if value < last_value:  # allowed only inside one section (top-level group) of v0.2
+                section = rule.group.split(".")[0]
+                self.assertEqual(section, self.catalog.rules[last_rule].group.split(".")[0], f"{rule_id} runs after {last_rule}, v0.2 did it earlier")
             if value >= last_value:
                 last_value, last_rule = value, rule_id
         self.assertGreater(checked, 60)

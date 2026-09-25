@@ -216,6 +216,16 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.assertEqual([i.level for i in issues], ["info"])
         self.assertIn("ошибок 0", self.win.status_var.get())
 
+    @unittest.skipUnless((ROOT.parent / "autounattend.xml").exists(), "v0.2 answer file not found")
+    def test_import_hand_written_v02(self) -> None:
+        self.assertTrue(self.win.import_file(ROOT.parent / "autounattend.xml"))
+        self.assertEqual(self.win.profile.name, "Импорт autounattend")
+        self.assertTrue(self.win.dirty)
+        office, _ = Profile.load(self.office_path, self.catalog)
+        self.assertEqual(self.win.profile.enabled_ids(), office.enabled_ids())
+        rows = [self.win.messages.item(i, "values")[2] for i in self.win.messages.get_children()]
+        self.assertTrue(any("по действиям" in r for r in rows), rows)
+
     def test_reserved_account_name_is_refused(self) -> None:
         self.win.show_item("data:accounts")
         form = self.win.forms["data:accounts"]
