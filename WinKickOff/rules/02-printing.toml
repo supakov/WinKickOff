@@ -1,0 +1,71 @@
+# Печать. Раздел 1 скрипта машины v0.2.
+
+[[rule]]
+id = "printing.spooler-automatic"
+group = "printing"
+phase = "specialize"
+title = "Диспетчер печати запускается автоматически"
+level = "baseline"
+default = true
+tags = ["печать", "spooler", "принтер", "служба"]
+doc = "docs/reference/05-printing.md#ensureprintspooler"
+summary = "Служба Spooler переводится в автоматический запуск (реестр и Set-Service), PrintNotify остаётся ручной."
+effect = "Печать работает сразу после установки: принтеры USB и сетевые, «Печать в PDF». Оригинальный файл UnattendedWinstall переводил службу в ручной режим, и печать не работала."
+risk = "Диспетчер печати исторически источник уязвимостей (PrintNightmare); компенсируется правилом установки драйверов только администраторами и брандмауэром."
+versions = "Без изменений на всех версиях. В 24H2 есть режим защищённой печати (WPP), он не включается: старые принтеры требуют свои драйверы."
+verify = "Get-Service Spooler | Select-Object Status, StartType"
+rollback = "Set-Service Spooler -StartupType Manual"
+
+[[rule.actions]]
+type = "service"
+name = "Spooler"
+start = 2
+
+[[rule.actions]]
+type = "service"
+name = "PrintNotify"
+start = 3
+
+[[rule.actions]]
+type = "ps"
+script = '''
+try { Set-Service -Name Spooler -StartupType Automatic -ErrorAction Stop; Write-Log 'Spooler startup type = Automatic' 'OK' } catch { Write-Log "Set-Service Spooler: $($_.Exception.Message)" 'WARN' }
+'''
+
+[[rule]]
+id = "printing.point-and-print-admins"
+group = "printing"
+phase = "specialize"
+title = "Драйверы принтеров устанавливают только администраторы"
+level = "recommended"
+default = true
+tags = ["печать", "printnightmare", "point and print", "драйвер"]
+doc = "docs/reference/05-printing.md#restrictprinterdriverinstalltoadmins"
+summary = "Политика Point and Print: установка и обновление драйверов принтеров требуют прав администратора и показывают предупреждение."
+effect = "Стандартный пользователь не установит драйвер принтера; уже установленные драйверы и класс-драйверы доступны всем."
+risk = "Подключение сетевого принтера с новым драйвером выполняет администратор. Пока у Admin пустой пароль, запрос учётных данных у пользователя не пройдёт."
+versions = "Значение Windows по умолчанию с августа 2021 (KB5005652); правило закрепляет его политикой."
+verify = "Get-ItemProperty 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\\PointAndPrint'"
+rollback = "RestrictDriverInstallationToAdministrators = 0 (возвращает вектор PrintNightmare)."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Printers\PointAndPrint'
+name = "RestrictDriverInstallationToAdministrators"
+kind = "DWord"
+value = 1
+why = "PrintNightmare"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Printers\PointAndPrint'
+name = "NoWarningNoElevationOnInstall"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Printers\PointAndPrint'
+name = "UpdatePromptSettings"
+kind = "DWord"
+value = 0

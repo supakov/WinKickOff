@@ -1,0 +1,294 @@
+# Телеметрия, реклама, ИИ, виджеты, веб-поиск, длинные пути. Раздел 8 скрипта машины v0.2.
+
+[[rule]]
+id = "privacy.telemetry-minimal"
+group = "privacy"
+phase = "specialize"
+title = "Минимальная телеметрия без отключения оценки совместимости"
+level = "recommended"
+default = true
+tags = ["телеметрия", "диагностика", "diagtrack", "ceip", "отзывы", "wer", "timeline"]
+doc = "docs/reference/12-telemetry-consumer-ai.md#minimaltelemetry"
+summary = "Уровень диагностических данных «Обязательные» (минимум для Pro), без запросов отзывов, без имени ПК в данных, рекламный идентификатор выключен, отчёты о сбоях не отправляются, история действий не собирается, служба DiagTrack в ручном режиме, задачи CEIP и Feedback отключены."
+effect = "Минимальная отправка данных, доступная на Pro. DiagTrack намеренно не отключена: она нужна оценке совместимости для обновлений функций и отчётам Defender."
+risk = "Отчёты о сбоях в Microsoft не уходят; локальные события 1000/1001 в журнале Application остаются."
+versions = "AllowTelemetry=0 на Pro трактуется как 1; задача Consolidator может отсутствовать на части сборок 24H2 (WARN в логе)."
+verify = "Get-Service DiagTrack | Select-Object StartType; schtasks /Query /TN \"\\Microsoft\\Windows\\Customer Experience Improvement Program\\UsbCeip\""
+rollback = "Удалить значения; Set-Service DiagTrack -StartupType Automatic; schtasks /Change /Enable"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection'
+name = "AllowTelemetry"
+kind = "DWord"
+value = 1
+why = "Required (lowest on Pro)"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection'
+name = "DoNotShowFeedbackNotifications"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection'
+name = "AllowDeviceNameInDiagnosticData"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo'
+name = "DisabledByGroupPolicy"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting'
+name = "Disabled"
+kind = "DWord"
+value = 1
+why = "local crash logs stay in Event Viewer"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System'
+name = "PublishUserActivities"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System'
+name = "UploadUserActivities"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "service"
+name = "DiagTrack"
+start = 3
+
+[[rule.actions]]
+type = "exe"
+file = "schtasks.exe"
+args = ["/Change", "/TN", '\Microsoft\Windows\Customer Experience Improvement Program\Consolidator', "/Disable"]
+
+[[rule.actions]]
+type = "exe"
+file = "schtasks.exe"
+args = ["/Change", "/TN", '\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip', "/Disable"]
+
+[[rule.actions]]
+type = "exe"
+file = "schtasks.exe"
+args = ["/Change", "/TN", '\Microsoft\Windows\Feedback\Siuf\DmClient', "/Disable"]
+
+[[rule.actions]]
+type = "exe"
+file = "schtasks.exe"
+args = ["/Change", "/TN", '\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload', "/Disable"]
+
+[[rule]]
+id = "privacy.consumer-content"
+group = "privacy"
+phase = "specialize"
+title = "Без рекламы, предустановок и автоустановки Teams (политики машины)"
+level = "recommended"
+default = true
+tags = ["реклама", "предустановки", "cloudcontent", "teams", "chat", "spotlight"]
+doc = "docs/reference/12-telemetry-consumer-ai.md#disableconsumercontent"
+summary = "Политики CloudContent (часть действует только на Enterprise/Education и оставлена как безвредная), значок чата Teams скрыт, автоустановка личного Teams отключена."
+effect = "Главный рабочий механизм на Pro это значения в профиле пользователя по умолчанию (отдельное правило в группе профиля), эта часть закрепляет то же на уровне машины."
+versions = "DisableWindowsConsumerFeatures, DisableSoftLanding, DisableThirdPartySuggestions только Enterprise/Education; DisableCloudOptimizedContent (10 20H2+) и DisableConsumerAccountStateContent (11 22H2+) работают на Pro; Windows Chat относится к 11 21H2-22H2."
+verify = "Get-ItemProperty HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent"
+rollback = "Удалить значения."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
+name = "DisableWindowsConsumerFeatures"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
+name = "DisableSoftLanding"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
+name = "DisableCloudOptimizedContent"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
+name = "DisableConsumerAccountStateContent"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
+name = "DisableThirdPartySuggestions"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Chat'
+name = "ChatIcon"
+kind = "DWord"
+value = 3
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Communications'
+name = "ConfigureChatAutoInstall"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "privacy.copilot-recall-off"
+group = "privacy"
+phase = "specialize"
+title = "Copilot, Recall и Click to Do выключены"
+level = "recommended"
+default = true
+tags = ["copilot", "recall", "click to do", "ии", "снимки экрана", "windowsai"]
+doc = "docs/reference/12-telemetry-consumer-ai.md#disablecopilotandrecall"
+summary = "Политики Copilot и WindowsAI: Recall (снимки экрана) выключен и не включается пользователем, Click to Do выключен; компонент Recall отключается, если есть."
+effect = "Ни один ИИ-компонент не делает снимки экрана и не отправляет содержимое документов. Приложение Copilot удаляется отдельным правилом в группе приложений."
+versions = "TurnOffWindowsCopilot с 23H2 (в 24H2 устарел, действует копия в профиле пользователя); DisableAIDataAnalysis с 24H2; AllowRecallEnablement и DisableClickToDo с обновлений 2025 года; компонент Recall только на Copilot+ PC."
+verify = "Get-WindowsOptionalFeature -Online -FeatureName Recall"
+rollback = "Удалить значения."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot'
+name = "TurnOffWindowsCopilot"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI'
+name = "DisableAIDataAnalysis"
+kind = "DWord"
+value = 1
+why = "Recall off"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI'
+name = "AllowRecallEnablement"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI'
+name = "DisableClickToDo"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "feature"
+name = "Recall"
+state = "Disabled"
+
+[[rule]]
+id = "privacy.widgets-off"
+group = "privacy"
+phase = "specialize"
+title = "Виджеты и лента новостей выключены"
+level = "recommended"
+default = true
+tags = ["виджеты", "widgets", "новости", "msn", "malvertising"]
+doc = "docs/reference/12-telemetry-consumer-ai.md#disablewidgetsandnews"
+summary = "Панель виджетов Windows 11 и лента «Новости и интересы» Windows 10 отключены политикой."
+effect = "Нет кнопки виджетов и постоянно открытой веб-страницы MSN с рекламой; процесс Widgets.exe не запускается."
+versions = "Политика Dsh с Windows 11 21H2; Windows Feeds для Windows 10 20H1+."
+verify = "Параметры -> Персонализация -> Панель задач -> Виджеты"
+rollback = "Удалить значения."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Dsh'
+name = "AllowNewsAndInterests"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Feeds'
+name = "EnableFeeds"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "privacy.web-search-off"
+group = "privacy"
+phase = "specialize"
+title = "Без веб-результатов Bing в поиске меню Пуск"
+level = "recommended"
+default = true
+tags = ["поиск", "bing", "cortana", "пуск"]
+doc = "docs/reference/12-telemetry-consumer-ai.md#disablewebsearchinstart"
+summary = "Поиск в меню Пуск ищет только приложения, файлы и параметры; ничего не отправляется в Bing при наборе."
+effect = "Индексирование и поиск в проводнике и Outlook не затронуты (служба WSearch не трогается)."
+versions = "DisableSearchBoxSuggestions с Windows 10 2004; Cortana в Windows 11 удалена (политика безвредна)."
+verify = "Поиск в Пуске по слову «погода» без веб-результатов."
+rollback = "Удалить значения."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer'
+name = "DisableSearchBoxSuggestions"
+kind = "DWord"
+value = 1
+why = "no Bing in Start search"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'
+name = "AllowCortana"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'
+name = "DisableWebSearch"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "system.long-paths"
+group = "system"
+phase = "specialize"
+title = "Поддержка длинных путей (более 260 символов)"
+level = "optional"
+default = true
+tags = ["длинные пути", "longpathsenabled", "260"]
+doc = "docs/reference/12-telemetry-consumer-ai.md#longpathsenabled-безусловно"
+summary = "Программы с манифестом longPathAware (PowerShell 7, Git, современные архиваторы) работают с путями длиннее 260 символов."
+effect = "Проводник и старые программы ограничение сохраняют; безвредно."
+versions = "Windows 10 1607+."
+verify = "Get-ItemProperty HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem -Name LongPathsEnabled"
+rollback = "Значение 0."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem'
+name = "LongPathsEnabled"
+kind = "DWord"
+value = 1

@@ -1,0 +1,148 @@
+# Дерево групп интерфейса. Идентификаторы с точкой вложены в родителя (parent обязателен).
+# order задаёт порядок узлов среди соседей. Правила ссылаются на группу полем group.
+
+[[group]]
+id = "install"
+title = "Установка (windowsPE и specialize)"
+order = 10
+summary = "Обход проверок совместимости, локальная учётная запись без сети, .NET Framework 3.5 с носителя."
+
+[[group]]
+id = "oobe"
+title = "Первичная настройка (OOBE)"
+order = 20
+summary = "Какие экраны первичной настройки скрываются и как задаются параметры конфиденциальности."
+
+[[group]]
+id = "printing"
+title = "Печать"
+order = 30
+summary = "Диспетчер печати и защита установки драйверов принтеров."
+
+[[group]]
+id = "update"
+title = "Обновления Windows"
+order = 40
+summary = "Автоматические обновления, другие продукты Microsoft, отсрочка обновлений функций, Delivery Optimization."
+
+[[group]]
+id = "defender"
+title = "Microsoft Defender и SmartScreen"
+order = 50
+summary = "Защита в реальном времени, облачная защита, PUA, сетевая защита, правила ASR, SmartScreen."
+
+[[group]]
+id = "defender.asr"
+parent = "defender"
+title = "Правила сокращения поверхности атаки (ASR)"
+order = 1
+summary = "Каждое правило блокирует одну технику атаки через Office, почту, скрипты, USB или драйверы. Режим: блокировать, аудит, предупреждать."
+
+[[group]]
+id = "security"
+title = "Безопасность"
+order = 60
+summary = "UAC, учётные записи, защита учётных данных, удалённый доступ, шифрование."
+
+[[group]]
+id = "security.uac"
+parent = "security"
+title = "Контроль учётных записей (UAC)"
+order = 1
+
+[[group]]
+id = "security.accounts"
+parent = "security"
+title = "Учётные записи и вход"
+order = 2
+
+[[group]]
+id = "security.lsa"
+parent = "security"
+title = "Защита учётных данных (LSA, NTLM)"
+order = 3
+
+[[group]]
+id = "security.remote"
+parent = "security"
+title = "Удалённый доступ"
+order = 4
+
+[[group]]
+id = "security.encryption"
+parent = "security"
+title = "Шифрование диска"
+order = 5
+
+[[group]]
+id = "network"
+title = "Сеть и общий доступ"
+order = 70
+summary = "SMB, подпись, разрешение имён, брандмауэр."
+
+[[group]]
+id = "removable"
+title = "Носители, скрипты, браузер"
+order = 80
+summary = "Автозапуск, скриптовые файлы, VBScript, политики Microsoft Edge."
+
+[[group]]
+id = "removable.scripts"
+parent = "removable"
+title = "Скриптовые файлы"
+order = 1
+
+[[group]]
+id = "removable.edge"
+parent = "removable"
+title = "Microsoft Edge"
+order = 2
+
+[[group]]
+id = "logging"
+title = "Журналирование для расследований"
+order = 90
+summary = "Аудит, размеры журналов, журналирование PowerShell, отключение PowerShell 2.0."
+
+[[group]]
+id = "privacy"
+title = "Телеметрия, реклама, ИИ"
+order = 100
+summary = "Минимальная отправка данных, отключение рекламы и предустановок, Copilot и Recall, виджеты, веб-поиск."
+
+[[group]]
+id = "system"
+title = "Система"
+order = 110
+summary = "Прочие системные настройки."
+
+[[group]]
+id = "apps"
+title = "Службы и приложения"
+order = 120
+summary = "Отключение ненужных служб и удаление приложений."
+
+[[group]]
+id = "apps.remove"
+parent = "apps"
+title = "Удаляемые приложения"
+order = 1
+summary = "Каждое приложение отдельным правилом: снимите флажок, чтобы оставить приложение."
+
+[[group]]
+id = "default-user"
+title = "Профиль пользователя по умолчанию"
+order = 130
+summary = "Значения, которые получает каждый новый пользователь при первом входе (можно изменить в Параметрах)."
+
+[[group]]
+id = "user-logon"
+title = "Первый вход каждого пользователя"
+order = 140
+summary = "Скрипт Active Setup: язык интерфейса и список языков ввода."
+
+[[group]]
+id = "post-oobe"
+title = "После первичной настройки"
+order = 150
+summary = "Задача планировщика после завершения OOBE: пароли, встроенные учётные записи, очистка."

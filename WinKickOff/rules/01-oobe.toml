@@ -1,0 +1,94 @@
+# Элементы <OOBE> в проходе oobeSystem.
+
+[[rule]]
+id = "oobe.hide-eula"
+group = "oobe"
+phase = "oobe-xml"
+title = "Скрыть экран лицензионного соглашения"
+level = "baseline"
+default = true
+tags = ["oobe", "eula", "лицензия"]
+doc = "docs/reference/03-oobe-accounts-languages.md"
+summary = "Лицензия принята в установщике (AcceptEula), экран в OOBE не показывается."
+effect = "Одним экраном меньше; ответственность за принятие условий несёт организация."
+
+[[rule.actions]]
+type = "xml-oobe"
+element = "HideEULAPage"
+value = "true"
+
+[[rule]]
+id = "oobe.hide-oem-registration"
+group = "oobe"
+phase = "oobe-xml"
+title = "Скрыть экран регистрации у производителя"
+level = "baseline"
+default = true
+tags = ["oobe", "oem"]
+doc = "docs/reference/03-oobe-accounts-languages.md"
+summary = "Экран регистрации OEM не показывается (появляется только на образах производителей)."
+effect = "Безвредно на образах Microsoft; экономит экран на OEM-образах."
+
+[[rule.actions]]
+type = "xml-oobe"
+element = "HideOEMRegistrationScreen"
+value = "true"
+
+[[rule]]
+id = "oobe.hide-online-account"
+group = "oobe"
+phase = "oobe-xml"
+title = "Скрыть экраны учётной записи Microsoft"
+level = "baseline"
+default = true
+tags = ["oobe", "учётная запись microsoft", "локальная учётная запись"]
+doc = "docs/reference/03-oobe-accounts-languages.md"
+summary = "Экраны входа в аккаунт Microsoft и создания локальной учётной записи не показываются: учётные записи заданы в файле."
+effect = "После подготовки система сразу показывает экран входа со стартовыми учётными записями."
+risk = "Работает только вместе с учётными записями в разделе «Учётные записи»; без них OOBE потребует создать учётную запись."
+
+[[rule.actions]]
+type = "xml-oobe"
+element = "HideOnlineAccountScreens"
+value = "true"
+
+[[rule]]
+id = "oobe.hide-wireless"
+group = "oobe"
+phase = "oobe-xml"
+title = "Скрыть экран подключения к сети"
+level = "recommended"
+default = true
+tags = ["oobe", "wi-fi", "сеть"]
+doc = "docs/reference/03-oobe-accounts-languages.md"
+summary = "Экран «Подключитесь к сети» скрыт всегда, а не только при проводном подключении."
+effect = "Установка не останавливается на ноутбуках без кабеля; Wi-Fi настраивается после входа."
+
+[[rule.actions]]
+type = "xml-oobe"
+element = "HideWirelessSetupInOOBE"
+value = "true"
+
+[[rule]]
+id = "oobe.protect-your-pc"
+group = "oobe"
+phase = "oobe-xml"
+title = "Экран параметров конфиденциальности: отключить экспресс-параметры"
+level = "recommended"
+default = true
+tags = ["oobe", "конфиденциальность", "телеметрия", "protectyourpc"]
+doc = "docs/reference/03-oobe-accounts-languages.md"
+summary = "Экран конфиденциальности не показывается; отправка данных, реклама и определение местоположения по умолчанию выключены."
+effect = "SmartScreen и Defender не затрагиваются: они включаются отдельными правилами."
+versions = "Значение 3 работает на Windows 10 и 11, включая 24H2."
+
+[rule.params.mode]
+type = "enum"
+title = "Режим"
+default = 3
+values = [ { value = 3, title = "Отключить все экспресс-параметры" }, { value = 1, title = "Включить экспресс-параметры (отправка данных)" } ]
+
+[[rule.actions]]
+type = "xml-oobe"
+element = "ProtectYourPC"
+value = "{mode}"

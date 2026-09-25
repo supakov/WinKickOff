@@ -1,36 +1,32 @@
-# T01. Каркас проекта и портабельные пути
+# T01. Каркас проекта, портабельные пути, лог, тесты
 
-Статус: todo. Этап 0. Зависимости: нет.
+Статус: in-progress (каркас создан 25.09.2026, см. заметки). Этап 0. Зависимости: нет.
 
 ## Цель
 
-Создать структуру пакета `install_editor`, настроить инструменты качества и тесты, реализовать
-единственный источник путей `core/paths.py`, чтобы все последующие задачи опирались на готовый каркас.
+Создать структуру `WinKickOff/` по `02-architecture.md`, раздел 2, реализовать `core/paths.py`,
+`core/log.py`, точку входа и тестовую инфраструктуру на `unittest`.
 
 ## Шаги
 
-1. Создать `draft/install-editor/app/` (корень кода) со структурой из `02-architecture.md`, раздел 2:
-   пакет `install_editor` с подпакетами `core`, `ui`, каталоги `schema`, `templates`, `resources`, `tests`, `tools`.
-2. `pyproject.toml`: имя `install-editor`, `requires-python = ">=3.14"`, зависимости для разработки
-   `pytest`, `pytest-cov`, `ruff`, `mypy`, `pyinstaller`; настройки `ruff` (line-length 100) и `mypy` (strict для `core`).
-3. `core/paths.py`: `AppPaths` и `app_paths()` по образцу из архитектуры; создание `profiles/`, `output/`, `logs/`.
-4. `core/log.py`: логирование в `logs/editor.log` с ротацией (1 МБ, 3 файла), формат с временем и уровнем.
-5. `app.py` и `__main__.py`: создание `tk.Tk()`, заголовок с версией, пустое окно 900×600; DPI-awareness
-   через `ctypes.windll.shcore.SetProcessDpiAwareness(1)` до создания Tk, в try/except.
-6. `install_editor/version.py`: `APP_VERSION = "0.1.0"`.
-7. `tests/conftest.py`: фикстура `app_root(tmp_path)` с подменой `sys.frozen`/`sys.executable`.
-8. `tests/test_paths.py`: тесты из `04-testing.md`, раздел core/paths.
-
-## Результат
-
-`python -m install_editor` открывает пустое окно; `pytest -q` зелёный; `ruff check` и `mypy` без ошибок.
+1. `WinKickOff/pyproject.toml`: имя `winkickoff`, `requires-python = ">=3.14"`, без зависимостей
+   времени выполнения; необязательные группы `build` (pyinstaller) и `dev` (ruff, mypy).
+2. Пакет `winkickoff` с подпакетами `core`, `ui`; `__init__.py` с `APP_VERSION`; `__main__.py`.
+3. `core/paths.py`: `AppPaths`, `app_paths()`; создание `profiles/`, `output/`, `logs/`.
+4. `core/log.py`: `setup_logging(paths)` в `logs/winkickoff.log`, ротация 1 МБ, три файла.
+5. `app.py`: DPI-awareness, загрузка каталога, окно; при ошибке каталога окно с сообщением.
+6. `tests/`: `test_paths.py` (dev и «замороженный» режим через подмену `sys.frozen`), запуск
+   `python -m unittest discover -s tests`.
+7. `tools/run-tests.ps1`: запуск тестов и `Validate-Unattend.ps1` на собранном файле (когда появится).
+8. `README.md` в `WinKickOff/`: запуск из исходников, тесты, сборка, правила.
 
 ## Критерии приёмки
 
-- В «замороженном» режиме `root` равен папке exe; в dev-режиме корню кода.
-- Повторный вызов `app_paths()` не падает, папки существуют.
-- Нет обращений к `os.getcwd()`, `%APPDATA%`, реестру во всём пакете (тест grep по исходникам).
+- `python -m winkickoff` открывает окно (в тестах создаётся скрытым).
+- Тесты путей зелёные; в пакете нет `os.getcwd()`, `APPDATA`, `winreg` (тест по исходникам).
 
 ## Заметки исполнителя
 
-(заполняется при выполнении: дата, отклонения, проблемы)
+25.09.2026: созданы `pyproject.toml`, пакет, `paths.py`, `log.py`, `app.py`, `__main__.py`, тесты
+путей и проверка исходников, `README.md`. Осталось: `tools/run-tests.ps1`, проверка на Python 3.14
+в чистом окружении (сделано только на машине заказчика через `py_compile` и `unittest`).

@@ -1,0 +1,450 @@
+# UAC, учётные записи, защита учётных данных, удалённый доступ, шифрование. Раздел 4 скрипта машины v0.2.
+
+[[rule]]
+id = "uac.baseline"
+group = "security.uac"
+phase = "specialize"
+title = "UAC включён, запросы на защищённом рабочем столе, Win+L работает"
+level = "baseline"
+default = true
+tags = ["uac", "enablelua", "secure desktop", "win+l", "блокировка"]
+doc = "docs/reference/08-accounts-uac-lsa-remote.md"
+summary = "Базовые значения UAC: включён, запрос на защищённом рабочем столе, стандартный пользователь вводит учётные данные администратора, установщики требуют повышения, встроенный Administrator в режиме одобрения, сетевой вход локальных администраторов с фильтрованным токеном. Запрет блокировки экрана удалён."
+effect = "Оригинальный файл UnattendedWinstall запрещал блокировку Win+L и убирал запросы UAC; здесь всё наоборот."
+versions = "Значения одинаковы с Windows Vista."
+verify = "Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+name = "EnableLUA"
+kind = "DWord"
+value = 1
+why = "UAC on"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+name = "PromptOnSecureDesktop"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+name = "ConsentPromptBehaviorUser"
+kind = "DWord"
+value = 3
+why = "standard users: ask for admin credentials on secure desktop"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+name = "EnableInstallerDetection"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+name = "FilterAdministratorToken"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+name = "LocalAccountTokenFilterPolicy"
+kind = "DWord"
+value = 0
+why = "no remote admin token for local accounts"
+
+[[rule.actions]]
+type = "reg-remove"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+name = "DisableLockWorkstation"
+
+[[rule.actions]]
+type = "reg-remove"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon'
+name = "DisableLockWorkstation"
+
+[[rule]]
+id = "uac.admin-always-notify"
+group = "security.uac"
+phase = "specialize"
+title = "UAC для администраторов: уведомлять всегда"
+level = "recommended"
+default = true
+requires = ["uac.baseline"]
+tags = ["uac", "consentpromptbehavioradmin", "обход uac", "fodhelper"]
+doc = "docs/reference/08-accounts-uac-lsa-remote.md#uacalwaysnotify"
+summary = "Администратор видит запрос при любом повышении, включая системные компоненты; закрывает известные обходы UAC через доверенные программы Windows."
+effect = "Больше запросов «Да/Нет» у Admin; защита от автоматического повышения вредоносным кодом."
+risk = "С пустым паролем запрос UAC это только кнопка «Да»: защита от программ, а не от человека за клавиатурой."
+versions = "Значения одинаковы с Windows Vista."
+verify = "Панель управления -> Учётные записи -> Изменить параметры UAC"
+rollback = "Значение 5 (умолчание Windows)."
+
+[rule.params.level]
+type = "enum"
+title = "Уровень"
+default = 2
+values = [ { value = 2, title = "Уведомлять всегда" }, { value = 5, title = "Только для сторонних программ (умолчание Windows)" } ]
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+name = "ConsentPromptBehaviorAdmin"
+kind = "DWord"
+value = "{level}"
+why = "UAC level for admins"
+
+[[rule]]
+id = "accounts.inactivity-lock"
+group = "security.accounts"
+phase = "specialize"
+title = "Блокировка экрана после простоя"
+level = "recommended"
+default = true
+tags = ["блокировка", "простой", "inactivitytimeoutsecs", "экран"]
+doc = "docs/reference/08-accounts-uac-lsa-remote.md#inactivitylockseconds"
+summary = "Через заданное число секунд без ввода экран блокируется независимо от заставки и питания."
+effect = "Рабочее место не остаётся открытым; с пустым паролем разблокировка это Enter, смысл появится после назначения паролей."
+versions = "Политика с Windows 8; максимум 599940 секунд."
+verify = "Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System -Name InactivityTimeoutSecs"
+rollback = "Удалить значение."
+
+[rule.params.seconds]
+type = "int"
+title = "Секунд простоя до блокировки"
+default = 900
+min = 60
+max = 599940
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+name = "InactivityTimeoutSecs"
+kind = "DWord"
+value = "{seconds}"
+why = "lock after idle"
+
+[[rule]]
+id = "lsa.baseline"
+group = "security.lsa"
+phase = "specialize"
+title = "Базовая защита учётных данных: без LM-хэшей, без анонимного доступа, без WDigest, SEHOP"
+level = "baseline"
+default = true
+tags = ["lsa", "nolmhash", "restrictanonymous", "wdigest", "sehop", "mimikatz", "пустой пароль"]
+doc = "docs/reference/08-accounts-uac-lsa-remote.md"
+summary = "LM-хэши не хранятся; учётные записи с пустым паролем только для консольного входа; анонимное перечисление ресурсов и учётных записей запрещено; пароли не хранятся в памяти открытым текстом (WDigest); включена защита от перезаписи цепочки обработчиков исключений (SEHOP)."
+effect = "Украденный хэш или дамп памяти становятся малополезными."
+risk = "Очень старые устройства (принтеры, NAS), ищущие общие ресурсы анонимно, могут их не увидеть."
+versions = "Большинство значений совпадает с умолчаниями Windows 10/11 и закрепляется явно; RestrictAnonymous=1 строже умолчания клиентских Windows."
+verify = "Get-ItemProperty HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'
+name = "NoLMHash"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'
+name = "LimitBlankPasswordUse"
+kind = "DWord"
+value = 1
+why = "blank passwords: console only"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'
+name = "RestrictAnonymous"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'
+name = "RestrictAnonymousSAM"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'
+name = "EveryoneIncludesAnonymous"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest'
+name = "UseLogonCredential"
+kind = "DWord"
+value = 0
+why = "no plaintext creds in memory"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel'
+name = "DisableExceptionChainValidation"
+kind = "DWord"
+value = 0
+why = "SEHOP on"
+
+[[rule]]
+id = "lsa.protection"
+group = "security.lsa"
+phase = "specialize"
+title = "Защита LSA (RunAsPPL): LSASS как защищённый процесс"
+level = "recommended"
+default = true
+tags = ["lsa", "runasppl", "lsass", "mimikatz", "credential dumping", "эцп", "смарт-карты"]
+doc = "docs/reference/08-accounts-uac-lsa-remote.md#lsaprotection"
+summary = "Память LSASS недоступна другим процессам даже с правами администратора; извлечь хэши и пароли нельзя."
+effect = "Mimikatz и дампы через Диспетчер задач не работают. Значение 2 без привязки к UEFI: откат возможен через реестр."
+risk = "Плагины, загружаемые в LSA (драйверы токенов ЭЦП, сторонние поставщики входа), должны быть подписаны Microsoft; неподписанные не загрузятся (события 3033/3063). Проверить ключи ЭЦП организации до массового внедрения."
+versions = "Значение 2 понимает Windows 11 22H2 и новее; Windows 10 трактует любое ненулевое как 1 (с блокировкой UEFI)."
+verify = "Журнал System, событие 12 от WinInit; Get-ItemProperty HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa -Name RunAsPPL"
+rollback = "Удалить значение или 0, перезагрузка."
+
+[rule.params.mode]
+type = "enum"
+title = "Режим"
+default = 2
+values = [ { value = 2, title = "Включено без блокировки UEFI (обратимо)" }, { value = 1, title = "Включено с блокировкой UEFI (необратимо без доступа к прошивке)" } ]
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'
+name = "RunAsPPL"
+kind = "DWord"
+value = "{mode}"
+why = "LSA protection (no UEFI lock)"
+
+[[rule]]
+id = "lsa.ntlmv2-only"
+group = "security.lsa"
+phase = "specialize"
+title = "Только NTLMv2 (отказ от LM и NTLMv1)"
+level = "recommended"
+default = true
+tags = ["ntlm", "ntlmv2", "lmcompatibilitylevel", "nas", "мфу"]
+doc = "docs/reference/08-accounts-uac-lsa-remote.md#ntlmv2only"
+summary = "Клиент и сервер используют только NTLMv2 и отвергают LM и NTLMv1."
+effect = "Перехваченные хэши нельзя использовать в старых атаках на NTLMv1; современные ПК и NAS этого не замечают."
+risk = "Очень старые NAS, принтеры со сканированием в папку и встраиваемые устройства с NTLMv1 перестанут подключаться. Ослаблять вместе с правилами SMB после инвентаризации."
+versions = "Умолчание Windows 10/11 без ключа равно 3; в 24H2 Microsoft начала поэтапный отказ от NTLM."
+verify = "Get-ItemProperty HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa -Name LmCompatibilityLevel"
+rollback = "Значение 3 или удалить."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'
+name = "LmCompatibilityLevel"
+kind = "DWord"
+value = 5
+why = "NTLMv2 only"
+
+[[rule]]
+id = "accounts.lockout"
+group = "security.accounts"
+phase = "specialize"
+title = "Блокировка учётной записи после неверных паролей"
+level = "recommended"
+default = true
+tags = ["блокировка", "перебор паролей", "lockout", "net accounts"]
+doc = "docs/reference/08-accounts-uac-lsa-remote.md#accountlockout"
+summary = "После заданного числа неверных паролей подряд учётная запись блокируется на заданное время."
+effect = "Перебор паролей по сети (SMB, RDP) бесполезен. С пустыми паролями неактуально; после назначения паролей первая линия защиты."
+versions = "Windows 11 22H2+ на чистой установке уже задаёт 10/10/10; Windows 10 и обновлённые системы «никогда»."
+verify = "net accounts"
+rollback = "net accounts /lockoutthreshold:0"
+
+[rule.params.threshold]
+type = "int"
+title = "Неверных попыток до блокировки"
+default = 10
+min = 1
+max = 999
+
+[rule.params.duration]
+type = "int"
+title = "Длительность блокировки, минут"
+default = 15
+min = 1
+max = 99999
+
+[rule.params.window]
+type = "int"
+title = "Окно сброса счётчика, минут"
+default = 15
+min = 1
+max = 99999
+
+[[rule.actions]]
+type = "exe"
+file = "net.exe"
+args = ["accounts", "/lockoutthreshold:{threshold}", "/lockoutduration:{duration}", "/lockoutwindow:{window}"]
+
+[[rule]]
+id = "accounts.password-never-expires"
+group = "security.accounts"
+phase = "specialize"
+title = "Срок действия паролей не ограничен (стартовые учётные записи)"
+level = "recommended"
+default = true
+tags = ["пароль", "срок действия", "maxpwage", "42 дня", "стартовые учётные записи"]
+doc = "docs/reference/04-users-and-media.md#passwordneverexpires"
+summary = "Максимальный срок действия пароля снимается для всех локальных учётных записей (по умолчанию 42 дня)."
+effect = "Windows никогда не покажет «Ваш пароль истёк» для стартовых учётных записей с пустым паролем. Проект управления пользователями может вернуть срок действия при назначении паролей."
+versions = "Без изменений."
+verify = "net accounts"
+rollback = "net accounts /maxpwage:42"
+
+[[rule.actions]]
+type = "exe"
+file = "net.exe"
+args = ["accounts", "/maxpwage:unlimited"]
+
+[[rule]]
+id = "remote.assistance-off"
+group = "security.remote"
+phase = "specialize"
+title = "Удалённый помощник выключен"
+level = "recommended"
+default = true
+tags = ["удалённый помощник", "msra", "remote assistance", "мошенники"]
+doc = "docs/reference/08-accounts-uac-lsa-remote.md#disableremoteassistance"
+summary = "Приглашения удалённого помощника (msra.exe) и полный удалённый контроль запрещены."
+effect = "Один из встроенных каналов удалённого управления закрыт; для поддержки своим администратором нужен выбранный организацией инструмент."
+versions = "Без изменений."
+verify = "Свойства системы -> Удалённый доступ"
+rollback = "fAllowToGetHelp = 1"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Remote Assistance'
+name = "fAllowToGetHelp"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Remote Assistance'
+name = "fAllowFullControl"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "remote.rdp-inbound-off"
+group = "security.remote"
+phase = "specialize"
+title = "Входящий удалённый рабочий стол выключен"
+level = "recommended"
+default = true
+tags = ["rdp", "удалённый рабочий стол", "fdenytsconnections"]
+doc = "docs/reference/08-accounts-uac-lsa-remote.md#disableremotedesktopinbound"
+summary = "Входящие подключения RDP запрещены (умолчание Windows, закреплено явно); исходящие подключения к другим ПК работают."
+effect = "Один из главных векторов атак на малые сети закрыт."
+versions = "Без изменений."
+verify = "Параметры -> Система -> Удалённый рабочий стол"
+rollback = "fDenyTSConnections = 0 и правило брандмауэра «Удалённый рабочий стол»."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server'
+name = "fDenyTSConnections"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "remote.rdp-nla"
+group = "security.remote"
+phase = "specialize"
+title = "Проверка подлинности на уровне сети (NLA) для RDP"
+level = "baseline"
+default = true
+tags = ["rdp", "nla", "userauthentication"]
+doc = "docs/reference/08-accounts-uac-lsa-remote.md"
+summary = "Если RDP когда-нибудь включат, подключение потребует проверку подлинности до показа экрана входа."
+effect = "Защита от атак на экран входа RDP (BlueKeep и подобные)."
+versions = "Умолчание Windows 10/11, закреплено явно."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp'
+name = "UserAuthentication"
+kind = "DWord"
+value = 1
+why = "NLA if RDP is ever enabled"
+
+[[rule]]
+id = "remote.registry-off"
+group = "security.remote"
+phase = "specialize"
+title = "Служба удалённого реестра отключена"
+level = "recommended"
+default = true
+tags = ["remoteregistry", "удалённый реестр", "служба"]
+doc = "docs/reference/08-accounts-uac-lsa-remote.md#disableremoteregistry"
+summary = "Удалённое чтение и запись реестра невозможны."
+effect = "На клиентских Windows служба и так отключена; закрепляется явно. Старые агенты инвентаризации могут требовать её включения."
+versions = "На Windows 7/8 служба была в ручном режиме."
+verify = "Get-Service RemoteRegistry | Select-Object StartType"
+rollback = "Set-Service RemoteRegistry -StartupType Manual"
+
+[[rule.actions]]
+type = "service"
+name = "RemoteRegistry"
+start = 4
+
+[[rule]]
+id = "encryption.prevent-auto-bitlocker"
+group = "security.encryption"
+phase = "specialize"
+title = "Запретить автоматическое шифрование устройства (BitLocker без ключа)"
+level = "recommended"
+default = true
+tags = ["bitlocker", "шифрование устройства", "ключ восстановления", "24h2", "tpm"]
+doc = "docs/reference/08-accounts-uac-lsa-remote.md#preventautodeviceencryption"
+summary = "Windows не шифрует системный диск автоматически. Без домена и учётной записи Microsoft ключ восстановления некуда сохранить."
+effect = "Клонирование и восстановление диска работают; при сбое TPM данные не теряются. Защита ноутбука от кражи включается осознанно с сохранением ключа."
+risk = "Данные на украденном ноутбуке не защищены шифрованием, пока BitLocker не включён вручную."
+versions = "Windows 11 24H2 на чистой установке шифрует диск на любом ПК с TPM; на 23H2 и старше только на устройствах с Modern Standby. Ключ действует с Windows 8.1."
+verify = "Get-BitLockerVolume C: | Select-Object ProtectionStatus, VolumeStatus"
+rollback = "Удалить значение, затем Параметры -> Конфиденциальность и защита -> Шифрование устройства."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Control\BitLocker'
+name = "PreventDeviceEncryption"
+kind = "DWord"
+value = 1
+why = "no silent BitLocker; enable deliberately with a saved recovery key"
+
+[[rule]]
+id = "accounts.block-aad-join"
+group = "security.accounts"
+phase = "specialize"
+title = "Без запроса «Разрешить организации управлять устройством»"
+level = "baseline"
+default = true
+tags = ["azure ad", "entra", "workplace join", "office", "m365"]
+doc = "docs/reference/08-accounts-uac-lsa-remote.md"
+summary = "При входе в Office или Teams с рабочей учётной записью Windows не предлагает присоединить устройство к Entra ID."
+effect = "Непрофессиональный пользователь не подключит ПК к чужому облачному управлению одним кликом."
+versions = "Без изменений."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WorkplaceJoin'
+name = "BlockAADWorkplaceJoin"
+kind = "DWord"
+value = 1
+why = 'no "let your organisation manage this device" prompts'

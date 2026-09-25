@@ -19,9 +19,9 @@ dist/
 **/logs/
 settings.json
 
-# Profiles may contain passwords: only presets under the app tree are versioned
-draft/install-editor/app/profiles/*.json
-!draft/install-editor/app/profiles/preset-*.json
+# Profiles may contain passwords: only presets are versioned
+WinKickOff/profiles/*.json
+!WinKickOff/profiles/preset-*.json
 
 # Windows and editors
 Thumbs.db

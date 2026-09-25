@@ -1,0 +1,95 @@
+# После первичной настройки: скрипт Post-OOBE.ps1, задача планировщика от SYSTEM при загрузке.
+# Инфраструктура (задача, ожидание IMAGE_STATE_COMPLETE, чтение профиля в $cfg и $accounts, удаление задачи)
+# добавляется генератором, если включено хотя бы одно правило фазы. Рантайм предоставляет Write-Log, $cfg, $accounts.
+
+[[rule]]
+id = "post-oobe.password-never-expires"
+group = "post-oobe"
+phase = "post-oobe"
+title = "Флаг «срок действия пароля не ограничен» на стартовых учётных записях"
+level = "recommended"
+default = true
+requires = ["accounts.password-never-expires"]
+tags = ["пароль", "срок действия", "set-localuser", "стартовые учётные записи"]
+doc = "docs/reference/16-post-oobe.md"
+summary = "Для каждой учётной записи из профиля устанавливается PasswordNeverExpires. Дублирует машинную настройку net accounts на случай, если её изменят."
+effect = "Стартовые учётные записи без пароля не получат требование сменить пароль."
+versions = "Set-LocalUser с Windows 10 1607."
+
+[[rule.actions]]
+type = "ps"
+script = '''
+foreach ($name in $accounts) {
+    try {
+        $null = Get-LocalUser -Name $name -ErrorAction Stop
+        Set-LocalUser -Name $name -PasswordNeverExpires $true -ErrorAction Stop
+        Write-Log "$name : password never expires"
+    } catch { Write-Log "$name : $($_.Exception.Message)" }
+}
+'''
+
+[[rule]]
+id = "post-oobe.disable-builtin-accounts"
+group = "post-oobe"
+phase = "post-oobe"
+title = "Встроенные Администратор и Гость остаются отключёнными"
+level = "baseline"
+default = true
+tags = ["administrator", "guest", "rid 500", "встроенные учётные записи"]
+doc = "docs/reference/16-post-oobe.md"
+summary = "Учётные записи с RID 500 и 501 находятся по SID (имена локализованы на украинском образе) и отключаются, если включены."
+effect = "Известные всем имена не могут использоваться для входа."
+versions = "Get-LocalUser с Windows 10 1607."
+
+[[rule.actions]]
+type = "ps"
+script = '''
+try {
+    foreach ($u in (Get-LocalUser | Where-Object { $_.SID.Value -match '-50[01]$' })) {
+        if ($u.Enabled) { Disable-LocalUser -SID $u.SID; Write-Log "built-in account $($u.Name) disabled" } else { Write-Log "built-in account $($u.Name) already disabled" }
+    }
+} catch { Write-Log "built-in accounts: $($_.Exception.Message)" }
+'''
+
+[[rule]]
+id = "post-oobe.collect-specialize-errors"
+group = "post-oobe"
+phase = "post-oobe"
+title = "Перенести ошибки прохода specialize в лог"
+level = "baseline"
+default = true
+tags = ["лог", "ua.err", "specialize", "диагностика"]
+doc = "docs/reference/16-post-oobe.md"
+summary = "Если обёртки команд specialize записали ошибку (скрипт не извлёкся или упал), её текст попадает в Post-OOBE.log с пометкой SPECIALIZE ERROR."
+effect = "Единственный способ узнать, что скрипт машины не выполнился."
+
+[[rule.actions]]
+type = "ps"
+script = '''
+if (Test-Path 'C:\Windows\Temp\ua.err') {
+    try { Get-Content 'C:\Windows\Temp\ua.err' | ForEach-Object { Write-Log "SPECIALIZE ERROR: $_" }; Remove-Item 'C:\Windows\Temp\ua.err' -Force } catch { }
+}
+'''
+
+[[rule]]
+id = "post-oobe.delete-answer-file-copies"
+group = "post-oobe"
+phase = "post-oobe"
+title = "Удалить копии файла ответов из системы"
+level = "baseline"
+default = true
+tags = ["panther", "unattend.xml", "пароли", "очистка"]
+doc = "docs/reference/16-post-oobe.md"
+summary = "Windows 11 24H2 оставляет копии файла ответов (с именами учётных записей и паролями, если они были) в C:\\Windows\\Panther; они удаляются."
+effect = "На диске не остаётся описания учётных записей."
+versions = "На Windows 10 сохранялась одна копия, на 24H2 две."
+
+[[rule.actions]]
+type = "ps"
+script = '''
+foreach ($f in 'C:\Windows\Panther\unattend.xml','C:\Windows\Panther\unattend-original.xml','C:\Windows\Panther\Unattend\unattend.xml','C:\Windows\System32\Sysprep\unattend.xml','C:\unattend.xml','C:\autounattend.xml') {
+    if (Test-Path $f) {
+        try { Remove-Item -Path $f -Force -ErrorAction Stop; Write-Log "deleted $f" } catch { Write-Log "could not delete $f : $($_.Exception.Message)" }
+    }
+}
+'''

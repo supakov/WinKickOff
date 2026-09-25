@@ -1,0 +1,209 @@
+# Обновления Windows. Раздел 2 скрипта машины v0.2. Порядок: снятие блокировок раньше настроек.
+
+[[rule]]
+id = "update.unblock"
+group = "update"
+phase = "specialize"
+title = "Снять любые блокировки Центра обновления"
+level = "baseline"
+default = true
+tags = ["windows update", "wuauserv", "обновления", "store"]
+doc = "docs/reference/06-windows-update.md"
+summary = "Удаляет политики, которые отключают обновления, драйверы или автообновление Store, и возвращает отключённые службы обновления в ручной режим."
+effect = "На чистом образе ничего не меняет; защищает от следов сторонних «оптимизаторов» и делает повторный запуск скрипта безопасным."
+versions = "Без изменений."
+verify = "Get-ItemProperty HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU"
+
+[[rule.actions]]
+type = "reg-remove"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
+name = "NoAutoUpdate"
+
+[[rule.actions]]
+type = "reg-remove"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
+name = "DoNotConnectToWindowsUpdateInternetLocations"
+
+[[rule.actions]]
+type = "reg-remove"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
+name = "DisableWindowsUpdateAccess"
+
+[[rule.actions]]
+type = "reg-remove"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
+name = "ExcludeWUDriversInQualityUpdate"
+
+[[rule.actions]]
+type = "reg-remove"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsStore'
+name = "AutoDownload"
+
+[[rule.actions]]
+type = "ps"
+script = '''
+foreach ($svc in 'wuauserv','UsoSvc','BITS','DoSvc','WaaSMedicSvc') {
+    $key = "HKLM:\SYSTEM\CurrentControlSet\Services\$svc"
+    if (Test-Path $key) {
+        $cur = (Get-ItemProperty $key -Name Start -ErrorAction SilentlyContinue).Start
+        if ($cur -eq 4) { Set-Reg -Path $key -Name 'Start' -Type DWord -Value 3 -Why 're-enable update service' }
+    }
+}
+'''
+
+[[rule]]
+id = "update.automatic"
+group = "update"
+phase = "specialize"
+title = "Автоматическая установка обновлений и период активности"
+level = "recommended"
+default = true
+requires = ["update.unblock"]
+tags = ["windows update", "auoptions", "период активности", "перезагрузка"]
+doc = "docs/reference/06-windows-update.md#windowsupdateautomatic"
+summary = "Обновления скачиваются и ставятся сами; автоматическая перезагрузка запрещена в период активности."
+effect = "Перезагрузка ночью или до начала рабочего дня; пользователь видит уведомление и может отложить в пределах политики."
+risk = "Период активности не длиннее 18 часов. ПК, работающие круглосуточно, перезагрузятся вне периода."
+versions = "Работает на Windows 10 и 11; в 24H2 фиксированные часы заменяют автоопределение периода."
+verify = "Get-ItemProperty HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate"
+rollback = "Удалить SetActiveHours, ActiveHoursStart, ActiveHoursEnd."
+
+[rule.params.start]
+type = "int"
+title = "Начало периода активности (час)"
+default = 8
+min = 0
+max = 23
+
+[rule.params.end]
+type = "int"
+title = "Конец периода активности (час)"
+default = 20
+min = 0
+max = 23
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
+name = "NoAutoUpdate"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
+name = "AUOptions"
+kind = "DWord"
+value = 4
+why = "auto download and install"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
+name = "SetActiveHours"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
+name = "ActiveHoursStart"
+kind = "DWord"
+value = "{start}"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
+name = "ActiveHoursEnd"
+kind = "DWord"
+value = "{end}"
+
+[[rule]]
+id = "update.other-microsoft-products"
+group = "update"
+phase = "specialize"
+title = "Обновления других продуктов Microsoft (Office, .NET)"
+level = "recommended"
+default = true
+requires = ["update.unblock"]
+tags = ["microsoft update", "office", ".net"]
+doc = "docs/reference/06-windows-update.md#updateothermicrosoftproducts"
+summary = "Подключение к Microsoft Update: исправления Office (MSI), .NET и других продуктов приходят вместе с Windows."
+effect = "Переключатель в Параметрах включён и заблокирован. Office 365 (Click-to-Run) обновляется своим механизмом независимо."
+versions = "Без изменений."
+verify = "(New-Object -ComObject Microsoft.Update.ServiceManager).Services | Where-Object IsDefaultAUService"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
+name = "AllowMUUpdateService"
+kind = "DWord"
+value = 1
+why = "Office and other Microsoft products via WU"
+
+[[rule]]
+id = "update.defer-feature"
+group = "update"
+phase = "specialize"
+title = "Отсрочка обновлений функций"
+level = "optional"
+default = true
+requires = ["update.unblock"]
+tags = ["обновления функций", "24h2", "25h2", "отсрочка", "defer"]
+doc = "docs/reference/06-windows-update.md#deferfeatureupdatesdays"
+summary = "Ежегодные обновления версии приходят с задержкой; ежемесячные обновления безопасности не откладываются."
+effect = "За время отсрочки Microsoft исправляет ошибки первых недель, а программы учёта выпускают совместимые версии."
+risk = "Требует работающей оценки совместимости: правило минимальной телеметрии намеренно оставляет DiagTrack в ручном режиме, а не отключает."
+versions = "Windows 10 1703+ и Windows 11 Pro/Enterprise; на Home отсрочки нет. Диапазон 0-365 дней."
+verify = "Get-ItemProperty HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate | Select-Object DeferFeatureUpdatesPeriodInDays"
+rollback = "Удалить DeferFeatureUpdates и DeferFeatureUpdatesPeriodInDays."
+
+[rule.params.days]
+type = "int"
+title = "Дней отсрочки"
+default = 90
+min = 1
+max = 365
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
+name = "DeferFeatureUpdates"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
+name = "DeferFeatureUpdatesPeriodInDays"
+kind = "DWord"
+value = "{days}"
+why = "security updates are never deferred"
+
+[[rule]]
+id = "update.delivery-optimization-lan"
+group = "update"
+phase = "specialize"
+title = "Delivery Optimization: обмен обновлениями только в локальной сети"
+level = "recommended"
+default = true
+tags = ["delivery optimization", "трафик", "peer", "локальная сеть"]
+doc = "docs/reference/06-windows-update.md#deliveryoptimizationlanonly"
+summary = "ПК одной сети обмениваются скачанными фрагментами обновлений между собой; наружу ничего не отдаётся."
+effect = "В офисе с десятком ПК обновление скачивается из интернета один раз. Нужен открытый порт 7680 между ПК (правило брандмауэра Windows создаёт сама)."
+versions = "Режимы 0 (только HTTP), 1 (локальная сеть), 3 (интернет), 99 (простой режим) одинаковы с Windows 10 1607."
+verify = "Get-DOConfig"
+
+[rule.params.mode]
+type = "enum"
+title = "Режим"
+default = 1
+values = [ { value = 1, title = "Только локальная сеть" }, { value = 0, title = "Только HTTP, без обмена" }, { value = 99, title = "Простой режим без облака" } ]
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization'
+name = "DODownloadMode"
+kind = "DWord"
+value = "{mode}"
+why = "LAN peers only"

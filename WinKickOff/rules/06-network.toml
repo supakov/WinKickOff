@@ -1,0 +1,278 @@
+# SMB, разрешение имён, брандмауэр. Раздел 5 скрипта машины v0.2.
+
+[[rule]]
+id = "network.smb1-off"
+group = "network"
+phase = "specialize"
+title = "SMB1 отключён и удалён"
+level = "recommended"
+default = true
+tags = ["smb1", "smbv1", "wannacry", "мфу", "nas", "сканирование в папку"]
+doc = "docs/reference/09-network-smb-firewall.md#disablesmb1"
+summary = "Сервер не отвечает по SMB1, клиентский драйвер отключён, компонент SMB1Protocol удалён, если установлен."
+effect = "Протокол 1996 года, через который распространялись WannaCry и NotPetya, отсутствует полностью."
+risk = "Устройства только с SMB1 (МФУ со сканированием в сетевую папку до 2015 года, старые NAS, Windows XP) не подключатся. Решение: прошивка с SMB2/3, сканирование на FTP или e-mail."
+versions = "Windows 11 24H2 не содержит SMB1 вообще (WARN в логе о драйвере ожидаем); Windows 10 1709+ и 11 до 23H2 компонент не установлен, но доступен; Windows 10 до 1709 установлен."
+verify = "Get-SmbServerConfiguration | Select-Object EnableSMB1Protocol"
+rollback = "Не рекомендуется; Enable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol на сборках, где он есть."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters'
+name = "SMB1"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "service"
+name = "mrxsmb10"
+start = 4
+
+[[rule.actions]]
+type = "feature"
+name = "SMB1Protocol"
+state = "Disabled"
+
+[[rule]]
+id = "network.smb-signing"
+group = "network"
+phase = "specialize"
+title = "Подпись SMB обязательна (сервер и клиент)"
+level = "recommended"
+default = true
+tags = ["smb", "подпись", "signing", "ntlm relay", "мфу", "nas"]
+doc = "docs/reference/09-network-smb-firewall.md#requiresmbsigning"
+summary = "Каждый пакет SMB подписан; ретрансляция NTLM и подмена трафика общих папок невозможны."
+effect = "ПК рабочей группы, настроенные этим файлом, совместимы между собой; производительность на гигабите падает на несколько процентов."
+risk = "Старые NAS и МФУ без поддержки подписи SMB2 не подключатся. Ослаблять вместе с правилами SMB1 и NTLMv2 после инвентаризации."
+versions = "Windows 11 24H2 и Server 2025 требуют подпись по умолчанию на Pro и Enterprise; правило делает это явно и для Windows 10 и 11 до 23H2."
+verify = "Get-SmbServerConfiguration | Select-Object RequireSecuritySignature; Get-SmbClientConfiguration | Select-Object RequireSecuritySignature"
+rollback = "Set-SmbServerConfiguration -RequireSecuritySignature $false; Set-SmbClientConfiguration -RequireSecuritySignature $false"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters'
+name = "RequireSecuritySignature"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters'
+name = "EnableSecuritySignature"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters'
+name = "RequireSecuritySignature"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters'
+name = "EnableSecuritySignature"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "network.llmnr-off"
+group = "network"
+phase = "specialize"
+title = "LLMNR выключен (защита от подмены имён в сети)"
+level = "recommended"
+default = true
+tags = ["llmnr", "responder", "подмена имён", "multicast", "разрешение имён"]
+doc = "docs/reference/09-network-smb-firewall.md#disablellmnr"
+summary = "Широковещательный опрос имён LLMNR отключён; инструменты класса Responder не получают хэши от этих ПК."
+effect = "Имена компьютеров рабочей группы продолжают разрешаться через NetBIOS (оставлен включённым) и mDNS."
+versions = "Политика с Windows Vista; в 24H2 Microsoft объявила LLMNR устаревшим в пользу mDNS."
+verify = "Get-ItemProperty 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient' -Name EnableMulticast"
+rollback = "Удалить значение."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient'
+name = "EnableMulticast"
+kind = "DWord"
+value = 0
+why = "LLMNR off"
+
+[[rule]]
+id = "network.netbios-off"
+group = "network"
+phase = "specialize"
+title = "NetBIOS over TCP/IP выключен"
+level = "risky"
+default = false
+tags = ["netbios", "nbt-ns", "responder", "137", "139", "разрешение имён"]
+doc = "docs/reference/09-network-smb-firewall.md#disablenetbios"
+summary = "Закрывает второй канал подмены имён (NBT-NS) и порты 137-139 на всех текущих интерфейсах."
+effect = "Без домена и WINS имя вида \\\\PC-BUH разрешается только через mDNS (pc-buh.local) или DNS маршрутизатора; привычные ярлыки на общие папки могут перестать работать."
+risk = "Интерфейсы, добавленные после установки (новый Wi-Fi адаптер, VPN), получат умолчание. Включать только после проверки в конкретной сети."
+versions = "Значения одинаковы с Windows 2000; в 24H2 NetBIOS по умолчанию включён."
+verify = "Get-CimInstance Win32_NetworkAdapterConfiguration | Select-Object Description, TcpipNetbiosOptions"
+rollback = "NetbiosOptions = 0 для интерфейсов, NodeType удалить."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters'
+name = "NodeType"
+kind = "DWord"
+value = 2
+why = "P-node: no NBT broadcasts"
+
+[[rule.actions]]
+type = "ps"
+script = '''
+Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces' -ErrorAction SilentlyContinue | ForEach-Object {
+    Set-Reg -Path $_.PSPath -Name 'NetbiosOptions' -Type DWord -Value 2 -Why 'NetBIOS over TCP/IP off'
+}
+'''
+
+[[rule]]
+id = "network.firewall"
+group = "network"
+phase = "specialize"
+title = "Брандмауэр включён на всех профилях, входящие блокируются, журнал отброшенных пакетов"
+level = "recommended"
+default = true
+tags = ["брандмауэр", "firewall", "входящие", "журнал", "pfirewall.log"]
+doc = "docs/reference/09-network-smb-firewall.md#firewallonwithlogging"
+summary = "Политика для доменного, частного и общедоступного профилей: брандмауэр включён и не выключается из Панели управления, входящие по умолчанию блокируются, исходящие разрешены, отброшенные пакеты пишутся в файл 16 МБ."
+effect = "Разрешающие правила (общий доступ к файлам и принтерам, Delivery Optimization, mDNS) продолжают работать; при расследовании видно, кто стучался на какие порты."
+risk = "Профиль сети (частная/общедоступная) файлом не задаётся; общий доступ к папкам требует частного профиля."
+versions = "Политика одинакова с Windows Vista."
+verify = "Get-NetFirewallProfile | Select-Object Name, Enabled, DefaultInboundAction, LogBlocked"
+rollback = "Удалить ключи профилей под HKLM:\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\DomainProfile'
+name = "EnableFirewall"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\DomainProfile'
+name = "DefaultInboundAction"
+kind = "DWord"
+value = 1
+why = "block inbound by default"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\DomainProfile'
+name = "DefaultOutboundAction"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\DomainProfile\Logging'
+name = "LogDroppedPackets"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\DomainProfile\Logging'
+name = "LogFileSize"
+kind = "DWord"
+value = 16384
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\DomainProfile\Logging'
+name = "LogFilePath"
+kind = "String"
+value = '%systemroot%\system32\LogFiles\Firewall\pfirewall.log'
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile'
+name = "EnableFirewall"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile'
+name = "DefaultInboundAction"
+kind = "DWord"
+value = 1
+why = "block inbound by default"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile'
+name = "DefaultOutboundAction"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile\Logging'
+name = "LogDroppedPackets"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile\Logging'
+name = "LogFileSize"
+kind = "DWord"
+value = 16384
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile\Logging'
+name = "LogFilePath"
+kind = "String"
+value = '%systemroot%\system32\LogFiles\Firewall\pfirewall.log'
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile'
+name = "EnableFirewall"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile'
+name = "DefaultInboundAction"
+kind = "DWord"
+value = 1
+why = "block inbound by default"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile'
+name = "DefaultOutboundAction"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile\Logging'
+name = "LogDroppedPackets"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile\Logging'
+name = "LogFileSize"
+kind = "DWord"
+value = 16384
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile\Logging'
+name = "LogFilePath"
+kind = "String"
+value = '%systemroot%\system32\LogFiles\Firewall\pfirewall.log'

@@ -1,0 +1,633 @@
+# Службы и удаление приложений. Раздел 9 скрипта машины v0.2.
+# Каждое приложение отдельным правилом: генератор собирает все включённые действия appx в один вызов Remove-Apps.
+
+[[rule]]
+id = "apps.retail-demo-off"
+group = "apps"
+phase = "specialize"
+title = "Служба демонстрационного режима магазина отключена"
+level = "baseline"
+default = true
+tags = ["retaildemo", "служба"]
+doc = "docs/reference/13-services-apps.md"
+summary = "Служба RetailDemo нужна только витринным ПК."
+effect = "Одна фоновая служба меньше."
+
+[[rule.actions]]
+type = "service"
+name = "RetailDemo"
+start = 4
+
+[[rule]]
+id = "apps.xbox-services-off"
+group = "apps"
+phase = "specialize"
+title = "Службы Xbox отключены, запись игр (Game DVR) выключена"
+level = "recommended"
+default = true
+tags = ["xbox", "game bar", "gamedvr", "службы"]
+doc = "docs/reference/13-services-apps.md#removexboxservices"
+summary = "Службы Xbox Live (аутентификация, сохранения, сеть, контроллеры) отключены; политика запрещает запись игр и Game Bar."
+effect = "Нет фоновых служб Xbox и записи экрана в фоне, которая грузит слабые ПК. Игры из Store с Xbox Live не работают."
+versions = "XboxGipSvc с Windows 10 1709."
+verify = "Get-Service Xbl*, XboxNetApiSvc, XboxGipSvc | Select-Object Name, StartType"
+rollback = "Set-Service <имя> -StartupType Manual; удалить AllowGameDVR."
+
+[[rule.actions]]
+type = "service"
+name = "XblAuthManager"
+start = 4
+
+[[rule.actions]]
+type = "service"
+name = "XblGameSave"
+start = 4
+
+[[rule.actions]]
+type = "service"
+name = "XboxNetApiSvc"
+start = 4
+
+[[rule.actions]]
+type = "service"
+name = "XboxGipSvc"
+start = 4
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR'
+name = "AllowGameDVR"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "apps.maps-broker-off"
+group = "apps"
+phase = "specialize"
+title = "Служба загрузки офлайн-карт отключена"
+level = "optional"
+default = true
+requires = ["apps.remove.maps"]
+tags = ["mapsbroker", "карты", "служба"]
+doc = "docs/reference/13-services-apps.md#removexboxservices"
+summary = "MapsBroker обслуживает приложение «Карты»; без приложения служба не нужна. В файле v0.2 отключалась под условием Xbox, здесь привязана к удалению Карт."
+effect = "Одна автоматическая служба меньше."
+rollback = "Set-Service MapsBroker -StartupType Automatic"
+
+[[rule.actions]]
+type = "service"
+name = "MapsBroker"
+start = 4
+
+[[rule]]
+id = "apps.remove-quick-assist"
+group = "apps"
+phase = "specialize"
+title = "Удалить Быструю помощь (Quick Assist)"
+level = "recommended"
+default = true
+tags = ["quick assist", "быстрая помощь", "мошенники", "удалённый доступ", "capability"]
+doc = "docs/reference/13-services-apps.md#removequickassist"
+summary = "Штатное средство удалённого управления, которое мошенники «техподдержки» просят запустить по телефону, удаляется (компонент Windows 10 и Store-версия Windows 11)."
+effect = "Для поддержки своим администратором организация выбирает инструмент сама. Пользователь может установить Quick Assist обратно из Store."
+versions = "Компонент App.Support.QuickAssist в Windows 10 1809+ и 11 21H2; с 22H2 приложение Store."
+verify = "Get-WindowsCapability -Online -Name 'App.Support.QuickAssist*'"
+rollback = "Store -> Быстрая помощь, или Add-WindowsCapability -Online -Name App.Support.QuickAssist~~~~0.0.1.0"
+
+[[rule.actions]]
+type = "capability"
+pattern = "App.Support.QuickAssist*"
+
+[[rule.actions]]
+type = "appx"
+names = ["MicrosoftCorporationII.QuickAssist"]
+
+# ---------------------------------------------------------------------------- removable apps
+
+[[rule]]
+id = "apps.remove.bing-search"
+group = "apps.remove"
+phase = "specialize"
+title = "Поиск в Интернете от Bing (для меню Пуск)"
+level = "optional"
+default = true
+tags = ["appx", "bing", "пуск"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Отправляет запросы из меню Пуск в Bing и показывает рекламу."
+effect = "Есть в образе 24H2 и новее."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.BingSearch"]
+
+[[rule]]
+id = "apps.remove.bing-news"
+group = "apps.remove"
+phase = "specialize"
+title = "Новости (MSN)"
+level = "optional"
+default = true
+tags = ["appx", "bing", "новости"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Новости MSN с рекламой."
+effect = "Есть в Windows 10 и 11 до 23H2."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.BingNews"]
+
+[[rule]]
+id = "apps.remove.bing-weather"
+group = "apps.remove"
+phase = "specialize"
+title = "Погода (MSN)"
+level = "optional"
+default = true
+tags = ["appx", "bing", "погода"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Погода MSN: реклама и запрос местоположения."
+effect = "Есть во всех версиях."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.BingWeather"]
+
+[[rule]]
+id = "apps.remove.get-help"
+group = "apps.remove"
+phase = "specialize"
+title = "Техническая поддержка (Get Help)"
+level = "optional"
+default = true
+tags = ["appx", "поддержка", "мошенники"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Чат с поддержкой Microsoft; не нужен и служит каналом для мошенничества «поддержка»."
+effect = "Есть во всех версиях."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.GetHelp"]
+
+[[rule]]
+id = "apps.remove.get-started"
+group = "apps.remove"
+phase = "specialize"
+title = "Советы (Get Started)"
+level = "optional"
+default = true
+tags = ["appx", "советы"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Реклама функций Windows."
+effect = "Есть в Windows 10 и 11 до 22H2."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.Getstarted"]
+
+[[rule]]
+id = "apps.remove.feedback-hub"
+group = "apps.remove"
+phase = "specialize"
+title = "Центр отзывов"
+level = "optional"
+default = true
+tags = ["appx", "отзывы", "телеметрия"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Отправка отзывов и диагностики в Microsoft."
+effect = "Есть во всех версиях."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.WindowsFeedbackHub"]
+
+[[rule]]
+id = "apps.remove.3d-viewer"
+group = "apps.remove"
+phase = "specialize"
+title = "Просмотр 3D"
+level = "optional"
+default = true
+tags = ["appx", "3d"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Просмотр 3D-моделей; в офисе не нужен."
+effect = "Есть в Windows 10 и 11 до 22H2."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.Microsoft3DViewer"]
+
+[[rule]]
+id = "apps.remove.mixed-reality"
+group = "apps.remove"
+phase = "specialize"
+title = "Портал смешанной реальности"
+level = "optional"
+default = true
+tags = ["appx", "mixed reality", "vr"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Устаревший портал VR-гарнитур."
+effect = "Есть в Windows 10 и 11 до 23H2."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.MixedReality.Portal"]
+
+[[rule]]
+id = "apps.remove.solitaire"
+group = "apps.remove"
+phase = "specialize"
+title = "Пасьянсы Microsoft Solitaire Collection"
+level = "optional"
+default = true
+tags = ["appx", "игры", "реклама"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Игры с рекламой."
+effect = "Есть во всех версиях."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.MicrosoftSolitaireCollection"]
+
+[[rule]]
+id = "apps.remove.xbox-gaming-app"
+group = "apps.remove"
+phase = "specialize"
+title = "Приложение Xbox"
+level = "optional"
+default = true
+tags = ["appx", "xbox", "игры"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Магазин игр и Xbox Live."
+effect = "Есть во всех версиях."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.GamingApp"]
+
+[[rule]]
+id = "apps.remove.xbox-app"
+group = "apps.remove"
+phase = "specialize"
+title = "Xbox (старое приложение Windows 10)"
+level = "optional"
+default = true
+tags = ["appx", "xbox"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Старое приложение Xbox."
+effect = "Есть в Windows 10."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.XboxApp"]
+
+[[rule]]
+id = "apps.remove.xbox-game-overlay"
+group = "apps.remove"
+phase = "specialize"
+title = "Game Bar (наложение)"
+level = "optional"
+default = true
+tags = ["appx", "xbox", "game bar"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Наложение Game Bar: запись экрана в фоне."
+effect = "Есть во всех версиях."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.XboxGameOverlay"]
+
+[[rule]]
+id = "apps.remove.xbox-gaming-overlay"
+group = "apps.remove"
+phase = "specialize"
+title = "Game Bar (Xbox Gaming Overlay)"
+level = "optional"
+default = true
+tags = ["appx", "xbox", "game bar"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Вторая часть Game Bar."
+effect = "Есть во всех версиях."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.XboxGamingOverlay"]
+
+[[rule]]
+id = "apps.remove.xbox-identity"
+group = "apps.remove"
+phase = "specialize"
+title = "Поставщик удостоверений Xbox"
+level = "optional"
+default = true
+tags = ["appx", "xbox"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Вход в Xbox Live."
+effect = "Есть во всех версиях."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.XboxIdentityProvider"]
+
+[[rule]]
+id = "apps.remove.xbox-speech-to-text"
+group = "apps.remove"
+phase = "specialize"
+title = "Субтитры Game Bar (Speech to Text)"
+level = "optional"
+default = true
+tags = ["appx", "xbox"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Субтитры для игрового чата."
+effect = "Есть во всех версиях."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.XboxSpeechToTextOverlay"]
+
+[[rule]]
+id = "apps.remove.xbox-tcui"
+group = "apps.remove"
+phase = "specialize"
+title = "Интерфейс Xbox Live (TCUI)"
+level = "optional"
+default = true
+tags = ["appx", "xbox"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Служебный интерфейс Xbox Live."
+effect = "Есть во всех версиях."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.Xbox.TCUI"]
+
+[[rule]]
+id = "apps.remove.edge-game-assist"
+group = "apps.remove"
+phase = "specialize"
+title = "Game Assist (оверлей Edge в играх)"
+level = "optional"
+default = true
+tags = ["appx", "edge", "игры"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Игровой оверлей браузера."
+effect = "Есть в 24H2 и новее (2025)."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.Edge.GameAssist"]
+
+[[rule]]
+id = "apps.remove.maps"
+group = "apps.remove"
+phase = "specialize"
+title = "Карты"
+level = "optional"
+default = true
+tags = ["appx", "карты", "maps"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Офлайн-карты и служба MapsBroker."
+effect = "Есть во всех версиях."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.WindowsMaps"]
+
+[[rule]]
+id = "apps.remove.people"
+group = "apps.remove"
+phase = "specialize"
+title = "Люди (контакты)"
+level = "optional"
+default = true
+tags = ["appx", "контакты"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Устаревшее приложение контактов с синхронизацией в облако."
+effect = "Есть в Windows 10 и 11 до 23H2."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.People"]
+
+[[rule]]
+id = "apps.remove.phone-link"
+group = "apps.remove"
+phase = "specialize"
+title = "Связь с телефоном (Phone Link)"
+level = "optional"
+default = true
+tags = ["appx", "телефон", "sms", "облако"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Доступ к SMS и файлам телефона через облако Microsoft."
+effect = "Есть во всех версиях."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.YourPhone"]
+
+[[rule]]
+id = "apps.remove.power-automate"
+group = "apps.remove"
+phase = "specialize"
+title = "Power Automate"
+level = "optional"
+default = true
+tags = ["appx", "автоматизация", "power automate"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Средство автоматизации рабочего стола; потенциал злоупотреблений."
+effect = "Есть в Windows 10 21H2+ и 11."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.PowerAutomateDesktop"]
+
+[[rule]]
+id = "apps.remove.todo"
+group = "apps.remove"
+phase = "specialize"
+title = "Microsoft To Do"
+level = "optional"
+default = true
+tags = ["appx", "задачи", "облако"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Требует учётную запись Microsoft."
+effect = "Есть во всех версиях."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.Todos"]
+
+[[rule]]
+id = "apps.remove.family"
+group = "apps.remove"
+phase = "specialize"
+title = "Семейная безопасность"
+level = "optional"
+default = true
+tags = ["appx", "семья", "облако"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Требует учётную запись Microsoft."
+effect = "Есть в Windows 11 22H2+."
+
+[[rule.actions]]
+type = "appx"
+names = ["MicrosoftCorporationII.MicrosoftFamily"]
+
+[[rule]]
+id = "apps.remove.dev-home"
+group = "apps.remove"
+phase = "specialize"
+title = "Dev Home"
+level = "optional"
+default = true
+tags = ["appx", "разработчики"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Инструмент разработчика, снят с поддержки в 2025."
+effect = "Есть в Windows 11 23H2-24H2."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.Windows.DevHome"]
+
+[[rule]]
+id = "apps.remove.clipchamp"
+group = "apps.remove"
+phase = "specialize"
+title = "Clipchamp (видеоредактор)"
+level = "optional"
+default = true
+tags = ["appx", "видео", "подписка"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Облачный сервис с рекламой подписки."
+effect = "Есть в Windows 11 22H2+."
+
+[[rule.actions]]
+type = "appx"
+names = ["Clipchamp.Clipchamp"]
+
+[[rule]]
+id = "apps.remove.teams"
+group = "apps.remove"
+phase = "specialize"
+title = "Teams (личный)"
+level = "optional"
+default = true
+tags = ["appx", "teams", "чат"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Не рабочая версия; рабочий Teams устанавливается отдельно."
+effect = "Есть в Windows 11 23H2+."
+
+[[rule.actions]]
+type = "appx"
+names = ["MSTeams"]
+
+[[rule]]
+id = "apps.remove.skype"
+group = "apps.remove"
+phase = "specialize"
+title = "Skype"
+level = "optional"
+default = true
+tags = ["appx", "skype"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Сервис закрыт в 2025."
+effect = "Есть в Windows 10 и 11 до 23H2."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.SkypeApp"]
+
+[[rule]]
+id = "apps.remove.office-hub"
+group = "apps.remove"
+phase = "specialize"
+title = "Office (лаунчер Microsoft 365)"
+level = "optional"
+default = true
+tags = ["appx", "office", "подписка"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Реклама подписки Microsoft 365."
+effect = "Есть во всех версиях."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.MicrosoftOfficeHub"]
+
+[[rule]]
+id = "apps.remove.outlook-new"
+group = "apps.remove"
+phase = "specialize"
+title = "Новый Outlook"
+level = "optional"
+default = true
+tags = ["appx", "outlook", "почта", "облако"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Почта через облако Microsoft; синхронизирует пароли IMAP в облако."
+effect = "Есть в Windows 11 23H2+. Снимите флажок, если сотрудники используют новый Outlook."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.OutlookForWindows"]
+
+[[rule]]
+id = "apps.remove.mail-calendar"
+group = "apps.remove"
+phase = "specialize"
+title = "Почта и Календарь"
+level = "optional"
+default = true
+tags = ["appx", "почта", "календарь"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Заменены новым Outlook, не обновляются."
+effect = "Есть в Windows 10 и 11 до 24H2."
+
+[[rule.actions]]
+type = "appx"
+names = ["microsoft.windowscommunicationsapps"]
+
+[[rule]]
+id = "apps.remove.copilot"
+group = "apps.remove"
+phase = "specialize"
+title = "Copilot (приложение)"
+level = "optional"
+default = true
+tags = ["appx", "copilot", "ии"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "ИИ-помощник с отправкой данных."
+effect = "Есть в Windows 11 24H2+."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.Copilot"]
+
+[[rule]]
+id = "apps.remove.copilot-provider"
+group = "apps.remove"
+phase = "specialize"
+title = "Поставщик Copilot"
+level = "optional"
+default = true
+tags = ["appx", "copilot", "ии"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Служебный компонент Copilot."
+effect = "Есть в Windows 11 23H2."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.Windows.Ai.Copilot.Provider"]
+
+[[rule]]
+id = "apps.remove.cortana"
+group = "apps.remove"
+phase = "specialize"
+title = "Cortana"
+level = "optional"
+default = true
+tags = ["appx", "cortana"]
+doc = "docs/reference/13-services-apps.md#таблица-удаляемых-приложений"
+summary = "Удалена Microsoft в 2023; на старых образах присутствует."
+effect = "Есть в Windows 10 и 11 до 22H2."
+
+[[rule.actions]]
+type = "appx"
+names = ["Microsoft.549981C3F5F10"]

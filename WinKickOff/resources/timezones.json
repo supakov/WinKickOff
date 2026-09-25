@@ -1,0 +1,9 @@
+[
+  { "id": "FLE Standard Time", "title": "(UTC+02:00) Киев, Хельсинки, Рига, Вильнюс", "recommended": true },
+  { "id": "GTB Standard Time", "title": "(UTC+02:00) Афины, Бухарест", "recommended": false },
+  { "id": "E. Europe Standard Time", "title": "(UTC+02:00) Кишинёв", "recommended": false },
+  { "id": "Central European Standard Time", "title": "(UTC+01:00) Варшава, Прага, Братислава", "recommended": false },
+  { "id": "W. Europe Standard Time", "title": "(UTC+01:00) Берлин, Вена, Амстердам", "recommended": false },
+  { "id": "GMT Standard Time", "title": "(UTC+00:00) Лондон, Дублин, Лиссабон", "recommended": false },
+  { "id": "UTC", "title": "(UTC) Всемирное координированное время", "recommended": false }
+]

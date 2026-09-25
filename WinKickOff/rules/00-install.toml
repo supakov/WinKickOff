@@ -1,0 +1,146 @@
+# Проход windowsPE и команды specialize, которые выполняются до скрипта машины.
+
+[[rule]]
+id = "install.bypass-tpm"
+group = "install"
+phase = "windowspe"
+title = "Обход проверки TPM 2.0"
+level = "optional"
+default = true
+tags = ["tpm", "labconfig", "старое железо", "совместимость"]
+doc = "docs/reference/01-windows-pe.md"
+summary = "Установщик не требует TPM 2.0. На ПК с TPM модуль остаётся включённым и используется."
+effect = "Установка проходит на ПК без TPM или с TPM 1.2 без сообщения о несовместимости."
+risk = "Без TPM недоступны автоматическое шифрование устройства и BitLocker без пароля при загрузке. Microsoft не гарантирует обновления неподдерживаемым ПК."
+versions = "Ключи LabConfig действуют только в установщике Windows 11 (21H2 и новее); Windows 10 их игнорирует."
+rollback = "Удалить правило; на установленную систему не влияет."
+
+[[rule.actions]]
+type = "xml-pe-command"
+command = 'reg.exe add "HKLM\SYSTEM\Setup\LabConfig" /v BypassTPMCheck /t REG_DWORD /d 1 /f'
+description = "Bypass TPM check"
+
+[[rule]]
+id = "install.bypass-secureboot"
+group = "install"
+phase = "windowspe"
+title = "Обход проверки Secure Boot"
+level = "optional"
+default = true
+tags = ["secure boot", "uefi", "labconfig", "старое железо"]
+doc = "docs/reference/01-windows-pe.md"
+summary = "Установщик не требует включённой Secure Boot."
+effect = "Установка проходит на ПК с BIOS/CSM или с выключенной Secure Boot."
+risk = "Без Secure Boot не работают Credential Guard и часть защит ядра; защита LSA в этом файле выбрана без привязки к UEFI именно ради таких ПК."
+versions = "Только установщик Windows 11."
+
+[[rule.actions]]
+type = "xml-pe-command"
+command = 'reg.exe add "HKLM\SYSTEM\Setup\LabConfig" /v BypassSecureBootCheck /t REG_DWORD /d 1 /f'
+description = "Bypass Secure Boot check"
+
+[[rule]]
+id = "install.bypass-cpu"
+group = "install"
+phase = "windowspe"
+title = "Обход проверки процессора"
+level = "optional"
+default = true
+tags = ["cpu", "процессор", "labconfig", "старое железо"]
+doc = "docs/reference/01-windows-pe.md"
+summary = "Установщик не сверяет процессор со списком поддерживаемых."
+effect = "Установка проходит на процессорах старше 8-го поколения Intel и Ryzen 2000."
+risk = "В 24H2 требование инструкций POPCNT и SSE4.2 не обходится: на очень старых процессорах установка невозможна."
+versions = "Только установщик Windows 11."
+
+[[rule.actions]]
+type = "xml-pe-command"
+command = 'reg.exe add "HKLM\SYSTEM\Setup\LabConfig" /v BypassCPUCheck /t REG_DWORD /d 1 /f'
+description = "Bypass CPU check"
+
+[[rule]]
+id = "install.bypass-ram"
+group = "install"
+phase = "windowspe"
+title = "Обход проверки объёма памяти"
+level = "optional"
+default = true
+tags = ["ram", "память", "labconfig"]
+doc = "docs/reference/01-windows-pe.md"
+summary = "Установщик не требует 4 ГБ памяти."
+effect = "Установка проходит на ПК с меньшим объёмом памяти; работа будет медленной."
+versions = "Только установщик Windows 11."
+
+[[rule.actions]]
+type = "xml-pe-command"
+command = 'reg.exe add "HKLM\SYSTEM\Setup\LabConfig" /v BypassRAMCheck /t REG_DWORD /d 1 /f'
+description = "Bypass RAM check"
+
+[[rule]]
+id = "install.bypass-storage"
+group = "install"
+phase = "windowspe"
+title = "Обход проверки размера диска"
+level = "optional"
+default = true
+tags = ["диск", "storage", "labconfig"]
+doc = "docs/reference/01-windows-pe.md"
+summary = "Установщик не требует 64 ГБ на диске."
+effect = "Установка проходит на маленькие диски; место под обновления нужно контролировать."
+versions = "Только установщик Windows 11."
+
+[[rule.actions]]
+type = "xml-pe-command"
+command = 'reg.exe add "HKLM\SYSTEM\Setup\LabConfig" /v BypassStorageCheck /t REG_DWORD /d 1 /f'
+description = "Bypass storage check"
+
+[[rule]]
+id = "install.bypass-nro"
+group = "install"
+phase = "specialize-xml"
+title = "Разрешить завершение OOBE без интернета и учётной записи Microsoft"
+level = "baseline"
+default = true
+tags = ["oobe", "bypassnro", "локальная учётная запись", "сеть"]
+doc = "docs/reference/02-specialize-xml.md"
+summary = "Ключ BypassNRO: первичная настройка не требует подключения к сети и аккаунта Microsoft."
+effect = "Страховка: учётные записи создаются из файла, но при изменении поведения OOBE ключ не даст установке застрять на экране сети."
+versions = "Windows 11 21H2 и новее. Microsoft объявила об удалении обходов в сборках Insider 2025 года; на выпущенных 24H2 и 25H2 ключ действует."
+verify = "reg query HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OOBE /v BypassNRO"
+rollback = "Удалить значение; на установленную систему не влияет."
+
+[[rule.actions]]
+type = "xml-specialize-command"
+command = 'reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE" /v BypassNRO /t REG_DWORD /d 1 /f'
+description = "Allow OOBE to finish without a Microsoft account or network"
+
+[[rule]]
+id = "install.netfx3"
+group = "install"
+phase = "specialize"
+title = ".NET Framework 3.5 с установочного носителя"
+level = "optional"
+default = true
+tags = ["netfx3", ".net", "dism", "старые программы", "1с"]
+doc = "docs/reference/04-users-and-media.md"
+summary = "Ищет папку sources\\sxs на подключённых дисках и включает .NET Framework 3.5 (включая 2.0 и 3.0) без интернета."
+effect = "Старые программы учёта, клиент-банки и драйверы ключей ЭЦП работают сразу после установки."
+risk = "Носитель должен оставаться подключённым во время первой перезагрузки; иначе компонент не установится и в лог попадёт WARN. Позже его можно добавить через Параметры при наличии интернета."
+versions = "Папка sources\\sxs есть во всех официальных ISO Windows 10 и 11; в урезанных образах может отсутствовать."
+verify = "Get-WindowsOptionalFeature -Online -FeatureName NetFx3"
+rollback = "Disable-WindowsOptionalFeature -Online -FeatureName NetFx3"
+
+[[rule.actions]]
+type = "ps"
+script = '''
+$src = $null
+foreach ($d in [System.IO.DriveInfo]::GetDrives()) {
+    try {
+        if (-not $d.IsReady) { continue }
+        $p = Join-Path $d.RootDirectory.FullName 'sources\sxs'
+        if ((Test-Path $p) -and (Get-ChildItem -Path $p -Filter '*.cab' -ErrorAction SilentlyContinue)) { $src = $p; break }
+    } catch { }
+}
+if ($src) { Invoke-Exe 'dism.exe' @('/Online','/Enable-Feature','/FeatureName:NetFx3','/All','/LimitAccess',"/Source:$src",'/NoRestart','/Quiet') }
+else { Write-Log 'sources\sxs not found on any drive, .NET 3.5 skipped (can be added later from Windows Update)' 'WARN' }
+'''

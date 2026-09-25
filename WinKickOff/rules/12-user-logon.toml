@@ -1,0 +1,70 @@
+# Первый вход каждого пользователя: скрипт Setup-User.ps1, запускаемый Active Setup.
+# Регистрация Active Setup это инфраструктура: генератор добавляет её, если включено хотя бы одно правило фазы.
+# Рантайм скрипта предоставляет Write-Log (лог на каждого пользователя).
+
+[[rule]]
+id = "user-logon.pin-ui-language"
+group = "user-logon"
+phase = "user-first-logon"
+title = "Закрепить язык интерфейса равным языку образа"
+level = "baseline"
+default = true
+tags = ["язык интерфейса", "uilanguageoverride", "iso", "display language"]
+doc = "docs/reference/15-per-user-script.md#шаг-1-закрепление-языка-интерфейса"
+summary = "Set-WinUILanguageOverride фиксирует язык интерфейса равным установленному, чтобы перестановка языков ввода (английский первым) не переключила интерфейс."
+effect = "Требование заказчика «язык интерфейса не менять» держится на этой строке."
+versions = "Командлет с Windows 8."
+rollback = "Set-WinUILanguageOverride без параметра снимает закрепление."
+
+[[rule.actions]]
+type = "ps"
+script = '''
+try {
+    $ui = [System.Globalization.CultureInfo]::InstalledUICulture.Name
+    if ($ui) { Set-WinUILanguageOverride -Language $ui; Write-Log "display language pinned to $ui" }
+} catch { Write-Log "display language override: $($_.Exception.Message)" }
+'''
+
+[[rule]]
+id = "user-logon.input-languages"
+group = "user-logon"
+phase = "user-first-logon"
+title = "Список языков ввода пользователя: English, Українська, Русский (Украина)"
+level = "recommended"
+default = true
+requires = ["user-logon.pin-ui-language"]
+tags = ["языки ввода", "раскладка", "ru-ua", "русский украина", "set-winuserlanguagelist"]
+doc = "docs/reference/15-per-user-script.md#шаг-2-список-языков-ввода"
+summary = "Заменяет список языков ввода пользователя на en-US, uk-UA, ru-UA («Русский (Украина)», которого нельзя задать в XML: у него нет числового кода). Если Windows не назначила ru-UA раскладку, применяется запасной список с обычным русским."
+effect = "В переключателе языков ENG, УКР, РУС в этом порядке; экран входа сохраняет список из XML с обычным русским."
+risk = "Список пока зашит в правиле как в v0.2; генератор (T06) будет подставлять языки из профиля."
+versions = "ru-UA как язык ввода поддерживается Windows 10 1803+ и 11; на сборке 26200 получает временный код 2000:00000419."
+verify = "Get-WinUserLanguageList | Select-Object LanguageTag, InputMethodTips"
+rollback = "Параметры -> Язык и регион, либо Set-WinUserLanguageList."
+
+[[rule.actions]]
+type = "ps"
+script = '''
+$done = $false
+try {
+    $list = New-WinUserLanguageList 'en-US'
+    $list.Add('uk-UA')
+    $list.Add('ru-UA')
+    Set-WinUserLanguageList -LanguageList $list -Force 3>$null
+    $applied = Get-WinUserLanguageList
+    $ru = $applied | Where-Object { $_.LanguageTag -eq 'ru-UA' }
+    if ($ru -and @($ru.InputMethodTips).Count -gt 0) {
+        $done = $true
+        Write-Log ('applied: ' + (($applied | ForEach-Object { $_.LanguageTag + '[' + ($_.InputMethodTips -join ',') + ']' }) -join ' '))
+    } else {
+        Write-Log 'ru-UA has no keyboard layout after apply, falling back to plain Russian'
+    }
+} catch { Write-Log "ru-UA attempt failed: $($_.Exception.Message)" }
+if (-not $done) {
+    try {
+        $list = New-WinUserLanguageList 'en-US'; $list.Add('uk-UA'); $list.Add('ru')
+        Set-WinUserLanguageList -LanguageList $list -Force 3>$null
+        Write-Log 'fallback applied: en-US, uk-UA, ru'
+    } catch { Write-Log "fallback failed: $($_.Exception.Message)" }
+}
+'''

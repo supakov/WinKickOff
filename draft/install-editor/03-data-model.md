@@ -1,153 +1,183 @@
 # 03. Модель данных
 
-## 1. Схема параметров: `schema/parameters.json`
+Редакция 0.2 от 25.09.2026. Форматы: TOML для каталога (читается `tomllib`, редактируется людьми),
+JSON для профилей и справочников (пишется программой).
 
-Один документ, описывающий все параметры, группы и порядок. Пример двух записей:
+## 1. Группы дерева: `rules/groups.toml`
 
-```json
-{
-  "schema_version": 1,
-  "template_version": "0.2",
-  "groups": [
-    { "id": "install",  "title": { "ru": "Установка", "uk": "Встановлення" }, "doc": "docs/reference/01-windows-pe.md" },
-    { "id": "accounts", "title": { "ru": "Учётные записи", "uk": "Облікові записи" }, "doc": "docs/reference/03-oobe-accounts-languages.md" },
-    { "id": "defender", "title": { "ru": "Microsoft Defender", "uk": "Microsoft Defender" }, "doc": "docs/reference/07-defender.md" }
-  ],
-  "parameters": [
-    {
-      "id": "DefenderPUAProtection",
-      "group": "defender",
-      "target": "config",
-      "type": "bool",
-      "default": true,
-      "label": { "ru": "Блокировать нежелательные программы (PUA)", "uk": "Блокувати небажані програми (PUA)" },
-      "hint":  { "ru": "Adware, установщики-бандлы, майнеры блокируются Defender.", "uk": "..." },
-      "comment": "block potentially unwanted apps (adware, bundlers)",
-      "doc": "docs/reference/07-defender.md#defenderpuaprotection",
-      "flags": []
-    },
-    {
-      "id": "ControlledFolderAccess",
-      "group": "defender",
-      "target": "config",
-      "type": "enum",
-      "values": [ { "value": 0, "label": { "ru": "Выключено" } }, { "value": 1, "label": { "ru": "Блокировать" } }, { "value": 2, "label": { "ru": "Аудит" } } ],
-      "default": 0,
-      "label": { "ru": "Контролируемый доступ к папкам" },
-      "hint":  { "ru": "Защита от шифровальщиков. Ломает старые программы, пишущие в Документы." },
-      "comment": "0 off, 1 block, 2 audit. Anti-ransomware, but breaks legacy apps writing to Documents.",
-      "doc": "docs/reference/07-defender.md#controlledfolderaccess",
-      "flags": ["risk_when:1"]
-    }
-  ]
-}
+```toml
+[[group]]
+id = "security"
+title = "Безопасность"
+order = 30
+summary = "Учётные данные, UAC, удалённый доступ, шифрование."
+
+[[group]]
+id = "security.lsa"
+parent = "security"
+title = "Защита учётных данных"
+order = 2
 ```
 
-Поля параметра:
+Идентификатор с точками задаёт путь; `parent` обязателен для вложенных. Порядок узлов по `order`.
+
+## 2. Правило: `rules/NN-<направление>.toml`
+
+```toml
+[[rule]]
+id = "defender.pua"
+group = "defender"
+phase = "specialize"
+title = "Блокировать потенциально нежелательные программы (PUA)"
+level = "recommended"          # baseline | recommended | optional | risky
+default = true
+requires = ["defender.realtime"]
+conflicts = []
+tags = ["defender", "adware", "bundlers"]
+doc = "docs/reference/07-defender.md#defenderpuaprotection"
+summary = "Defender блокирует adware, установщики-бандлы и майнеры при скачивании и запуске."
+effect = """
+Пользователь видит уведомление Безопасности Windows и файл не запускается.
+Закрывает самый частый канал заражения: «бесплатная программа с кнопкой Скачать».
+"""
+risk = "Легитимные утилиты, помеченные как PUA (некоторые средства удалённого доступа), требуют исключения."
+versions = "Политика с Windows 10 1607; переключатель в Параметрах с 2004; на 24H2 без изменений."
+verify = "Get-MpPreference | Select-Object PUAProtection"
+rollback = "Удалить значение PUAProtection из ключа политик Defender."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender'
+name = "PUAProtection"
+kind = "DWord"
+value = 1
+why = "block potentially unwanted apps"
+```
+
+Поля правила:
 
 | Поле | Обязательное | Смысл |
 |---|---|---|
-| id | да | Имя ключа `$Config` или имя XML-параметра; латиница, как в шаблоне |
-| group | да | Ссылка на группу |
-| target | да | `config` (блок `$Config`), `xml` (элемент файла ответов), `list` (списки приложений/ASR), `derived` (вычисляется) |
-| type | да | `bool`, `int`, `enum`, `string`, `string_list`, `accounts`, `languages`, `apps`, `asr` |
-| default | да | Значение по умолчанию; для пресета «Офис» совпадает с v0.2 |
-| values | для enum | Допустимые значения с подписями |
-| min, max | для int | Диапазон |
-| label, hint | да | Подписи и пояснения по языкам |
-| comment | для config | Комментарий, который попадёт в `$Config` (английский, как в шаблоне, чтобы golden-тест совпал) |
-| doc | да | Относительная ссылка на карточку справочника |
-| flags | нет | `risk_when:<value>` (предупреждение), `enterprise_only`, `deprecated`, `advanced` |
-| depends | нет | Условия видимости или доступности: `{"param": "RemoveBloatApps", "equals": true}` |
+| id | да | `группа.имя`, латиница, точки; уникален в каталоге |
+| group | да | Идентификатор группы дерева |
+| phase | да | `windowspe`, `specialize-xml`, `specialize`, `default-user`, `user-first-logon`, `post-oobe`, `oobe-xml` |
+| title | да | Название в дереве |
+| level | да | `baseline` (выключение даёт предупреждение), `recommended`, `optional`, `risky` (включение даёт предупреждение) |
+| default | да | Состояние в пресете «Офис» |
+| requires | нет | Идентификаторы правил, без которых это правило выключается |
+| conflicts | нет | Идентификаторы правил, которые выключаются при включении этого |
+| tags | нет | Слова для поиска |
+| doc | да | Ссылка на карточку справочника |
+| summary | да | Одно-два предложения |
+| effect, risk, versions | effect да | Текст для панели описания |
+| verify, rollback | нет | Команда проверки и способ отката |
+| params | нет | Таблица параметров (ниже) |
+| actions | да | Список действий; правило без действий недопустимо (кроме `level = "baseline"` с `phase = "oobe-xml"` для служебных) |
 
-Порядок параметров в файле задаёт порядок в `$Config` и в форме. Комментарии групп в `$Config`
-(`# --- Printing ---`) берутся из группы: поле `config_header`.
+### Параметры
 
-## 2. Отдельные справочники
+```toml
+[rule.params.seconds]
+type = "int"            # int | enum | string | bool
+title = "Секунд простоя до блокировки"
+default = 900
+min = 60
+max = 599940
 
-- `schema/apps.json`: массив `{ "name": "Microsoft.BingWeather", "title": {...}, "reason": {...},
-  "versions": "all", "default_remove": true }` для удаляемых и `{ "name": ..., "keep_reason": {...} }`
-  для сохраняемых. Порядок в списке `$AppsToRemove` совпадает с порядком файла.
-- `schema/asr_rules.json`: `{ "guid": "...", "title": {...}, "blocks": {...}, "false_positive_risk": "low|medium|high",
-  "min_build": "1709", "needs_cloud": false, "supports_warn": true, "default_mode": 1 }`.
-  Режимы: 0 выключено, 1 блокировать, 2 аудит, 6 предупреждать. Правило LSASS присутствует
-  с `default_mode: 0` и пометкой «избыточно при LSAProtection».
-- `resources/keyboards.json`: `{ "tag": "uk-UA", "lcid": "0422", "klid": "00020422", "title": {...}, "transient": false }`;
-  для `ru-UA` `"lcid": null, "transient": true`, что означает «только через Setup-User.ps1».
-- `resources/timezones.json`: `{ "id": "FLE Standard Time", "title": { "ru": "(UTC+02:00) Киев" } }`.
+[rule.params.mode]
+type = "enum"
+title = "Режим"
+default = 1
+values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
+```
 
-## 3. Профиль: `profiles/<имя>.json`
+В действиях параметр подставляется строкой `"{seconds}"`; генератор приводит к типу действия.
+
+### Действия
+
+| type | Поля | Генерируется |
+|---|---|---|
+| reg | path, name, kind (DWord, QWord, String, ExpandString, MultiString, Binary), value, why? | `Set-Reg ...` |
+| reg-remove | path, name | `Remove-Reg ...` |
+| service | name, start (2, 3, 4) | `Set-ServiceStart ...` |
+| exe | file, args (список строк) | `Invoke-Exe ...` |
+| feature | name, state (`Enabled`, `Disabled`) | обёртка рантайма над DISM |
+| capability | pattern | обёртка рантайма |
+| appx | names (список) | обёртка рантайма (deprovision + remove) |
+| ps | script (многострочный литерал) | текст как есть |
+| xml-pe-command | command, description | `RunSynchronousCommand` в windowsPE |
+| xml-specialize-command | command, description | `RunSynchronousCommand` в specialize |
+| xml-oobe | element, value | элемент внутри `<OOBE>` |
+
+Пути реестра: префикс `HKLM:\`, `HKCU:\` (только фаза user-first-logon), `DU:\` (профиль по умолчанию;
+генератор заменяет на `$du\`). Литеральные строки TOML в одинарных кавычках не требуют экранирования
+обратных слешей.
+
+Идентификаторы правил каталога 0.2 (перенос v0.2): по одному правилу на логически отдельную
+настройку; безусловные действия v0.2 сгруппированы в правила уровня `baseline`
+(например `uac.baseline`, `lsa.baseline`, `edge.baseline`, `default-user.baseline`).
+
+## 3. Переводы: `rules/lang/uk.toml`
+
+```toml
+["defender.pua"]
+title = "Блокувати потенційно небажані програми (PUA)"
+summary = "..."
+```
+
+Ключ таблицы это идентификатор правила; переводятся `title`, `summary`, `effect`, `risk`, `versions`,
+`rollback`, названия параметров. Отсутствующий перевод показывает русский текст.
+
+## 4. Профиль: `profiles/<имя>.json`
 
 ```json
 {
-  "format_version": 1,
-  "template_version": "0.2",
+  "format_version": 2,
+  "catalog_version": "0.2",
   "name": "Офис",
   "author": "",
   "created": "2026-09-25T10:00:00",
   "modified": "2026-09-25T10:00:00",
   "comment": "",
-  "install": {
-    "edition": "Pro",
-    "product_key_mode": "generic",
-    "product_key": "",
-    "bypass_checks": ["TPM", "SecureBoot", "CPU", "RAM", "Storage"],
-    "time_zone": "FLE Standard Time"
-  },
-  "languages": {
-    "ui_language": "uk-UA",
-    "system_locale": "uk-UA",
-    "user_locale": "uk-UA",
-    "geo_id": 241,
-    "input": ["en-US", "uk-UA", "ru-UA"]
-  },
+  "install": { "edition": "Pro", "product_key_mode": "generic", "product_key": "", "time_zone": "FLE Standard Time" },
+  "languages": { "ui_language": "uk-UA", "system_locale": "uk-UA", "user_locale": "uk-UA", "geo_id": 241, "input": ["en-US", "uk-UA", "ru-UA"] },
   "accounts": [
     { "name": "Admin", "display_name": "Admin", "group": "Administrators", "description": "Local administrator (starter account)", "password": "" },
-    { "name": "User",  "display_name": "User",  "group": "Users",          "description": "Standard user (starter account)",      "password": "" }
+    { "name": "User",  "display_name": "User",  "group": "Users", "description": "Standard user (starter account)", "password": "" }
   ],
-  "config": {
-    "PasswordNeverExpires": true,
-    "EnableNetFx3": true,
-    "EnsurePrintSpooler": true,
-    "ControlledFolderAccess": 0,
-    "SmartScreenLevel": "Warn"
+  "rules": {
+    "defender.pua": { "enabled": true },
+    "accounts.inactivity-lock": { "enabled": true, "params": { "seconds": 900 } },
+    "network.netbios-off": { "enabled": false }
   },
-  "apps_to_remove": ["Microsoft.BingSearch", "Microsoft.BingNews"],
-  "asr_rules": { "56a863a9-875e-4185-98a7-b882c64b5ce5": 1, "01443614-cd74-433a-b99e-2ecdc07bfc25": 2 },
   "unknown": {}
 }
 ```
 
-Правила:
+- В `rules` перечислены все правила каталога (полнота нужна для сравнения профилей и для того,
+  чтобы новое правило каталога было заметно при загрузке).
+- `params` присутствует только у правил с параметрами; отсутствующий параметр = значение по умолчанию.
+- Правила из старого профиля, которых нет в каталоге, переносятся в `unknown` и не теряются.
+- Пароли открытым текстом; профили с паролем помечаются в списке недавних.
 
-- `config` содержит только ключи, известные схеме; `AdminAccount` и `UserAccount` вычисляются из
-  `accounts` (первая запись Administrators и первая Users) и в профиле не хранятся.
-- `input` хранит теги языков; в XML `InputLocale` попадают только те, у кого есть LCID; языки с
-  `transient: true` заменяются ближайшим (для `ru-UA` это `ru`, то есть `0419:00000419`) в XML и
-  передаются в `Setup-User.ps1` как список `New-WinUserLanguageList` (в v0.2 список в скрипте
-  зашит; в шаблоне он станет маркером `{{user_language_list}}`).
-- `unknown`: параметры из более новых профилей, которые эта версия не знает; сохраняются как есть.
-- Пароль хранится открытым текстом, если пользователь его ввёл; в списке недавних файлов
-  профили с паролями помечаются, при сохранении показывается предупреждение.
+## 5. Справочники
 
-## 4. Отображение профиля на XML и скрипты
+- `resources/keyboards.json`: `{ "tag": "uk-UA", "lcid": "0422", "klid": "00020422", "title": "Українська (розширена)", "transient": false }`;
+  для `ru-UA`: `"lcid": null, "transient": true, "fallback": "ru"`.
+- `resources/timezones.json`: `{ "id": "FLE Standard Time", "title": "(UTC+02:00) Киев", "recommended": true }`.
+- Языки с `transient: true` не попадают в `InputLocale` (вместо них `fallback`), но попадают в
+  список для скрипта первого входа (правило `languages.user-input-list`).
 
-| Профиль | Куда | Правило |
-|---|---|---|
-| install.edition + product_key_mode | `<Key>`, `<WillShowUI>` | generic → универсальный ключ редакции, OnError; custom → введённый ключ, OnError; ask → `00000-00000-00000-00000-00000`, Always |
-| install.bypass_checks | RunSynchronous в windowsPE | По одному `reg.exe add ... Bypass<X>Check` на элемент, Order с 1; пустой список: элемент RunSynchronous не выводится |
-| install.time_zone | `<TimeZone>` | Как есть |
-| languages.* | International-Core | `InputLocale` = join(';') LCID:KLID; остальные как есть |
-| languages.geo_id | Setup-System.ps1, раздел 10 | Маркер `{{geo_id}}` и `{{geo_name}}` (в v0.2 зашито 241/UA; в шаблоне станет маркером) |
-| accounts | `<LocalAccounts>` | Порядок элементов: Password, Description, DisplayName, Group, Name; пароль пустой → `<Value></Value>` |
-| config.* | `$Config` | По схеме, в её порядке |
-| apps_to_remove | `$AppsToRemove` | В порядке `apps.json` |
-| asr_rules | `$AsrRules` | Только правила с режимом больше 0; режим 0 не выводится |
+## 6. Встроенный профиль в XML
 
-## 5. Версионирование
+Генератор добавляет в `Extensions` элемент `<Profile format="json"><![CDATA[ ... ]]></Profile>` с
+тем же JSON, что сохраняется в файл. Импорт из XML читает его; если элемента нет (файл v0.2 или
+чужой), импорт разбирает действия из скриптов и сопоставляет с каталогом по типу, пути и имени
+(тот же код, что семантический golden), а несопоставленное показывает списком.
 
-- `schema_version`: формат самой схемы; меняется редко.
-- `template_version`: версия шаблона XML и скриптов (0.2 сейчас). Профиль хранит версию, с которой
-  сохранён; при открытии профилем старой версии применяется миграция (`profile.migrate()`), которая
-  добавляет новые параметры со значениями по умолчанию и пишет предупреждение.
-- Версия приложения независима (семантическая), показывается в «О программе» и в шапке XML.
+## 7. Версионирование
+
+- `format_version` профиля: 2 (в 0.1 был 1; миграция: `config.*` → состояния правил по таблице соответствия).
+- `catalog_version` = содержимое `templates/VERSION`; при расхождении профиль загружается с
+  предупреждением и дополняется.
+- Версия приложения независима.

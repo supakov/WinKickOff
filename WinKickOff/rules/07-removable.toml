@@ -1,0 +1,221 @@
+# Съёмные носители, скриптовые файлы, Microsoft Edge. Раздел 6 скрипта машины v0.2.
+
+[[rule]]
+id = "removable.autorun-off"
+group = "removable"
+phase = "specialize"
+title = "Автозапуск и автовоспроизведение выключены для всех носителей"
+level = "recommended"
+default = true
+tags = ["autorun", "autoplay", "флешка", "usb", "cd", "телефон"]
+doc = "docs/reference/10-removable-scripts-browser.md#disableautorun"
+summary = "Автозапуск отключён для всех типов дисков, файлы autorun.inf игнорируются даже на CD, автовоспроизведение выключено для устройств без буквы диска (телефоны, камеры)."
+effect = "Подключение флешки, диска или телефона ничего не запускает и ничего не спрашивает. Запуск файла вручную покрывает правило ASR для USB."
+versions = "С Windows 7 autorun.inf на USB игнорируется всегда; для CD ещё работает, поэтому NoAutorun нужен."
+verify = "Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer"
+rollback = "Удалить три значения."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer'
+name = "NoDriveTypeAutoRun"
+kind = "DWord"
+value = 255
+why = "AutoRun off for all drives"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer'
+name = "NoAutorun"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer'
+name = "NoAutoplayfornonVolume"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "scripts.open-in-notepad"
+group = "removable.scripts"
+phase = "specialize"
+title = "Скриптовые файлы (.js .vbs .hta и другие) открываются в Блокноте"
+level = "recommended"
+default = true
+tags = ["js", "vbs", "hta", "wsf", "фишинг", "блокнот", "ассоциации"]
+doc = "docs/reference/10-removable-scripts-browser.md#scriptfilesopeninnotepad"
+summary = "Двойной щелчок по .js, .jse, .vbs, .vbe, .wsf, .wsh, .hta показывает текст в Блокноте, а не выполняет его."
+effect = "Классический фишинг «архив со скриптом внутри» (счёт.pdf.js) не срабатывает. cscript, wscript и mshta из командной строки и из программ работают."
+risk = "Установщики, запускающие .vbs через оболочку (редко), откроют Блокнот. Ассоциация в профиле пользователя (Открыть с помощью) перекрывает эту."
+versions = "ProgId одинаковы с Windows XP."
+verify = "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Classes\\VBSFile\\Shell\\Open\\Command').'(default)'"
+rollback = "Восстановить значения по умолчанию, например для VBS: \"%SystemRoot%\\System32\\WScript.exe\" \"%1\" %*"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Classes\JSFile\Shell\Open\Command'
+name = "(Default)"
+kind = "ExpandString"
+value = '"%SystemRoot%\System32\notepad.exe" "%1"'
+why = "double-click opens in Notepad, cscript/wscript still work from a command line"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Classes\JSEFile\Shell\Open\Command'
+name = "(Default)"
+kind = "ExpandString"
+value = '"%SystemRoot%\System32\notepad.exe" "%1"'
+why = "double-click opens in Notepad, cscript/wscript still work from a command line"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Classes\VBSFile\Shell\Open\Command'
+name = "(Default)"
+kind = "ExpandString"
+value = '"%SystemRoot%\System32\notepad.exe" "%1"'
+why = "double-click opens in Notepad, cscript/wscript still work from a command line"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Classes\VBEFile\Shell\Open\Command'
+name = "(Default)"
+kind = "ExpandString"
+value = '"%SystemRoot%\System32\notepad.exe" "%1"'
+why = "double-click opens in Notepad, cscript/wscript still work from a command line"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Classes\WSFFile\Shell\Open\Command'
+name = "(Default)"
+kind = "ExpandString"
+value = '"%SystemRoot%\System32\notepad.exe" "%1"'
+why = "double-click opens in Notepad, cscript/wscript still work from a command line"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Classes\WSHFile\Shell\Open\Command'
+name = "(Default)"
+kind = "ExpandString"
+value = '"%SystemRoot%\System32\notepad.exe" "%1"'
+why = "double-click opens in Notepad, cscript/wscript still work from a command line"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Classes\htafile\Shell\Open\Command'
+name = "(Default)"
+kind = "ExpandString"
+value = '"%SystemRoot%\System32\notepad.exe" "%1"'
+why = "double-click opens in Notepad, cscript/wscript still work from a command line"
+
+[[rule]]
+id = "scripts.remove-vbscript"
+group = "removable.scripts"
+phase = "specialize"
+title = "Удалить движок VBScript"
+level = "risky"
+default = false
+tags = ["vbscript", "capability", "старые установщики"]
+doc = "docs/reference/10-removable-scripts-browser.md#removevbscript"
+summary = "Интерпретатор VBScript удаляется как необязательный компонент."
+effect = "Ни .vbs, ни макросы на VBScript в старых программах, ни компонент MSScriptControl не работают."
+risk = "Установщики программ 2000-х, часть драйверов принтеров и старые корпоративные приложения используют VBScript. Ассоциация на Блокнот даёт большую часть защиты без поломок."
+versions = "Компонент существует только в Windows 11 24H2 и новее; на 23H2 и Windows 10 движок неотделим (WARN в логе)."
+verify = "Get-WindowsCapability -Online -Name 'VBSCRIPT*'"
+rollback = "Add-WindowsCapability -Online -Name VBSCRIPT~~~~ (нужен интернет или источник)."
+
+[[rule.actions]]
+type = "capability"
+pattern = "VBSCRIPT*"
+
+[[rule]]
+id = "edge.smartscreen-locked"
+group = "removable.edge"
+phase = "specialize"
+title = "SmartScreen в Edge включён, обход запрещён"
+level = "recommended"
+default = true
+tags = ["edge", "smartscreen", "фишинг", "загрузки", "pua"]
+doc = "docs/reference/10-removable-scripts-browser.md#edgesmartscreenlocked-и-безусловные-политики-edge"
+summary = "Проверка сайтов и загрузок по репутации, блокировка нежелательных загрузок; пользователь не может «перейти на сайт» или «сохранить всё равно» после предупреждения."
+effect = "Edge защищает от фишинга и вредоносных загрузок без возможности обойти предупреждение одним кликом."
+versions = "Политики Edge 79 и новее, обновляются с браузером независимо от версии Windows."
+verify = "edge://policy"
+rollback = "Удалить значения из ключа политик Edge."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "SmartScreenEnabled"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "SmartScreenPuaEnabled"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "PreventSmartScreenPromptOverride"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "PreventSmartScreenPromptOverrideForFiles"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "edge.baseline"
+group = "removable.edge"
+phase = "specialize"
+title = "Edge без мастера первого запуска, рекламы и фоновых процессов"
+level = "baseline"
+default = true
+tags = ["edge", "первый запуск", "реклама", "startup boost", "фон"]
+doc = "docs/reference/10-removable-scripts-browser.md#edgesmartscreenlocked-и-безусловные-политики-edge"
+summary = "Скрыт мастер первого запуска, выключены рекомендации, отчёты для персонализации, ускоренный запуск и фоновый режим."
+effect = "Edge остаётся аварийным браузером: без него нельзя скачать другой браузер. Не показывает рекламу и не занимает память в фоне."
+versions = "Политики Edge 77 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "HideFirstRunExperience"
+kind = "DWord"
+value = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "ShowRecommendationsEnabled"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "PersonalizationReportingEnabled"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "StartupBoostEnabled"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "BackgroundModeEnabled"
+kind = "DWord"
+value = 0

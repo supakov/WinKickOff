@@ -1,0 +1,10 @@
+[
+  { "tag": "en-US", "lcid": "0409", "klid": "00000409", "title": "English (United States), US keyboard", "transient": false },
+  { "tag": "uk-UA", "lcid": "0422", "klid": "00020422", "title": "Українська, розширена розкладка", "transient": false },
+  { "tag": "uk-UA", "lcid": "0422", "klid": "00000422", "title": "Українська, стандартна розкладка", "transient": false },
+  { "tag": "ru-UA", "lcid": null, "klid": "00000419", "title": "Русский (Украина)", "transient": true, "fallback": "ru" },
+  { "tag": "ru", "lcid": "0419", "klid": "00000419", "title": "Русский", "transient": false },
+  { "tag": "en-GB", "lcid": "0809", "klid": "00000809", "title": "English (United Kingdom)", "transient": false },
+  { "tag": "pl-PL", "lcid": "0415", "klid": "00000415", "title": "Polski (programisty)", "transient": false },
+  { "tag": "de-DE", "lcid": "0407", "klid": "00000407", "title": "Deutsch", "transient": false }
+]

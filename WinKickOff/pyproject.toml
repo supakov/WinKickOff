@@ -1,0 +1,27 @@
+[project]
+name = "winkickoff"
+version = "0.1.0"
+description = "Editor that assembles autounattend.xml for workgroup Windows 11 Pro installs from a catalog of rules"
+requires-python = ">=3.14"
+readme = "README.md"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+build = ["pyinstaller>=6.11"]
+dev = ["ruff>=0.6", "mypy>=1.11"]
+
+[project.scripts]
+winkickoff = "winkickoff.app:run"
+
+[tool.ruff]
+line-length = 110
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+files = ["winkickoff/core"]
