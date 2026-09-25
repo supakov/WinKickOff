@@ -122,6 +122,11 @@ Get-ChildItem -Recurse -Include *.md,*.ps1,*.py,*.json -File | Where-Object Full
 - Все три встроенных скрипта завершаются `exit 0`; обёртки команд перехватывают ошибки в `C:\Windows\Temp\ua.err`.
 - Известные несоответствия v0.2 перечислены в `docs/reference/17-cross-links.md`, раздел 3
   (`MapsBroker` под условием Xbox, политики только для Enterprise, устаревшие политики Chat/Cortana).
+- GitHub отклоняет push с личным адресом почты в авторе коммита («push declined due to email privacy
+  restrictions»). В этом репозитории локально задан служебный адрес
+  `265459095+stanislavperec-ua@users.noreply.github.com` (`git config user.email`, только для этой папки;
+  глобальные настройки git не менялись). Файлы хранятся байт в байт (`.gitattributes`: `* -text`),
+  в репозитории и в рабочей копии CRLF.
 
 ## 7. Состояние работ
 
