@@ -13,7 +13,12 @@ from winkickoff.core.resources import Resources
 from winkickoff.core.validate import has_errors, validate_profile
 
 ROOT = Path(__file__).resolve().parents[1]
-PRESETS = {"preset-office.json": "office", "preset-strict.json": "strict", "preset-laptop.json": "laptop"}
+PRESETS = {
+    "preset-office.json": "office",
+    "preset-strict.json": "strict",
+    "preset-laptop.json": "laptop",
+    "preset-memstechtips.json": "memstechtips",
+}
 
 
 def load_maker():
@@ -76,6 +81,28 @@ class PresetsTest(unittest.TestCase):
         office, _ = Profile.load(ROOT / "profiles" / "preset-office.json", self.catalog)
         self.assertEqual({d.key for d in office.diff(laptop, self.catalog)},
                          {"encryption.prevent-auto-bitlocker", "accounts.inactivity-lock.seconds"})
+
+    def test_memstechtips_follows_the_original(self) -> None:
+        mtt, _ = Profile.load(ROOT / "profiles" / "preset-memstechtips.json", self.catalog)
+        for rule_id in ("install.bypass-tpm", "install.bypass-nro", "accounts.block-aad-join",
+                        "apps.remove-quick-assist", "default-user.show-file-extensions"):
+            self.assertTrue(mtt.is_enabled(rule_id), rule_id)
+        # partly present without contradictions: on; AllowTelemetry 0 of the original acts as 1 on Pro
+        for rule_id in ("privacy.telemetry-minimal", "privacy.copilot-recall-off", "privacy.consumer-content"):
+            self.assertTrue(mtt.is_enabled(rule_id), rule_id)
+        # absent from the original, or contradicting it (UAC without prompts, Xbox services on demand)
+        for rule_id in ("defender.realtime", "uac.baseline", "apps.xbox-services-off", "edge.baseline",
+                        "edge.diagnostic-data-off"):
+            self.assertFalse(mtt.is_enabled(rule_id), rule_id)
+        self.assertEqual(mtt.install["product_key_mode"], "ask")
+        for rule_id in mtt.enabled_ids():
+            for required in self.catalog.rules[rule_id].requires:
+                self.assertTrue(mtt.is_enabled(required), f"{rule_id} requires {required}")
+
+    def test_memstechtips_report_is_up_to_date(self) -> None:
+        on_disk = self.maker.memstechtips_map.REPORT.read_bytes().decode("utf-8")
+        expected = self.maker.memstechtips_report(self.catalog).replace("\n", "\r\n")
+        self.assertEqual(on_disk, expected, "the memstechtips report is stale: run python tools/make_presets.py")
 
     def test_presets_hold_no_passwords(self) -> None:
         for file_name in PRESETS:

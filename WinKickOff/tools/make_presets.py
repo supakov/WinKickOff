@@ -16,10 +16,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tools"))
 
 from winkickoff.core.catalog import Catalog, load_catalog  # noqa: E402
 from winkickoff.core.deps import Resolver  # noqa: E402
 from winkickoff.core.profile import Profile  # noqa: E402
+
+import memstechtips as memstechtips_map  # noqa: E402
 
 STAMP = "2026-09-25T00:00:00"
 
@@ -60,6 +63,23 @@ def laptop(catalog: Catalog) -> Profile:
     return profile
 
 
+def memstechtips(catalog: Catalog) -> Profile:
+    profile, _ = memstechtips_map.load(catalog)
+    profile.comment = (
+        "Перенос оригинального файла ответов UnattendedWinstall (memstechtips, приложение A): включены правила, "
+        "действия которых есть в оригинале и не противоречат ему. Ключ продукта спрашивается при установке. "
+        "Базовые правила WinKickOff, которых нет в оригинале или которые ему противоречат, выключены: проверьте "
+        "предупреждения перед применением. Что добавлено сверх оригинала, что не перенесено и почему: "
+        "docs/technical/memstechtips-profile.md."
+    )
+    return profile
+
+
+def memstechtips_report(catalog: Catalog) -> str:
+    profile, facts = memstechtips_map.load(catalog)
+    return memstechtips_map.report(catalog, profile, facts)
+
+
 def write(profile: Profile, catalog: Catalog, path: Path) -> None:
     profile.created = STAMP
     profile.modified = STAMP
@@ -73,6 +93,9 @@ def main() -> None:
     write(office(catalog), catalog, ROOT / "profiles" / "preset-office.json")
     write(strict(catalog), catalog, ROOT / "profiles" / "preset-strict.json")
     write(laptop(catalog), catalog, ROOT / "profiles" / "preset-laptop.json")
+    write(memstechtips(catalog), catalog, ROOT / "profiles" / "preset-memstechtips.json")
+    memstechtips_map.REPORT.write_text(memstechtips_report(catalog), encoding="utf-8", newline="\r\n")
+    print(f"written {memstechtips_map.REPORT.relative_to(ROOT.parent)}")
 
 
 if __name__ == "__main__":

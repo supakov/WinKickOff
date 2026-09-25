@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 25.09.2026 (issue #1: the «Браузеры» (Browsers) section of the catalog, 46 rules).
+Last update: 25.09.2026 (issue #1: the «Браузеры» (Browsers) section, 46 rules; issue #2: memstechtips preset).
 
 Repository: https://github.com/supakov/WindowsInstaller (private, branch `main`). The local folder
 `C:\Users\User\projects\Windows installer` and the repository must match: commit and push after every
@@ -49,6 +49,7 @@ Windows installer/
 ├── docs/
 │   ├── README.md                  entry point to the documentation (three languages)
 │   ├── technical/                 TECHNICAL DOCUMENTATION, English
+│   │   ├── memstechtips-profile.md  generated report: the original of Appendix A mapped onto the catalog (issue #2)
 │   │   ├── reference/             reference: a card for every installation parameter (19 files)
 │   │   └── editor/                WinKickOff specification: problem, architecture, data model, testing,
 │   │       │                      plan (days, milestones), review of revision 0.1
@@ -70,11 +71,12 @@ Windows installer/
     ├── templates/                 runtime with slots: autounattend.template.xml, Setup-System, Setup-User, Post-OOBE,
     │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.3
     ├── resources/                 keyboards.json, timezones.json, strings.uk.json, strings.en.json (interface translations)
-    ├── profiles/                  presets «Офис» (equals v0.2), «Строгий» (Strict), «Ноутбук» (Laptop), README
+    ├── profiles/                  presets «Офис» (equals v0.2), «Строгий» (Strict), «Ноутбук» (Laptop), memstechtips, README
     ├── tests/                     unittest: catalog, resolver, profile, render, build against v0.2, validation,
     │                              import, presets, PowerShell, settings, portability, window smoke test, docs
     └── tools/                     make_presets.py, make_rule_docs.py, run-tests.ps1,
-                                   make_browser_rules.py (generates rules/14-browsers.toml)
+                                   make_browser_rules.py (generates rules/14-browsers.toml),
+                                   memstechtips.py (maps Appendix A onto the catalog for make_presets.py)
 ```
 
 Working folders `WinKickOff/output/`, `WinKickOff/logs/`, `WinKickOff/settings.json`, `__pycache__/` and
@@ -174,6 +176,12 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
   not `rules/14-browsers.toml`. Every policy name was checked against the vendors' definitions; several lines
   of the issue's scripts were invalid or obsolete (`docs/technical/reference/18-browsers.md`, corrections).
   New rules must be `default = false`: the «Офис» (Office) preset equals the catalog defaults and v0.2.
+- The memstechtips preset (issue #2) is computed, not hand-made: a rule is on when the original of Appendix A has at
+  least one of its actions and none of them contradicts the original; `EQUIVALENT` in `WinKickOff/tools/memstechtips.py` lists
+  values with the same effect on Pro (`AllowTelemetry` 0 acts as 1). A catalog change can change the preset and
+  `docs/technical/memstechtips-profile.md`: rerun `python tools/make_presets.py` and read the report diff.
+  The report shows that the original weakens protection (administrators elevate without a UAC prompt, no secure
+  desktop, Win+L disabled).
 - GitHub rejects a push with a personal e-mail in the commit author; this repository has the local address
   `265459095+stanislavperec-ua@users.noreply.github.com` (`git config user.email`, this folder only).
   Files are stored byte for byte (`.gitattributes`: `* -text`), CRLF.
@@ -213,12 +221,12 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
 | Editor tasks | T01-T11, T14, T16, T17 done (milestones M1-M4); T12 in progress (build script, the build only in a VM); T13 and T15 blocked (implemented, acceptance needs a VM) | 25.09.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.3: 176 rules, 27 groups (130 carry v0.2, 46 browser policies of issue #1 are off by default), integrity and v0.2 coverage confirmed by tests | 25.09.2026 | `WinKickOff/rules/` |
-| Editor code | 0.2.0: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, three presets, window in Russian, Ukrainian and English with check boxes, parameters, forms, profiles, comparison, recent files and build; 177 tests | 25.09.2026 | `WinKickOff/` |
+| Editor code | 0.2.0: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, three presets, window in Russian, Ukrainian and English with check boxes, parameters, forms, profiles, comparison, recent files and build; 179 tests | 25.09.2026 | `WinKickOff/` |
 | «Офис» build from the editor | Covers every v0.2 action, validator 36 of 36; installation in a VM not yet tested | 25.09.2026 | `WinKickOff/output/` (not versioned) |
 | Applying rules to a running Windows | T15 implemented: read-only audit, apply scripts with backup, undo, apply through UAC (off by default); acceptance in a VM pending | 25.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done: the root describes the umbrella repository and its WinKickOff project; XML files and reviews in `docs/appendices/` | 25.09.2026 | `README.md`, `docs/appendices/` |
 | Documentation split | T16 done: technical in English, user documentation in ru, uk, en; complete catalog translations uk and en | 25.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
-| GitHub issues | #1 "Web Browsers debloat" done: section «Браузеры» (Edge, Chrome, Brave), 46 rules off by default, card 18; the customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md` |
+| GitHub issues | #1 "Web Browsers debloat" done: section «Браузеры» (Edge, Chrome, Brave), 46 rules off by default, card 18. #2 "memstechtips profile" done: preset of 59 rules computed from Appendix A, report of what is added, contradicted and not transferable. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md`, `WinKickOff/profiles/preset-memstechtips.json`, `docs/technical/memstechtips-profile.md` |
 | Customer items for v0.3 | Awaited | | |
 
 Open questions to the customer: `docs/appendices/D-requirements-draft/02-constructor-requirements-draft.md`,
