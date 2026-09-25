@@ -21,6 +21,7 @@ from winkickoff.core.catalog import Catalog, Rule
 from winkickoff.core.profile import Account, Profile
 from winkickoff.core.render import ASK_KEY, EDITION_KEYS, substitute
 from winkickoff.core.resources import PAIR_RE, find_keyboard
+from winkickoff.core.i18n import tr
 
 EXT = "{urn:workgroup-unattend}"
 U = "{urn:schemas-microsoft-com:unattend}"
@@ -36,17 +37,17 @@ def import_xml(text: str, catalog: Catalog, keyboards: list[dict[str, Any]] | No
     try:
         root = ET.fromstring(text.encode("utf-8"))
     except ET.ParseError as exc:
-        raise ImportFailed(f"файл не является корректным XML: {exc}") from exc
+        raise ImportFailed(tr("файл не является корректным XML: {0}", exc)) from exc
     if root.tag != f"{U}unattend":
-        raise ImportFailed("это не файл ответов Windows: корневой элемент не unattend")
+        raise ImportFailed(tr("это не файл ответов Windows: корневой элемент не unattend"))
     element = root.find(f"{EXT}Extensions/{EXT}Profile")
     if element is not None and (element.text or "").strip():
         try:
             data = json.loads(element.text or "")
         except json.JSONDecodeError as exc:
-            raise ImportFailed(f"встроенный профиль повреждён: {exc}") from exc
+            raise ImportFailed(tr("встроенный профиль повреждён: {0}", exc)) from exc
         if not isinstance(data, dict):
-            raise ImportFailed("встроенный профиль должен быть объектом JSON")
+            raise ImportFailed(tr("встроенный профиль должен быть объектом JSON"))
         profile, warnings = Profile.from_dict(data, catalog)
         profile.path = None
         return profile, warnings
@@ -184,16 +185,15 @@ def import_by_actions(root: ET.Element, text: str, catalog: Catalog, keyboards: 
             profile.rules[rule.id].enabled = False
             profile.rules[rule.id].params.clear()
             if any(evidence):
-                partial.append(f"{rule.id} ({sum(evidence)} из {len(evidence)})")
+                partial.append(tr("{0} ({1} из {2})", rule.id, sum(evidence), len(evidence)))
     enabled = len(profile.enabled_ids())
     warnings.append(
-        f"Профиль восстановлен по действиям файла: включено {enabled} правил из {len(catalog.rules)}. "
-        "Проверьте результат (F7) перед сборкой."
+        tr("Профиль восстановлен по действиям файла: включено {0} правил из {1}. Проверьте результат (F7) перед сборкой.", enabled, len(catalog.rules))
     )
     if partial:
-        warnings.append("Найдены не все действия, правила выключены: " + ", ".join(partial))
+        warnings.append(tr("Найдены не все действия, правила выключены: ") + ", ".join(partial))
     if undecided:
-        warnings.append("Не определено по файлу, оставлено как в каталоге: " + ", ".join(undecided))
+        warnings.append(tr("Не определено по файлу, оставлено как в каталоге: ") + ", ".join(undecided))
     _import_install(root, profile, warnings)
     _import_languages(root, text, profile, keyboards, warnings)
     _import_accounts(root, profile)
@@ -216,7 +216,7 @@ def _import_install(root: ET.Element, profile: Profile, warnings: list[str]) -> 
             profile.install.update(product_key_mode="ask", product_key="")
         else:
             profile.install.update(product_key_mode="custom", product_key=key)
-            warnings.append("В файле собственный ключ продукта: редакция по ключу не определяется, оставлена Pro")
+            warnings.append(tr("В файле собственный ключ продукта: редакция по ключу не определяется, оставлена Pro"))
     for pass_name in ("specialize", "oobeSystem"):
         shell = _first_component(root, pass_name, "Microsoft-Windows-Shell-Setup")
         zone = shell.findtext(f"{U}TimeZone") if shell is not None else None
@@ -265,7 +265,7 @@ def _import_languages(root: ET.Element, text: str, profile: Profile, keyboards: 
         items.append(str(entry["tag"]) if entry and entry.get("tag") and find_keyboard(keyboards, str(entry["tag"])) is entry else pair.strip())
     if items:
         profile.languages["input"] = items
-        warnings.append("Языки ввода взяты из InputLocale: временные языки (например «Русский (Украина)») так не восстанавливаются")
+        warnings.append(tr("Языки ввода взяты из InputLocale: временные языки (например «Русский (Украина)») так не восстанавливаются"))
 
 
 def _import_accounts(root: ET.Element, profile: Profile) -> None:

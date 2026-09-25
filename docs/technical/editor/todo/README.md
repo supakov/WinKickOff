@@ -4,7 +4,7 @@ Revision 0.2 of 25.09.2026 (reworked for the rule model, see `../06-critical-rev
 One file per task. Statuses: `todo`, `in-progress`, `done`, `blocked`. When a status changes,
 update this index and the root `AGENTS.md` (the "Work status" section).
 
-Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in the `WinKickOff/` folder (153 tests).
+Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in the `WinKickOff/` folder (162 tests).
 
 | Task | Title | Stage | Depends on | Status |
 |---|---|---|---|---|
@@ -21,7 +21,7 @@ Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in t
 | [T11](T11-ui-build-and-settings.md) | Build from the window, verification, export, recent files, settings | 4 | T07, T08, T10 | done (build with background verification, recent files, settings.json, portability) |
 | [T12](T12-packaging-portability.md) | PyInstaller build and portability verification | 5 | T11 | in-progress (build script ready; the build runs only in a VM) |
 | [T13](T13-docs-and-agents.md) | User documentation, AGENTS.md, acceptance | 5 | T12 | blocked (documentation done; acceptance needs a VM of the customer) |
-| [T14](T14-localization-and-diff.md) | uk localization, profile comparison, «Ноутбук» (Laptop) preset | 6 | T13 | todo |
+| [T14](T14-localization-and-diff.md) | uk localization, profile comparison, «Ноутбук» (Laptop) preset | 6 | T13 | done (uk and en interface, language menu, profile comparison, Laptop preset) |
 | [T15](T15-apply-to-running-system.md) | Applying the selected rule or branch to a running Windows: audit, application, rollback | 6 | T06, T08, T11 | todo (added 25.09.2026) |
 | [T16](T16-docs-split-technical-user.md) | Documentation split: technical in English, user documentation in Ukrainian, English, Russian | 5 | T17 | done (technical docs in English, user docs in ru, uk, en, generated rule lists) |
 | [T17](T17-repo-toolkit-and-appendices.md) | Repository root as a toolkit, with WinKickOff as the first one; XML of the original and of v0.2 in documentation appendices | 5 | none | done (root as a toolkit, XML and reviews in `docs/appendices/`) |

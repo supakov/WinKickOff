@@ -79,3 +79,63 @@ class CatalogTexts:
     def unknown(self, catalog: Catalog) -> list[str]:
         """Entries of the language file that the catalog does not know (renamed or removed rules)."""
         return sorted([r for r in self.rules if r not in catalog.rules] + [f"_groups.{g}" for g in self.groups if g not in catalog.groups])
+
+
+# --------------------------------------------------------------------------- interface strings
+#
+# The source language of the program is Russian and the Russian text itself is the key (as in
+# gettext): tr("Сохранить") returns the translation from resources/strings.<lang>.json or the text
+# itself. Templates use positional fields: tr("Профиль «{0}» открыт", name). N_() only marks a text
+# for translation where it is stored before the language is known (module-level constants); the
+# text is translated with tr() where it is shown.
+
+LANGUAGE_NAMES = {"ru": "Русский", "uk": "Українська", "en": "English"}
+
+_strings: dict[str, str] = {}
+_language = SOURCE_LANGUAGE
+_catalog_texts = CatalogTexts(SOURCE_LANGUAGE)
+
+
+def load_strings(resources_dir: Path, language: str) -> dict[str, str]:
+    if language == SOURCE_LANGUAGE:
+        return {}
+    import json
+
+    with (resources_dir / f"strings.{language}.json").open("r", encoding="utf-8") as handle:
+        data = json.load(handle)
+    return {str(k): str(v) for k, v in data.items() if v}
+
+
+def set_language(language: str, resources_dir: Path | None = None, rules_dir: Path | None = None) -> None:
+    """Switch the interface language. Unknown languages and missing files fall back to Russian."""
+    global _strings, _language, _catalog_texts
+    if language not in LANGUAGES:
+        language = SOURCE_LANGUAGE
+    try:
+        _strings = load_strings(resources_dir, language) if resources_dir is not None else {}
+        _catalog_texts = CatalogTexts.load(rules_dir, language) if rules_dir is not None else CatalogTexts(language)
+    except (OSError, ValueError):
+        _strings, _catalog_texts, language = {}, CatalogTexts(SOURCE_LANGUAGE), SOURCE_LANGUAGE
+    _language = language
+
+
+def language() -> str:
+    return _language
+
+
+def catalog_texts() -> CatalogTexts:
+    return _catalog_texts
+
+
+def tr(text: str, *args: Any) -> str:
+    template = _strings.get(text, text)
+    if not args:
+        return template
+    try:
+        return template.format(*args)
+    except (IndexError, KeyError, ValueError):
+        return text.format(*args)
+
+
+def N_(text: str) -> str:  # noqa: N802 - the conventional gettext name
+    return text

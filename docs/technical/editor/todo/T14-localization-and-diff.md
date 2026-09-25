@@ -1,6 +1,6 @@
 # T14. uk localization, profile comparison, «Ноутбук» (Laptop) preset
 
-Status: todo. Stage 6 (additional). Dependencies: T13.
+Status: done (25.09.2026). Stage 6 (additional). Dependencies: T13 (only formally; done before the VM acceptance).
 
 ## Goal
 
@@ -26,3 +26,20 @@ Ukrainian UI and rule translations, a profile comparison dialog, a third preset.
 (`rules/lang/uk.toml`, `rules/lang/en.toml`, loaded by `core/i18n.py`; completeness is tested by
 `tests/test_docs.py`). Remaining for T14: interface strings, the language switch in the window, the
 comparison dialog and the «Ноутбук» (Laptop) preset.
+
+25.09.2026, T14 done:
+- Interface in Russian, Ukrainian and English. The Russian text is the key (gettext style): every user-facing
+  string of the package is wrapped in `tr()` (templates with positional fields) or marked with `N_()` at module
+  level; `resources/strings.uk.json` and `strings.en.json` hold 324 translations. Validation messages,
+  derived verification and rollback steps, import warnings and dialogs are translated too; rule, group,
+  parameter and option names come from `rules/lang/*.toml` through `core/i18n.catalog_texts()`.
+- Menu «Язык» (Language) with the native names «Русский», «Українська», English; the choice is stored in `settings.json`; the window is
+  rebuilt (`app.run` loop) with the open profile, its unsaved changes and the selected node. Search also finds
+  translated rule titles and summaries. Time zone titles have uk and en variants in `resources/timezones.json`.
+- «Файл, Сравнить с профилем...» (File, Compare with profile): a table of differences by effective values
+  (`Profile.diff(other, catalog)`); a double click leads to the rule or data node.
+- `profiles/preset-laptop.json`: Office, lock after 600 seconds, automatic device encryption allowed; the
+  validator warns to save the BitLocker recovery key (`manage-bde -protectors -get C:`).
+- User documentation in uk and en names interface elements in its own language.
+- Tests: `test_i18n.py` (every string translated, same placeholders and line breaks, no stale entries, no
+  dashes, window in English, switching back keeps the profile), laptop preset, effective diff, comparison dialog.

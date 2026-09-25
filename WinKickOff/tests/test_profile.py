@@ -74,6 +74,16 @@ class ProfileTest(unittest.TestCase):
         self.assertIn(("param", "update.defer-feature.days"), kinds)
         self.assertIn(("install", "time_zone"), kinds)
 
+    def test_diff_with_catalog_compares_effective_values(self) -> None:
+        a = Profile.from_catalog(self.catalog)
+        b = a.copy()
+        b.set_param("accounts.inactivity-lock", "seconds", 900)  # explicit value equal to the default
+        self.assertTrue(any(d.kind == "param" for d in a.diff(b)))  # stored overrides differ
+        self.assertEqual(a.diff(b, self.catalog), [])  # effective values are the same
+        b.set_param("accounts.inactivity-lock", "seconds", 600)
+        self.assertEqual([(d.key, d.before, d.after) for d in a.diff(b, self.catalog)],
+                         [("accounts.inactivity-lock.seconds", 900, 600)])
+
     def test_catalog_02_fields_are_migrated(self) -> None:
         data = Profile.from_catalog(self.catalog).to_dict(self.catalog)
         data["languages"]["geo_id"] = 176  # an old profile with the country in the languages section

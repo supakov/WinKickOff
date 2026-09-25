@@ -13,7 +13,7 @@ from winkickoff.core.resources import Resources
 from winkickoff.core.validate import has_errors, validate_profile
 
 ROOT = Path(__file__).resolve().parents[1]
-PRESETS = {"preset-office.json": "office", "preset-strict.json": "strict"}
+PRESETS = {"preset-office.json": "office", "preset-strict.json": "strict", "preset-laptop.json": "laptop"}
 
 
 def load_maker():
@@ -64,6 +64,18 @@ class PresetsTest(unittest.TestCase):
         self.assertEqual(strict.param(self.catalog, "defender.smartscreen-shell", "level"), "Block")
         office, _ = Profile.load(ROOT / "profiles" / "preset-office.json", self.catalog)
         self.assertTrue(set(office.enabled_ids()) <= set(strict.enabled_ids()))
+
+    def test_laptop_locks_sooner_and_allows_device_encryption(self) -> None:
+        laptop, _ = Profile.load(ROOT / "profiles" / "preset-laptop.json", self.catalog)
+        self.assertEqual(laptop.param(self.catalog, "accounts.inactivity-lock", "seconds"), 600)
+        self.assertFalse(laptop.is_enabled("encryption.prevent-auto-bitlocker"))
+        issues = validate_profile(laptop, self.catalog, self.keyboards)
+        self.assertFalse(has_errors(issues))
+        warning = [i.message for i in issues if i.target == "encryption.prevent-auto-bitlocker" and i.level == "warning"]
+        self.assertTrue(any("manage-bde" in m for m in warning), warning)
+        office, _ = Profile.load(ROOT / "profiles" / "preset-office.json", self.catalog)
+        self.assertEqual({d.key for d in office.diff(laptop, self.catalog)},
+                         {"encryption.prevent-auto-bitlocker", "accounts.inactivity-lock.seconds"})
 
     def test_presets_hold_no_passwords(self) -> None:
         for file_name in PRESETS:

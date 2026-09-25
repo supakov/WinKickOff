@@ -67,8 +67,8 @@ Windows installer/
     ├── rules/                     RULE CATALOG: groups.toml (24 groups), 00-13-*.toml (130 rules), lang/*.toml
     ├── templates/                 runtime with slots: autounattend.template.xml, three *.runtime.ps1,
     │                              section-*.ps1; README lists the slots; VERSION = 0.3
-    ├── resources/                 keyboards.json, timezones.json, strings.ru.json
-    ├── profiles/                  preset-office.json («Офис», equals v0.2), preset-strict.json («Строгий»), README
+    ├── resources/                 keyboards.json, timezones.json, strings.uk.json, strings.en.json (interface translations)
+    ├── profiles/                  presets «Офис» (equals v0.2), «Строгий» (Strict), «Ноутбук» (Laptop), README
     ├── tests/                     unittest: catalog, resolver, profile, render, build against v0.2, validation,
     │                              import, presets, PowerShell, settings, portability, window smoke test, docs
     └── tools/                     make_presets.py, make_rule_docs.py, run-tests.ps1
@@ -185,6 +185,9 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
   transparent outside the screen. Tree check boxes are images (`identify_element` returns `image`), the "+"
   is `Treeitem.indicator`: a click on "+" only expands the branch. Text tag bindings in a Text widget follow
   the "current" mark, so a synthetic click needs a preceding `<Motion>` event.
+- Interface translations: the Russian source text is the key; wrap every user-facing string in `tr()` (or
+  `N_()` at module level) and add its uk and en translation to `WinKickOff/resources/strings.<lang>.json`,
+  otherwise `tests/test_i18n.py` fails. Rule texts are translated in `WinKickOff/rules/lang/<lang>.toml`.
 - Catalog 0.3: the country moved into the parameters of rule `default-user.region` (string `"241"`), the field
   `iso_language` was removed; old profiles are migrated on load with a warning.
 
@@ -199,9 +202,9 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Answer file checker | Done, 36 checks, 0 errors on v0.2 | 25.09.2026 | `tools/Validate-Unattend.ps1` |
 | GitHub repository | Connected, the local folder and `origin/main` match | 25.09.2026 | https://github.com/supakov/WindowsInstaller |
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
-| Editor tasks | T01-T11, T16, T17 done (milestones M1-M4); T12 in progress (build script, the build only in a VM); T13 blocked (VM acceptance); T14, T15 todo | 25.09.2026 | `docs/technical/editor/todo/` |
+| Editor tasks | T01-T11, T14, T16, T17 done (milestones M1-M4); T12 in progress (build script, the build only in a VM); T13 blocked (VM acceptance); T15 todo | 25.09.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.3: 130 rules, 24 groups, integrity and v0.2 coverage confirmed by tests | 25.09.2026 | `WinKickOff/rules/` |
-| Editor code | 0.2.0: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, presets, window with check boxes, parameters, forms, profiles, recent files and build | 25.09.2026 | `WinKickOff/` |
+| Editor code | 0.2.0: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, three presets, window in Russian, Ukrainian and English with check boxes, parameters, forms, profiles, comparison, recent files and build; 162 tests | 25.09.2026 | `WinKickOff/` |
 | «Офис» build from the editor | Covers every v0.2 action, validator 36 of 36; installation in a VM not yet tested | 25.09.2026 | `WinKickOff/output/` (not versioned) |
 | Applying rules to a running Windows | Task T15: read-only audit, apply through UAC, rollback | 25.09.2026 | `docs/technical/editor/todo/T15-apply-to-running-system.md` |
 | Repository layout | T17 done: the root describes the toolkit; XML files and reviews in `docs/appendices/` | 25.09.2026 | `README.md`, `docs/appendices/` |

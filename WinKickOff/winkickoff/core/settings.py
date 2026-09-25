@@ -23,6 +23,7 @@ class Settings:
     geometry: str = ""
     last_profile: str = ""  # relative to the program folder when inside it
     recent: list[str] = field(default_factory=list)  # profiles (.json) and answer files (.xml), newest first
+    language: str = "ru"  # interface language: ru, uk or en
 
     @classmethod
     def load(cls, path: Path) -> Settings:
@@ -42,12 +43,14 @@ class Settings:
         return cls(
             geometry=geometry if _GEOMETRY_RE.match(geometry) else "",
             last_profile=str(data.get("last_profile", "")),
+            language=str(data.get("language", "ru")) if data.get("language") in ("ru", "uk", "en") else "ru",
             recent=[str(item) for item in recent][:MAX_RECENT] if isinstance(recent, list) else [],
         )
 
     def save(self, path: Path) -> None:
         """Write through a temporary file in the same folder, so a crash never leaves half a file."""
-        data: dict[str, Any] = {"geometry": self.geometry, "last_profile": self.last_profile, "recent": self.recent}
+        data: dict[str, Any] = {"geometry": self.geometry, "last_profile": self.last_profile, "recent": self.recent,
+                                "language": self.language}
         tmp = path.with_name(path.name + ".tmp")
         try:
             tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

@@ -254,6 +254,16 @@ class MainWindowSmokeTest(unittest.TestCase):
         levels = [self.win.messages.item(i, "values")[0] for i in self.win.messages.get_children()]
         self.assertIn("ошибка", levels)
 
+    def test_comparison_with_the_laptop_preset(self) -> None:
+        window = self.win.show_comparison(ROOT / "profiles" / "preset-laptop.json")
+        try:
+            rows = window.comparison_rows
+            self.assertEqual({row[0] for row in rows}, {"r:encryption.prevent-auto-bitlocker", "r:accounts.inactivity-lock"})
+            param_row = next(row for row in rows if row[1] == "параметр")
+            self.assertEqual(param_row[3:], ("900", "600"))
+        finally:
+            window.destroy()
+
     def test_reserved_account_name_is_refused(self) -> None:
         self.win.show_item("data:accounts")
         form = self.win.forms["data:accounts"]

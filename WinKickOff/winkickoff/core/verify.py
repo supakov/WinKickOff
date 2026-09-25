@@ -12,6 +12,7 @@ from typing import Any
 
 from winkickoff.core.catalog import Action, Rule
 from winkickoff.core.render import substitute
+from winkickoff.core.i18n import tr
 
 SERVICE_START = {0: "BOOT_START", 1: "SYSTEM_START", 2: "AUTO_START", 3: "DEMAND_START", 4: "DISABLED"}
 SETUP_LOG = "C:\\Windows\\Panther\\setupact.log"
@@ -70,10 +71,10 @@ def verify_steps(rule: Rule, params: dict[str, Any]) -> list[str]:
         t = action.type
         if t == "reg":
             du_note |= str(f["path"]).startswith("DU:\\")
-            steps.append(f'reg query "{reg_cli_path(str(f["path"]))}" {_value_arg(str(f["name"]))}: ожидается {f["kind"]} {_value_text(str(f["kind"]), f["value"])}')
+            steps.append(tr("reg query \"{0}\" {1}: ожидается {2} {3}", reg_cli_path(str(f["path"])), _value_arg(str(f["name"])), f["kind"], _value_text(str(f["kind"]), f["value"])))
         elif t == "reg-remove":
             du_note |= str(f["path"]).startswith("DU:\\")
-            steps.append(f'reg query "{reg_cli_path(str(f["path"]))}" {_value_arg(str(f["name"]))}: значения быть не должно')
+            steps.append(tr("reg query \"{0}\" {1}: значения быть не должно", reg_cli_path(str(f["path"])), _value_arg(str(f["name"]))))
         elif t == "service":
             start = int(f["start"])
             steps.append(f"sc qc {f['name']}: START_TYPE {start} {SERVICE_START.get(start, '')}".rstrip())
@@ -83,15 +84,15 @@ def verify_steps(rule: Rule, params: dict[str, Any]) -> list[str]:
             steps.append(f'Get-WindowsCapability -Online -Name "{f["pattern"]}": State NotPresent')
         elif t == "appx":
             for name in f["names"]:
-                steps.append(f"Get-AppxPackage -AllUsers -Name {name}: пустой результат")
+                steps.append(tr("Get-AppxPackage -AllUsers -Name {0}: пустой результат", name))
         elif t == "xml-oobe":
-            steps.append(f"Во время установки не появляется соответствующий экран OOBE ({f['element']} = {f['value']})")
+            steps.append(tr("Во время установки не появляется соответствующий экран OOBE ({0} = {1})", f['element'], f['value']))
         elif t in ("xml-pe-command", "xml-specialize-command"):
-            steps.append(f"{SETUP_LOG}: команда «{f['description']}» выполнена без ошибки")
+            steps.append(tr("{0}: команда «{1}» выполнена без ошибки", SETUP_LOG, f['description']))
         elif t == "exe":
-            steps.append(f"{PHASE_LOGS.get(rule.phase, SYSTEM_LOG)}: строка о запуске {f['file']} без ERROR")
+            steps.append(tr("{0}: строка о запуске {1} без ERROR", PHASE_LOGS.get(rule.phase, SYSTEM_LOG), f['file']))
     if du_note:
-        steps.append("Значения HKCU проверяются под учётной записью, созданной при установке или позже.")
+        steps.append(tr("Значения HKCU проверяются под учётной записью, созданной при установке или позже."))
     return steps if any(a.type not in ("exe", "ps") for a in rule.actions) else []
 
 
@@ -105,24 +106,23 @@ def rollback_steps(rule: Rule, params: dict[str, Any]) -> list[str]:
         if t == "reg":
             path, value = reg_cli_path(str(f["path"])), _value_arg(str(f["name"]))
             if _is_policy(str(f["path"])):
-                steps.append(f'reg delete "{path}" {value} /f: политика снимается, Windows вернётся к поведению по умолчанию')
+                steps.append(tr("reg delete \"{0}\" {1} /f: политика снимается, Windows вернётся к поведению по умолчанию", path, value))
             else:
                 steps.append(
-                    f'reg add "{path}" {value} /t {REG_TYPES.get(str(f["kind"]), f["kind"])} /d <прежнее значение> /f: '
-                    "значение вне ветки Policies возвращают, а не удаляют"
+                    tr("reg add \"{0}\" {1} /t {2} /d <прежнее значение> /f: значение вне ветки Policies возвращают, а не удаляют", path, value, REG_TYPES.get(str(f["kind"]), f["kind"]))
                 )
         elif t == "reg-remove":
-            steps.append(f'Значение {f["name"]} в "{reg_cli_path(str(f["path"]))}" удалялось: вернуть его можно, если известно прежнее значение')
+            steps.append(tr("Значение {0} в \"{1}\" удалялось: вернуть его можно, если известно прежнее значение", f["name"], reg_cli_path(str(f["path"]))))
         elif t == "service":
-            steps.append(f"sc config {f['name']} start= demand (или тип запуска, который был до установки)")
+            steps.append(tr("sc config {0} start= demand (или тип запуска, который был до установки)", f['name']))
         elif t == "feature":
             state = str(f["state"])
             command = "Enable-WindowsOptionalFeature" if state == "Disabled" else "Disable-WindowsOptionalFeature"
-            steps.append(f"{command} -Online -FeatureName {f['name']} (от администратора, затем перезагрузка)")
+            steps.append(tr("{0} -Online -FeatureName {1} (от администратора, затем перезагрузка)", command, f['name']))
         elif t == "capability":
-            steps.append(f'Add-WindowsCapability -Online -Name "<полное имя по шаблону {f["pattern"]}>" (нужен доступ к Windows Update)')
+            steps.append(tr("Add-WindowsCapability -Online -Name \"<полное имя по шаблону {0}>\" (нужен доступ к Windows Update)", f["pattern"]))
         elif t == "appx":
-            steps.append("Удалённые приложения устанавливаются заново из Microsoft Store: " + ", ".join(str(n) for n in f["names"]))
+            steps.append(tr("Удалённые приложения устанавливаются заново из Microsoft Store: ") + ", ".join(str(n) for n in f["names"]))
         elif t in ("xml-oobe", "xml-pe-command", "xml-specialize-command"):
-            steps.append("Действует только при установке: выключить правило и собрать файл ответов заново")
+            steps.append(tr("Действует только при установке: выключить правило и собрать файл ответов заново"))
     return steps if any(a.type not in ("exe", "ps") for a in rule.actions) else []

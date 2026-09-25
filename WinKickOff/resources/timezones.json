@@ -1,9 +1,51 @@
 [
-  { "id": "FLE Standard Time", "title": "(UTC+02:00) Киев, Хельсинки, Рига, Вильнюс", "recommended": true },
-  { "id": "GTB Standard Time", "title": "(UTC+02:00) Афины, Бухарест", "recommended": false },
-  { "id": "E. Europe Standard Time", "title": "(UTC+02:00) Кишинёв", "recommended": false },
-  { "id": "Central European Standard Time", "title": "(UTC+01:00) Варшава, Прага, Братислава", "recommended": false },
-  { "id": "W. Europe Standard Time", "title": "(UTC+01:00) Берлин, Вена, Амстердам", "recommended": false },
-  { "id": "GMT Standard Time", "title": "(UTC+00:00) Лондон, Дублин, Лиссабон", "recommended": false },
-  { "id": "UTC", "title": "(UTC) Всемирное координированное время", "recommended": false }
+  {
+    "id": "FLE Standard Time",
+    "title": "(UTC+02:00) Киев, Хельсинки, Рига, Вильнюс",
+    "title_uk": "(UTC+02:00) Київ, Гельсінкі, Рига, Вільнюс",
+    "title_en": "(UTC+02:00) Kyiv, Helsinki, Riga, Vilnius",
+    "recommended": true
+  },
+  {
+    "id": "GTB Standard Time",
+    "title": "(UTC+02:00) Афины, Бухарест",
+    "title_uk": "(UTC+02:00) Афіни, Бухарест",
+    "title_en": "(UTC+02:00) Athens, Bucharest",
+    "recommended": false
+  },
+  {
+    "id": "E. Europe Standard Time",
+    "title": "(UTC+02:00) Кишинёв",
+    "title_uk": "(UTC+02:00) Кишинів",
+    "title_en": "(UTC+02:00) Chisinau",
+    "recommended": false
+  },
+  {
+    "id": "Central European Standard Time",
+    "title": "(UTC+01:00) Варшава, Прага, Братислава",
+    "title_uk": "(UTC+01:00) Варшава, Прага, Братислава",
+    "title_en": "(UTC+01:00) Warsaw, Prague, Bratislava",
+    "recommended": false
+  },
+  {
+    "id": "W. Europe Standard Time",
+    "title": "(UTC+01:00) Берлин, Вена, Амстердам",
+    "title_uk": "(UTC+01:00) Берлін, Відень, Амстердам",
+    "title_en": "(UTC+01:00) Berlin, Vienna, Amsterdam",
+    "recommended": false
+  },
+  {
+    "id": "GMT Standard Time",
+    "title": "(UTC+00:00) Лондон, Дублин, Лиссабон",
+    "title_uk": "(UTC+00:00) Лондон, Дублін, Лісабон",
+    "title_en": "(UTC+00:00) London, Dublin, Lisbon",
+    "recommended": false
+  },
+  {
+    "id": "UTC",
+    "title": "(UTC) Всемирное координированное время",
+    "title_uk": "(UTC) Всесвітній координований час",
+    "title_en": "(UTC) Coordinated Universal Time",
+    "recommended": false
+  }
 ]

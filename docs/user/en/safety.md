@@ -23,8 +23,8 @@ setup.
 
 ## Risky rules
 
-Rules with the «рискованное» (risky) level are highlighted in color in the tree, and the check (F7) warns
-about each one that is enabled. Turning off rules with the «базовое» (baseline) level also produces
+Rules with the "risky" level are highlighted in color in the tree, and the check (F7) warns
+about each one that is enabled. Turning off rules with the "baseline" level also produces
 a warning: they form the foundation of protection.
 
 ## Display language and keyboard layouts

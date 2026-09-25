@@ -1,12 +1,12 @@
 # Quick start
 
-The same steps are shown by the «Порядок работы» (Workflow) node at the top of the program's tree.
+The same steps are shown by the "Workflow" node at the top of the program's tree.
 
 ## 1. Profile
 
-The «Профиль» (Profile) field on the top bar. «Пресет: Офис» (Preset: Office) reproduces the tested v0.2
+The "Profile" field on the top bar. "Preset: Office" reproduces the tested v0.2
 answer file: security, updates, printing, the initial Admin and User accounts, and English, Ukrainian and
-"Russian (Ukraine)" input languages. «Пресет: Строгий» (Preset: Strict) adds restrictions that may get in
+"Russian (Ukraine)" input languages. "Preset: Strict" adds restrictions that may get in
 the way of older programs. Presets are never overwritten: a modified profile is saved under its own name.
 
 ## 2. Rules
@@ -27,36 +27,34 @@ a service. Esc clears the search. Space turns the selected rule on or off.
 
 On the right, the program shows for the selected rule: what it does technically (registry keys, services,
 commands), its effect, risks, Windows versions, dependencies, how to check it after installation and how to
-roll it back. Dependencies are clickable and take you to the related rules. «Карточка справочника»
-(Reference card) opens a detailed technical description.
+roll it back. Dependencies are clickable and take you to the related rules. "Reference entry" opens a detailed technical description.
 
 Some rules have parameters (screen lock time, protection modes). You change them below the description;
-a changed value is marked with the word «изменено» (changed). The «Вернуть значения по умолчанию» (Restore
-defaults) button undoes the changes.
+a changed value is marked with the word "changed". The "Restore defaults" button undoes the changes.
 
 ## 4. Installation data
 
 Nodes at the top of the tree:
 
-- «Установка» (Installation): Windows edition and product key (generic key, your own key, or ask during
+- "Installation": Windows edition and product key (generic key, your own key, or ask during
   installation), time zone.
-- «Учётные записи» (Accounts): the initial accounts, their groups and descriptions.
-- «Языки и регион» (Languages and region): display language (the same as the image language), formats,
+- "Accounts": the initial accounts, their groups and descriptions.
+- "Languages and region": display language (the same as the image language), formats,
   code page and the list of input languages in order.
 
 ## 5. Saving the profile
 
-«Сохранить» (Save, Ctrl+S) writes the profile to the `profiles` folder next to the program. You need the
-profile to repeat the same installation on other computers and to make changes later. The «Файл, Недавние»
+"Save" (Ctrl+S) writes the profile to the `profiles` folder next to the program. You need the
+profile to repeat the same installation on other computers and to make changes later. The "File, Recent"
 (File, Recent) menu opens recent profiles and files. The next time you start the program, it opens the
 profile that was open when it was closed.
 
 ## 6. Checking and building
 
-«Проверить» (Check, F7) checks the profile and the file it will produce, and shows errors and warnings
+"Check" (F7) checks the profile and the file it will produce, and shows errors and warnings
 in the list at the bottom; double-clicking a message takes you to the rule or field.
 
-«Собрать autounattend.xml» (Build autounattend.xml, F9) builds the file from the enabled rules only, checks
+"Build autounattend.xml" (F9) builds the file from the enabled rules only, checks
 the limits of Windows Setup and the syntax of PowerShell scripts, and asks where to save the file (the
 `output` folder by default). The file must be named `autounattend.xml`: Windows Setup looks only for this name.
 

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from winkickoff.core.catalog import Catalog
+from winkickoff.core.i18n import tr
 
 FORMAT_VERSION = 2
 
@@ -91,10 +92,10 @@ def _migrate_catalog_02(
         if value != region.params["geo_id"].default:
             rules[REGION_RULE].params["geo_id"] = value
             warnings.append(
-                f"languages.geo_id = {geo_id} перенесено в параметр правила {REGION_RULE}; проверьте код страны geo_name"
+                tr("languages.geo_id = {0} перенесено в параметр правила {1}; проверьте код страны geo_name", geo_id, REGION_RULE)
             )
     if "iso_language" in (data.get("install") or {}):
-        warnings.append("поле install.iso_language больше не используется: язык интерфейса всегда равен языку ISO")
+        warnings.append(tr("поле install.iso_language больше не используется: язык интерфейса всегда равен языку ISO"))
 
 
 def _now() -> str:
@@ -184,7 +185,7 @@ class Profile:
         warnings: list[str] = []
         fmt = int(data.get("format_version", 0))
         if fmt != FORMAT_VERSION:
-            warnings.append(f"формат профиля {fmt}, ожидался {FORMAT_VERSION}: применены значения по умолчанию для недостающего")
+            warnings.append(tr("формат профиля {0}, ожидался {1}: применены значения по умолчанию для недостающего", fmt, FORMAT_VERSION))
         raw_rules = data.get("rules", {}) if isinstance(data.get("rules"), dict) else {}
         rules: dict[str, RuleState] = {}
         for rule in catalog.rules.values():
@@ -192,18 +193,18 @@ class Profile:
             if entry is None:
                 rules[rule.id] = RuleState(enabled=rule.default)
                 if raw_rules:
-                    warnings.append(f"новое правило каталога {rule.id}: установлено значение по умолчанию")
+                    warnings.append(tr("новое правило каталога {0}: установлено значение по умолчанию", rule.id))
                 continue
             params: dict[str, Any] = {}
             for pname, pvalue in (entry.get("params") or {}).items():
                 if pname in rule.params:
                     params[pname] = pvalue
                 else:
-                    warnings.append(f"{rule.id}: неизвестный параметр {pname} пропущен")
+                    warnings.append(tr("{0}: неизвестный параметр {1} пропущен", rule.id, pname))
             rules[rule.id] = RuleState(enabled=bool(entry.get("enabled", rule.default)), params=params)
         unknown = {rid: entry for rid, entry in raw_rules.items() if rid not in catalog.rules}
         if unknown:
-            warnings.append("правила, отсутствующие в каталоге, сохранены в 'unknown': " + ", ".join(sorted(unknown)))
+            warnings.append(tr("правила, отсутствующие в каталоге, сохранены в 'unknown': ") + ", ".join(sorted(unknown)))
         stored_unknown = data.get("unknown") if isinstance(data.get("unknown"), dict) else {}
         unknown = {**stored_unknown, **unknown}
         install = dict(DEFAULT_INSTALL)
@@ -216,9 +217,9 @@ class Profile:
         accounts = [Account.from_dict(a) for a in accounts_raw] if isinstance(accounts_raw, list) else [copy.copy(a) for a in DEFAULT_ACCOUNTS]
         catalog_version = str(data.get("catalog_version", catalog.version))
         if catalog_version != catalog.version:
-            warnings.append(f"профиль сохранён каталогом {catalog_version}, текущий {catalog.version}")
+            warnings.append(tr("профиль сохранён каталогом {0}, текущий {1}", catalog_version, catalog.version))
         profile = cls(
-            name=str(data.get("name", "Профиль")),
+            name=str(data.get("name", tr("Профиль"))),
             catalog_version=catalog.version,
             rules=rules,
             format_version=FORMAT_VERSION,
@@ -252,14 +253,20 @@ class Profile:
 
     # ----------------------------------------------------------------- comparison
 
-    def diff(self, other: Profile) -> list[Difference]:
+    def diff(self, other: Profile, catalog: Catalog | None = None) -> list[Difference]:
+        """Differences from other. With the catalog, parameters are compared by their effective values
+        (an explicit default equals an omitted one) and rules follow the catalog order."""
         out: list[Difference] = []
-        for rule_id in sorted(set(self.rules) | set(other.rules)):
+        ids = [r for r in catalog.order if r in self.rules or r in other.rules] if catalog is not None else sorted(set(self.rules) | set(other.rules))
+        for rule_id in ids:
             a, b = self.rules.get(rule_id), other.rules.get(rule_id)
             a_on, b_on = (a.enabled if a else None), (b.enabled if b else None)
             if a_on != b_on:
                 out.append(Difference("rule", rule_id, a_on, b_on))
-            a_params, b_params = (a.params if a else {}), (b.params if b else {})
+            if catalog is not None and rule_id in catalog.rules:
+                a_params, b_params = self.params_for(catalog, rule_id), other.params_for(catalog, rule_id)
+            else:
+                a_params, b_params = (a.params if a else {}), (b.params if b else {})
             for pname in sorted(set(a_params) | set(b_params)):
                 if a_params.get(pname) != b_params.get(pname):
                     out.append(Difference("param", f"{rule_id}.{pname}", a_params.get(pname), b_params.get(pname)))

@@ -117,16 +117,32 @@ Rule identifiers of catalog 0.2 (port of v0.2): one rule per logically separate
 setting; the unconditional actions of v0.2 are grouped into rules of the `baseline` level
 (for example `uac.baseline`, `lsa.baseline`, `edge.baseline`, `default-user.baseline`).
 
-## 3. Translations: `rules/lang/uk.toml`
+## 3. Translations: `rules/lang/<lang>.toml` and interface strings
+
+Rule texts, `rules/lang/uk.toml` and `rules/lang/en.toml`:
 
 ```toml
 ["defender.pua"]
 title = "Блокувати потенційно небажані програми (PUA)"
 summary = "..."
+params.mode = "..."          # parameter title
+values.mode."1" = "..."      # option title
+
+[_groups."defender"]
+title = "..."
 ```
 
-The table key is the rule identifier; `title`, `summary`, `effect`, `risk`, `versions`,
-`rollback` and parameter titles are translated. A missing translation shows the Russian text.
+The table key is the rule identifier; `title`, `summary`, `effect`, `risk`, `versions`, `verify`,
+`rollback`, parameter titles and option titles are translated; `_groups` holds group titles and
+summaries. A missing translation shows the Russian text; `tests/test_docs.py` requires complete files.
+
+Interface strings, `resources/strings.uk.json` and `resources/strings.en.json`: the key is the Russian
+source text itself (gettext style), the value its translation. Code marks texts with `tr("...")`;
+templates use positional fields, `tr("Профиль «{0}» открыт", name)`. Texts stored before the language
+is known (module-level constants) are marked with `N_("...")` and translated with `tr()` where shown.
+`tests/test_i18n.py` requires a translation for every marked text, the same placeholders and line
+breaks, and no stale entries. The language (`ru`, `uk`, `en`) is chosen in the menu and stored in
+`settings.json`; the window is rebuilt with the open profile, including unsaved changes.
 
 ## 4. Profile: `profiles/<имя>.json`
 

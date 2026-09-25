@@ -19,7 +19,7 @@ screens, account creation. After installation, the desktop opens.
 
 ## Checking the file before installation
 
-In the program window: «Проверить» (Check, F7). From the project folder you can also run the validation
+In the program window: "Check" (F7). From the project folder you can also run the validation
 utility; it only reads the file:
 
 ```powershell
@@ -41,12 +41,12 @@ Get-MpPreference | Select-Object PUAProtection, MAPSReporting, EnableNetworkProt
 Test-Path C:\Windows\Panther\unattend.xml
 ```
 
-Expected result for the «Офис» (Office) preset: no ERROR in the logs; the Print Spooler service is running
+Expected result for the "Office" preset: no ERROR in the logs; the Print Spooler service is running
 and starts automatically; the Admin and User passwords never expire; the input languages are en-US, uk-UA,
 ru-UA; protection against potentially unwanted apps and network protection are turned on; there are 17 ASR
 rules; there is no `unattend.xml` file in Panther.
 
-For every rule, the program has a «Проверка после установки» (Post-installation check) section with the
+For every rule, the program has a "Check after installation" section with the
 exact command.
 
 ## Logs
@@ -60,10 +60,10 @@ exact command.
 
 ## If something goes wrong
 
-- Windows Setup reports that the answer file is invalid: check the file with the «Проверить» button and
+- Windows Setup reports that the answer file is invalid: check the file with the "Check" button and
   with the validation utility; send `C:\Windows\Panther\setuperr.log` and `setupact.log` from the installed system.
 - After the first sign-in there is no "Russian (Ukraine)": sometimes it appears only after the second
   sign-in, and until then plain "Russian" is set. What was applied is shown in `Setup-User.<name>.log`.
-- A program stopped working after installation with the «Строгий» (Strict) preset: in WinKickOff, open the
-  rules for folder protection, SmartScreen and ASR; the «Откат» (Rollback) section of each one describes
+- A program stopped working after installation with the "Strict" preset: in WinKickOff, open the
+  rules for folder protection, SmartScreen and ASR; the "Rollback" section of each one describes
   how to restore the previous behavior.

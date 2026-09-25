@@ -10,6 +10,7 @@ from tkinter import messagebox
 
 from winkickoff import APP_NAME, APP_VERSION
 from winkickoff.core.catalog import Catalog, CatalogError, load_catalog
+from winkickoff.core.i18n import set_language, tr
 from winkickoff.core.log import setup_logging
 from winkickoff.core.paths import AppPaths, app_paths
 from winkickoff.core.profile import Profile
@@ -44,7 +45,7 @@ def load_catalog_or_die(paths: AppPaths) -> Catalog:
         return load_catalog(paths.rules, docs_root=paths.docs_root)
     except CatalogError as exc:
         log.error("catalog error: %s", exc)
-        _fatal(f"Каталог правил не загружен.\n\n{exc}")
+        _fatal(tr("Каталог правил не загружен.\n\n{0}", exc))
         raise  # unreachable, keeps type checkers calm
 
 
@@ -69,11 +70,12 @@ def initial_profile(paths: AppPaths, catalog: Catalog, settings: Settings | None
             return profile
         except (OSError, ValueError) as exc:
             log.error("%s not loaded: %s", DEFAULT_PRESET, exc)
-    return Profile.from_catalog(catalog, name="Офис")
+    return Profile.from_catalog(catalog, name=tr("Офис"))
 
 
-def create_app(*, withdraw: bool = False) -> tk.Tk:
-    """Build the Tk application; withdraw=True keeps the window hidden (tests)."""
+def create_app(*, withdraw: bool = False, state: dict[str, object] | None = None) -> tk.Tk:
+    """Build the Tk application; withdraw=True keeps the window hidden (tests).
+    state carries the open profile across a restart of the window (language change)."""
     _enable_dpi_awareness()
     paths = app_paths()
     setup_logging(paths)
@@ -82,19 +84,28 @@ def create_app(*, withdraw: bool = False) -> tk.Tk:
     try:
         resources = Resources.load(paths.resources)
     except (OSError, ValueError) as exc:
-        _fatal(f"Справочники не загружены.\n\n{exc}")
+        _fatal(tr("Справочники не загружены.\n\n{0}", exc))
         raise
     settings = Settings.load(paths.settings_file)
-    profile = initial_profile(paths, catalog, settings)
+    set_language(settings.language, paths.resources, paths.rules)
+    profile = state["profile"] if state else initial_profile(paths, catalog, settings)
 
     from winkickoff.ui.main_window import MainWindow  # imported late: tkinter window only when needed
 
-    root = MainWindow(paths, catalog, profile, resources, settings)
+    root = MainWindow(paths, catalog, profile, resources, settings)  # type: ignore[arg-type]
+    if state:
+        root.restore_state(state)
     if withdraw:
         root.withdraw()
     return root
 
 
 def run() -> None:
-    root = create_app()
-    root.mainloop()
+    """Run the window; a language change closes it and a new one opens with the same profile."""
+    state = None
+    while True:
+        root = create_app(state=state)
+        root.mainloop()
+        state = getattr(root, "restart_state", None)
+        if not state:
+            break

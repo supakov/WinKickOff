@@ -49,6 +49,17 @@ def strict(catalog: Catalog) -> Profile:
     return profile
 
 
+def laptop(catalog: Catalog) -> Profile:
+    profile = Profile.from_catalog(catalog, name="Ноутбук")
+    profile.comment = (
+        "Офис для ноутбуков: экран блокируется через 10 минут бездействия, автоматическое шифрование устройства "
+        "разрешено. Сразу после установки сохраните ключ восстановления BitLocker отдельно от ноутбука."
+    )
+    profile.set_param("accounts.inactivity-lock", "seconds", 600)
+    Resolver(catalog).disable(profile, "encryption.prevent-auto-bitlocker")
+    return profile
+
+
 def write(profile: Profile, catalog: Catalog, path: Path) -> None:
     profile.created = STAMP
     profile.modified = STAMP
@@ -61,6 +72,7 @@ def main() -> None:
     catalog = load_catalog(ROOT / "rules", docs_root=ROOT.parent)
     write(office(catalog), catalog, ROOT / "profiles" / "preset-office.json")
     write(strict(catalog), catalog, ROOT / "profiles" / "preset-strict.json")
+    write(laptop(catalog), catalog, ROOT / "profiles" / "preset-laptop.json")
 
 
 if __name__ == "__main__":

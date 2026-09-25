@@ -51,7 +51,7 @@ WinKickOff/
     Post-OOBE.runtime.ps1          waiting for OOBE, reading the profile, completion
     VERSION                        catalog and runtime version (0.3)
   resources/
-    strings.ru.json, strings.uk.json   interface strings
+    strings.uk.json, strings.en.json   interface strings
     keyboards.json, timezones.json     reference data
   profiles/
     preset-office.json, preset-strict.json
