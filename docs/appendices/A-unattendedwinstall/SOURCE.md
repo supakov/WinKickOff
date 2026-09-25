@@ -8,4 +8,5 @@
 - Дата копии: 12.09.2026
 - Лицензия: MIT, текст в `LICENSE-UnattendedWinstall.txt` (сохранён по требованию лицензии)
 
-Разбор этого файла: `../docs/01-critical-review.md`.
+Разбор этого файла: [приложение C](../C-critical-review/01-critical-review.md). Наш файл, написанный
+по итогам разбора: [приложение B](../B-autounattend-v0.2/README.md).

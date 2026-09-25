@@ -5,9 +5,10 @@
     Checks everything that is known to abort Windows Setup (0x80220005) or to break the embedded
     scripts, and prints a table. Exit code 0 when all checks pass, 1 otherwise.
     Runs on Windows PowerShell 5.1 (the engine the scripts target) without extra modules.
+    Without -Path it checks the hand-written v0.2 reference in docs\appendices\B-autounattend-v0.2.
 .EXAMPLE
     powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1
-    powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 -Path build\autounattend.xml -Verbose
+    powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 -Path WinKickOff\output\autounattend.xml -Verbose
 #>
 [CmdletBinding()]
 param(
@@ -20,7 +21,7 @@ $ErrorActionPreference = 'Stop'
 if (-not $Path) {
     # $PSScriptRoot is empty inside param() on Windows PowerShell 5.1, so resolve the default here.
     $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-    $Path = Join-Path (Split-Path -Parent $scriptDir) 'autounattend.xml'
+    $Path = Join-Path (Split-Path -Parent $scriptDir) 'docs\appendices\B-autounattend-v0.2\autounattend.xml'
 }
 $results = New-Object System.Collections.Generic.List[object]
 function Add-Result { param([string]$Check, [bool]$Pass, [string]$Detail = '')

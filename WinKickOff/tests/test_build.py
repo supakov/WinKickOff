@@ -16,10 +16,10 @@ from winkickoff.core.render import EXTRACT_COMMAND, RUN_SYSTEM_COMMAND, Renderer
 from winkickoff.core.resources import Resources
 from winkickoff.core.validate import has_errors, validate_xml
 
+from v02_actions import V02
 from v02_actions import extract_script, parse_script_actions, parse_script_actions_ordered, parse_v02_actions, rule_actions
 
 ROOT = Path(__file__).resolve().parents[1]
-V02 = ROOT.parent / "autounattend.xml"
 VALIDATOR = ROOT.parent / "tools" / "Validate-Unattend.ps1"
 U = "{urn:schemas-microsoft-com:unattend}"
 ACTIVE_SETUP_GUID = "{7A6C3F5E-2B1D-4C8E-9F0A-5D3E6B7C8D91}"

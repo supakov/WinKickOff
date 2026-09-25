@@ -25,6 +25,8 @@ from winkickoff.core.paths import AppPaths
 from winkickoff.core.profile import Profile
 from winkickoff.core.resources import Resources
 
+from v02_actions import V02
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -216,9 +218,9 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.assertEqual([i.level for i in issues], ["info"])
         self.assertIn("ошибок 0", self.win.status_var.get())
 
-    @unittest.skipUnless((ROOT.parent / "autounattend.xml").exists(), "v0.2 answer file not found")
+    @unittest.skipUnless(V02.exists(), "v0.2 answer file not found")
     def test_import_hand_written_v02(self) -> None:
-        self.assertTrue(self.win.import_file(ROOT.parent / "autounattend.xml"))
+        self.assertTrue(self.win.import_file(V02))
         self.assertEqual(self.win.profile.name, "Импорт autounattend")
         self.assertTrue(self.win.dirty)
         office, _ = Profile.load(self.office_path, self.catalog)

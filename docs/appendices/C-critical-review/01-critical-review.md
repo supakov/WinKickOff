@@ -1,6 +1,6 @@
 # Критический разбор autounattend.xml из UnattendedWinstall
 
-Разбирается файл `original/autounattend.xml` (3135 строк, 210 КБ, скачан 12.09.2026).
+Разбирается файл [`A-unattendedwinstall/autounattend.xml`](../A-unattendedwinstall/autounattend.xml) (3135 строк, 210 КБ, скачан 12.09.2026).
 Из них 260 строк собственно XML и около 2900 строк PowerShell, встроенного в секцию `Extensions`.
 Оценка ведётся с одной позиции: подходит ли это для рабочих групп без домена, где за ПК сидят
 непрофессионалы, а специалистов по безопасности нет.

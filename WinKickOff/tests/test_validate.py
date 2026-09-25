@@ -15,8 +15,9 @@ from winkickoff.core.render import Renderer
 from winkickoff.core.resources import Resources
 from winkickoff.core.validate import check_account_name, has_errors, validate_catalog, validate_profile, validate_xml
 
+from v02_actions import V02
+
 ROOT = Path(__file__).resolve().parents[1]
-V02 = ROOT.parent / "autounattend.xml"
 BAD_PROFILES = Path(__file__).resolve().parent / "profiles"
 
 

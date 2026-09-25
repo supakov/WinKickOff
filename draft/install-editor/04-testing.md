@@ -21,7 +21,7 @@
 
 ## 2. Семантический golden (главный тест переноса)
 
-1. `tests/v02_actions.py` разбирает `autounattend.xml` v0.2 (путь относительно корня репозитория):
+1. `tests/v02_actions.py` разбирает `autounattend.xml` v0.2 (`docs/appendices/B-autounattend-v0.2/`, константа `V02`):
    извлекает три скрипта из CDATA, находит вызовы `Set-Reg`, `Remove-Reg`, `Set-ServiceStart`,
    `Invoke-Exe` и приводит их к кортежам `("reg", path, name, kind, value)`, `("reg-remove", path, name)`,
    `("service", name, start)`, `("exe", file, args)`. Значения `$Config.X` и `$du` подставляются

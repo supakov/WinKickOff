@@ -8,10 +8,10 @@ from pathlib import Path
 from winkickoff.core.catalog import load_catalog
 from winkickoff.core.profile import Profile
 
+from v02_actions import V02
 from v02_actions import catalog_actions, extract_script, parse_v02_actions
 
 ROOT = Path(__file__).resolve().parents[1]
-V02 = ROOT.parent / "autounattend.xml"
 
 # Key strings of v0.2 ps fragments that must appear verbatim in some catalog ps action.
 PS_KEY_STRINGS = (

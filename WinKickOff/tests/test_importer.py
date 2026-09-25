@@ -13,8 +13,9 @@ from winkickoff.core.profile import Account, Profile
 from winkickoff.core.render import Renderer
 from winkickoff.core.resources import Resources
 
+from v02_actions import V02
+
 ROOT = Path(__file__).resolve().parents[1]
-V02 = ROOT.parent / "autounattend.xml"
 
 
 class ImporterTest(unittest.TestCase):
