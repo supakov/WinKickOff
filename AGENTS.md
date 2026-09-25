@@ -1,8 +1,8 @@
-# AGENTS.md: map of the "Windows installer" project
+# AGENTS.md: map of the WindowsInstaller repository
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 25.09.2026 (T16: technical documentation in English, user documentation in three languages).
+Last update: 25.09.2026 (the toolkit is named WinKickOff; WindowsInstaller is the umbrella repository).
 
 Repository: https://github.com/supakov/WindowsInstaller (private, branch `main`). The local folder
 `C:\Users\User\projects\Windows installer` and the repository must match: commit and push after every
@@ -11,14 +11,16 @@ characters, no em or en dashes, and a commit made by an agent ends with the line
 `Co-Authored-By: <agent model> <noreply@anthropic.com>` (the model name of the current agent session,
 for example `Claude Opus 5.5`).
 
-## 1. The project in three sentences
+## 1. The repository in three sentences
 
-A toolkit for automated installation and configuration of Windows 11 Pro in small workgroups without a
-domain, where the PCs are used by non-professionals and the organisation is under constant cyber attack.
-Priorities: security and updatability, no cosmetics and no third-party programs. The first tool, WinKickOff
-(Python 3.14, tkinter, portable), shows every installation rule in a searchable tree, disables dependent
-rules automatically and assembles `autounattend.xml` from the selection only; the hand-written answer
-file v0.2 its catalog grew from is kept in the documentation appendices as the reference.
+WindowsInstaller is an umbrella repository for a group of projects that install and configure Windows 11
+Pro in small workgroups without a domain, where the PCs are used by non-professionals and the organisation
+is under constant cyber attack; priorities are security and updatability, no cosmetics and no third-party
+programs. For now it holds one project, the WinKickOff toolkit: the editor (Python 3.14, tkinter, portable)
+that shows every installation rule in a searchable tree, disables dependent rules automatically and
+assembles `autounattend.xml` from the selection only, the answer file checker `tools/Validate-Unattend.ps1`
+and the check and apply scripts for a running Windows. The hand-written answer file v0.2 the catalog grew
+from is kept in the documentation appendices as the reference.
 
 ## 2. What to read first
 
@@ -40,7 +42,7 @@ file v0.2 its catalog grew from is kept in the documentation appendices as the r
 ```
 Windows installer/
 ├── AGENTS.md                      this file
-├── README.md                      THE TOOLKIT: purpose, tools (WinKickOff first), quick start, links to user docs
+├── README.md                      UMBRELLA REPOSITORY: purpose, projects (WinKickOff only for now), quick start, user docs
 ├── .gitignore, .gitattributes     what is not versioned; files are stored byte for byte (CRLF)
 ├── tools/
 │   └── Validate-Unattend.ps1      answer file checker (36 checks), read-only; without -Path it checks Appendix B
@@ -209,13 +211,12 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Editor code | 0.2.0: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, three presets, window in Russian, Ukrainian and English with check boxes, parameters, forms, profiles, comparison, recent files and build; 162 tests | 25.09.2026 | `WinKickOff/` |
 | «Офис» build from the editor | Covers every v0.2 action, validator 36 of 36; installation in a VM not yet tested | 25.09.2026 | `WinKickOff/output/` (not versioned) |
 | Applying rules to a running Windows | T15 implemented: read-only audit, apply scripts with backup, undo, apply through UAC (off by default); acceptance in a VM pending | 25.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
-| Repository layout | T17 done: the root describes the toolkit; XML files and reviews in `docs/appendices/` | 25.09.2026 | `README.md`, `docs/appendices/` |
+| Repository layout | T17 done: the root describes the umbrella repository and its WinKickOff project; XML files and reviews in `docs/appendices/` | 25.09.2026 | `README.md`, `docs/appendices/` |
 | Documentation split | T16 done: technical in English, user documentation in ru, uk, en; complete catalog translations uk and en | 25.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
 | Customer items for v0.3 | Awaited | | |
 
 Open questions to the customer: `docs/appendices/D-requirements-draft/02-constructor-requirements-draft.md`,
-section 6; the toolkit name in the root README is a working name (the repository name) awaiting a decision;
-whether Appendix D should get a sample WinKickOff build.
+section 6; whether Appendix D should get a sample WinKickOff build.
 
 ## 8. How to update this file
 

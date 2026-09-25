@@ -1,21 +1,28 @@
-# WindowsInstaller: Windows deployment tools for workgroups
+# WindowsInstaller
 
-**User documentation:** [Русский](docs/user/ru/README.md) · [Українська](docs/user/uk/README.md) · [English](docs/user/en/README.md)
+**User documentation of WinKickOff:** [Русский](docs/user/ru/README.md) · [Українська](docs/user/uk/README.md) · [English](docs/user/en/README.md)
 
-A toolkit for small workgroups without a Windows domain, where the computers are used by non-professionals
-and the organisation is under constant cyber attack. The goal: install Windows 11 Pro already hardened and
-updatable, without configuring every PC by hand and without third-party programs.
+An umbrella repository for a group of projects that install and configure Windows in small workgroups
+without a Windows domain, where the computers are used by non-professionals and the organisation is under
+constant cyber attack. The goal: Windows 11 Pro hardened and updatable from the first boot, without
+configuring every PC by hand and without third-party programs.
 
-## Tools
+## Projects
 
-| Tool | What it does | Where | State |
+| Project | What it is | Where | State |
 |---|---|---|---|
-| **WinKickOff** | Desktop editor: every installation rule in a searchable tree with descriptions, dependent rules are disabled automatically, profiles are saved, the output is `autounattend.xml` built from the selection only | [`WinKickOff/`](WinKickOff/README.md) | 0.2.0: the full cycle works in the window; installation from a built file not yet tested in a VM |
-| **Validate-Unattend** | Static check of any answer file against the limits of Windows Setup (36 checks), read-only | [`tools/Validate-Unattend.ps1`](tools/Validate-Unattend.ps1) | Done |
+| **WinKickOff** | Toolkit for installing and configuring Windows in workgroups: the editor that builds `autounattend.xml` from a searchable catalog of rules, the answer file checker, checking and applying rules on a running Windows | [`WinKickOff/`](WinKickOff/README.md), checker in [`tools/`](tools/Validate-Unattend.ps1) | 0.2.0: the full cycle works in the window; installation from a built file not yet tested in a VM |
 
-The next tool, applying selected rules to an already installed Windows with an audit and a rollback, is
-described in [task T15](docs/technical/editor/todo/T15-apply-to-running-system.md). Passwords and groups are
-assigned by a separate project of the customer after installation.
+For now WinKickOff is the only project. Passwords and groups of the accounts are assigned by a separate
+project of the customer after installation.
+
+## WinKickOff tools
+
+| Tool | What it does |
+|---|---|
+| Editor (`WinKickOff/`) | Every installation rule in a searchable tree with descriptions; dependent rules are disabled automatically; profiles and presets; the output is `autounattend.xml` built from the selection only; interface in Russian, Ukrainian and English |
+| This PC (menu of the editor) | Read-only check of an installed Windows, apply scripts with backup and rollback for selected rules |
+| Validate-Unattend (`tools/Validate-Unattend.ps1`) | Static check of any answer file against the limits of Windows Setup (36 checks), read-only |
 
 ## Quick start
 
@@ -41,15 +48,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 
 - Every new answer file is first tested by an installation in a virtual machine, then used on production PCs.
 - The starter accounts Admin and User are created without passwords: passwords and groups are assigned by a
   separate project after installation. A password entered in the editor is stored in the file in plain text.
-- The tools change nothing on the computer they run on: the editor writes only into its own folder, the
-  checker only reads the file.
+- The tools change nothing on the computer they run on unless the user explicitly applies rules through
+  «Этот ПК» (This PC): the editor writes only into its own folder, the checker only reads the file.
 
 ## Documentation
 
 - [docs/](docs/README.md): user documentation in three languages, technical documentation, appendices.
 - [Appendices](docs/appendices/README.md) (Russian): the original UnattendedWinstall file, our hand-written
   answer file v0.2 (the reference the WinKickOff catalog grew from), the reviews.
-- [AGENTS.md](AGENTS.md): project map for developers and agents.
+- [AGENTS.md](AGENTS.md): repository map for developers and agents.
 
 ## Repository
 

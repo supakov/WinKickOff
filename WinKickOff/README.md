@@ -1,8 +1,10 @@
 # WinKickOff
 
-Configuration editor for Windows 11 Pro installations in workgroups without a domain. It shows every
-installation rule in one tree with check boxes and search, disables dependent rules automatically, keeps
-the selection in a JSON profile and assembles `autounattend.xml` from the selected rules only.
+A toolkit for installing and configuring Windows 11 Pro in workgroups without a domain, a project of the
+WindowsInstaller umbrella repository. Its main tool, the editor in this folder, shows every installation
+rule in one tree with check boxes and search, disables dependent rules automatically, keeps the selection
+in a JSON profile and assembles `autounattend.xml` from the selected rules only; its «Этот ПК» (This PC) menu
+checks and applies rules on a running Windows. The answer file checker is `../tools/Validate-Unattend.ps1`.
 
 User documentation (how to work with the program): [Русский](../docs/user/ru/README.md),
 [Українська](../docs/user/uk/README.md), [English](../docs/user/en/README.md).
