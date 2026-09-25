@@ -42,6 +42,16 @@
 открытым текстом) и замечание о политике DisableWindowsConsumerFeatures (на Pro не действует, но безвредна, оставлена).
 Подробный отчёт: `docs/03-critic-report-v0.2.docx`.
 
+## Репозиторий
+
+Проект хранится на GitHub: https://github.com/supakov/WindowsInstaller (приватный). Содержимое
+репозитория совпадает с этой папкой; локальные рабочие папки редактора (`output/`, `logs/`, сборки)
+и профили с паролями в репозиторий не попадают (`.gitignore`).
+
+```bash
+git clone https://github.com/supakov/WindowsInstaller.git
+```
+
 ## Что в папке
 
 | Файл | Назначение |

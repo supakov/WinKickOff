@@ -1,0 +1,9 @@
+# Files are stored exactly as they are on disk (the project is Windows-only and every file uses CRLF).
+# No end-of-line conversion: the editor's golden test compares answer files byte for byte, and
+# Windows Setup reads them as they are.
+* -text
+
+# Binary
+*.docx binary
+*.png binary
+*.ico binary

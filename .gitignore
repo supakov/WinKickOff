@@ -1,1 +1,35 @@
+# Python (install-editor)
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# PyInstaller
+build/
+dist/
+*.zip
+
+# Runtime folders of the portable editor (created next to the exe)
+**/output/
+**/logs/
+settings.json
+
+# Profiles may contain passwords: only presets under the app tree are versioned
+draft/install-editor/app/profiles/*.json
+!draft/install-editor/app/profiles/preset-*.json
+
+# Windows and editors
+Thumbs.db
+desktop.ini
+*.tmp
+*.bak
+.vscode/
+.idea/
+
+# LibreOffice lock files
 docs/.~lock.*
