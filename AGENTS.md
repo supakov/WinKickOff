@@ -139,6 +139,7 @@ Get-ChildItem -Recurse -Include *.md,*.ps1,*.py,*.json -File | Where-Object Full
 | Утилита проверки | Готова, 36 проверок, 0 ошибок на v0.2 | 25.09.2026 | `tools/Validate-Unattend.ps1` |
 | Постановка и план редактора | Готовы | 25.09.2026 | `draft/install-editor/01..05` |
 | Задачи редактора T01-T14 | Созданы, все `todo` | 25.09.2026 | `draft/install-editor/todo/` |
+| Репозиторий GitHub | Подключён, локальная папка и `origin/main` совпадают (52 файла) | 25.09.2026 | https://github.com/supakov/WindowsInstaller |
 | Код редактора | Не начат | | |
 | Пункты заказчика к v0.3 | Ожидаются | | |
 
