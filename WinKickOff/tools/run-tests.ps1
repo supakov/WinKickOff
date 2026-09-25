@@ -15,9 +15,9 @@ try {
     $py = Get-Command python -ErrorAction Stop
     $version = & $py.Source -c "import sys; print('.'.join(map(str, sys.version_info[:3])))"
     Write-Host "Python $version at $($py.Source)"
-    $args = @('-m', 'unittest', 'discover', '-s', 'tests')
-    if (-not $Quiet) { $args += '-v' }
-    & $py.Source @args
+    $testArgs = @('-m', 'unittest', 'discover', '-s', 'tests')
+    if (-not $Quiet) { $testArgs += '-v' }
+    & $py.Source @testArgs
     exit $LASTEXITCODE
 } finally {
     Pop-Location

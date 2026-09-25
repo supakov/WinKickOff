@@ -246,39 +246,57 @@ def parse_v02_actions(source: Path | str) -> set[Action]:
 
 def parse_script_actions(script: str) -> set[Action]:
     """Normalised actions of a Setup-System.ps1 text (v0.2 or a WinKickOff build)."""
+    return set(parse_script_actions_ordered(script))
+
+
+def parse_script_actions_ordered(script: str) -> list[Action]:
+    """The same actions in the order the script performs them, first occurrence only.
+    ASR rules of v0.2 come from the $AsrRules table and are listed at the end."""
     lines = expand_foreach(script.splitlines())
     scanner = _Scanner()
-    actions: set[Action] = set()
+    actions: list[Action] = []
+    seen: set[Action] = set()
     for line in lines:
         for action in scanner.feed(line):
             if action[0] in ("reg", "reg-remove") and any(f in action[1] for f in INFRASTRUCTURE_PATH_FRAGMENTS):
                 continue
-            actions.add(action)
-    actions.update(parse_asr_rules(script))
+            if action not in seen:
+                seen.add(action)
+                actions.append(action)
+    for action in parse_asr_rules(script):
+        if action not in seen:
+            seen.add(action)
+            actions.append(action)
     return actions
 
 
 def catalog_actions(catalog: object, profile: object, du_prefix: str = "hku:\\unattenddefault\\") -> set[Action]:
     """Expand enabled catalog rules into the same normalised tuples."""
+    out: set[Action] = set()
+    for rule in catalog.rules.values():  # type: ignore[attr-defined]
+        if profile.is_enabled(rule.id):  # type: ignore[attr-defined]
+            out |= rule_actions(catalog, profile, rule, du_prefix)
+    return out
+
+
+def rule_actions(catalog: object, profile: object, rule: object, du_prefix: str = "hku:\\unattenddefault\\") -> set[Action]:
+    """Normalised tuples of one rule with the parameter values of the profile."""
     from winkickoff.core.render import substitute
 
     out: set[Action] = set()
-    for rule in catalog.rules.values():  # type: ignore[attr-defined]
-        if not profile.is_enabled(rule.id):  # type: ignore[attr-defined]
-            continue
-        params = profile.params_for(catalog, rule.id)  # type: ignore[attr-defined]
-        for action in rule.actions:
-            f = {k: substitute(v, params) for k, v in action.fields.items()}
-            if action.type in ("reg", "reg-remove"):
-                path = str(f["path"]).lower()
-                if path.startswith("du:\\"):
-                    path = du_prefix + path[4:]
-                if action.type == "reg":
-                    out.add(("reg", path, str(f["name"]).lower(), str(f["kind"]), str(f["value"])))
-                else:
-                    out.add(("reg-remove", path, str(f["name"]).lower()))
-            elif action.type == "service":
-                out.add(("service", str(f["name"]).lower(), int(f["start"])))
-            elif action.type == "exe":
-                out.add(("exe", str(f["file"]).lower(), tuple(str(a) for a in f["args"])))
+    params = profile.params_for(catalog, rule.id)  # type: ignore[attr-defined]
+    for action in rule.actions:  # type: ignore[attr-defined]
+        f = {k: substitute(v, params) for k, v in action.fields.items()}
+        if action.type in ("reg", "reg-remove"):
+            path = str(f["path"]).lower()
+            if path.startswith("du:\\"):
+                path = du_prefix + path[4:]
+            if action.type == "reg":
+                out.add(("reg", path, str(f["name"]).lower(), str(f["kind"]), str(f["value"])))
+            else:
+                out.add(("reg-remove", path, str(f["name"]).lower()))
+        elif action.type == "service":
+            out.add(("service", str(f["name"]).lower(), int(f["start"])))
+        elif action.type == "exe":
+            out.add(("exe", str(f["file"]).lower(), tuple(str(a) for a in f["args"])))
     return out

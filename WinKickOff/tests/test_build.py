@@ -16,7 +16,7 @@ from winkickoff.core.render import EXTRACT_COMMAND, RUN_SYSTEM_COMMAND, Renderer
 from winkickoff.core.resources import Resources
 from winkickoff.core.validate import has_errors, validate_xml
 
-from v02_actions import extract_script, parse_script_actions, parse_v02_actions
+from v02_actions import extract_script, parse_script_actions, parse_script_actions_ordered, parse_v02_actions, rule_actions
 
 ROOT = Path(__file__).resolve().parents[1]
 V02 = ROOT.parent / "autounattend.xml"
@@ -146,6 +146,34 @@ class OfficeMatchesV02Test(BuildTestBase):
     def setUpClass(cls) -> None:
         super().setUpClass()
         cls.v02_text = V02.read_text(encoding="utf-8")
+
+    def test_apply_order_follows_v02(self) -> None:
+        """Rules are applied in the order of the v0.2 sections. ASR rules come from the $AsrRules table
+        applied inside the Defender section; a rule may precede the previous one only inside one group."""
+        ordered = parse_script_actions_ordered(extract_script(self.v02_text, "Setup-System.ps1"))
+        position = {action: index for index, action in enumerate(ordered)}
+
+        def first_position(rule_id: str) -> float | None:
+            found = [position[a] for a in rule_actions(self.catalog, self.office, self.catalog.rules[rule_id]) if a in position]
+            return min(found) if found else None
+
+        asr_anchor = first_position("defender.asr")
+        self.assertIsNotNone(asr_anchor)
+        last_value, last_rule = -1.0, ""
+        checked = 0
+        for rule_id in Resolver(self.catalog).apply_order(self.office):
+            rule = self.catalog.rules[rule_id]
+            if rule.phase not in ("specialize", "default-user"):
+                continue
+            value = asr_anchor + 0.5 if rule_id.startswith("asr.") else first_position(rule_id)
+            if value is None:
+                continue
+            checked += 1
+            if value < last_value:
+                self.assertEqual(rule.group, self.catalog.rules[last_rule].group, f"{rule_id} runs after {last_rule}, v0.2 did it earlier")
+            if value >= last_value:
+                last_value, last_rule = value, rule_id
+        self.assertGreater(checked, 60)
 
     def test_setup_actions_cover_v02(self) -> None:
         mine = parse_script_actions(self.result.scripts["Setup-System.ps1"])
