@@ -1,59 +1,60 @@
-# WindowsInstaller: утилиты установки Windows для рабочих групп
+# WindowsInstaller: Windows deployment tools for workgroups
 
-Набор утилит для малых рабочих групп без домена Windows, где за компьютерами сидят непрофессионалы,
-а организация находится под постоянными кибератаками. Цель: установить Windows 11 Pro сразу
-защищённой и обновляемой, без ручной настройки каждого ПК и без сторонних программ.
+**User documentation:** [Русский](docs/user/ru/README.md) · [Українська](docs/user/uk/README.md) · [English](docs/user/en/README.md)
 
-## Утилиты
+A toolkit for small workgroups without a Windows domain, where the computers are used by non-professionals
+and the organisation is under constant cyber attack. The goal: install Windows 11 Pro already hardened and
+updatable, without configuring every PC by hand and without third-party programs.
 
-| Утилита | Что делает | Где | Состояние |
+## Tools
+
+| Tool | What it does | Where | State |
 |---|---|---|---|
-| **WinKickOff** | Настольный редактор: все правила настройки установки деревом с поиском и описанием, зависимые правила выключаются автоматически, профиль сохраняется, на выходе `autounattend.xml` только из выбранного | [`WinKickOff/`](WinKickOff/README.md) | 0.2.0: полный цикл через окно; установка из собранного файла в ВМ ещё не проверялась |
-| **Validate-Unattend** | Статическая проверка любого файла ответов на ограничения установщика Windows (36 проверок), только чтение | [`tools/Validate-Unattend.ps1`](tools/Validate-Unattend.ps1) | Готова |
+| **WinKickOff** | Desktop editor: every installation rule in a searchable tree with descriptions, dependent rules are disabled automatically, profiles are saved, the output is `autounattend.xml` built from the selection only | [`WinKickOff/`](WinKickOff/README.md) | 0.2.0: the full cycle works in the window; installation from a built file not yet tested in a VM |
+| **Validate-Unattend** | Static check of any answer file against the limits of Windows Setup (36 checks), read-only | [`tools/Validate-Unattend.ps1`](tools/Validate-Unattend.ps1) | Done |
 
-Следующая утилита набора, применение выбранных правил к уже установленной Windows с проверкой и откатом,
-описана в [задаче T15](docs/technical/editor/todo/T15-apply-to-running-system.md). Пароли и группы назначает
-отдельный проект заказчика после установки.
+The next tool, applying selected rules to an already installed Windows with an audit and a rollback, is
+described in [task T15](docs/technical/editor/todo/T15-apply-to-running-system.md). Passwords and groups are
+assigned by a separate project of the customer after installation.
 
-## Быстрый старт
+## Quick start
 
-Нужен Python 3.14 для Windows (только стандартная библиотека).
+Python 3.14 for Windows is needed (standard library only).
 
 ```powershell
 cd WinKickOff
 python -m winkickoff
 ```
 
-В окне: выбрать профиль (пресет «Офис»), при необходимости выключить или настроить правила, нажать
-«Собрать autounattend.xml» (F9), положить файл в корень флешки с установочным образом Windows 11.
-Подробно: [порядок работы](WinKickOff/README.md#порядок-работы-пользователя).
+In the window: choose a profile (the «Офис» (Office) preset), disable or adjust rules if needed, press
+«Собрать autounattend.xml» (Build autounattend.xml, F9) and put the file into the root of a USB drive with the
+Windows 11 installation image. Step by step: [quick start](docs/user/en/quick-start.md).
 
-Проверить собранный файл:
+Check a built file:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 -Path WinKickOff\output\autounattend.xml
 ```
 
-## Безопасность
+## Safety
 
-- Любой новый файл ответов сначала проверяется установкой в виртуальной машине, потом на рабочих ПК.
-- Стартовые учётные записи Admin и User создаются без паролей: пароли и группы назначает отдельный
-  проект после установки. Пароль, заданный в редакторе, попадает в файл открытым текстом.
-- Утилиты ничего не меняют на компьютере, где запускаются: редактор пишет только в свою папку,
-  валидатор только читает файл.
+- Every new answer file is first tested by an installation in a virtual machine, then used on production PCs.
+- The starter accounts Admin and User are created without passwords: passwords and groups are assigned by a
+  separate project after installation. A password entered in the editor is stored in the file in plain text.
+- The tools change nothing on the computer they run on: the editor writes only into its own folder, the
+  checker only reads the file.
 
-## Документация
+## Documentation
 
-- [docs/](docs/README.md): справочник параметров и приложения.
-- [Приложения](docs/appendices/README.md): оригинальный файл UnattendedWinstall, наш написанный вручную
-  файл ответов v0.2 (эталон, из которого вырос каталог правил WinKickOff), критический разбор.
-- [docs/technical/editor/](docs/technical/editor/README.md): постановка и план WinKickOff.
-- [AGENTS.md](AGENTS.md): карта проекта для разработчиков и агентов.
+- [docs/](docs/README.md): user documentation in three languages, technical documentation, appendices.
+- [Appendices](docs/appendices/README.md) (Russian): the original UnattendedWinstall file, our hand-written
+  answer file v0.2 (the reference the WinKickOff catalog grew from), the reviews.
+- [AGENTS.md](AGENTS.md): project map for developers and agents.
 
-## Репозиторий
+## Repository
 
-https://github.com/supakov/WindowsInstaller (приватный). Локальная папка и репозиторий совпадают;
-рабочие папки программы (`output/`, `logs/`, `settings.json`) и профили пользователей в репозиторий не попадают.
+https://github.com/supakov/WindowsInstaller (private). The local folder and the repository match; the
+program's working folders (`output/`, `logs/`, `settings.json`) and user profiles are not versioned.
 
 ```bash
 git clone https://github.com/supakov/WindowsInstaller.git

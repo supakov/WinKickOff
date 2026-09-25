@@ -1,25 +1,32 @@
-# T13. Документация пользователя, AGENTS.md, приёмка
+# T13. User documentation, AGENTS.md, acceptance
 
-Статус: todo. Этап 5. Зависимости: T12. Веха M5.
+Status: blocked (25.09.2026: the documentation part is done; the acceptance installation needs a VM,
+which only the customer can run). Stage 5. Dependencies: T12. Milestone M5.
 
-Связь: документация пользователя выпускается на украинском, английском и русском по задаче T16;
-техническая документация на английском.
+Related: the user documentation is issued in Ukrainian, English and Russian under task T16;
+the technical documentation is in English.
 
-## Цель
+## Goal
 
-Инструкция пользователю в сборке, актуальная карта проекта, приёмочная установка.
+User instructions in the build, an up-to-date project map, an acceptance installation.
 
-## Шаги
+## Steps
 
-1. `README-user.md`: запуск с флешки, профиль из пресета, поиск и выключение правила, сборка,
-   носитель, что проверить после установки (ссылка на чек-лист корневого README), где логи,
-   ограничения (пароли открытым текстом, SmartScreen на exe).
-2. Обновить `docs/technical/editor/README.md` и корневой `AGENTS.md` (структура, команды, состояние).
-3. Приёмочная установка в ВМ с файлом из сборки; отчёт `docs/04-acceptance-<дата>.md`.
+1. `README-user.md`: running from a USB stick, a profile from a preset, finding and turning off a rule, building,
+   the installation media, what to verify after installation (link to the checklist in the root README), where the logs are,
+   limitations (plain-text passwords, SmartScreen on the exe).
+2. Update `docs/technical/editor/README.md` and the root `AGENTS.md` (structure, commands, status).
+3. Acceptance installation in a VM with a file from the build; report `docs/04-acceptance-<дата>.md`.
 
-## Критерии приёмки
+## Acceptance criteria
 
-- Человек без знания проекта собирает XML по `README-user.md` за 10 минут.
-- Каждый путь в AGENTS.md существует.
+- A person with no knowledge of the project builds an XML following `README-user.md` within 10 minutes.
+- Every path in AGENTS.md exists.
 
-## Заметки исполнителя
+## Implementer notes
+
+25.09.2026: step 1 is covered by the user documentation of T16 (`docs/user/{ru,uk,en}`: quick start,
+profiles, installation and checks with the checklist and log locations, safety with plain-text passwords);
+the SmartScreen note for the unsigned exe is added when the T12 build exists. Step 2 is done; the criterion
+"every path in AGENTS.md exists" is checked by `tests/test_docs.py`. Step 3 waits for a VM: install from a
+«Офис» (Office) build, go through `docs/user/ru/install-and-check.md`, write the report in Russian.

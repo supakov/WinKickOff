@@ -1,20 +1,20 @@
-# 05. План работ
+# 05. Work plan
 
-Редакция 0.2 от 25.09.2026.
+Revision 0.2 of 25.09.2026.
 
-## 1. Этапы
+## 1. Stages
 
-| Этап | Содержание | Результат | Задачи |
+| Stage | Content | Result | Tasks |
 |---|---|---|---|
-| 0. Каркас | Структура `WinKickOff/`, пути, лог, точка входа, тестовая инфраструктура на `unittest` | Каркас в репозитории, тесты запускаются | T01 |
-| 1. Каталог | Формат правил, группы, полный перенос действий v0.2 в `rules/*.toml`, загрузчик и проверка целостности, семантический golden | Каталог 0.2 проходит целостность и покрытие v0.2 | T02 |
-| 2. Логика | Резолвер зависимостей, профиль и пресеты, рантайм-шаблоны, генератор | Пресет «Офис» собирается в XML, проходящий валидатор | T03, T04, T05, T06 |
-| 3. Проверки | Валидатор, импорт (встроенный профиль и v0.2), проверка PowerShell | Все плохие профили ловятся; импорт v0.2 даёт «Офис» | T07, T08 |
-| 4. Интерфейс | Дерево с флажками и поиском, панель описания и параметров, формы данных, сборка из окна | Путь «найти, выключить, собрать» в 4 действия | T09, T10, T11 |
-| 5. Выпуск | Корень как набор утилит и приложения с XML; разделение документации (техническая на английском, пользовательская на трёх языках); сборка, портабельность, приёмка в ВМ | zip, документация, приёмочный отчёт | T17, T16, T12, T13 |
-| 6. Дополнительно | Локализация uk, сравнение профилей, пресет «Ноутбук»; применение правила или ветки к работающей Windows | По необходимости | T14, T15 |
+| 0. Skeleton | `WinKickOff/` structure, paths, log, entry point, test infrastructure on `unittest` | Skeleton in the repository, tests run | T01 |
+| 1. Catalog | Rule format, groups, full transfer of v0.2 actions into `rules/*.toml`, loader and integrity verification, semantic golden | Catalog 0.2 passes integrity and v0.2 coverage | T02 |
+| 2. Logic | Dependency resolver, profile and presets, runtime templates, generator | The «Офис» (Office) preset builds into XML that passes the validator | T03, T04, T05, T06 |
+| 3. Verification | Validator, import (embedded profile and v0.2), PowerShell verification | All bad profiles are caught; importing v0.2 yields «Офис» | T07, T08 |
+| 4. Interface | Tree with check boxes and search, description and parameters panel, data forms, build from the window | The "find, disable, build" path in 4 actions | T09, T10, T11 |
+| 5. Release | Root as a toolkit and XML appendices; documentation split (technical in English, user documentation in three languages); build, portability, acceptance in a VM | zip, documentation, acceptance report | T17, T16, T12, T13 |
+| 6. Additional | uk localization, profile comparison, «Ноутбук» (Laptop) preset; applying a rule or branch to a running Windows | As needed | T14, T15 |
 
-## 2. Порядок и зависимости
+## 2. Order and dependencies
 
 ```
 T01 ──> T02 ──┬──> T03 ──┬──> T06 ──┬──> T07 ──> T08 ──┐
@@ -22,53 +22,53 @@ T01 ──> T02 ──┬──> T03 ──┬──> T06 ──┬──> T07 �
               └──> T05 ──┘          └──> T09 ──> T10 ───┘
 ```
 
-- T02 (каталог) блокирует всё: без данных ни резолвер, ни интерфейс не проверить на реальном объёме.
-- T03, T04, T05 независимы друг от друга после T02.
-- T09 (дерево) начинается после T03 (резолвер) и T04 (профиль); T10 после T09.
-- T15 (применение к работающей системе) начинается после T11 и не зависит от T12-T14.
-- T17 (перенос XML и новый корень) не зависит от кода и делается раньше T16, чтобы переводить уже на новых местах.
-- T16 (разделение документации) заменяет в T13 часть про документацию пользователя: она сразу на трёх языках.
+- T02 (catalog) blocks everything: without data, neither the resolver nor the interface can be tested at real scale.
+- T03, T04, T05 are independent of each other after T02.
+- T09 (tree) starts after T03 (resolver) and T04 (profile); T10 after T09.
+- T15 (applying to a running system) starts after T11 and does not depend on T12-T14.
+- T17 (moving the XML and the new root) does not depend on code and is done before T16, so that translation already happens in the new locations.
+- T16 (documentation split) replaces the user documentation part of T13: it is written in three languages from the start.
 
-## 3. Оценка
+## 3. Estimate
 
-| Задача | Дни |
+| Task | Days |
 |---|---|
-| T01 Каркас, пути, лог, тесты | 1 |
-| T02 Каталог правил: формат, загрузчик, целостность, полный перенос v0.2, golden | 4 |
-| T03 Резолвер зависимостей и порядок применения | 1.5 |
-| T04 Профиль, пресеты, миграция, сравнение | 1.5 |
-| T05 Рантайм-шаблоны (XML-скелет, три рантайма PowerShell) | 1.5 |
-| T06 Генератор | 2.5 |
-| T07 Валидатор | 2 |
-| T08 Импорт и проверка PowerShell | 1.5 |
-| T09 Дерево, флажки, поиск, панель описания | 3 |
-| T10 Параметры, формы данных (установка, учётные записи, языки) | 2.5 |
-| T11 Сборка из окна, проверка, экспорт, недавние, настройки | 2 |
-| T12 Сборка PyInstaller и портабельность | 1.5 |
-| T13 Документация и AGENTS.md, приёмка | 1.5 |
-| T14 Локализация, сравнение профилей, пресет «Ноутбук» | 2 |
-| T15 Применение к работающей Windows: аудит, применение, откат | 4 |
-| T16 Разделение документации, перевод технической на английский, пользовательская на трёх языках | 6 |
-| T17 Корень как набор утилит, XML в приложения документации | 1 |
-| Итого | 39 |
+| T01 Skeleton, paths, log, tests | 1 |
+| T02 Rule catalog: format, loader, integrity, full transfer of v0.2, golden | 4 |
+| T03 Dependency resolver and application order | 1.5 |
+| T04 Profile, presets, migration, comparison | 1.5 |
+| T05 Runtime templates (XML skeleton, three PowerShell runtimes) | 1.5 |
+| T06 Generator | 2.5 |
+| T07 Validator | 2 |
+| T08 Import and PowerShell verification | 1.5 |
+| T09 Tree, check boxes, search, description panel | 3 |
+| T10 Parameters, data forms (installation, accounts, languages) | 2.5 |
+| T11 Build from the window, verification, export, recent files, settings | 2 |
+| T12 PyInstaller build and portability | 1.5 |
+| T13 Documentation and AGENTS.md, acceptance | 1.5 |
+| T14 Localization, profile comparison, «Ноутбук» preset | 2 |
+| T15 Applying to a running Windows: audit, application, rollback | 4 |
+| T16 Documentation split, translation of the technical documentation into English, user documentation in three languages | 6 |
+| T17 Root as a toolkit, XML in documentation appendices | 1 |
+| Total | 39 |
 
-Резерв 20 %. Около 10 недель при половинной загрузке.
+Reserve 20 %. About 10 weeks at half-time workload.
 
-## 4. Определение готовности задачи
+## 4. Definition of done for a task
 
-1. Код и данные написаны; `python -m unittest discover -s tests` зелёный.
-2. Проверка целостности каталога и семантический golden проходят (для T02 и всех последующих).
-3. Файл задачи в `todo/` обновлён: статус, дата, отклонения.
-4. `AGENTS.md` обновлён, если изменились структура, команды или состояние.
-5. Нет длинных и коротких тире в коде, данных и документах.
-6. Ничего не выполнялось на рабочем ПК заказчика, кроме чтения и тестов во временных папках.
+1. Code and data are written; `python -m unittest discover -s tests` is green.
+2. The catalog integrity verification and the semantic golden pass (for T02 and all subsequent tasks).
+3. The task file in `todo/` is updated: status, date, deviations.
+4. `AGENTS.md` is updated if the structure, commands or state have changed.
+5. No em dashes or en dashes in code, data and documents.
+6. Nothing was run on the customer's work PC except reading and tests in temporary folders.
 
-## 5. Вехи
+## 5. Milestones
 
-| Веха | Критерий | Ориентир |
+| Milestone | Criterion | Target |
 |---|---|---|
-| M1 «Каталог» | T01, T02: каталог 0.2 проходит целостность и покрытие v0.2 | неделя 2 |
-| M2 «Генератор» | T03-T06: пресет «Офис» собирается и проходит `Validate-Unattend.ps1` | неделя 3 |
-| M3 «Проверки» | T07, T08 | неделя 4 |
-| M4 «Интерфейс» | T09-T11: полный цикл через окно | неделя 6 |
-| M5 «Выпуск 1.0» | T12, T13: zip, чек-листы, приёмка в ВМ | неделя 7 |
+| M1 "Catalog" | T01, T02: catalog 0.2 passes integrity and v0.2 coverage | week 2 |
+| M2 "Generator" | T03-T06: the «Офис» preset builds and passes `Validate-Unattend.ps1` | week 3 |
+| M3 "Verification" | T07, T08 | week 4 |
+| M4 "Interface" | T09-T11: full cycle through the window | week 6 |
+| M5 "Release 1.0" | T12, T13: zip, checklists, acceptance in a VM | week 7 |

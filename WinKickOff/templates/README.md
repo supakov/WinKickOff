@@ -1,21 +1,21 @@
-# Рантайм-шаблоны
+# Runtime templates
 
-Неизменяемые части выходного файла. Генератор (`winkickoff/core/render.py`) подставляет в слоты
-`{{имя}}` блоки включённых правил и данные профиля; всё остальное переносится как есть.
+The fixed parts of the output file. The generator (`winkickoff/core/render.py`) fills the `{{name}}` slots with
+the blocks of the enabled rules and with profile data; everything else is copied as is.
 
-| Файл | Содержание | Слоты |
+| File | Content | Slots |
 |---|---|---|
-| `autounattend.template.xml` | Скелет файла ответов и скрипт извлечения (ExtractScript) | `header`, `settings`, `files`, `profile_json` |
-| `Setup-System.runtime.ps1` | Функции Write-Log, Set-Reg, Remove-Reg, Set-ServiceStart, Invoke-Exe, Set-Feature, Remove-Capability, Remove-Apps; trap; шапка лога | `build_label`, `blocks`, `default_user_section`, `active_setup_section`, `post_oobe_section` |
-| `section-default-user.ps1` | Монтирование куста профиля по умолчанию (`$du`) вокруг блоков фазы default-user | `blocks` |
-| `section-active-setup.ps1` | Регистрация Active Setup для `Setup-User.ps1` (добавляется, если есть правила фазы user-first-logon) | нет |
-| `section-post-oobe-task.ps1` | Задача планировщика для `Post-OOBE.ps1` (добавляется, если есть правила фазы post-oobe) | нет |
-| `Setup-User.runtime.ps1` | Лог на пользователя, списки языков ввода из профиля | `input_languages`, `input_fallback`, `transient_languages`, `blocks` |
-| `Post-OOBE.runtime.ps1` | Ожидание завершения OOBE, список учётных записей, удаление задачи | `accounts`, `blocks` |
+| `autounattend.template.xml` | Skeleton of the answer file and the extraction script (ExtractScript) | `header`, `settings`, `files`, `profile_json` |
+| `Setup-System.runtime.ps1` | Functions Write-Log, Set-Reg, Remove-Reg, Set-ServiceStart, Invoke-Exe, Set-Feature, Remove-Capability, Remove-Apps; trap; log header | `build_label`, `blocks`, `default_user_section`, `active_setup_section`, `post_oobe_section` |
+| `section-default-user.ps1` | Mounting of the default user hive (`$du`) around the blocks of the default-user phase | `blocks` |
+| `section-active-setup.ps1` | Active Setup registration of `Setup-User.ps1` (added when the user-first-logon phase has rules) | none |
+| `section-post-oobe-task.ps1` | Scheduled task for `Post-OOBE.ps1` (added when the post-oobe phase has rules) | none |
+| `Setup-User.runtime.ps1` | Per-user log, input language lists from the profile | `input_languages`, `input_fallback`, `transient_languages`, `blocks` |
+| `Post-OOBE.runtime.ps1` | Waiting for OOBE to finish, list of accounts, removal of the task | `accounts`, `blocks` |
 
-`VERSION` содержит версию каталога и рантайма; профили хранят её как `catalog_version`.
-Любая правка шаблона или каталога, меняющая выходной файл, требует новой версии и прогона
-`python -m unittest discover -s tests` (тесты сравнивают собранный файл с проверенным v0.2).
+`VERSION` holds the version of the catalog and the runtime; profiles store it as `catalog_version`.
+Any change of a template or of the catalog that changes the output file needs a new version and a run of
+`python -m unittest discover -s tests` (the tests compare the built file with the verified v0.2).
 
-Содержимое, которое пишет сам генератор (шапка, маркеры блоков, встроенный профиль), только ASCII:
-так файл ответов не зависит от того, как установщик Windows обработает национальные символы.
+Everything the generator itself writes (header, block markers, embedded profile) is ASCII, so the answer
+file does not depend on how Windows Setup treats national characters.

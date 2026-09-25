@@ -1,79 +1,79 @@
-# 01. Проход windowsPE: ключ, редакция, лицензия, обход проверок железа
+# 01. windowsPE pass: key, edition, license, hardware check bypass
 
-Компонент `Microsoft-Windows-Setup`, две копии: `processorArchitecture="amd64"` и `"arm64"`.
-Установщик применяет ту, что совпадает с архитектурой носителя; вторая игнорируется. Копия x86 удалена:
-Windows 11 не бывает 32-разрядной.
+Component `Microsoft-Windows-Setup`, two copies: `processorArchitecture="amd64"` and `"arm64"`.
+Setup applies the one that matches the architecture of the installation media; the other is ignored. The x86 copy was removed:
+there is no 32-bit Windows 11.
 
 ## ProductKey / Key
 
-- Значение: `VK7JG-NPHTM-C97JM-9MPGT-3V66T`.
-- Где применяется: windowsPE, `UserData/ProductKey/Key`.
-- Что делает: это универсальный установочный ключ Windows 11 Pro (тот же, что для Windows 10 Pro).
-  Он не активирует систему. Setup сверяет ключ с редакциями в `install.wim` и выбирает Professional
-  (лог: `Product key using pkey edition = [Professional]`, `Product key is a default key`,
+- Value: `VK7JG-NPHTM-C97JM-9MPGT-3V66T`.
+- Where applied: windowsPE, `UserData/ProductKey/Key`.
+- What it does: this is the generic installation key for Windows 11 Pro (the same as for Windows 10 Pro).
+  It does not activate the system. Setup matches the key against the editions in `install.wim` and selects Professional
+  (log: `Product key using pkey edition = [Professional]`, `Product key is a default key`,
   `Matched Professional with Professional`).
-- Ожидаемый эффект: окно ввода ключа и окно выбора редакции не показываются. После установки система
-  не активирована до подключения к интернету, затем активируется автоматически по цифровой лицензии,
-  привязанной к оборудованию (если на этом ПК ранее была активирована Windows 10/11 Pro).
-- Кросс-связи: если в образе нет редакции Pro (например ISO только с Home), установка остановится
-  с ошибкой ключа; `WillShowUI=OnError` тогда покажет окно. Если ПК никогда не активировался,
-  потребуется ввести настоящий ключ после установки (Параметры → Система → Активация).
-- Различия версий: ключ одинаков для Windows 10 и 11. Для других редакций нужны свои универсальные
-  ключи (Home: `YTMG3-N6DKC-DKB77-7M9GH-8HVX7`, Enterprise: `NPPR9-FWDCX-D2C8J-H872K-2YT43`),
-  это параметр будущего конструктора.
-- Проверка: после установки `slmgr /dli` показывает Professional; `Get-ComputerInfo | Select WindowsProductName`.
-- Откат: не требуется; для смены редакции нужна переустановка.
+- Expected effect: the product key entry window and the edition selection window are not shown. After installation the system
+  is not activated until it connects to the internet; it then activates automatically with the digital license
+  tied to the hardware (if Windows 10/11 Pro was previously activated on this PC).
+- Cross-links: if the image has no Pro edition (for example an ISO with Home only), installation stops
+  with a key error; `WillShowUI=OnError` then shows the window. If the PC has never been activated,
+  a real key will have to be entered after installation (Settings → System → Activation).
+- Version differences: the key is the same for Windows 10 and 11. Other editions need their own generic
+  keys (Home: `YTMG3-N6DKC-DKB77-7M9GH-8HVX7`, Enterprise: `NPPR9-FWDCX-D2C8J-H872K-2YT43`);
+  this is a parameter of the future constructor.
+- Verification: after installation `slmgr /dli` shows Professional; `Get-ComputerInfo | Select WindowsProductName`.
+- Rollback: not required; changing the edition requires a reinstallation.
 
 ## ProductKey / WillShowUI
 
-- Значение: `OnError`.
-- Что делает: окно ввода ключа показывается только если ключ отвергнут. Это значение по умолчанию,
-  указано явно. Оригинальный файл UnattendedWinstall использовал `Always` с пустым ключом
-  `00000-...`, что и вызывало окно выбора редакции.
-- Различия версий: нет.
+- Value: `OnError`.
+- What it does: the key entry window is shown only if the key is rejected. This is the default value,
+  specified explicitly. The original UnattendedWinstall file used `Always` with an empty key
+  `00000-...`, which is what caused the edition selection window.
+- Version differences: none.
 
 ## AcceptEula
 
-- Значение: `true`.
-- Что делает: принимает лицензионное соглашение за пользователя; экран лицензии в установщике
-  не показывается. Экран лицензии в OOBE скрывается отдельно (`HideEULAPage`, см. раздел 03).
-- Кросс-связи: юридически ответственность за принятие условий несёт организация, применяющая файл.
+- Value: `true`.
+- What it does: accepts the license agreement on behalf of the user; the license screen in Setup
+  is not shown. The license screen in OOBE is hidden separately (`HideEULAPage`, see section 03).
+- Cross-links: legally, responsibility for accepting the terms lies with the organization that applies the file.
 
-## Обход проверок совместимости (LabConfig)
+## Compatibility check bypass (LabConfig)
 
-Пять команд `reg.exe add "HKLM\SYSTEM\Setup\LabConfig" /v <имя> /t REG_DWORD /d 1 /f`,
-выполняются в WinPE до начала копирования.
+Five `reg.exe add "HKLM\SYSTEM\Setup\LabConfig" /v <имя> /t REG_DWORD /d 1 /f` commands,
+run in WinPE before copying starts.
 
-| Order | Значение | Что отключает |
+| Order | Value | What it disables |
 |---|---|---|
-| 1 | BypassTPMCheck | Требование TPM 2.0 |
-| 2 | BypassSecureBootCheck | Требование включённой Secure Boot |
-| 3 | BypassCPUCheck | Список поддерживаемых процессоров |
-| 4 | BypassRAMCheck | Требование 4 ГБ памяти |
-| 5 | BypassStorageCheck | Требование 64 ГБ диска |
+| 1 | BypassTPMCheck | The TPM 2.0 requirement |
+| 2 | BypassSecureBootCheck | The requirement for Secure Boot to be enabled |
+| 3 | BypassCPUCheck | The list of supported processors |
+| 4 | BypassRAMCheck | The 4 GB memory requirement |
+| 5 | BypassStorageCheck | The 64 GB disk requirement |
 
-- Ожидаемый эффект: установщик не показывает «Этот компьютер не соответствует требованиям».
-  На ПК, которые требованиям соответствуют, команды ничего не меняют: TPM и Secure Boot остаются
-  включёнными и используются.
-- Кросс-связи:
-  - Без TPM недоступны автоматическое шифрование устройства и BitLocker без пароля при загрузке;
-    параметр `PreventAutoDeviceEncryption` на таких ПК избыточен, но безвреден.
-  - Без Secure Boot и VBS не работает Credential Guard; `LSAProtection` работает (значение 2 без
-    привязки к UEFI выбрано именно ради таких ПК).
-  - Microsoft не гарантирует обновления для неподдерживаемых ПК; на практике накопительные обновления
-    приходят, обновления функций (24H2 → 25H2) могут требовать повторного обхода.
-- Различия версий: ключи LabConfig действуют только в WinPE установщика Windows 11 (21H2 и новее).
-  На Windows 10 они игнорируются. В 24H2 Microsoft ужесточила требование к процессору (инструкция
-  POPCNT и SSE4.2): его обойти нельзя, установка на такие процессоры невозможна.
-- Проверка: установка на ПК без TPM проходит без предупреждения; `Get-Tpm` покажет реальное состояние.
-- Откат: не требуется, ключи живут только в среде установки. Чтобы убрать обход в файле, удалить
-  пять элементов `RunSynchronousCommand` в обеих копиях компонента.
+- Expected effect: Setup does not show «Этот компьютер не соответствует требованиям» (This PC does not meet the requirements).
+  On PCs that meet the requirements the commands change nothing: TPM and Secure Boot stay
+  enabled and in use.
+- Cross-links:
+  - Without TPM, automatic device encryption and BitLocker without a boot password are unavailable;
+    the `PreventAutoDeviceEncryption` parameter is redundant on such PCs but harmless.
+  - Without Secure Boot and VBS, Credential Guard does not work; `LSAProtection` does work (value 2 without
+    the UEFI lock was chosen precisely for such PCs).
+  - Microsoft does not guarantee updates for unsupported PCs; in practice cumulative updates
+    arrive, while feature updates (24H2 → 25H2) may require the bypass again.
+- Version differences: the LabConfig keys only work in the WinPE of Windows 11 Setup (21H2 and later).
+  Windows 10 ignores them. In 24H2 Microsoft tightened the processor requirement (the
+  POPCNT and SSE4.2 instructions): it cannot be bypassed, and installation on such processors is impossible.
+- Verification: installation on a PC without TPM proceeds without a warning; `Get-Tpm` shows the actual state.
+- Rollback: not required, the keys exist only in the Setup environment. To remove the bypass from the file, delete
+  the five `RunSynchronousCommand` elements in both copies of the component.
 
-## Чего в проходе нет и почему
+## What the pass does not contain and why
 
-| Элемент | Почему отсутствует | Последствие |
+| Element | Why it is absent | Consequence |
 |---|---|---|
-| `DiskConfiguration` | Автоматическая разметка стирает диск без вопросов | Установщик показывает выбор диска и раздела: единственный экран, требующий человека |
-| `ImageInstall` | Редакция выбирается ключом; указывать образ не нужно | Нет |
-| `Microsoft-Windows-International-Core-WinPE` | Язык установщика зависит от ISO | Первый экран выбора языка и раскладки установщика остаётся (параметр конструктора) |
-| `UseConfigurationSet` | Нет папки `$OEM$` | Нет |
+| `DiskConfiguration` | Automatic partitioning wipes the disk without asking | Setup shows disk and partition selection: the only screen that requires a person |
+| `ImageInstall` | The edition is selected by the key; the image does not need to be specified | None |
+| `Microsoft-Windows-International-Core-WinPE` | The Setup language depends on the ISO | The first Setup screen for choosing the language and keyboard layout remains (a constructor parameter) |
+| `UseConfigurationSet` | There is no `$OEM$` folder | None |

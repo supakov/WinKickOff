@@ -1,32 +1,32 @@
-# T03. Резолвер зависимостей и порядок применения
+# T03. Dependency resolver and application order
 
-Статус: done (25.09.2026: резолвер с каскадом, группами и порядком применения; тест
-`test_apply_order_follows_v02` подтверждает порядок разделов v0.2 на пресете «Офис»). Этап 2. Зависимости: T02.
+Status: done (25.09.2026: resolver with cascade, groups and application order; the test
+`test_apply_order_follows_v02` confirms the v0.2 section order on the «Офис» (Office) preset). Stage 2. Dependencies: T02.
 
-## Цель
+## Goal
 
-Реализовать `core/deps.py`: каскадное выключение и включение, конфликты, групповые операции,
-порядок применения правил.
+Implement `core/deps.py`: cascading disable and enable, conflicts, group operations,
+rule application order.
 
-## Шаги
+## Steps
 
-1. `Resolver(catalog)`: индексы `requires`, `required_by`, `conflicts`.
-2. `disable(profile, rule_id) -> list[Change]`: обход по `required_by`, только включённые.
-3. `enable(profile, rule_id) -> list[Change]`: обход по `requires`, затем выключение `conflicts`
-   с их каскадом.
-4. `set_group(profile, group_id, enabled) -> list[Change]`: по правилам группы и подгрупп.
-5. `apply_order(profile) -> list[rule_id]`: включённые правила по фазе, позиции в каталоге и
-   устойчивому топосорту по `requires`.
-6. `Change(rule_id, enabled, reason)`, где reason: `"user"`, `"requires <id>"`, `"required by <id>"`,
+1. `Resolver(catalog)`: indexes `requires`, `required_by`, `conflicts`.
+2. `disable(profile, rule_id) -> list[Change]`: traversal along `required_by`, enabled rules only.
+3. `enable(profile, rule_id) -> list[Change]`: traversal along `requires`, then disabling `conflicts`
+   with their cascade.
+4. `set_group(profile, group_id, enabled) -> list[Change]`: over the rules of the group and its subgroups.
+5. `apply_order(profile) -> list[rule_id]`: enabled rules by phase, position in the catalog and
+   a stable topological sort by `requires`.
+6. `Change(rule_id, enabled, reason)`, where reason is: `"user"`, `"requires <id>"`, `"required by <id>"`,
    `"conflicts <id>"`.
-7. `tests/test_deps.py` по `04-testing.md`, раздел core/deps.
+7. `tests/test_deps.py` per `04-testing.md`, section core/deps.
 
-## Критерии приёмки
+## Acceptance criteria
 
-- Все тесты резолвера зелёные; повторная операция даёт пустой список изменений.
-- `apply_order` на пресете «Офис» воспроизводит порядок разделов v0.2.
+- All resolver tests are green; a repeated operation returns an empty list of changes.
+- `apply_order` on the «Офис» preset reproduces the v0.2 section order.
 
-## Заметки исполнителя
+## Implementer notes
 
-25.09.2026: реализованы `disable`, `enable`, `set_group`, `apply_order` и тесты на цепочки, конфликты,
-идемпотентность. Не проверено: порядок на пресете «Офис» против v0.2 (зависит от T06).
+25.09.2026: implemented `disable`, `enable`, `set_group`, `apply_order` and tests for chains, conflicts,
+idempotency. Not verified: the order on the «Офис» preset against v0.2 (depends on T06).

@@ -1,42 +1,42 @@
-# T02. Каталог правил: формат, загрузчик, целостность, перенос v0.2, семантический golden
+# T02. Rule catalog: format, loader, integrity, v0.2 transfer, semantic golden
 
-Статус: done (25.09.2026: формат, группы, полный перенос действий v0.2, загрузчик, проверки
-целостности и семантический golden `test_coverage_v02.py` готовы и зелёные). Этап 1. Зависимости: T01. Веха M1.
+Status: done (25.09.2026: format, groups, full transfer of v0.2 actions, loader, integrity
+verification and the semantic golden `test_coverage_v02.py` are ready and green). Stage 1. Dependencies: T01. Milestone M1.
 
-## Цель
+## Goal
 
-Перенести каждое действие файла v0.2 в правила `rules/*.toml` по формату `03-data-model.md`,
-реализовать загрузчик и проверку целостности, доказать полноту переноса тестом.
+Transfer every action of the v0.2 file into rules in `rules/*.toml` following the format in `03-data-model.md`,
+implement the loader and the integrity verification, and prove the completeness of the transfer with a test.
 
-## Шаги
+## Steps
 
-1. `rules/groups.toml`: дерево групп по направлениям справочника (установка, OOBE, учётные записи,
-   печать, обновления, Defender, безопасность, сеть, носители и скрипты, журналирование, приватность,
-   приложения, профиль по умолчанию, первый вход, после OOBE).
-2. Файлы `rules/NN-*.toml` по фазам и направлениям. Каждое безусловное действие v0.2 попадает в
-   правило уровня `baseline`; каждый переключатель `$Config` становится одним или несколькими
-   правилами; 17 правил ASR это отдельные правила с параметром режима, требующие `defender.asr`;
-   приложения из `$AppsToRemove` это одно правило с действием `appx` (список) плюс возможность
-   выключить отдельные приложения через параметры (решить: список параметров-флажков или отдельные правила).
-3. Для каждого правила: `summary`, `effect`, `risk` (если есть), `versions`, `verify`, `rollback`,
-   `doc` со ссылкой на карточку справочника; тексты сжимаются из `docs/technical/reference/`.
-4. Зависимости по разделу 17 справочника: ASR → `defender.asr`; три облачных правила ASR →
+1. `rules/groups.toml`: a tree of groups following the areas of the reference (installation, OOBE, accounts,
+   printing, updates, Defender, security, network, media and scripts, logging, privacy,
+   applications, default profile, first sign-in, after OOBE).
+2. `rules/NN-*.toml` files by phase and area. Every unconditional v0.2 action goes into a
+   rule of the `baseline` level; every `$Config` switch becomes one or more
+   rules; the 17 ASR rules are separate rules with a mode parameter that require `defender.asr`;
+   the applications from `$AppsToRemove` are one rule with an `appx` action (a list) plus the ability to
+   disable individual applications through parameters (to decide: a list of check-box parameters or separate rules).
+3. For each rule: `summary`, `effect`, `risk` (if any), `versions`, `verify`, `rollback`,
+   `doc` with a link to the reference card; texts are condensed from `docs/technical/reference/`.
+4. Dependencies per section 17 of the reference: ASR → `defender.asr`; three cloud ASR rules →
    `defender.cloud`; `logging.powershell` → `logging.eventlog-sizes`; `update.defer-feature` →
-   не конфликтует с `privacy.telemetry` (DiagTrack Manual); `accounts.password-never-expires` →
-   `accounts.starter` и т. д.
-5. `core/catalog.py`: модели, `load_catalog(path)`, `CatalogError`, проверки целостности, индекс поиска.
-6. `tests/test_catalog.py`: загрузка реального каталога; ошибочные каталоги во временной папке.
-7. `tests/v02_actions.py` и `tests/test_coverage_v02.py`: семантический golden по `04-testing.md`, раздел 2.
+   does not conflict with `privacy.telemetry` (DiagTrack Manual); `accounts.password-never-expires` →
+   `accounts.starter`, etc.
+5. `core/catalog.py`: models, `load_catalog(path)`, `CatalogError`, integrity verification, search index.
+6. `tests/test_catalog.py`: loading the real catalog; faulty catalogs in a temporary folder.
+7. `tests/v02_actions.py` and `tests/test_coverage_v02.py`: semantic golden per `04-testing.md`, section 2.
 
-## Критерии приёмки
+## Acceptance criteria
 
-- Проверка целостности реального каталога без ошибок.
-- Семантический golden: все действия v0.2 покрыты; список действий каталога вне v0.2 пуст или осознан.
-- Каждое правило имеет `summary`, `effect`, `doc`; ссылки `doc` указывают на существующие файлы.
+- The integrity verification of the real catalog reports no errors.
+- Semantic golden: all v0.2 actions are covered; the list of catalog actions outside v0.2 is empty or deliberate.
+- Every rule has `summary`, `effect`, `doc`; `doc` links point to existing files.
 
-## Заметки исполнителя
+## Implementer notes
 
-25.09.2026: перенесены все разделы `Setup-System.ps1`, `Setup-User.ps1`, `Post-OOBE.ps1` и XML-элементы
-v0.2. Загрузчик и проверки целостности написаны, тесты каталога проходят. Семантический golden
-(`tests/test_coverage_v02.py`) реализован в базовом виде для действий `reg`, `reg-remove`, `service`, `exe`;
-фрагменты `ps` сравниваются по наличию ключевых строк. См. результат `python -m unittest` в README.
+25.09.2026: all sections of `Setup-System.ps1`, `Setup-User.ps1`, `Post-OOBE.ps1` and the XML elements
+of v0.2 have been transferred. The loader and the integrity verification are written, the catalog tests pass. The semantic golden
+(`tests/test_coverage_v02.py`) is implemented in basic form for the `reg`, `reg-remove`, `service`, `exe` actions;
+`ps` fragments are compared by the presence of key strings. See the `python -m unittest` result in README.

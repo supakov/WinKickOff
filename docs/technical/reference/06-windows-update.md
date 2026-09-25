@@ -1,94 +1,94 @@
-# 06. Windows Update и Delivery Optimization
+# 06. Windows Update and Delivery Optimization
 
-Раздел 2 `Setup-System.ps1`. Требование заказчика: обновления обязаны работать. Все настройки
-только ускоряют и упорядочивают обновления, ничего не отключают.
+Section 2 of `Setup-System.ps1`. Customer requirement: updates must work. All settings
+only speed up and organize updates; they do not disable anything.
 
-## Безусловные действия раздела
+## Unconditional actions of the section
 
-Перед применением параметров скрипт удаляет значения, которые могли бы отключить обновления
-(на чистом образе их нет, но они появляются после сторонних «оптимизаторов» или при повторном
-запуске скрипта на уже настроенной системе):
+Before applying the parameters, the script deletes values that could disable updates
+(they are absent on a clean image, but they appear after third-party "optimizers" or when the script
+is run again on an already configured system):
 
-| Ключ | Значение | Зачем удаляется |
+| Key | Value | Why it is deleted |
 |---|---|---|
-| `Pol\WindowsUpdate\AU` | `NoAutoUpdate` | 1 полностью отключает автообновление |
-| `Pol\WindowsUpdate` | `DoNotConnectToWindowsUpdateInternetLocations` | 1 запрещает обращение к серверам Microsoft |
-| `Pol\WindowsUpdate` | `DisableWindowsUpdateAccess` | 1 прячет страницу обновлений |
-| `Pol\WindowsUpdate` | `ExcludeWUDriversInQualityUpdate` | 1 исключает драйверы; уязвимые драйверы должны обновляться |
-| `HKLM\SOFTWARE\Policies\Microsoft\WindowsStore` | `AutoDownload` | 2 отключает автообновление приложений Store |
+| `Pol\WindowsUpdate\AU` | `NoAutoUpdate` | 1 disables automatic updates completely |
+| `Pol\WindowsUpdate` | `DoNotConnectToWindowsUpdateInternetLocations` | 1 blocks access to Microsoft servers |
+| `Pol\WindowsUpdate` | `DisableWindowsUpdateAccess` | 1 hides the updates page |
+| `Pol\WindowsUpdate` | `ExcludeWUDriversInQualityUpdate` | 1 excludes drivers; vulnerable drivers must be updated |
+| `HKLM\SOFTWARE\Policies\Microsoft\WindowsStore` | `AutoDownload` | 2 disables automatic updates of Store apps |
 
-Затем для служб `wuauserv`, `UsoSvc`, `BITS`, `DoSvc`, `WaaSMedicSvc`: если тип запуска 4 (отключена),
-он меняется на 3 (вручную; штатно они запускаются по триггерам).
+Then, for the services `wuauserv`, `UsoSvc`, `BITS`, `DoSvc`, `WaaSMedicSvc`: if the startup type is 4 (disabled),
+it is changed to 3 (manual; normally they are started by triggers).
 
 ## WindowsUpdateAutomatic
 
-- Значение: `$true`.
-- Где применяется: specialize, политики `Pol\WindowsUpdate` и `Pol\WindowsUpdate\AU`.
-- Что делает:
-  - `AU\NoAutoUpdate = 0`, `AU\AUOptions = 4`: автоматически скачивать и устанавливать;
-  - `SetActiveHours = 1`, `ActiveHoursStart = 8`, `ActiveHoursEnd = 20`: период активности
-    08:00-20:00, в это время автоматическая перезагрузка запрещена.
-- Ожидаемый эффект: обновления ставятся сами; перезагрузка ночью или до 8 утра. Пользователь видит
-  уведомление о запланированной перезагрузке и может её отложить в пределах политики Windows.
-- Кросс-связи:
-  - Максимальная ширина периода активности 18 часов; 12 часов оставляет ночь для перезагрузки.
-  - Оригинальный файл ставил `NoAutoRebootWithLoggedOnUsers=1`: с ним ПК, который никогда не
-    выключают, не перезагружался бы и накапливал неустановленные обновления. В нашем файле этого нет.
-  - Политика делает страницу «Период активности» в Параметрах недоступной для изменения.
-  - Обновления Defender (сигнатуры) идут по тому же каналу и не зависят от периода активности.
-- Различия версий: `AUOptions=4` работает на Windows 10 и 11; на Windows 11 24H2 «умный период
-  активности» (автоопределение по использованию) отключается фиксированными часами.
-- Проверка: `Get-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU`;
-  Параметры → Центр обновления → Дополнительные параметры → Период активности.
-- Откат: удалить `SetActiveHours`, `ActiveHoursStart`, `ActiveHoursEnd`; `AUOptions` можно оставить.
+- Value: `$true`.
+- Where applied: specialize, policies `Pol\WindowsUpdate` and `Pol\WindowsUpdate\AU`.
+- What it does:
+  - `AU\NoAutoUpdate = 0`, `AU\AUOptions = 4`: download and install automatically;
+  - `SetActiveHours = 1`, `ActiveHoursStart = 8`, `ActiveHoursEnd = 20`: active hours
+    08:00-20:00, automatic restart is not allowed during this time.
+- Expected effect: updates install by themselves; the restart happens at night or before 8 a.m. The user sees
+  a notification about the scheduled restart and can postpone it within the limits of Windows policy.
+- Cross-links:
+  - The maximum span of active hours is 18 hours; 12 hours leave the night for the restart.
+  - The original file set `NoAutoRebootWithLoggedOnUsers=1`: with it, a PC that is never
+    switched off would not restart and would accumulate uninstalled updates. Our file does not do this.
+  - The policy makes the «Период активности» (Active hours) page in Settings unavailable for changes.
+  - Defender updates (signatures) come through the same channel and do not depend on active hours.
+- Version differences: `AUOptions=4` works on Windows 10 and 11; on Windows 11 24H2 "smart active
+  hours" (automatic detection based on usage) is turned off by fixed hours.
+- Verification: `Get-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU`;
+  Settings → Windows Update → Advanced options → Active hours.
+- Rollback: delete `SetActiveHours`, `ActiveHoursStart`, `ActiveHoursEnd`; `AUOptions` can be kept.
 
 ## UpdateOtherMicrosoftProducts
 
-- Значение: `$true`.
-- Что делает: `Pol\WindowsUpdate\AU\AllowMUUpdateService = 1`: подключение к Microsoft Update
-  (обновления Office, .NET, SQL Server Express, драйверов Surface и других продуктов Microsoft).
-- Ожидаемый эффект: переключатель «Получать обновления для других продуктов Майкрософт» включён и
-  заблокирован. Office 2016/2019 (MSI) и .NET 3.5 получают исправления безопасности вместе с Windows.
-- Кросс-связи: Office 365/2021 (Click-to-Run) обновляется своим механизмом, политика на него не влияет.
-  Оригинальный файл ставил 0, лишая Office обновлений.
-- Различия версий: нет.
-- Проверка: `(New-Object -ComObject Microsoft.Update.ServiceManager).Services | ? IsDefaultAUService`.
-- Откат: удалить значение.
+- Value: `$true`.
+- What it does: `Pol\WindowsUpdate\AU\AllowMUUpdateService = 1`: connection to Microsoft Update
+  (updates for Office, .NET, SQL Server Express, Surface drivers and other Microsoft products).
+- Expected effect: the «Получать обновления для других продуктов Майкрософт» (Receive updates for other Microsoft products)
+  toggle is on and locked. Office 2016/2019 (MSI) and .NET 3.5 receive security fixes together with Windows.
+- Cross-links: Office 365/2021 (Click-to-Run) is updated by its own mechanism; the policy does not affect it.
+  The original file set 0, depriving Office of updates.
+- Version differences: none.
+- Verification: `(New-Object -ComObject Microsoft.Update.ServiceManager).Services | ? IsDefaultAUService`.
+- Rollback: delete the value.
 
 ## DeferFeatureUpdatesDays
 
-- Значение: `90`. Значение `0` отключает отсрочку.
-- Что делает: `Pol\WindowsUpdate\DeferFeatureUpdates = 1`, `DeferFeatureUpdatesPeriodInDays = 90`.
-- Ожидаемый эффект: ежегодные обновления функций (например 24H2 → 25H2) приходят на 90 дней позже
-  общего выпуска. За это время Microsoft исправляет ошибки первых недель, а программы учёта успевают
-  выпустить совместимые версии. Ежемесячные обновления безопасности не откладываются никогда.
-- Кросс-связи:
-  - Требует работающей оценки совместимости: `MinimalTelemetry` (раздел 12) намеренно оставляет
-    службу DiagTrack в ручном режиме и не отключает задачи Application Experience.
-  - Допустимый диапазон 0-365 дней. Отсрочка не мешает ручной установке обновления функций
-    через Media Creation Tool.
-  - Версия Windows перестаёт получать обновления безопасности через 24 месяца после выпуска (Pro);
-    90 дней отсрочки безопасно укладываются в этот срок.
-- Различия версий: политика работает на Windows 10 1703+ и Windows 11 Pro/Enterprise. На Home
-  отсрочки нет. Microsoft рекомендует для Windows 11 также `TargetReleaseVersion`; он не задан,
-  чтобы не привязывать парк к одной версии.
-- Проверка: Параметры → Центр обновления показывает «Некоторые параметры управляются организацией»;
+- Value: `90`. The value `0` disables the deferral.
+- What it does: `Pol\WindowsUpdate\DeferFeatureUpdates = 1`, `DeferFeatureUpdatesPeriodInDays = 90`.
+- Expected effect: annual feature updates (for example 24H2 → 25H2) arrive 90 days after
+  general availability. During this time Microsoft fixes the bugs of the first weeks, and accounting software has time
+  to get compatible versions released. Monthly security updates are never deferred.
+- Cross-links:
+  - Requires a working compatibility assessment: `MinimalTelemetry` (section 12) deliberately leaves
+    the DiagTrack service in manual mode and does not disable the Application Experience tasks.
+  - The allowed range is 0-365 days. The deferral does not prevent manual installation of a feature update
+    via the Media Creation Tool.
+  - A Windows version stops receiving security updates 24 months after release (Pro);
+    a 90-day deferral fits safely within this period.
+- Version differences: the policy works on Windows 10 1703+ and Windows 11 Pro/Enterprise. On Home
+  there is no deferral. For Windows 11 Microsoft also recommends `TargetReleaseVersion`; it is not set
+  so as not to tie the fleet to a single version.
+- Verification: Settings → Windows Update shows "Some settings are managed by your organization";
   `Get-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate`.
-- Откат: удалить оба значения.
+- Rollback: delete both values.
 
 ## DeliveryOptimizationLANOnly
 
-- Значение: `$true`.
-- Что делает: `Pol\DeliveryOptimization\DODownloadMode = 1`: обмен фрагментами обновлений только
-  с ПК в той же локальной сети (одна подсеть / один NAT).
-- Ожидаемый эффект: в офисе с 10 ПК обновление скачивается из интернета один раз, остальные
-  берут его у соседей. Трафик наружу не отдаётся.
-- Кросс-связи:
-  - Значение 1 совпадает с умолчанием Windows для локальных учётных записей; политика фиксирует его.
-  - Оригинальный файл ставил 99 (полностью выключено, только HTTP): работает, но каждый ПК качает всё сам.
-  - Для обмена нужен открытый порт 7680 TCP между ПК; правило брандмауэра Windows создаёт сама.
-    Политика `DefaultInboundAction=block` (раздел 09) не мешает: правило разрешающее.
-- Различия версий: режимы 0 (HTTP), 1 (LAN), 2 (группа), 3 (интернет), 99 (простой), 100 (обход)
-  одинаковы с Windows 10 1607. На 24H2 без изменений.
-- Проверка: `Get-DeliveryOptimizationStatus`, `Get-DOConfig`.
-- Откат: удалить значение (вернётся умолчание 1 или 3).
+- Value: `$true`.
+- What it does: `Pol\DeliveryOptimization\DODownloadMode = 1`: update fragments are exchanged only
+  with PCs on the same local network (one subnet / one NAT).
+- Expected effect: in an office with 10 PCs an update is downloaded from the internet once, and the others
+  take it from their neighbors. No traffic is uploaded to the outside.
+- Cross-links:
+  - Value 1 matches the Windows default for local accounts; the policy enforces it.
+  - The original file set 99 (fully off, HTTP only): it works, but every PC downloads everything by itself.
+  - The exchange needs open port 7680 TCP between the PCs; Windows creates the firewall rule itself.
+    The `DefaultInboundAction=block` policy (section 09) does not interfere: the rule is an allow rule.
+- Version differences: modes 0 (HTTP), 1 (LAN), 2 (group), 3 (internet), 99 (simple), 100 (bypass)
+  have been the same since Windows 10 1607. Unchanged on 24H2.
+- Verification: `Get-DeliveryOptimizationStatus`, `Get-DOConfig`.
+- Rollback: delete the value (the default 1 or 3 comes back).

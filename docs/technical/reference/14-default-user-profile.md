@@ -1,83 +1,83 @@
-# 14. Профиль пользователя по умолчанию
+# 14. Default user profile
 
-Раздел 10 `Setup-System.ps1`. Механизм: куст `C:\Users\Default\NTUSER.DAT` монтируется командой
-`reg.exe load HKU\UnattendDefault`, в него записываются значения, затем куст выгружается
-(`reg.exe unload`, с повтором через 3 секунды при занятости). Windows копирует этот куст в `HKCU`
-каждого нового профиля при первом входе. Admin и User создаются в oobeSystem, а их профили при
-первом входе, то есть после specialize: они наследуют всё перечисленное.
+Section 10 of `Setup-System.ps1`. Mechanism: the hive `C:\Users\Default\NTUSER.DAT` is mounted with
+`reg.exe load HKU\UnattendDefault`, values are written into it, then the hive is unloaded
+(`reg.exe unload`, with a retry after 3 seconds if it is busy). Windows copies this hive into the `HKCU`
+of every new profile at first sign-in. Admin and User are created in oobeSystem, and their profiles at
+first sign-in, that is, after specialize: they inherit everything listed here.
 
-Особенности метода:
+Specifics of the method:
 
-- Это личные настройки пользователя, не политики: пользователь может их изменить в Параметрах,
-  и никаких серых пунктов нет. Для непрофессионалов это правильные умолчания, а не запрет.
-- Уже существующие профили (при повторном запуске скрипта на настроенной системе) не затрагиваются.
-- Если `reg load` не удался (куст занят), раздел пропускается целиком с ERROR в логе; остальные
-  разделы не зависят от него.
-- Строка `[gc]::Collect()` перед выгрузкой освобождает дескрипторы реестра PowerShell, иначе
-  `reg unload` вернёт «доступ запрещён».
+- These are the user's personal settings, not policies: the user can change them in Settings,
+  and nothing is greyed out. For non-professionals these are the right defaults, not a prohibition.
+- Profiles that already exist (when the script is rerun on a configured system) are not affected.
+- If `reg load` fails (the hive is busy), the section is skipped entirely with ERROR in the log; the other
+  sections do not depend on it.
+- The `[gc]::Collect()` line before unloading releases PowerShell's registry handles; otherwise
+  `reg unload` returns "access denied".
 
-Обозначение `DU` = `HKU\UnattendDefault` (после входа: `HKCU`).
+The notation `DU` = `HKU\UnattendDefault` (after sign-in: `HKCU`).
 
-## Безусловные значения
+## Unconditional values
 
-| Ключ (относительно DU) | Значение | Эффект | Различия версий |
+| Key (relative to DU) | Value | Effect | Version differences |
 |---|---|---|---|
-| `Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\HideFileExt` | 0 | Расширения файлов видны: `счёт.pdf.exe` не притворится PDF. Главная настройка безопасности этого раздела | Все версии; умолчание 1 |
-| `...\Explorer\Advanced\ShowSyncProviderNotifications` | 0 | Нет рекламы OneDrive и Microsoft 365 в проводнике | Win10 1607+ |
-| `Control Panel\International\Geo\Nation` | 241 | Регион «Украина» (GeoID) | Все |
-| `Control Panel\International\Geo\Name` | UA | То же, двухбуквенный код (Windows 10 1803+ читает его в первую очередь) | 1803+ |
-| `Control Panel\International\User Profile\HttpAcceptLanguageOptOut` | 1 | Браузеры не сообщают сайтам список языков пользователя (уменьшает отпечаток) | Win10+ |
+| `Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\HideFileExt` | 0 | File extensions are visible: `счёт.pdf.exe` will not pass itself off as a PDF. The main security setting of this section | All versions; default is 1 |
+| `...\Explorer\Advanced\ShowSyncProviderNotifications` | 0 | No OneDrive and Microsoft 365 advertising in File Explorer | Win10 1607+ |
+| `Control Panel\International\Geo\Nation` | 241 | Region "Ukraine" (GeoID) | All |
+| `Control Panel\International\Geo\Name` | UA | Same, two-letter code (Windows 10 1803+ reads it first) | 1803+ |
+| `Control Panel\International\User Profile\HttpAcceptLanguageOptOut` | 1 | Browsers do not report the user's language list to websites (reduces the fingerprint) | Win10+ |
 
-Регион влияет на Store (какие приложения и цены показывать), на формат «Погода» и на предложения
-контента. Он не меняет язык интерфейса и не связан с часовым поясом.
+The region affects the Store (which apps and prices to show), the format in «Погода» (Weather) and content
+suggestions. It does not change the display language and is not related to the time zone.
 
-## Значения по условию DisableConsumerContent
+## Values under the DisableConsumerContent condition
 
-| Ключ | Значение | Эффект |
+| Key | Value | Effect |
 |---|---|---|
-| `...\ContentDeliveryManager\ContentDeliveryAllowed` | 0 | Канал доставки контента выключен |
-| `...\FeatureManagementEnabled` | 0 | Нет «экспериментов» с функциями |
-| `...\OemPreInstalledAppsEnabled` | 0 | Нет предустановок производителя |
-| `...\PreInstalledAppsEnabled` | 0 | Нет предустановок Microsoft |
-| `...\PreInstalledAppsEverEnabled` | 0 | Флаг «уже ставили» сброшен |
-| `...\SilentInstalledAppsEnabled` | 0 | Store не ставит приложения тихо (главное значение) |
-| `...\SoftLandingEnabled` | 0 | Нет «советов» после обновлений |
-| `...\SystemPaneSuggestionsEnabled` | 0 | Нет рекомендаций в меню Пуск |
-| `...\RotatingLockScreenOverlayEnabled` | 0 | Нет «интересных фактов» на экране блокировки |
-| `...\SubscribedContent-310093Enabled` | 0 | Нет «Что нового» после обновлений |
-| `...\SubscribedContent-338387Enabled` | 0 | Нет фактов на экране блокировки |
-| `...\SubscribedContent-338388Enabled` | 0 | Нет предложений приложений в Пуске |
-| `...\SubscribedContent-338389Enabled` | 0 | Нет советов и подсказок |
-| `...\SubscribedContent-338393Enabled`, `-353694Enabled`, `-353696Enabled` | 0 | Нет предложений в Параметрах |
-| `...\SubscribedContent-353698Enabled` | 0 | Нет предложений на Timeline |
-| `...\UserProfileEngagement\ScoobeSystemSettingEnabled` | 0 | Нет экрана «Завершим настройку устройства» после входа |
-| `...\Explorer\Advanced\Start_IrisRecommendations` | 0 | Нет рекомендаций в Пуске (Windows 11 22H2+) |
-| `...\Explorer\Advanced\Start_AccountNotifications` | 0 | Нет напоминаний про учётную запись Microsoft в Пуске (23H2+) |
-| `...\AdvertisingInfo\Enabled` | 0 | Рекламный идентификатор выключен для пользователя |
-| `...\Privacy\TailoredExperiencesWithDiagnosticDataEnabled` | 0 | Нет «персонализированных предложений» по диагностике |
+| `...\ContentDeliveryManager\ContentDeliveryAllowed` | 0 | The content delivery channel is off |
+| `...\FeatureManagementEnabled` | 0 | No feature "experiments" |
+| `...\OemPreInstalledAppsEnabled` | 0 | No OEM preinstalled apps |
+| `...\PreInstalledAppsEnabled` | 0 | No Microsoft preinstalled apps |
+| `...\PreInstalledAppsEverEnabled` | 0 | The "already installed" flag is reset |
+| `...\SilentInstalledAppsEnabled` | 0 | The Store does not install apps silently (the main value) |
+| `...\SoftLandingEnabled` | 0 | No "tips" after updates |
+| `...\SystemPaneSuggestionsEnabled` | 0 | No recommendations in the Start menu |
+| `...\RotatingLockScreenOverlayEnabled` | 0 | No "fun facts" on the lock screen |
+| `...\SubscribedContent-310093Enabled` | 0 | No "What's new" after updates |
+| `...\SubscribedContent-338387Enabled` | 0 | No facts on the lock screen |
+| `...\SubscribedContent-338388Enabled` | 0 | No app suggestions in Start |
+| `...\SubscribedContent-338389Enabled` | 0 | No tips and suggestions |
+| `...\SubscribedContent-338393Enabled`, `-353694Enabled`, `-353696Enabled` | 0 | No suggestions in Settings |
+| `...\SubscribedContent-353698Enabled` | 0 | No suggestions on Timeline |
+| `...\UserProfileEngagement\ScoobeSystemSettingEnabled` | 0 | No «Завершим настройку устройства» (Let's finish setting up your device) screen after sign-in |
+| `...\Explorer\Advanced\Start_IrisRecommendations` | 0 | No recommendations in Start (Windows 11 22H2+) |
+| `...\Explorer\Advanced\Start_AccountNotifications` | 0 | No Microsoft account reminders in Start (23H2+) |
+| `...\AdvertisingInfo\Enabled` | 0 | The advertising ID is off for the user |
+| `...\Privacy\TailoredExperiencesWithDiagnosticDataEnabled` | 0 | No "personalized suggestions" based on diagnostic data |
 
-Кросс-связи: именно эти значения делают на Pro то, что политика `DisableWindowsConsumerFeatures`
-делает на Enterprise. Раздел «Рекомендации» в меню Пуск Windows 11 остаётся (файлы и последние
-документы), но без рекламы приложений.
+Cross-links: it is exactly these values that do on Pro what the `DisableWindowsConsumerFeatures` policy
+does on Enterprise. The «Рекомендации» (Recommended) section of the Windows 11 Start menu remains (files and recent
+documents), but without app advertising.
 
-## Значения по другим условиям
+## Values under other conditions
 
-| Условие | Ключ | Значение | Эффект |
+| Condition | Key | Value | Effect |
 |---|---|---|---|
-| DisableWidgetsAndNews | `...\Explorer\Advanced\TaskbarDa` | 0 | Кнопка виджетов скрыта (дублирует политику Dsh) |
-| DisableCopilotAndRecall | `...\Explorer\Advanced\ShowCopilotButton` | 0 | Кнопка Copilot скрыта (23H2) |
-| DisableCopilotAndRecall | `Software\Policies\Microsoft\Windows\WindowsCopilot\TurnOffWindowsCopilot` | 1 | Пользовательская политика отключения Copilot: единственный уровень, где она действует |
-| DisableAutoRun | `...\Explorer\AutoplayHandlers\DisableAutoplay` | 1 | Нет диалога автозапуска для носителей |
+| DisableWidgetsAndNews | `...\Explorer\Advanced\TaskbarDa` | 0 | The widgets button is hidden (duplicates the Dsh policy) |
+| DisableCopilotAndRecall | `...\Explorer\Advanced\ShowCopilotButton` | 0 | The Copilot button is hidden (23H2) |
+| DisableCopilotAndRecall | `Software\Policies\Microsoft\Windows\WindowsCopilot\TurnOffWindowsCopilot` | 1 | User policy that turns off Copilot: the only level where it takes effect |
+| DisableAutoRun | `...\Explorer\AutoplayHandlers\DisableAutoplay` | 1 | No AutoPlay dialog for media |
 
-## Что намеренно не задано
+## What is intentionally not set
 
-Тема (тёмная/светлая), обои, выравнивание панели задач, классическое контекстное меню, показ
-скрытых файлов, отключение анимаций: всё это дело вкуса пользователя, а не базового образа.
-При необходимости добавляется как отдельный профиль конструктора «косметика».
+Theme (dark/light), wallpaper, taskbar alignment, the classic context menu, showing
+hidden files, disabling animations: all of this is a matter of the user's taste, not of the base image.
+If needed, it is added as a separate constructor profile «косметика» (cosmetics).
 
-## Проверка и откат
+## Verification and rollback
 
-- Проверка до входа: `reg load HKU\Test C:\Users\Default\NTUSER.DAT`, посмотреть значения, `reg unload HKU\Test`.
-- Проверка после входа: `Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name HideFileExt`.
-- Откат для пользователя: Параметры или `Set-ItemProperty` в HKCU; для будущих пользователей: те же
-  ключи в кусте Default.
+- Verification before sign-in: `reg load HKU\Test C:\Users\Default\NTUSER.DAT`, inspect the values, `reg unload HKU\Test`.
+- Verification after sign-in: `Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name HideFileExt`.
+- Rollback for a user: Settings or `Set-ItemProperty` in HKCU; for future users: the same
+  keys in the Default hive.

@@ -1,74 +1,74 @@
-# 02. Архитектура WinKickOff
+# 02. WinKickOff architecture
 
-Редакция 0.2 от 25.09.2026.
+Revision 0.2 of 25.09.2026.
 
-## 1. Принципы
+## 1. Principles
 
-1. Каталог правил (`rules/*.toml`) это единственный источник истины о том, что умеет делать
-   установка. Интерфейс, генератор, валидатор, описания и тесты читают его; код правил не содержит.
-2. Рантайм отделён от правил: неизменяемые фрагменты PowerShell и XML лежат в `templates/`.
-3. Логика без интерфейса: `core/` не импортирует tkinter и тестируется `unittest`.
-4. Одна функция путей `app_paths()`; никто не собирает пути сам.
-5. Никаких зависимостей за пределами стандартной библиотеки в самом приложении.
-6. Любая ошибка данных (правило, профиль, шаблон) превращается в сообщение с указанием файла и
-   идентификатора; приложение не падает.
+1. The rule catalog (`rules/*.toml`) is the single source of truth about what the installation
+   can do. The interface, generator, validator, descriptions and tests read it; the code contains no rules.
+2. The runtime is separate from the rules: immutable PowerShell and XML fragments live in `templates/`.
+3. Logic without the interface: `core/` does not import tkinter and is tested with `unittest`.
+4. A single path function `app_paths()`; nobody builds paths on their own.
+5. No dependencies outside the standard library in the application itself.
+6. Any data error (rule, profile, template) turns into a message naming the file and the
+   identifier; the application does not crash.
 
-## 2. Структура каталога `WinKickOff/`
+## 2. Structure of the `WinKickOff/` directory
 
 ```
 WinKickOff/
-  README.md                  как запустить из исходников, тесты, сборка
-  pyproject.toml             метаданные, requires-python >= 3.14, настройки ruff/mypy
+  README.md                  how to run from sources, tests, build
+  pyproject.toml             metadata, requires-python >= 3.14, ruff/mypy settings
   winkickoff/
     __init__.py              APP_VERSION
     __main__.py              python -m winkickoff
-    app.py                   старт: пути, лог, каталог, окно
+    app.py                   startup: paths, log, catalog, window
     core/
       paths.py               AppPaths, app_paths()
-      log.py                 логирование в logs/
-      catalog.py             модели Rule, Action, Group, Param; загрузка TOML; проверка целостности
-      deps.py                Resolver: enable/disable с каскадом, порядок применения
-      profile.py             Profile: состояние правил и параметров, данные установки; JSON
-      render.py              сборка скриптов и XML из рантайма и включённых правил
-      validate.py            проверки профиля и XML; Issue
-      importer.py            профиль из XML (встроенный) или из файла v0.2 (разбор действий)
-      pscheck.py             проверка синтаксиса через powershell.exe, если доступен
-      i18n.py                строки интерфейса и переводы правил
+      log.py                 logging to logs/
+      catalog.py             Rule, Action, Group, Param models; TOML loading; integrity verification
+      deps.py                Resolver: enable/disable with cascade, application order
+      profile.py             Profile: rule and parameter state, installation data; JSON
+      render.py              building scripts and XML from the runtime and the enabled rules
+      validate.py            profile and XML verification; Issue
+      importer.py            profile from XML (embedded) or from the v0.2 file (action parsing)
+      pscheck.py             syntax verification via powershell.exe, if available
+      i18n.py                interface strings and rule translations
     ui/
-      main_window.py         окно, меню, три области, горячие клавиши
-      rule_tree.py           дерево с флажками, поиск, фильтр
-      detail_panel.py        описание правила, таблица действий, редактор параметров
-      data_forms.py          формы узлов данных: установка, учётные записи, языки
-      dialogs.py             о программе, сравнение профилей, список каскада
+      main_window.py         window, menu, three areas, hotkeys
+      rule_tree.py           tree with check boxes, search, filter
+      detail_panel.py        rule description, action table, parameter editor
+      data_forms.py          data node forms: installation, accounts, languages
+      dialogs.py             about, profile comparison, cascade list
   rules/
-    groups.toml              дерево групп
-    NN-<направление>.toml    правила по направлениям, порядок файлов = порядок применения
-    lang/uk.toml             переводы строк правил
+    groups.toml              group tree
+    NN-<направление>.toml    rules by area, file order = application order
+    lang/uk.toml             translations of rule strings
   templates/
-    autounattend.template.xml      скелет с маркерами слотов
-    Setup-System.runtime.ps1       функции, trap, шапка, монтирование куста
-    Setup-User.runtime.ps1         шапка и лог скрипта первого входа
-    Post-OOBE.runtime.ps1          ожидание OOBE, чтение профиля, завершение
-    VERSION                        версия каталога и рантайма (0.3)
+    autounattend.template.xml      skeleton with slot markers
+    Setup-System.runtime.ps1       functions, trap, header, hive mounting
+    Setup-User.runtime.ps1         header and log of the first sign-in script
+    Post-OOBE.runtime.ps1          waiting for OOBE, reading the profile, completion
+    VERSION                        catalog and runtime version (0.3)
   resources/
-    strings.ru.json, strings.uk.json   строки интерфейса
-    keyboards.json, timezones.json     справочники
+    strings.ru.json, strings.uk.json   interface strings
+    keyboards.json, timezones.json     reference data
   profiles/
     preset-office.json, preset-strict.json
   tests/
     test_catalog.py, test_deps.py, test_profile.py, test_render.py, test_validate.py,
-    test_coverage_v02.py (семантический golden), test_ui_smoke.py
+    test_coverage_v02.py (semantic golden), test_ui_smoke.py
   tools/
     build.ps1, run-tests.ps1
 ```
 
-## 3. Модель данных в памяти
+## 3. In-memory data model
 
 ```
 Catalog
   groups: dict[id, Group(id, parent, title, order, summary)]
   rules:  dict[id, Rule]
-  order:  list[id]              порядок по файлам и позиции
+  order:  list[id]              order by file and position
 Rule
   id, group, phase, title, level, default, requires[], conflicts[], tags[]
   summary, effect, risk, versions, verify, rollback, doc
@@ -77,7 +77,7 @@ Rule
 Profile
   meta: format_version, catalog_version, name, author, created, modified, comment
   install: edition, product_key_mode, product_key, time_zone
-  languages: ui_language, system_locale, user_locale, input[]  (страна: параметры geo_id и geo_name правила default-user.region)
+  languages: ui_language, system_locale, user_locale, input[]  (country: parameters geo_id and geo_name of the rule default-user.region)
   accounts: [Account(name, display_name, group, description, password)]
   rules: dict[id, RuleState(enabled, params: dict)]
   unknown: dict
@@ -85,7 +85,7 @@ Resolver(catalog)
   disable(profile, id) -> list[Change]
   enable(profile, id)  -> list[Change]
   set_group(profile, group_id, enabled) -> list[Change]
-  apply_order(enabled_ids) -> list[id]    фаза, файл, топосорт по requires
+  apply_order(enabled_ids) -> list[id]    phase, file, topological sort by requires
 Renderer(catalog, templates)
   build(profile) -> BuildResult(xml_text, scripts: dict[name, text], rule_ids: list)
 Validator
@@ -94,7 +94,7 @@ Validator
   xml(text) -> list[Issue]
 ```
 
-## 4. Портабельные пути
+## 4. Portable paths
 
 ```python
 # core/paths.py
@@ -104,8 +104,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class AppPaths:
-    root: Path      # папка exe (сборка) или WinKickOff/ (исходники)
-    data: Path      # rules/, templates/, resources/ (в сборке: root/_internal)
+    root: Path      # exe folder (build) or WinKickOff/ (sources)
+    data: Path      # rules/, templates/, resources/ (in the build: root/_internal)
     profiles: Path
     output: Path
     logs: Path
@@ -123,94 +123,94 @@ def app_paths() -> AppPaths:
     return paths
 ```
 
-Правила те же, что в 0.1: никаких `os.getcwd()`, `%APPDATA%`, `%TEMP%`; временные файлы в
-`logs/tmp/`; `settings.json` рядом с exe.
+The rules are the same as in 0.1: no `os.getcwd()`, `%APPDATA%`, `%TEMP%`; temporary files go to
+`logs/tmp/`; `settings.json` next to the exe.
 
-## 5. Поток данных
+## 5. Data flow
 
 ```
 rules/*.toml ──> Catalog ──┬──> Validator.catalog
                            ├──> Resolver
-profiles/*.json ──> Profile┴──> Renderer ──> XML + скрипты ──> Validator.xml ──> файл
-templates/* ───────────────────────┘                 └──> pscheck (необязательно)
+profiles/*.json ──> Profile┴──> Renderer ──> XML + scripts ──> Validator.xml ──> file
+templates/* ───────────────────────┘                 └──> pscheck (optional)
 ```
 
-1. Старт: загрузка каталога и проверка целостности; при ошибке окно с сообщением и выход.
-2. Профиль: из пресета или файла; неизвестные правила в `unknown`, новые с `default`.
-3. Дерево строится по группам; состояния из профиля; поиск фильтрует по индексу строк, построенному
-   при загрузке каталога (идентификатор, название, теги, резюме, строки действий).
-4. Изменение флажка: `Resolver.disable/enable` → список изменений → обновление узлов дерева и
-   строки состояния; профиль помечается изменённым.
-5. Сборка: `Validator.profile` → стоп при ошибках; `Renderer.build` → `Validator.xml` →
-   `pscheck` (фон) → запись файла.
+1. Startup: loading the catalog and integrity verification; on error, a window with a message and exit.
+2. Profile: from a preset or a file; unknown rules go to `unknown`, new ones get `default`.
+3. The tree is built by groups; states come from the profile; search filters using a string index built
+   when the catalog is loaded (identifier, title, tags, summary, action strings).
+4. Check box change: `Resolver.disable/enable` → list of changes → update of the tree nodes and
+   the status bar; the profile is marked as modified.
+5. Build: `Validator.profile` → stop on errors; `Renderer.build` → `Validator.xml` →
+   `pscheck` (background) → writing the file.
 
-## 6. Генератор
+## 6. Generator
 
-Порядок правил: `Resolver.apply_order` возвращает включённые правила, отсортированные по фазе,
-затем по позиции в каталоге, с устойчивой топологической поправкой: правило не раньше своих `requires`.
+Rule order: `Resolver.apply_order` returns the enabled rules sorted by phase,
+then by position in the catalog, with a stable topological correction: a rule never comes before its `requires`.
 
-Сборка по фазам:
+Build by phase:
 
-| Фаза | Куда попадает | Инфраструктура (включается по наличию правил) |
+| Phase | Where it goes | Infrastructure (included when the phase has rules) |
 |---|---|---|
-| windowspe | `RunSynchronous` в компоненте Setup (обе архитектуры) | нет |
-| specialize-xml | `RunSynchronous` в Deployment, после команды извлечения, до запуска скрипта | извлечение скриптов и запуск `Setup-System.ps1` (всегда, если есть правила specialize или default-user) |
-| specialize | блоки в `Setup-System.ps1` | рантайм: функции, trap, лог |
-| default-user | блоки внутри `reg load`/`reg unload` куста в `Setup-System.ps1` | монтирование куста |
-| user-first-logon | блоки в `Setup-User.ps1` | регистрация Active Setup в `Setup-System.ps1` |
-| post-oobe | блоки в `Post-OOBE.ps1` | задача планировщика из `Setup-System.ps1`; ожидание OOBE в рантайме |
-| oobe-xml | элементы `OOBE` и International-Core, учётные записи | нет |
+| windowspe | `RunSynchronous` in the Setup component (both architectures) | none |
+| specialize-xml | `RunSynchronous` in Deployment, after the extraction command, before the script is run | script extraction and running `Setup-System.ps1` (always, if there are specialize or default-user rules) |
+| specialize | blocks in `Setup-System.ps1` | runtime: functions, trap, log |
+| default-user | blocks inside `reg load`/`reg unload` of the hive in `Setup-System.ps1` | hive mounting |
+| user-first-logon | blocks in `Setup-User.ps1` | Active Setup registration in `Setup-System.ps1` |
+| post-oobe | blocks in `Post-OOBE.ps1` | scheduled task from `Setup-System.ps1`; waiting for OOBE in the runtime |
+| oobe-xml | `OOBE` and International-Core elements, accounts | none |
 
-Преобразование действий в PowerShell (фаза specialize, default-user, user-first-logon, post-oobe):
+Converting actions to PowerShell (phases specialize, default-user, user-first-logon, post-oobe):
 
-| Тип | Строка |
+| Type | Line |
 |---|---|
-| reg | `Set-Reg -Path '<path>' -Name '<name>' -Type <kind> -Value <value> -Why '<why>'` (для `DU:` путь через `$du`) |
+| reg | `Set-Reg -Path '<path>' -Name '<name>' -Type <kind> -Value <value> -Why '<why>'` (for `DU:` the path goes through `$du`) |
 | reg-remove | `Remove-Reg -Path '<path>' -Name '<name>'` |
 | service | `Set-ServiceStart -Name '<name>' -Start <n>` |
 | exe | `Invoke-Exe '<file>' @('<arg>', ...)` |
-| feature | `Set-Feature -Name '<name>' -State <Enabled|Disabled>` (обёртка над DISM в рантайме) |
+| feature | `Set-Feature -Name '<name>' -State <Enabled|Disabled>` (wrapper around DISM in the runtime) |
 | capability | `Remove-Capability -Pattern '<pattern>'` |
 | appx | `Remove-Apps @('<name>', ...)` |
-| ps | текст как есть, с отступом |
+| ps | text as is, indented |
 
-Каждый блок начинается строкой `# [<rule.id>]` (без названия: всё, что пишет генератор, только ASCII,
-название правила видно в редакторе по идентификатору); значения параметров подставляются по имени
-`{param}` с приведением типа. Строки экранируются для PowerShell (удвоение одинарных кавычек).
+Each block starts with the line `# [<rule.id>]` (without the title: everything the generator writes is ASCII only,
+and the rule title is visible in the editor by its identifier); parameter values are substituted by name
+`{param}` with type conversion. Strings are escaped for PowerShell (single quotes are doubled).
 
-XML-действия: `xml-pe-command` и `xml-specialize-command` добавляют `RunSynchronousCommand` с
-`Order` по порядку; `xml-oobe` добавляет элемент с именем и значением в блок `OOBE`. Данные
-профиля (ключ, часовой пояс, языки, учётные записи) подставляются в фиксированные слоты.
+XML actions: `xml-pe-command` and `xml-specialize-command` add a `RunSynchronousCommand` with
+sequential `Order`; `xml-oobe` adds an element with a name and a value to the `OOBE` block. Profile
+data (key, time zone, languages, accounts) is substituted into fixed slots.
 
-Профиль встраивается в `Extensions/Profile` как JSON внутри CDATA. Валидатор считает длины `Path`
-по распакованному тексту.
+The profile is embedded in `Extensions/Profile` as JSON inside CDATA. The validator computes `Path` lengths
+on the unpacked text.
 
-## 7. Резолвер зависимостей
+## 7. Dependency resolver
 
-- `required_by` строится один раз при загрузке (обратный индекс `requires`).
-- `disable(id)`: обход в ширину по `required_by`, выключение каждого включённого; результат:
+- `required_by` is built once at load time (reverse index of `requires`).
+- `disable(id)`: breadth-first traversal over `required_by`, disabling each enabled rule; result:
   `[Change(id, enabled=False, reason="requires <id>")]`.
-- `enable(id)`: обход по `requires`, включение; затем для каждого включённого правила выключение
-  его `conflicts` с обходом `required_by`.
-- Группа: последовательное применение к правилам группы; изменения объединяются.
-- Все операции чистые относительно каталога и меняют только профиль.
+- `enable(id)`: traversal over `requires`, enabling; then, for each enabled rule, disabling
+  its `conflicts` with traversal over `required_by`.
+- Group: sequential application to the rules of the group; the changes are merged.
+- All operations are pure with respect to the catalog and change only the profile.
 
-## 8. Интерфейс
+## 8. Interface
 
-- `ttk.PanedWindow` горизонтальная: слева `Frame` с полем поиска и `ttk.Treeview` (одна колонка
-  `#0` с текстом «☐ Название» или «☑ Название», «◪» для частично включённой группы); справа
-  `Frame` с прокручиваемым `Text` (описание) и панелью параметров; снизу `ttk.Treeview` сообщений.
-- Щелчок по узлу в зоне первых символов или пробел: переключение через резолвер; изменённые узлы
-  перерисовываются; строка состояния показывает число каскадных изменений, щелчок раскрывает список.
-- Поиск: при вводе (с задержкой 150 мс) дерево перестраивается из отфильтрованного списка;
-  пустой запрос возвращает полное дерево с сохранением состояния раскрытия.
-- Описание формируется из данных правила и таблицы действий; ссылка «Подробнее» открывает
-  карточку справочника (`os.startfile`), если файл есть в сборке.
-- Параметры: виджеты по типу (Spinbox, Combobox, Entry) под описанием; изменение сразу в профиль.
-- Узлы данных: «Установка», «Учётные записи», «Языки и регион» открывают формы в правой панели.
-- DPI: `SetProcessDpiAwareness(1)` до создания Tk; тема `vista`.
+- A horizontal `ttk.PanedWindow`: on the left a `Frame` with the search field and a `ttk.Treeview` (a single column
+  `#0` with the text «☐ Название» (☐ Title) or «☑ Название» (☑ Title), «◪» for a partially enabled group); on the right
+  a `Frame` with a scrollable `Text` (description) and a parameter panel; at the bottom a `ttk.Treeview` of messages.
+- A click on a node within its first characters, or Space: toggling through the resolver; the changed nodes
+  are redrawn; the status bar shows the number of cascade changes, a click expands the list.
+- Search: on input (with a 150 ms delay) the tree is rebuilt from the filtered list;
+  an empty query restores the full tree, preserving the expansion state.
+- The description is built from the rule data and the action table; the «Подробнее» (More details) link opens
+  the reference card (`os.startfile`) if the file is in the build.
+- Parameters: widgets by type (Spinbox, Combobox, Entry) below the description; a change goes straight into the profile.
+- Data nodes: «Установка» (Installation), «Учётные записи» (Accounts), «Языки и регион» (Languages and region) open forms in the right panel.
+- DPI: `SetProcessDpiAwareness(1)` before Tk is created; theme `vista`.
 
-## 9. Сборка
+## 9. Build
 
-PyInstaller onedir, `--noconsole`, данные `rules`, `templates`, `resources`, `profiles`, и
-`docs/reference` из корня репозитория для ссылок «Подробнее». Результат `dist/WinKickOff/`.
+PyInstaller onedir, `--noconsole`, data `rules`, `templates`, `resources`, `profiles`, and
+`docs/technical/reference` and `docs/user` from the repository root for the «Подробнее» links. Output: `dist/WinKickOff/`.

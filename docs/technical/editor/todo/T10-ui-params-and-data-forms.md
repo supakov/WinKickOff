@@ -1,27 +1,28 @@
-# T10. Параметры правил, формы данных (установка, учётные записи, языки)
+# T10. Rule parameters, data forms (installation, accounts, languages)
 
-Статус: done (25.09.2026: параметры правил по типам с пометкой «изменено», правила с изменёнными
-параметрами выделены в дереве; формы «Установка», «Учётные записи», «Языки и регион»; тесты).
-Этап 4. Зависимости: T09.
+Status: done (25.09.2026: rule parameters by type with a «изменено» (changed) mark, rules with changed
+parameters highlighted in the tree; the «Установка» (Installation), «Учётные записи» (Accounts) and «Языки и регион»
+(Languages and region) forms; tests). Stage 4. Dependencies: T09.
 
-## Цель
+## Goal
 
-Редактирование параметров правил в панели описания и форм для узлов данных.
+Editing rule parameters in the description panel, and forms for the data nodes.
 
-## Шаги
+## Steps
 
-1. Параметры: виджет по типу (`int` → Spinbox с диапазоном, `enum` → Combobox только чтение,
-   `string` → Entry, `bool` → Checkbutton); изменение сразу в профиль; подсветка отклонения от умолчания.
-2. `ui/data_forms.py`: узел «Установка» (редакция, режим ключа, ключ, часовой пояс из справочника,
-   язык ISO); узел «Учётные записи» (таблица, добавить/изменить/удалить/вверх/вниз, проверка имени
-   на лету, предупреждение при пароле); узел «Языки и регион» (интерфейс, форматы, регион, список
-   ввода с порядком, пометка transient).
-3. Все формы пишут в профиль немедленно и ставят флаг изменений.
-4. Тесты: изменение параметра меняет профиль; добавление учётной записи с зарезервированным именем
-   отклоняется с причиной.
+1. Parameters: a widget per type (`int` → Spinbox with a range, `enum` → read-only Combobox,
+   `string` → Entry, `bool` → Checkbutton); a change goes straight into the profile; highlighting of values
+   that differ from the default.
+2. `ui/data_forms.py`: the «Установка» node (edition, key mode, key, time zone from the reference,
+   ISO language); the «Учётные записи» node (table, add/edit/delete/up/down, on-the-fly name
+   check, warning when a password is set); the «Языки и регион» node (display language, formats, region, input
+   list with ordering, transient mark).
+3. All forms write to the profile immediately and set the modified flag.
+4. Tests: changing a parameter changes the profile; adding an account with a reserved name
+   is rejected with a reason.
 
-## Критерии приёмки
+## Acceptance criteria
 
-- Пресет «Офис» открывается и отображается без потерь; порядок языков сохраняется в XML.
+- The «Офис» (Office) preset opens and is displayed without loss; the order of languages is preserved in the XML.
 
-## Заметки исполнителя
+## Implementer notes

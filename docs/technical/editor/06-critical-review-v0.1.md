@@ -1,139 +1,140 @@
-# 06. Критический разбор черновика 0.1 и переход к модели правил
+# 06. Critical review of draft 0.1 and the move to the rule model
 
-Дата: 25.09.2026. Предмет: документы 01-05 в редакции 0.1 (утро 25.09.2026) против уточнённых
-требований заказчика: отключать через интерфейс любое правило с деактивацией всех зависимых,
-собирать файл только из выбранного, дерево настроек с быстрым поиском и минимумом кликов,
-описание каждой опции с техническими деталями, данные во внешних файлах.
+Date: 25.09.2026. Subject: documents 01-05 in revision 0.1 (morning of 25.09.2026) against the
+customer's refined requirements: disabling any rule through the interface, with all dependent rules
+deactivated; building the file only from what is selected; a settings tree with fast search and a
+minimum of clicks; a description of every option with technical details; data in external files.
 
-Вывод: черновик 0.1 недостаточно проработан. Он повторяет устройство файла v0.2 (монолитный скрипт
-с блоком `$Config`) и не даёт ни одного из четырёх свойств в полном объёме. Документы 01-05
-переписаны в редакции 0.2; ниже список изъянов и принятых решений.
+Conclusion: draft 0.1 is not worked out thoroughly enough. It repeats the structure of the v0.2 file
+(a monolithic script with a `$Config` block) and provides none of the four properties in full.
+Documents 01-05 have been rewritten in revision 0.2; below is the list of flaws and the decisions taken.
 
-## 1. «Отключить любое правило»: модель `$Config` это не позволяет
+## 1. "Disable any rule": the `$Config` model does not allow it
 
-Факты по файлу v0.2 (подсчёт по тексту `Setup-System.ps1`):
+Facts about the v0.2 file (counted in the text of `Setup-System.ps1`):
 
-| Что | Сколько |
+| What | How many |
 |---|---|
-| Ключей `$Config` (переключателей) | 45 |
-| Вызовов `Set-Reg` | 124 |
-| Вызовов `Remove-Reg`, `Set-ServiceStart`, `Invoke-Exe` | 12, 5, 12 |
-| Вызовов на верхнем уровне, без какого-либо условия | 47 |
+| `$Config` keys (switches) | 45 |
+| `Set-Reg` calls | 124 |
+| `Remove-Reg`, `Set-ServiceStart`, `Invoke-Exe` calls | 12, 5, 12 |
+| Top-level calls, without any condition | 47 |
 
-47 действий (базовые значения UAC, LSA, WDigest, SEHOP, NLA, уведомления Defender, SmartScreen,
-политики Edge, `LongPathsEnabled`, `RetailDemo`, `BlockAADWorkplaceJoin`, весь базовый набор профиля
-по умолчанию, регистрация Active Setup, задача Post-OOBE) выполняются всегда. Переключатель
-`$Config` покрывает группу действий целиком: нельзя оставить `RequireSMBSigning` на сервере, но
-снять на клиенте; нельзя отключить одну политику Edge из девяти.
+47 actions (the baseline values for UAC, LSA, WDigest, SEHOP, NLA, Defender notifications, SmartScreen,
+Edge policies, `LongPathsEnabled`, `RetailDemo`, `BlockAADWorkplaceJoin`, the whole baseline set of the
+default profile, Active Setup registration, the Post-OOBE task) always run. A `$Config` switch covers
+a group of actions as a whole: you cannot keep `RequireSMBSigning` for the server but drop it for the
+client; you cannot disable one Edge policy out of nine.
 
-Решение: единица настройки это правило (rule), а не ключ `$Config`. Каждое правило имеет свой
-список действий и может быть выключено. Всё, что в v0.2 было безусловным, становится правилами
-уровня «базовый» с включённым по умолчанию состоянием. Файл v0.2 в этой модели это один из
-профилей (пресет «Офис»), а не шаблон кода.
+Decision: the unit of configuration is the rule, not a `$Config` key. Each rule has its own list of
+actions and can be disabled. Everything that was unconditional in v0.2 becomes rules of the "baseline"
+level, enabled by default. In this model the v0.2 file is one of the profiles (the «Офис» (Office)
+preset), not a code template.
 
-## 2. Зависимости: в 0.1 только видимость, каскада нет
+## 2. Dependencies: 0.1 has only visibility, no cascade
 
-Поле `depends` в схеме 0.1 управляло доступностью виджета. Требование заказчика другое: выключение
-правила A обязано выключить все правила, которые без A бессмысленны или опасны. Примеры из v0.2,
-где такие связи существуют, но нигде не записаны:
+The `depends` field in the 0.1 schema controlled widget availability. The customer's requirement is
+different: disabling rule A must disable all rules that are meaningless or dangerous without A. Examples
+from v0.2 where such links exist but are not recorded anywhere:
 
-- 17 правил ASR требуют включённого механизма ASR; три из них требуют облачной защиты Defender;
-- журналирование PowerShell требует увеличенного журнала, иначе бесполезно через неделю;
-- отсрочка обновлений функций требует, чтобы DiagTrack не был отключён;
-- скрипт первого входа требует регистрации Active Setup; правила фазы post-oobe требуют задачи планировщика;
-- `PasswordNeverExpires` требует наличия стартовых учётных записей;
-- «Удалить Quick Assist» и «Выключить удалённого помощника» логически парные, но независимые.
+- 17 ASR rules require the ASR mechanism to be enabled; three of them require Defender cloud protection;
+- PowerShell logging requires an enlarged log, otherwise it is useless after a week;
+- deferring feature updates requires that DiagTrack is not disabled;
+- the first sign-in script requires Active Setup registration; rules of the post-oobe phase require the scheduled task;
+- `PasswordNeverExpires` requires the starter accounts to exist;
+- «Удалить Quick Assist» (Remove Quick Assist) and «Выключить удалённого помощника» (Turn off Remote Assistance) are logically paired but independent.
 
-Решение: у правила поля `requires` (жёсткие зависимости) и `conflicts` (взаимоисключающие).
-Резолвер: выключение правила каскадно выключает всех, кто его требует (транзитивно); включение
-каскадно включает требуемых; включение выключает конфликтующих. Каждая операция возвращает список
-затронутых правил, интерфейс показывает его сразу, без диалога. Механика фаз (Active Setup, задача
-Post-OOBE, монтирование куста профиля по умолчанию) не правила, а инфраструктура: генератор включает
-её автоматически, если в фазе есть хотя бы одно включённое правило.
+Decision: a rule has the fields `requires` (hard dependencies) and `conflicts` (mutually exclusive).
+Resolver: disabling a rule cascades to disable every rule that requires it (transitively); enabling
+cascades to enable the required ones; enabling disables the conflicting ones. Each operation returns
+the list of affected rules, and the interface shows it immediately, without a dialog. The phase
+mechanics (Active Setup, the Post-OOBE task, mounting the default profile hive) are not rules but
+infrastructure: the generator includes it automatically if the phase has at least one enabled rule.
 
-## 3. Генерация: выключенное должно исчезать из файла
+## 3. Generation: what is disabled must disappear from the file
 
-В 0.1 генератор подставлял значения в фиксированный скрипт; выключенный переключатель оставлял в
-файле блок `if ($Config.X) { ... }` с мёртвым кодом. Заказчик просит «генерацию с учётом выбора»:
-файл должен содержать только выбранное. Это и короче (меньше шансов упереться в лимиты Setup),
-и аудируемо (по скрипту видно, что применялось), и безопаснее (нет кода, который «случайно» включится).
+In 0.1 the generator substituted values into a fixed script; a disabled switch left an
+`if ($Config.X) { ... }` block with dead code in the file. The customer asks for "generation that
+respects the selection": the file must contain only what is selected. This is shorter (less chance of
+hitting Setup limits), auditable (the script shows what was applied), and safer (no code that could
+"accidentally" turn on).
 
-Решение: скрипты собираются из неизменяемого «рантайма» (функции `Write-Log`, `Set-Reg`, `Invoke-Exe`,
-`trap`, монтирование куста) и блоков включённых правил, по фазам, в порядке, определённом каталогом и
-зависимостями. Каждый блок помечен идентификатором правила: лог установки и скрипт читаются как список
-правил.
+Decision: the scripts are assembled from an immutable "runtime" (the functions `Write-Log`, `Set-Reg`, `Invoke-Exe`,
+`trap`, hive mounting) and the blocks of enabled rules, by phase, in the order defined by the catalog and
+the dependencies. Each block is marked with the rule identifier: the setup log and the script read as a
+list of rules.
 
-## 4. Интерфейс: вкладки и формы это много кликов и нет обзора
+## 4. Interface: tabs and forms mean many clicks and no overview
 
-В 0.1: дерево групп слева, `Notebook` с формой справа, диалоги для таблиц. Чтобы найти и выключить
-одну политику, нужно знать группу, открыть вкладку, найти поле, открыть подсказку. Поиска нет.
+In 0.1: a group tree on the left, a `Notebook` with a form on the right, dialogs for tables. To find and
+disable a single policy, you need to know the group, open a tab, find the field, open the hint. There is no search.
 
-Решение: одно окно, три области. Слева дерево всех правил с флажками прямо в узлах (группа → правило),
-переключение одним щелчком или пробелом; флажок группы переключает всю группу. Над деревом поле
-поиска: фильтр по идентификатору, названию, тегам, тексту описания и даже по ключам реестра
-(«PUAProtection» находит правило), результаты разворачиваются, остальное скрывается. Справа панель
-описания выбранного узла, она же место редактирования параметров правила (число, список, строка).
-Внизу строка состояния с последним каскадом («Выключено также: ...»). Данные, которые не являются
-правилами (учётные записи, языки, ключ, часовой пояс), это узлы того же дерева с формой в правой панели.
-Ноль модальных диалогов в основном цикле.
+Decision: one window, three areas. On the left, a tree of all rules with check boxes directly in the
+nodes (group → rule), toggled with one click or the space bar; a group check box toggles the whole group.
+Above the tree, a search field: filtering by identifier, title, tags, description text and even by registry keys
+("PUAProtection" finds the rule); results are expanded, the rest is hidden. On the right, the
+description panel of the selected node, which is also where the rule parameters are edited (number, list, string).
+At the bottom, a status bar with the last cascade («Выключено также: ...» (Also disabled: ...)). Data that
+are not rules (accounts, languages, key, time zone) are nodes of the same tree with a form in the right panel.
+Zero modal dialogs in the main loop.
 
-## 5. Описания: одна фраза подсказки недостаточна
+## 5. Descriptions: a one-sentence hint is not enough
 
-В 0.1 у параметра `hint` в одно предложение и ссылка на markdown-справочник. Заказчик просит
-техническое описание каждой опции в самом инструменте.
+In 0.1 a parameter has a one-sentence `hint` and a link to the Markdown reference. The customer asks for
+a technical description of every option in the tool itself.
 
-Решение: описание правила состоит из двух частей. Ручная часть в файле правила: краткое резюме,
-эффект, риск и побочные действия, различия версий Windows, команда проверки, способ отката, ссылка
-на карточку справочника. Автоматическая часть строится из списка действий: таблица «ключ реестра,
-имя, тип, значение» или «служба, тип запуска», или «команда, аргументы». Так технические детали
-никогда не расходятся с тем, что реально попадёт в файл.
+Decision: a rule description consists of two parts. The manual part in the rule file: a short summary,
+effect, risk and side effects, differences between Windows versions, verification command, rollback method, link
+to the reference card. The automatic part is built from the list of actions: a table "registry key,
+name, type, value", or "service, start type", or "command, arguments". This way the technical details
+never diverge from what actually goes into the file.
 
-## 6. Данные: JSON неудобен для правил, TOML есть в стандартной библиотеке
+## 6. Data: JSON is inconvenient for rules, TOML is in the standard library
 
-Правила содержат многострочные описания, комментарии автора, обратные слеши в путях. В JSON это
-превращается в нечитаемые строки с экранированием. Python 3.11+ читает TOML стандартным модулем
-`tomllib` без зависимостей; литеральные строки TOML (`'HKLM:\SOFTWARE\...'`) не требуют экранирования,
-многострочные литералы держат фрагменты PowerShell как есть.
+Rules contain multi-line descriptions, author comments, backslashes in paths. In JSON this
+turns into unreadable strings with escaping. Python 3.11+ reads TOML with the standard module
+`tomllib` without dependencies; TOML literal strings (`'HKLM:\SOFTWARE\...'`) need no escaping,
+and multi-line literals keep PowerShell fragments as they are.
 
-Решение: каталог правил в `rules/*.toml` (один файл на направление, порядок в файле задаёт порядок
-применения внутри фазы), группы дерева в `rules/groups.toml`, переводы в `rules/lang/uk.toml`.
-Профили, которые пишет программа, в JSON (запись TOML в стандартной библиотеке отсутствует).
-Справочники раскладок и часовых поясов в JSON, как и планировалось.
+Decision: the rule catalog in `rules/*.toml` (one file per area; the order within the file sets the
+application order within a phase), tree groups in `rules/groups.toml`, translations in `rules/lang/uk.toml`.
+Profiles written by the program are in JSON (the standard library has no TOML writer).
+The keyboard layout and time zone reference data are in JSON, as planned.
 
-## 7. Golden-тест побайтно мешает, а не помогает
+## 7. A byte-for-byte golden test hinders rather than helps
 
-Побайтное совпадение с v0.2 зафиксировало бы устройство скрипта, от которого мы отказываемся.
+A byte-for-byte match with v0.2 would lock in the script structure we are abandoning.
 
-Решение: семантический golden. Из файла v0.2 разбором `Set-Reg`, `Remove-Reg`, `Set-ServiceStart`,
-`Invoke-Exe` извлекается множество действий; тест требует, чтобы каталог правил при профиле «Офис»
-давал надмножество этих действий (каждое действие v0.2 присутствует, с тем же значением). Второй
-уровень: собранный файл проходит `tools/Validate-Unattend.ps1` и разбор PowerShell 5.1. Третий:
-приёмочная установка в ВМ. Байты сравниваются только внутри генератора (детерминированность:
-два запуска на одном профиле дают одинаковый файл).
+Decision: a semantic golden. The set of actions is extracted from the v0.2 file by parsing `Set-Reg`, `Remove-Reg`, `Set-ServiceStart`,
+`Invoke-Exe`; the test requires that the rule catalog with the «Офис» profile
+yields a superset of these actions (every v0.2 action is present, with the same value). Second
+level: the built file passes `tools/Validate-Unattend.ps1` and PowerShell 5.1 parsing. Third:
+an acceptance installation in a VM. Bytes are compared only inside the generator (determinism:
+two runs on the same profile produce the same file).
 
-## 8. Порядок применения не был смоделирован
+## 8. The application order was not modelled
 
-В v0.2 порядок местами важен: удаление блокирующих политик обновлений до установки новых;
-`RunAsPPL` после проверок; куст профиля по умолчанию монтируется один раз; `.NET 3.5` первым,
-пока носитель подключён. В 0.1 порядок определялся порядком параметров схемы, что не связано с порядком действий.
+In v0.2 the order matters in places: removing the blocking update policies before setting new ones;
+`RunAsPPL` after the verifications; the default profile hive is mounted once; `.NET 3.5` first,
+while the media is still connected. In 0.1 the order was determined by the order of the schema parameters, which is unrelated to the order of actions.
 
-Решение: фазы с фиксированным порядком (windowspe, specialize-xml, specialize, default-user,
-user-first-logon, post-oobe, oobe-xml), внутри фазы порядок файлов и правил в каталоге, поверх
-него устойчивая топологическая сортировка по `requires` (требуемое раньше требующего).
+Decision: phases with a fixed order (windowspe, specialize-xml, specialize, default-user,
+user-first-logon, post-oobe, oobe-xml); within a phase, the order of files and rules in the catalog, with
+a stable topological sort by `requires` on top of it (the required rule before the requiring one).
 
-## 9. Прочее
+## 9. Other
 
-- Пресеты были кодом (`presets.py`): становятся файлами `profiles/preset-*.json`.
-- Импорт разбором блока `$Config` из PowerShell хрупок: генератор встраивает профиль JSON в XML
-  (секция `Extensions/Profile`), импорт читает его обратно без разбора кода. Файл v0.2 без такой
-  секции импортируется через разбор действий, тем же кодом, что и семантический golden.
-- Проверки: `pytest` на машине отсутствует и ставить его на рабочий ПК нельзя; тесты пишутся на
-  `unittest` из стандартной библиотеки и совместимы с pytest, если он появится в ВМ.
-- Имя проекта: WinKickOff. Код в `WinKickOff/` в корне репозитория, документы постановки остаются
-  здесь и ссылаются на код.
+- Presets were code (`presets.py`): they become `profiles/preset-*.json` files.
+- Import by parsing the `$Config` block from PowerShell is fragile: the generator embeds the JSON profile in the XML
+  (the `Extensions/Profile` section), and import reads it back without parsing code. A v0.2 file without such a
+  section is imported by parsing actions, with the same code as the semantic golden.
+- Verification: `pytest` is absent on the machine and must not be installed on the work PC; tests are written with
+  `unittest` from the standard library and are compatible with pytest if it appears in the VM.
+- Project name: WinKickOff. The code is in `WinKickOff/` at the repository root; the specification documents stay
+  here and reference the code.
 
-## 10. Что сохранено из 0.1
+## 10. What was kept from 0.1
 
-Портабельные пути через одну функцию, отделение логики от tkinter, PyInstaller onedir, отсутствие
-записей вне папки приложения, отсутствие обращений в интернет, чек-листы портабельности и приёмки,
-правило «никаких изменений на рабочем ПК заказчика».
+Portable paths through a single function, separation of logic from tkinter, PyInstaller onedir, no
+writes outside the application folder, no internet access, portability and acceptance checklists,
+the rule "no changes on the customer's work PC".

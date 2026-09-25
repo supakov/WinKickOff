@@ -1,0 +1,69 @@
+# Installation and checks
+
+## Preparing the USB drive
+
+1. Download the latest Windows 11 image from the Microsoft website.
+2. Write the image to the USB drive (Rufus or Media Creation Tool).
+3. Copy the built `autounattend.xml` to the root of the USB drive.
+
+With Ventoy, the file is placed next to the image and connected through the Auto Install plugin.
+
+## What Windows Setup will ask
+
+1. The Setup language and keyboard layout on the first screen (depends on the image).
+2. The disk and partition to install to. Automatic partitioning is deliberately not configured: it erases
+   the disk without asking, which is dangerous for work computers.
+
+Everything else happens without anyone's involvement: the license, the key, the edition, the initial setup
+screens, account creation. After installation, the desktop opens.
+
+## Checking the file before installation
+
+In the program window: «Проверить» (Check, F7). From the project folder you can also run the validation
+utility; it only reads the file:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 -Path WinKickOff\output\autounattend.xml
+```
+
+## Checking after installation (on a virtual machine)
+
+Sign in as Admin and run in PowerShell:
+
+```powershell
+Get-Content C:\ProgramData\Unattend\Logs\Setup-System.log | Select-String 'ERROR|WARN'
+Get-ChildItem C:\ProgramData\Unattend\Logs\Setup-User.*.log | Get-Content
+Get-Content C:\ProgramData\Unattend\Logs\Post-OOBE.log
+Get-Service Spooler | Select-Object Status, StartType
+Get-LocalUser Admin, User | Select-Object Name, Enabled, PasswordExpires
+Get-WinUserLanguageList | Select-Object LanguageTag, InputMethodTips
+Get-MpPreference | Select-Object PUAProtection, MAPSReporting, EnableNetworkProtection, AttackSurfaceReductionRules_Ids
+Test-Path C:\Windows\Panther\unattend.xml
+```
+
+Expected result for the «Офис» (Office) preset: no ERROR in the logs; the Print Spooler service is running
+and starts automatically; the Admin and User passwords never expire; the input languages are en-US, uk-UA,
+ru-UA; protection against potentially unwanted apps and network protection are turned on; there are 17 ASR
+rules; there is no `unattend.xml` file in Panther.
+
+For every rule, the program has a «Проверка после установки» (Post-installation check) section with the
+exact command.
+
+## Logs
+
+| Log | What it contains |
+|---|---|
+| `C:\ProgramData\Unattend\Logs\Setup-System.log` | Computer configuration at the first startup: each rule and its result |
+| `C:\ProgramData\Unattend\Logs\Setup-User.<name>.log` | Configuration at each user's first sign-in (input languages) |
+| `C:\ProgramData\Unattend\Logs\Post-OOBE.log` | Actions after the initial setup, errors from the first startup marked SPECIALIZE ERROR |
+| `C:\Windows\Panther\setuperr.log` | Errors of Windows Setup itself |
+
+## If something goes wrong
+
+- Windows Setup reports that the answer file is invalid: check the file with the «Проверить» button and
+  with the validation utility; send `C:\Windows\Panther\setuperr.log` and `setupact.log` from the installed system.
+- After the first sign-in there is no "Russian (Ukraine)": sometimes it appears only after the second
+  sign-in, and until then plain "Russian" is set. What was applied is shown in `Setup-User.<name>.log`.
+- A program stopped working after installation with the «Строгий» (Strict) preset: in WinKickOff, open the
+  rules for folder protection, SmartScreen and ASR; the «Откат» (Rollback) section of each one describes
+  how to restore the previous behavior.

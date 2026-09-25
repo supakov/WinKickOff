@@ -1,79 +1,79 @@
-# T15. Применение выбранного правила или ветки к работающей Windows
+# T15. Applying a selected rule or branch to a running Windows
 
-Статус: todo (задача добавлена 25.09.2026 по просьбе заказчика). Этап 6. Зависимости: T06, T08, T11.
-Можно начинать после вехи M4, не дожидаясь T12-T14.
+Status: todo (task added 25.09.2026 at the customer's request). Stage 6. Dependencies: T06, T08, T11.
+Can be started after milestone M4 without waiting for T12-T14.
 
-## Цель
+## Goal
 
-Из окна WinKickOff применить выбранное правило или целую ветку дерева к уже установленной Windows,
-без переустановки: например, донастроить ПК, установленный до появления правила, или вернуть
-настройку, которую сбил пользователь. Перед применением показать, что уже действует; после
-применения иметь автоматический откат там, где он возможен.
+From the WinKickOff window, apply a selected rule or an entire tree branch to an already installed Windows,
+without reinstalling: for example, to finish configuring a PC installed before the rule appeared, or to restore
+a setting that the user broke. Before applying, show what is already in effect; after
+applying, have an automatic rollback wherever it is possible.
 
-## Оценка возможности
+## Feasibility
 
-Возможно, но не для всех правил и не как действие по умолчанию. Разбор по фазам каталога:
+Possible, but not for all rules and not as a default action. Review by catalog phase:
 
-| Фаза правила | Применимо к работающей системе | Как |
+| Rule phase | Applicable to a running system | How |
 |---|---|---|
-| `specialize` (HKLM, службы, команды, компоненты, приложения для всех) | Да | Те же действия, что в `Setup-System.ps1`; нужны права администратора; часть вступает в силу после перезагрузки |
-| `default-user` (куст профиля по умолчанию) | Да, для новых пользователей | Монтирование `C:\Users\Default\NTUSER.DAT`; для текущего пользователя по выбору те же значения в `HKCU` |
-| `user-first-logon` (языки ввода и прочее для пользователя) | Только для текущего пользователя и только с отдельным подтверждением | Правила языков ввода меняют раскладки: 12.09.2026 именно такое изменение сломало переключение раскладок. По умолчанию исключены |
-| `post-oobe` (учётные записи, встроенные записи, копии файла ответов) | Да | Те же действия, что в `Post-OOBE.ps1` |
-| `windowspe`, `specialize-xml`, `oobe-xml` | Нет | Действуют только во время установки; в окне помечаются «только при установке» |
+| `specialize` (HKLM, services, commands, features, apps for all users) | Yes | The same actions as in `Setup-System.ps1`; administrator rights are required; some changes take effect after a reboot |
+| `default-user` (default profile hive) | Yes, for new users | Mounting `C:\Users\Default\NTUSER.DAT`; for the current user, optionally, the same values in `HKCU` |
+| `user-first-logon` (input languages and other per-user settings) | Only for the current user and only with a separate confirmation | Input language rules change keyboard layouts: on 12.09.2026 exactly such a change broke layout switching. Excluded by default |
+| `post-oobe` (accounts, built-in accounts, answer file copies) | Yes | The same actions as in `Post-OOBE.ps1` |
+| `windowspe`, `specialize-xml`, `oobe-xml` | No | Effective only during installation; marked «только при установке» (installation only) in the window |
 
-Откат: для действий `reg`, `reg-remove`, `service` скрипт перед изменением сохраняет прежнее
-значение и может его восстановить. Для `feature` и `capability` откат выполняется обратной командой.
-Для `appx` (удаление приложений) и `ps`, `exe` автоматического отката нет: показывается текст
-`rollback` из каталога, и такие правила помечаются как необратимые до применения.
+Rollback: for `reg`, `reg-remove` and `service` actions, the script saves the previous
+value before the change and can restore it. For `feature` and `capability`, rollback is done with the reverse command.
+For `appx` (app removal) and `ps`, `exe` there is no automatic rollback: the `rollback` text
+from the catalog is shown, and such rules are marked as irreversible before applying.
 
-Противоречие с требованиями постановки: сам редактор работает без прав администратора и не меняет
-машину (`01-problem-statement.md`, разделы 4 и 5). Это сохраняется: применение выполняет отдельный
-процесс PowerShell, который запускается через запрос UAC только по явному действию пользователя.
-Тесты никогда ничего не применяют; функциональная проверка только в виртуальной машине.
+Conflict with the specification requirements: the editor itself runs without administrator rights and does not change the
+machine (`01-problem-statement.md`, sections 4 and 5). This is preserved: applying is done by a separate
+PowerShell process, launched through a UAC prompt only on an explicit user action.
+Tests never apply anything; functional verification is done only in a virtual machine.
 
-## Шаги
+## Steps
 
-1. `core/apply.py`: `plan_apply(catalog, profile, item_ids) -> ApplyPlan` для правила или ветки:
-   применимые правила с учётом зависимостей (включённые требуемые правила добавляются в план),
-   исключённые с причиной (фаза установки, языки ввода, выключено в профиле), признаки
-   «нужна перезагрузка» и «необратимо».
-2. Режим проверки только на чтение (аудит): скрипт `Audit-*.ps1` сравнивает текущие значения
-   реестра, служб, компонентов и приложений со значениями правил и пишет отчёт JSON: по каждому
-   правилу «действует», «не действует», «частично», «не проверяется» (для `ps` и `exe`). Права
-   администратора не нужны. В окне: «Проверить на этом ПК» для правила или ветки, результат в дереве
-   значками и в списке внизу.
-3. Скрипт применения `Apply-*.ps1`: рантайм `Setup-System.runtime.ps1` в режиме применения
-   (`Set-Reg`, `Remove-Reg`, `Set-ServiceStart` записывают прежнее значение в `backup-<время>.json`
-   до изменения), блоки только из плана, лог в папку рядом со скриптом, `exit 0` как у установки.
-4. Скрипт отката `Undo-Apply.ps1`: восстановление по файлу `backup-*.json`; фиксированный рантайм
-   в `templates/`, без логики правил.
-5. Окно, три действия в контекстном меню правила и группы и на панели описания:
-   «Проверить на этом ПК» (только чтение), «Сохранить скрипт применения...» (Apply, Undo, README в
-   выбранную папку, чтобы выполнить на другом ПК), «Применить сейчас...». Последнее выключено по
-   умолчанию и включается в настройках программы; перед запуском диалог показывает имя компьютера,
-   список изменений, необратимые пункты и требование перезагрузки; запуск через UAC
-   (`Start-Process powershell -Verb RunAs`), результат читается из лога и отчёта.
-6. Тесты: классификация плана по фазам и причинам исключения; зависимости попадают в план; скрипты
-   Audit, Apply, Undo разбираются Windows PowerShell 5.1 (`pscheck`); в тестах запуск применения
-   запрещён (подмена функции запуска, которая падает при вызове).
-7. Приёмка в ВМ: чистая установка из «Офиса» с выключенной веткой Defender; аудит показывает «не
-   действует»; применение ветки; аудит «действует»; откат; аудит снова «не действует»; перезагрузка
-   без ошибок; лог без ERROR.
+1. `core/apply.py`: `plan_apply(catalog, profile, item_ids) -> ApplyPlan` for a rule or a branch:
+   applicable rules with dependencies taken into account (enabled required rules are added to the plan),
+   excluded rules with a reason (installation phase, input languages, turned off in the profile), and the
+   "reboot required" and "irreversible" flags.
+2. Read-only verification mode (audit): the `Audit-*.ps1` script compares the current values of the
+   registry, services, features and apps with the rule values and writes a JSON report: for each
+   rule "in effect", "not in effect", "partial", "not verified" (for `ps` and `exe`). Administrator
+   rights are not required. In the window: «Проверить на этом ПК» (Check on this PC) for a rule or a branch, the result shown in the tree
+   as icons and in the list at the bottom.
+3. Apply script `Apply-*.ps1`: the `Setup-System.runtime.ps1` runtime in apply mode
+   (`Set-Reg`, `Remove-Reg`, `Set-ServiceStart` write the previous value to `backup-<время>.json`
+   before the change), only the blocks from the plan, a log in a folder next to the script, `exit 0` as in the installation.
+4. Rollback script `Undo-Apply.ps1`: restoring from a `backup-*.json` file; a fixed runtime
+   in `templates/`, without rule logic.
+5. Window: three actions in the context menu of a rule and of a group, and on the description panel:
+   «Проверить на этом ПК» (read-only), «Сохранить скрипт применения...» (Save apply script...; puts Apply, Undo, README into
+   the chosen folder to run on another PC), «Применить сейчас...» (Apply now...). The last one is disabled by
+   default and is enabled in the program settings; before launch a dialog shows the computer name,
+   the list of changes, the irreversible items and the reboot requirement; launch through UAC
+   (`Start-Process powershell -Verb RunAs`), the result is read from the log and the report.
+6. Tests: classification of the plan by phases and exclusion reasons; dependencies get into the plan; the
+   Audit, Apply, Undo scripts are parsed by Windows PowerShell 5.1 (`pscheck`); launching the apply is forbidden in tests
+   (the launch function is substituted with one that fails when called).
+7. Acceptance in a VM: a clean installation from the «Офис» (Office) preset with the Defender branch turned off; the audit shows "not
+   in effect"; applying the branch; the audit shows "in effect"; rollback; the audit shows "not in effect" again; reboot
+   without errors; a log without ERROR.
 
-## Критерии приёмки
+## Acceptance criteria
 
-- Аудит ничего не меняет в системе и работает без прав администратора.
-- Применение возможно только через явное подтверждение и UAC; в тестах не выполняется никогда.
-- Для каждого изменённого значения реестра и службы откат возвращает прежнее состояние (проверено в ВМ).
-- Правила фаз установки и языков ввода не применяются молча: видны в плане с причиной.
+- The audit changes nothing in the system and works without administrator rights.
+- Applying is possible only through explicit confirmation and UAC; it is never executed in tests.
+- For every changed registry value and service, rollback restores the previous state (verified in a VM).
+- Rules of the installation phases and of input languages are not applied silently: they are visible in the plan with a reason.
 
-## Риски
+## Risks
 
-- Применение на рабочем ПК без проверки в ВМ может нарушить работу (пример 12.09.2026). Поэтому
-  «Применить сейчас» выключено по умолчанию, а документация требует сначала аудит и ВМ.
-- Часть политик действует только после перезагрузки или `gpupdate`; аудит сразу после применения
-  может показать «действует» при ещё старом поведении программ.
-- Удаление приложений и выключение компонентов нельзя откатить мгновенно.
+- Applying on a work PC without verification in a VM can disrupt its operation (example of 12.09.2026). That is why
+  «Применить сейчас» is disabled by default, and the documentation requires an audit and a VM first.
+- Some policies take effect only after a reboot or `gpupdate`; an audit right after applying
+  may show "in effect" while programs still behave the old way.
+- App removal and disabling of features cannot be rolled back instantly.
 
-## Заметки исполнителя
+## Implementer notes

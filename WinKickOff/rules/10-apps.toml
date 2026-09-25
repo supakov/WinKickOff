@@ -112,7 +112,7 @@ title = "Поиск в Интернете от Bing (для меню Пуск)"
 level = "optional"
 default = true
 tags = ["appx", "bing", "пуск"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Отправляет запросы из меню Пуск в Bing и показывает рекламу."
 effect = "Есть в образе 24H2 и новее."
 
@@ -128,7 +128,7 @@ title = "Новости (MSN)"
 level = "optional"
 default = true
 tags = ["appx", "bing", "новости"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Новости MSN с рекламой."
 effect = "Есть в Windows 10 и 11 до 23H2."
 
@@ -144,7 +144,7 @@ title = "Погода (MSN)"
 level = "optional"
 default = true
 tags = ["appx", "bing", "погода"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Погода MSN: реклама и запрос местоположения."
 effect = "Есть во всех версиях."
 
@@ -160,7 +160,7 @@ title = "Техническая поддержка (Get Help)"
 level = "optional"
 default = true
 tags = ["appx", "поддержка", "мошенники"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Чат с поддержкой Microsoft; не нужен и служит каналом для мошенничества «поддержка»."
 effect = "Есть во всех версиях."
 
@@ -176,7 +176,7 @@ title = "Советы (Get Started)"
 level = "optional"
 default = true
 tags = ["appx", "советы"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Реклама функций Windows."
 effect = "Есть в Windows 10 и 11 до 22H2."
 
@@ -192,7 +192,7 @@ title = "Центр отзывов"
 level = "optional"
 default = true
 tags = ["appx", "отзывы", "телеметрия"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Отправка отзывов и диагностики в Microsoft."
 effect = "Есть во всех версиях."
 
@@ -208,7 +208,7 @@ title = "Просмотр 3D"
 level = "optional"
 default = true
 tags = ["appx", "3d"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Просмотр 3D-моделей; в офисе не нужен."
 effect = "Есть в Windows 10 и 11 до 22H2."
 
@@ -224,7 +224,7 @@ title = "Портал смешанной реальности"
 level = "optional"
 default = true
 tags = ["appx", "mixed reality", "vr"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Устаревший портал VR-гарнитур."
 effect = "Есть в Windows 10 и 11 до 23H2."
 
@@ -240,7 +240,7 @@ title = "Пасьянсы Microsoft Solitaire Collection"
 level = "optional"
 default = true
 tags = ["appx", "игры", "реклама"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Игры с рекламой."
 effect = "Есть во всех версиях."
 
@@ -256,7 +256,7 @@ title = "Приложение Xbox"
 level = "optional"
 default = true
 tags = ["appx", "xbox", "игры"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Магазин игр и Xbox Live."
 effect = "Есть во всех версиях."
 
@@ -272,7 +272,7 @@ title = "Xbox (старое приложение Windows 10)"
 level = "optional"
 default = true
 tags = ["appx", "xbox"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Старое приложение Xbox."
 effect = "Есть в Windows 10."
 
@@ -288,7 +288,7 @@ title = "Game Bar (наложение)"
 level = "optional"
 default = true
 tags = ["appx", "xbox", "game bar"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Наложение Game Bar: запись экрана в фоне."
 effect = "Есть во всех версиях."
 
@@ -304,7 +304,7 @@ title = "Game Bar (Xbox Gaming Overlay)"
 level = "optional"
 default = true
 tags = ["appx", "xbox", "game bar"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Вторая часть Game Bar."
 effect = "Есть во всех версиях."
 
@@ -320,7 +320,7 @@ title = "Поставщик удостоверений Xbox"
 level = "optional"
 default = true
 tags = ["appx", "xbox"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Вход в Xbox Live."
 effect = "Есть во всех версиях."
 
@@ -336,7 +336,7 @@ title = "Субтитры Game Bar (Speech to Text)"
 level = "optional"
 default = true
 tags = ["appx", "xbox"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Субтитры для игрового чата."
 effect = "Есть во всех версиях."
 
@@ -352,7 +352,7 @@ title = "Интерфейс Xbox Live (TCUI)"
 level = "optional"
 default = true
 tags = ["appx", "xbox"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Служебный интерфейс Xbox Live."
 effect = "Есть во всех версиях."
 
@@ -368,7 +368,7 @@ title = "Game Assist (оверлей Edge в играх)"
 level = "optional"
 default = true
 tags = ["appx", "edge", "игры"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Игровой оверлей браузера."
 effect = "Есть в 24H2 и новее (2025)."
 
@@ -384,7 +384,7 @@ title = "Карты"
 level = "optional"
 default = true
 tags = ["appx", "карты", "maps"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Офлайн-карты и служба MapsBroker."
 effect = "Есть во всех версиях."
 
@@ -400,7 +400,7 @@ title = "Люди (контакты)"
 level = "optional"
 default = true
 tags = ["appx", "контакты"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Устаревшее приложение контактов с синхронизацией в облако."
 effect = "Есть в Windows 10 и 11 до 23H2."
 
@@ -416,7 +416,7 @@ title = "Связь с телефоном (Phone Link)"
 level = "optional"
 default = true
 tags = ["appx", "телефон", "sms", "облако"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Доступ к SMS и файлам телефона через облако Microsoft."
 effect = "Есть во всех версиях."
 
@@ -432,7 +432,7 @@ title = "Power Automate"
 level = "optional"
 default = true
 tags = ["appx", "автоматизация", "power automate"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Средство автоматизации рабочего стола; потенциал злоупотреблений."
 effect = "Есть в Windows 10 21H2+ и 11."
 
@@ -448,7 +448,7 @@ title = "Microsoft To Do"
 level = "optional"
 default = true
 tags = ["appx", "задачи", "облако"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Требует учётную запись Microsoft."
 effect = "Есть во всех версиях."
 
@@ -464,7 +464,7 @@ title = "Семейная безопасность"
 level = "optional"
 default = true
 tags = ["appx", "семья", "облако"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Требует учётную запись Microsoft."
 effect = "Есть в Windows 11 22H2+."
 
@@ -480,7 +480,7 @@ title = "Dev Home"
 level = "optional"
 default = true
 tags = ["appx", "разработчики"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Инструмент разработчика, снят с поддержки в 2025."
 effect = "Есть в Windows 11 23H2-24H2."
 
@@ -496,7 +496,7 @@ title = "Clipchamp (видеоредактор)"
 level = "optional"
 default = true
 tags = ["appx", "видео", "подписка"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Облачный сервис с рекламой подписки."
 effect = "Есть в Windows 11 22H2+."
 
@@ -512,7 +512,7 @@ title = "Teams (личный)"
 level = "optional"
 default = true
 tags = ["appx", "teams", "чат"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Не рабочая версия; рабочий Teams устанавливается отдельно."
 effect = "Есть в Windows 11 23H2+."
 
@@ -528,7 +528,7 @@ title = "Skype"
 level = "optional"
 default = true
 tags = ["appx", "skype"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Сервис закрыт в 2025."
 effect = "Есть в Windows 10 и 11 до 23H2."
 
@@ -544,7 +544,7 @@ title = "Office (лаунчер Microsoft 365)"
 level = "optional"
 default = true
 tags = ["appx", "office", "подписка"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Реклама подписки Microsoft 365."
 effect = "Есть во всех версиях."
 
@@ -560,7 +560,7 @@ title = "Новый Outlook"
 level = "optional"
 default = true
 tags = ["appx", "outlook", "почта", "облако"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Почта через облако Microsoft; синхронизирует пароли IMAP в облако."
 effect = "Есть в Windows 11 23H2+. Снимите флажок, если сотрудники используют новый Outlook."
 
@@ -576,7 +576,7 @@ title = "Почта и Календарь"
 level = "optional"
 default = true
 tags = ["appx", "почта", "календарь"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Заменены новым Outlook, не обновляются."
 effect = "Есть в Windows 10 и 11 до 24H2."
 
@@ -592,7 +592,7 @@ title = "Copilot (приложение)"
 level = "optional"
 default = true
 tags = ["appx", "copilot", "ии"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "ИИ-помощник с отправкой данных."
 effect = "Есть в Windows 11 24H2+."
 
@@ -608,7 +608,7 @@ title = "Поставщик Copilot"
 level = "optional"
 default = true
 tags = ["appx", "copilot", "ии"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Служебный компонент Copilot."
 effect = "Есть в Windows 11 23H2."
 
@@ -624,7 +624,7 @@ title = "Cortana"
 level = "optional"
 default = true
 tags = ["appx", "cortana"]
-doc = "docs/technical/reference/13-services-apps.md#таблица-удаляемых-приложений"
+doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
 summary = "Удалена Microsoft в 2023; на старых образах присутствует."
 effect = "Есть в Windows 10 и 11 до 22H2."
 

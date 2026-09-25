@@ -1,128 +1,127 @@
-# 13. Службы и удаление приложений
+# 13. Services and app removal
 
-Раздел 9 `Setup-System.ps1`. Принцип: удаляется только то, что не нужно в рабочей группе и либо
-расширяет поверхность атаки, либо тянет данные в облако, либо показывает рекламу. Всё, что нужно
-для обслуживания системы или офисной работы, остаётся.
+Section 9 of `Setup-System.ps1`. Principle: only what is not needed in a workgroup and either
+expands the attack surface, pulls data into the cloud, or shows advertising is removed. Everything
+needed for system maintenance or office work stays.
 
-## Безусловно: RetailDemo
+## Unconditional: RetailDemo
 
-Служба `RetailDemo` (демонстрационный режим магазина) тип запуска 4. Нужна только витринным ПК.
+The `RetailDemo` service (retail store demo mode) gets startup type 4. It is needed only on store display PCs.
 
 ## RemoveXboxServices
 
-- Значение: `$true`.
-- Что делает: службы `XblAuthManager`, `XblGameSave`, `XboxNetApiSvc`, `XboxGipSvc` тип запуска 4;
-  `Pol\GameDVR\AllowGameDVR = 0` (запись игр и Game Bar выключены); внутри блока удаления приложений
-  дополнительно `MapsBroker` тип запуска 4 (см. известное несоответствие ниже).
-- Ожидаемый эффект: нет фоновых служб Xbox Live, нет наложения Game Bar по Win+G, нет записи экрана
-  в фоне (которая на слабых ПК заметно грузит систему).
-- Кросс-связи: приложения Xbox удаляются в `$AppsToRemove`; без них службы всё равно стартовали бы
-  по триггерам. Игры из Store с Xbox Live не работают: на рабочих ПК приемлемо.
-- Различия версий: `XboxGipSvc` с Windows 10 1709. На 24H2 без изменений.
-- Проверка: `Get-Service Xbl*, XboxNetApiSvc, XboxGipSvc | Select Name, StartType` → Disabled.
-- Откат: `Set-Service <имя> -StartupType Manual`; удалить `AllowGameDVR`.
+- Value: `$true`.
+- What it does: the services `XblAuthManager`, `XblGameSave`, `XboxNetApiSvc`, `XboxGipSvc` get startup type 4;
+  `Pol\GameDVR\AllowGameDVR = 0` (game recording and Game Bar are off); inside the app removal block,
+  `MapsBroker` additionally gets startup type 4 (see the known inconsistency below).
+- Expected effect: no background Xbox Live services, no Game Bar overlay on Win+G, no background
+  screen recording (which noticeably loads weak PCs).
+- Cross-links: Xbox apps are removed in `$AppsToRemove`; without them the services would still start
+  on triggers. Store games that use Xbox Live do not work: acceptable on work PCs.
+- Version differences: `XboxGipSvc` since Windows 10 1709. No changes in 24H2.
+- Verification: `Get-Service Xbl*, XboxNetApiSvc, XboxGipSvc | Select Name, StartType` → Disabled.
+- Rollback: `Set-Service <имя> -StartupType Manual`; delete `AllowGameDVR`.
 
-Известное несоответствие версии 0.2: `MapsBroker` (загрузка офлайн-карт для приложения «Карты»)
-отключается внутри условия `RemoveBloatApps` при `RemoveXboxServices = $true`, хотя логически
-относится к удалению приложения `Microsoft.WindowsMaps`. Работает правильно при значениях по
-умолчанию; при `RemoveXboxServices = $false` служба останется включённой без приложения (безвредно).
-Исправление запланировано в конструкторе: привязать `MapsBroker` к удалению Maps.
+Known inconsistency in version 0.2: `MapsBroker` (downloading offline maps for the «Карты» (Maps) app)
+is disabled inside the `RemoveBloatApps` condition when `RemoveXboxServices = $true`, although logically
+it belongs to the removal of the `Microsoft.WindowsMaps` app. It works correctly with the default
+values; with `RemoveXboxServices = $false` the service stays enabled without the app (harmless).
+A fix is planned in the constructor: bind `MapsBroker` to the Maps removal.
 
 ## RemoveBloatApps
 
-- Значение: `$true`. Список в `$AppsToRemove`.
-- Где применяется: specialize, SYSTEM, до создания пользовательских профилей.
-- Что делает: один раз запрашивает `Get-AppxProvisionedPackage -Online` (приложения, которые
-  Windows ставит каждому новому пользователю) и `Get-AppxPackage -AllUsers` (уже установленные
-  копии). Для каждого имени из списка: `Remove-AppxProvisionedPackage` (новые пользователи не получат)
-  и `Remove-AppxPackage -AllUsers` (существующие копии удаляются). Отсутствующие имена
-  пропускаются молча; ошибки пишутся как WARN.
-- Ожидаемый эффект: у Admin, User и всех будущих пользователей перечисленных приложений нет.
-  Меню Пуск содержит только системные и оставленные приложения.
-- Кросс-связи:
-  - Удалённые приложения можно вернуть из Store (сохранён). Обновление функций (24H2 → 25H2)
-    иногда возвращает часть предустановок; после него список стоит применить повторно.
-  - Оригинальный файл запускал удаление задачей при каждом входе, чтобы «бороться» с возвратом;
-    здесь удаление однократное и прозрачное.
-  - `DisableConsumerContent` (раздел 12) не даёт Store тихо ставить новые рекламные приложения.
-- Различия версий: имена пакетов меняются между версиями; приложения, которых нет в образе,
-  просто не найдутся. Ниже отмечено, в каких версиях приложение существует.
+- Value: `$true`. The list is in `$AppsToRemove`.
+- Where it applies: specialize, SYSTEM, before user profiles are created.
+- What it does: queries `Get-AppxProvisionedPackage -Online` once (apps that Windows installs for
+  every new user) and `Get-AppxPackage -AllUsers` (already installed copies). For each name in the
+  list: `Remove-AppxProvisionedPackage` (new users will not get it) and `Remove-AppxPackage -AllUsers`
+  (existing copies are removed). Missing names are skipped silently; errors are logged as WARN.
+- Expected effect: Admin, User and all future users do not have the listed apps.
+  The Start menu contains only system apps and the apps that were kept.
+- Cross-links:
+  - Removed apps can be reinstalled from the Store (it is kept). A feature update (24H2 → 25H2)
+    sometimes brings back some of the preinstalled apps; after it the list should be applied again.
+  - The original file ran the removal as a task at every sign-in to "fight" their return;
+    here the removal is one-time and transparent.
+  - `DisableConsumerContent` (section 12) prevents the Store from silently installing new advertising apps.
+- Version differences: package names change between versions; apps that are not in the image
+  are simply not found. The table below notes which versions contain each app.
 
-### Таблица удаляемых приложений
+### Table of removed apps
 
-| Имя пакета | Что это | Почему удаляется | Есть в образе |
+| Package name | What it is | Why it is removed | In the image |
 |---|---|---|---|
-| Microsoft.BingSearch | «Поиск в Интернете от Bing» для меню Пуск | Отправляет запросы в Bing, реклама | 24H2+ |
-| Microsoft.BingNews | Новости MSN | Реклама, трафик | Win10, 11 до 23H2 |
-| Microsoft.BingWeather | Погода MSN | Реклама, местоположение | все |
-| Microsoft.GetHelp | «Техническая поддержка» (чат с Microsoft) | Не нужна, канал для мошенничества «поддержка» | все |
-| Microsoft.Getstarted | «Советы» | Реклама функций | Win10, 11 до 22H2 |
-| Microsoft.WindowsFeedbackHub | Центр отзывов | Телеметрия, не нужен | все |
-| Microsoft.Microsoft3DViewer | Просмотр 3D | Не нужно | Win10, 11 до 22H2 |
-| Microsoft.MixedReality.Portal | Портал смешанной реальности | Не нужно, устарел | Win10, 11 до 23H2 |
-| Microsoft.MicrosoftSolitaireCollection | Пасьянсы с рекламой | Реклама, отвлекает | все |
-| Microsoft.GamingApp | Приложение Xbox | Игры, службы Xbox | все |
-| Microsoft.XboxApp | Старое приложение Xbox | То же | Win10 |
-| Microsoft.XboxGameOverlay, Microsoft.XboxGamingOverlay | Game Bar | Запись экрана в фоне | все |
-| Microsoft.XboxIdentityProvider | Вход Xbox Live | Не нужен | все |
-| Microsoft.XboxSpeechToTextOverlay | Субтитры Game Bar | Не нужен | все |
-| Microsoft.Xbox.TCUI | Интерфейс Xbox Live | Не нужен | все |
-| Microsoft.Edge.GameAssist | Game Assist (оверлей Edge в играх) | Не нужен | 24H2+ (2025) |
-| Microsoft.WindowsMaps | Карты | Офлайн-карты, служба MapsBroker | все |
-| Microsoft.People | Люди (контакты) | Устарело, синхронизация с облаком | Win10, 11 до 23H2 |
-| Microsoft.YourPhone | Связь с телефоном | Доступ к SMS и файлам телефона через облако Microsoft | все |
-| Microsoft.PowerAutomateDesktop | Power Automate | Средство автоматизации, потенциально для злоупотреблений | Win10 21H2+, 11 |
-| Microsoft.Todos | Microsoft To Do | Требует учётную запись Microsoft | все |
-| MicrosoftCorporationII.MicrosoftFamily | Семейная безопасность | Требует учётную запись Microsoft | 11 22H2+ |
-| Microsoft.Windows.DevHome | Dev Home | Инструмент разработчика, снят с поддержки в 2025 | 11 23H2-24H2 |
-| Clipchamp.Clipchamp | Видеоредактор | Облачный сервис, реклама подписки | 11 22H2+ |
-| MSTeams | Teams (личный, новый) | Не рабочая версия; рабочий Teams ставится отдельно | 11 23H2+ |
-| Microsoft.SkypeApp | Skype | Сервис закрыт в 2025 | Win10, 11 до 23H2 |
-| Microsoft.MicrosoftOfficeHub | «Office» (лаунчер M365) | Реклама подписки | все |
-| Microsoft.OutlookForWindows | Новый Outlook | Почта через облако Microsoft, синхронизирует пароли IMAP в облако | 11 23H2+ |
-| microsoft.windowscommunicationsapps | Почта и Календарь | Заменены новым Outlook, не обновляются | Win10, 11 до 24H2 |
-| Microsoft.Copilot | Copilot (приложение) | ИИ-помощник, отправка данных | 11 24H2+ |
-| Microsoft.Windows.Ai.Copilot.Provider | Поставщик Copilot | То же | 11 23H2 |
-| Microsoft.549981C3F5F10 | Cortana | Удалена Microsoft в 2023 | Win10, 11 до 22H2 |
+| Microsoft.BingSearch | «Поиск в Интернете от Bing» (Web Search from Bing) for the Start menu | Sends queries to Bing, advertising | 24H2+ |
+| Microsoft.BingNews | MSN News | Advertising, traffic | Win10, 11 up to 23H2 |
+| Microsoft.BingWeather | MSN Weather | Advertising, location | all |
+| Microsoft.GetHelp | «Техническая поддержка» (Get Help), a chat with Microsoft | Not needed, a channel for "support" scams | all |
+| Microsoft.Getstarted | «Советы» (Tips) | Feature advertising | Win10, 11 up to 22H2 |
+| Microsoft.WindowsFeedbackHub | Feedback Hub | Telemetry, not needed | all |
+| Microsoft.Microsoft3DViewer | 3D Viewer | Not needed | Win10, 11 up to 22H2 |
+| Microsoft.MixedReality.Portal | Mixed Reality Portal | Not needed, obsolete | Win10, 11 up to 23H2 |
+| Microsoft.MicrosoftSolitaireCollection | Solitaire games with ads | Advertising, distracting | all |
+| Microsoft.GamingApp | Xbox app | Games, Xbox services | all |
+| Microsoft.XboxApp | Old Xbox app | Same | Win10 |
+| Microsoft.XboxGameOverlay, Microsoft.XboxGamingOverlay | Game Bar | Background screen recording | all |
+| Microsoft.XboxIdentityProvider | Xbox Live sign-in | Not needed | all |
+| Microsoft.XboxSpeechToTextOverlay | Game Bar captions | Not needed | all |
+| Microsoft.Xbox.TCUI | Xbox Live interface | Not needed | all |
+| Microsoft.Edge.GameAssist | Game Assist (Edge in-game overlay) | Not needed | 24H2+ (2025) |
+| Microsoft.WindowsMaps | Maps | Offline maps, MapsBroker service | all |
+| Microsoft.People | People (contacts) | Obsolete, cloud synchronization | Win10, 11 up to 23H2 |
+| Microsoft.YourPhone | Phone Link | Access to the phone's SMS and files through the Microsoft cloud | all |
+| Microsoft.PowerAutomateDesktop | Power Automate | Automation tool, potential for abuse | Win10 21H2+, 11 |
+| Microsoft.Todos | Microsoft To Do | Requires a Microsoft account | all |
+| MicrosoftCorporationII.MicrosoftFamily | Family Safety | Requires a Microsoft account | 11 22H2+ |
+| Microsoft.Windows.DevHome | Dev Home | Developer tool, retired in 2025 | 11 23H2-24H2 |
+| Clipchamp.Clipchamp | Video editor | Cloud service, subscription advertising | 11 22H2+ |
+| MSTeams | Teams (personal, new) | Not the work version; work Teams is installed separately | 11 23H2+ |
+| Microsoft.SkypeApp | Skype | Service shut down in 2025 | Win10, 11 up to 23H2 |
+| Microsoft.MicrosoftOfficeHub | «Office» (M365 launcher) | Subscription advertising | all |
+| Microsoft.OutlookForWindows | New Outlook | Mail through the Microsoft cloud, syncs IMAP passwords to the cloud | 11 23H2+ |
+| microsoft.windowscommunicationsapps | Mail and Calendar | Replaced by the new Outlook, no longer updated | Win10, 11 up to 24H2 |
+| Microsoft.Copilot | Copilot (app) | AI assistant, sends data | 11 24H2+ |
+| Microsoft.Windows.Ai.Copilot.Provider | Copilot provider | Same | 11 23H2 |
+| Microsoft.549981C3F5F10 | Cortana | Removed by Microsoft in 2023 | Win10, 11 up to 22H2 |
 
-### Что намеренно сохранено
+### What is intentionally kept
 
-| Пакет | Почему |
+| Package | Why |
 |---|---|
-| Microsoft.WindowsStore, Microsoft.StorePurchaseApp | Обновление приложений и компонентов (WebView2, Photos, кодеки), установка программ |
-| Microsoft.DesktopAppInstaller | winget: установка программ из командной строки, будущий канал для проекта пользователей |
-| Microsoft.Windows.Photos, Microsoft.Paint, Microsoft.ScreenSketch | Просмотр и правка изображений, скриншоты: офисная работа |
-| Microsoft.WindowsCalculator, Microsoft.WindowsNotepad, Microsoft.WindowsTerminal | Базовые инструменты |
-| Microsoft.WindowsCamera, Microsoft.WindowsSoundRecorder | Видеозвонки, диктофон |
-| Microsoft.MicrosoftStickyNotes, Microsoft.WindowsAlarms | Безвредны, используются |
-| Microsoft.WindowsScan | Сканирование с МФУ |
-| Microsoft.ZuneMusic, Microsoft.ZuneVideo | Медиаплеер и «Кино и ТВ»: кодеки и просмотр видео |
-| Microsoft.SecHealthUI | Интерфейс «Безопасность Windows»: без него Defender не настроить |
-| Microsoft Edge, EdgeWebView2 | Аварийный браузер и компонент для приложений (Outlook, Teams, установщики) |
-| OneDrive | Без учётной записи Microsoft неактивен; удаление скриптами избыточно |
-| Microsoft.HEIFImageExtension, Microsoft.WebpImageExtension и другие кодеки | Открытие фото с телефонов |
-| Microsoft.LanguageExperiencePack* | Языковые пакеты образа |
+| Microsoft.WindowsStore, Microsoft.StorePurchaseApp | Updating apps and components (WebView2, Photos, codecs), installing programs |
+| Microsoft.DesktopAppInstaller | winget: installing programs from the command line, a future channel for the users project |
+| Microsoft.Windows.Photos, Microsoft.Paint, Microsoft.ScreenSketch | Viewing and editing images, screenshots: office work |
+| Microsoft.WindowsCalculator, Microsoft.WindowsNotepad, Microsoft.WindowsTerminal | Basic tools |
+| Microsoft.WindowsCamera, Microsoft.WindowsSoundRecorder | Video calls, voice recorder |
+| Microsoft.MicrosoftStickyNotes, Microsoft.WindowsAlarms | Harmless, in use |
+| Microsoft.WindowsScan | Scanning from multifunction printers |
+| Microsoft.ZuneMusic, Microsoft.ZuneVideo | Media player and «Кино и ТВ» (Movies & TV): codecs and video playback |
+| Microsoft.SecHealthUI | The «Безопасность Windows» (Windows Security) interface: without it Defender cannot be configured |
+| Microsoft Edge, EdgeWebView2 | Fallback browser and a component for apps (Outlook, Teams, installers) |
+| OneDrive | Inactive without a Microsoft account; removing it with scripts is excessive |
+| Microsoft.HEIFImageExtension, Microsoft.WebpImageExtension and other codecs | Opening photos from phones |
+| Microsoft.LanguageExperiencePack* | Language packs of the image |
 
-- Проверка: `Get-AppxProvisionedPackage -Online | Select DisplayName` не содержит имён из списка;
-  `Get-AppxPackage -AllUsers -Name Microsoft.BingWeather` пусто.
-- Откат: установить из Store; либо на носителе `Add-AppxProvisionedPackage` из `install.wim`
-  (сложно, не рекомендуется).
+- Verification: `Get-AppxProvisionedPackage -Online | Select DisplayName` contains no names from the list;
+  `Get-AppxPackage -AllUsers -Name Microsoft.BingWeather` is empty.
+- Rollback: install from the Store; or, on the media, `Add-AppxProvisionedPackage` from `install.wim`
+  (complicated, not recommended).
 
 ## RemoveQuickAssist
 
-- Значение: `$true`.
-- Что делает: `Remove-WindowsCapability -Online -Name App.Support.QuickAssist*` (компонент Windows 10)
-  и `Remove-AppxProvisionedPackage` для `MicrosoftCorporationII.QuickAssist` (Store-версия Windows 11).
-- Ожидаемый эффект: приложение «Быстрая помощь» отсутствует.
-- Почему: Quick Assist это штатное средство удалённого управления, которое мошенники «техподдержки
-  Microsoft» и группы вроде Storm-1811 просят запустить по телефону; для непрофессиональных
-  пользователей риск выше пользы. Удалённая поддержка своим администратором должна идти через
-  инструмент, который выбирает организация (параметр конструктора).
-- Кросс-связи: `DisableRemoteAssistance` (раздел 08) закрывает второй встроенный канал.
-  Пользователь может установить Quick Assist обратно из Store: политика запрета установки не задана
-  (потребовала бы блокировать Store целиком).
-- Различия версий: компонент `App.Support.QuickAssist~~~~0.0.1.0` в Windows 10 1809+ и Windows 11
-  21H2; с 22H2 приложение Store. Файл обрабатывает оба варианта.
-- Проверка: `Get-WindowsCapability -Online -Name 'App.Support.QuickAssist*'` → NotPresent;
-  `Get-AppxPackage -AllUsers MicrosoftCorporationII.QuickAssist` пусто.
-- Откат: Store → «Быстрая помощь», или `Add-WindowsCapability -Online -Name App.Support.QuickAssist~~~~0.0.1.0`.
+- Value: `$true`.
+- What it does: `Remove-WindowsCapability -Online -Name App.Support.QuickAssist*` (Windows 10 component)
+  and `Remove-AppxProvisionedPackage` for `MicrosoftCorporationII.QuickAssist` (Windows 11 Store version).
+- Expected effect: the «Быстрая помощь» (Quick Assist) app is absent.
+- Why: Quick Assist is the built-in remote control tool that "Microsoft tech support" scammers
+  and groups such as Storm-1811 ask people to launch over the phone; for non-professional
+  users the risk outweighs the benefit. Remote support by the organization's own administrator should go through
+  a tool that the organization chooses (a constructor parameter).
+- Cross-links: `DisableRemoteAssistance` (section 08) closes the second built-in channel.
+  The user can reinstall Quick Assist from the Store: no policy blocking installation is set
+  (it would require blocking the Store entirely).
+- Version differences: the component `App.Support.QuickAssist~~~~0.0.1.0` in Windows 10 1809+ and Windows 11
+  21H2; since 22H2 it is a Store app. The file handles both variants.
+- Verification: `Get-WindowsCapability -Online -Name 'App.Support.QuickAssist*'` → NotPresent;
+  `Get-AppxPackage -AllUsers MicrosoftCorporationII.QuickAssist` is empty.
+- Rollback: Store → «Быстрая помощь», or `Add-WindowsCapability -Online -Name App.Support.QuickAssist~~~~0.0.1.0`.

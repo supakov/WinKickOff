@@ -1,162 +1,162 @@
-# 08. UAC, защита учётных данных, блокировка, удалённый доступ, BitLocker
+# 08. UAC, credential protection, lockout, remote access, BitLocker
 
-Раздел 4 `Setup-System.ps1`. Обозначения: `Sys` = `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System`,
+Section 4 of `Setup-System.ps1`. Notation: `Sys` = `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System`,
 `Lsa` = `HKLM\SYSTEM\CurrentControlSet\Control\Lsa`.
 
-## Безусловные действия раздела
+## Unconditional actions in this section
 
-| Ключ | Значение | Смысл | Умолчание Windows |
+| Key | Value | Meaning | Windows default |
 |---|---|---|---|
-| `Sys\EnableLUA` | 1 | UAC включён | 1 |
-| `Sys\PromptOnSecureDesktop` | 1 | Запрос UAC на защищённом рабочем столе (другие программы не могут его закликать) | 1 |
-| `Sys\ConsentPromptBehaviorUser` | 3 | Стандартный пользователь: запрос учётных данных администратора на защищённом рабочем столе | 3 |
-| `Sys\EnableInstallerDetection` | 1 | Установщики автоматически запрашивают повышение | 1 |
-| `Sys\FilterAdministratorToken` | 1 | Встроенный Administrator тоже работает в режиме одобрения администратором | 0 |
-| `Sys\LocalAccountTokenFilterPolicy` | 0 | Локальные администраторы при сетевом входе получают фильтрованный токен (защита от удалённого использования украденного пароля через SMB/WMI) | 0 |
-| `Sys\DisableLockWorkstation` и то же в `Winlogon` | удаляются | Win+L и блокировка работают | отсутствует |
-| `Lsa\NoLMHash` | 1 | LM-хэши паролей не хранятся | 1 |
-| `Lsa\LimitBlankPasswordUse` | 1 | Учётные записи с пустым паролем: только консольный вход | 1 |
-| `Lsa\RestrictAnonymous` | 1 | Анонимное перечисление общих ресурсов запрещено | 0 на клиентских |
-| `Lsa\RestrictAnonymousSAM` | 1 | Анонимное перечисление учётных записей запрещено | 1 |
-| `Lsa\EveryoneIncludesAnonymous` | 0 | Группа «Все» не включает анонимных | 0 |
-| `HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest\UseLogonCredential` | 0 | Пароли не хранятся в памяти открытым текстом (Mimikatz) | 0 с Windows 8.1 |
-| `HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel\DisableExceptionChainValidation` | 0 | SEHOP включён (защита от эксплойтов переполнения) | 0 на 64-бит |
-| `Terminal Server\WinStations\RDP-Tcp\UserAuthentication` | 1 | NLA обязательна, если RDP когда-нибудь включат | 1 |
-| `Pol\WorkplaceJoin\BlockAADWorkplaceJoin` | 1 | Нет запроса «Разрешить организации управлять устройством» при входе в Office с рабочим аккаунтом | 0 |
+| `Sys\EnableLUA` | 1 | UAC enabled | 1 |
+| `Sys\PromptOnSecureDesktop` | 1 | UAC prompt on the secure desktop (other programs cannot click through it) | 1 |
+| `Sys\ConsentPromptBehaviorUser` | 3 | Standard user: prompt for administrator credentials on the secure desktop | 3 |
+| `Sys\EnableInstallerDetection` | 1 | Installers request elevation automatically | 1 |
+| `Sys\FilterAdministratorToken` | 1 | The built-in Administrator also runs in Admin Approval Mode | 0 |
+| `Sys\LocalAccountTokenFilterPolicy` | 0 | Local administrators get a filtered token on network logon (protection against remote use of a stolen password over SMB/WMI) | 0 |
+| `Sys\DisableLockWorkstation` and the same in `Winlogon` | removed | Win+L and locking work | absent |
+| `Lsa\NoLMHash` | 1 | LM password hashes are not stored | 1 |
+| `Lsa\LimitBlankPasswordUse` | 1 | Accounts with a blank password: console logon only | 1 |
+| `Lsa\RestrictAnonymous` | 1 | Anonymous enumeration of shares is denied | 0 on client editions |
+| `Lsa\RestrictAnonymousSAM` | 1 | Anonymous enumeration of accounts is denied | 1 |
+| `Lsa\EveryoneIncludesAnonymous` | 0 | The «Все» (Everyone) group does not include anonymous users | 0 |
+| `HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest\UseLogonCredential` | 0 | Passwords are not kept in memory in clear text (Mimikatz) | 0 since Windows 8.1 |
+| `HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel\DisableExceptionChainValidation` | 0 | SEHOP enabled (protection against overflow exploits) | 0 on 64-bit |
+| `Terminal Server\WinStations\RDP-Tcp\UserAuthentication` | 1 | NLA required if RDP is ever enabled | 1 |
+| `Pol\WorkplaceJoin\BlockAADWorkplaceJoin` | 1 | No «Разрешить организации управлять устройством» (Allow my organization to manage my device) prompt when signing in to Office with a work account | 0 |
 
-Кросс-связи безусловных настроек: `LimitBlankPasswordUse=1` вместе с пустыми паролями стартовых
-учётных записей означает, что до назначения паролей запрос UAC для User (`ConsentPromptBehaviorUser=3`)
-не проходит с учётными данными Admin (ошибка 1327). `RestrictAnonymous=1` может помешать очень старым
-устройствам (принтеры, NAS), которые ищут общие ресурсы анонимно; в этом случае значение 0.
+Cross-links of the unconditional settings: `LimitBlankPasswordUse=1` combined with the blank passwords of the
+starter accounts means that, until passwords are assigned, the UAC prompt for User (`ConsentPromptBehaviorUser=3`)
+cannot be satisfied with the Admin credentials (error 1327). `RestrictAnonymous=1` may get in the way of very old
+devices (printers, NAS) that look for shares anonymously; in that case use the value 0.
 
 ## UACAlwaysNotify
 
-- Значение: `$true` → `Sys\ConsentPromptBehaviorAdmin = 2`; `$false` → 5 (умолчание Windows).
-- Ожидаемый эффект при 2: администратор видит запрос UAC при любом повышении, включая изменение
-  параметров Windows. При 5 запрос показывается только для сторонних программ, а системные компоненты
-  повышаются молча (что использовали обходы UAC через fodhelper, eventvwr и другие).
-- Кросс-связи: оригинальный файл ставил 0 (без запросов вообще), что давало любой программе права
-  администратора без клика. Уровень 2 закрывает известные обходы UAC. Для Admin с пустым паролем
-  запрос UAC это просто кнопка «Да»: защита от автоматического повышения, а не от человека за клавиатурой.
-- Различия версий: значения одинаковы с Windows Vista. На 24H2 без изменений.
-- Проверка: Панель управления → Учётные записи → Изменить параметры UAC: ползунок вверху.
-- Откат: значение 5.
+- Value: `$true` → `Sys\ConsentPromptBehaviorAdmin = 2`; `$false` → 5 (Windows default).
+- Expected effect at 2: the administrator sees a UAC prompt for every elevation, including changes to
+  Windows settings. At 5 the prompt appears only for third-party programs, while system components
+  elevate silently (which is what UAC bypasses via fodhelper, eventvwr and others exploited).
+- Cross-links: the original file set 0 (no prompts at all), which gave any program administrator
+  rights without a click. Level 2 closes the known UAC bypasses. For Admin with a blank password
+  the UAC prompt is simply a «Да» (Yes) button: protection against automatic elevation, not against the person at the keyboard.
+- Version differences: the values have been the same since Windows Vista. No changes in 24H2.
+- Verification: Control Panel → User Accounts → Change User Account Control settings: slider at the top.
+- Rollback: value 5.
 
 ## InactivityLockSeconds
 
-- Значение: `900` (15 минут). `0` отключает.
-- Что делает: `Sys\InactivityTimeoutSecs = 900` (политика «Интерактивный вход: предел неактивности компьютера»).
-- Ожидаемый эффект: через 15 минут без ввода экран блокируется независимо от заставки и питания.
-- Кросс-связи: с пустым паролем разблокировка это нажатие Enter; смысл появится после назначения
-  паролей. Параметр действует и на экране входа. Заставка и таймер отключения дисплея не трогаются.
-- Различия версий: политика с Windows 8 / Server 2012. Максимум 599940 секунд.
-- Проверка: `Get-ItemProperty $Sys -Name InactivityTimeoutSecs`.
-- Откат: удалить значение.
+- Value: `900` (15 minutes). `0` disables it.
+- What it does: `Sys\InactivityTimeoutSecs = 900` (the «Интерактивный вход: предел неактивности компьютера» (Interactive logon: Machine inactivity limit) policy).
+- Expected effect: after 15 minutes without input the screen locks regardless of the screen saver and power settings.
+- Cross-links: with a blank password, unlocking means pressing Enter; the setting becomes meaningful once
+  passwords are assigned. The parameter also applies on the sign-in screen. The screen saver and the display-off timer are not touched.
+- Version differences: the policy exists since Windows 8 / Server 2012. Maximum 599940 seconds.
+- Verification: `Get-ItemProperty $Sys -Name InactivityTimeoutSecs`.
+- Rollback: delete the value.
 
 ## LSAProtection
 
-- Значение: `$true` → `Lsa\RunAsPPL = 2`.
-- Что делает: процесс LSASS запускается как защищённый (Protected Process Light). Другие процессы,
-  даже с правами администратора, не могут читать его память и извлекать хэши и пароли.
-- Ожидаемый эффект: Mimikatz и аналоги не работают; дамп LSASS через Диспетчер задач невозможен.
-- Значение 2, а не 1: 1 включает защиту с блокировкой в UEFI (переменная, которую нельзя снять
-  без физического доступа к прошивке); 2 включает без блокировки, откат возможен через реестр.
-  Для парка со старыми ПК и возможными проблемами совместимости выбран 2.
-- Кросс-связи:
-  - Плагины, загружаемые в LSA (драйверы смарт-карт и токенов ЭЦП, сторонние поставщики
-    аутентификации), должны быть подписаны Microsoft; неподписанные не загрузятся и запишут событие
-    3033/3063 в журнал `Microsoft-Windows-CodeIntegrity/Operational`. Перед массовым внедрением
-    проверить ключи ЭЦП, используемые организацией (Алмаз-1К, Кристал-1, SecureToken).
-  - Правило ASR для LSASS не включено как избыточное.
-  - Credential Guard не включается: требует VBS/Secure Boot, недоступен на части парка.
-- Различия версий: значение 2 понимает Windows 11 22H2 и новее; Windows 10 трактует любое
-  ненулевое как 1 (с UEFI lock). Windows 11 22H2+ на чистой установке с UEFI и TPM включает защиту LSA
-  сама (аудит-режим, затем включение); файл делает это явно и для ПК без TPM.
-- Проверка: журнал System, событие 12 от WinInit («LSASS.exe was started as a protected process»);
+- Value: `$true` → `Lsa\RunAsPPL = 2`.
+- What it does: the LSASS process starts as a protected process (Protected Process Light). Other processes,
+  even with administrator rights, cannot read its memory and extract hashes and passwords.
+- Expected effect: Mimikatz and similar tools do not work; dumping LSASS through Task Manager is impossible.
+- Value 2 rather than 1: 1 enables protection with a UEFI lock (a variable that cannot be cleared
+  without physical access to the firmware); 2 enables it without the lock, so rollback through the registry is possible.
+  For a fleet with old PCs and possible compatibility problems, 2 was chosen.
+- Cross-links:
+  - Plug-ins loaded into LSA (drivers for smart cards and digital signature tokens, third-party
+    authentication providers) must be signed by Microsoft; unsigned ones will not load and will log event
+    3033/3063 in the `Microsoft-Windows-CodeIntegrity/Operational` log. Before mass rollout,
+    check the digital signature keys used by the organization (Almaz-1K, Crystal-1, SecureToken).
+  - The ASR rule for LSASS is not enabled because it is redundant.
+  - Credential Guard is not enabled: it requires VBS/Secure Boot and is unavailable on part of the fleet.
+- Version differences: the value 2 is understood by Windows 11 22H2 and later; Windows 10 treats any
+  non-zero value as 1 (with UEFI lock). Windows 11 22H2+ on a clean install with UEFI and TPM enables LSA protection
+  by itself (audit mode, then enforcement); the file does this explicitly, including on PCs without TPM.
+- Verification: System log, event 12 from WinInit («LSASS.exe was started as a protected process»);
   `Get-ItemProperty $Lsa -Name RunAsPPL`.
-- Откат: удалить значение или 0, перезагрузка.
+- Rollback: delete the value or set 0, reboot.
 
 ## NTLMv2Only
 
-- Значение: `$true` → `Lsa\LmCompatibilityLevel = 5`.
-- Что делает: клиент и сервер используют только NTLMv2, отвергают LM и NTLMv1.
-- Ожидаемый эффект: перехваченные в сети хэши аутентификации нельзя использовать в старых атаках
-  на NTLMv1; современные ПК и NAS этого не замечают.
-- Кросс-связи: очень старые NAS, принтеры со сканированием в папку и встраиваемые устройства с NTLMv1
-  перестанут подключаться. Вместе с `RequireSMBSigning` и `DisableSMB1` (раздел 09) это единая
-  группа «отказ от устаревших протоколов»; ослаблять их нужно вместе и осознанно.
-- Различия версий: значение по умолчанию (когда ключ отсутствует) на Windows 10/11 равно 3
-  (только NTLMv2 от клиента, но сервер принимает всё). На Windows 11 24H2 Microsoft начала
-  поэтапный отказ от NTLM вообще; 5 совместимо с этим курсом.
-- Проверка: `Get-ItemProperty $Lsa -Name LmCompatibilityLevel`.
-- Откат: значение 3 или удалить.
+- Value: `$true` → `Lsa\LmCompatibilityLevel = 5`.
+- What it does: the client and the server use only NTLMv2 and refuse LM and NTLMv1.
+- Expected effect: authentication hashes intercepted on the network cannot be used in old attacks
+  on NTLMv1; modern PCs and NAS devices do not notice the change.
+- Cross-links: very old NAS devices, printers with scan-to-folder and embedded devices that use NTLMv1
+  will stop connecting. Together with `RequireSMBSigning` and `DisableSMB1` (section 09) this forms a single
+  "retirement of legacy protocols" group; they should be relaxed together and deliberately.
+- Version differences: the default value (when the key is absent) on Windows 10/11 is 3
+  (the client sends only NTLMv2, but the server accepts everything). In Windows 11 24H2 Microsoft began
+  a phased retirement of NTLM altogether; 5 is consistent with this direction.
+- Verification: `Get-ItemProperty $Lsa -Name LmCompatibilityLevel`.
+- Rollback: value 3 or delete.
 
 ## AccountLockout
 
-- Значение: `$true` → `net.exe accounts /lockoutthreshold:10 /lockoutduration:15 /lockoutwindow:15`.
-- Что делает: после 10 неверных паролей подряд учётная запись блокируется на 15 минут; счётчик
-  сбрасывается через 15 минут.
-- Ожидаемый эффект: перебор паролей по сети (SMB, RDP, если включат) становится бесполезным.
-- Кросс-связи: действует на все локальные учётные записи, включая Admin. С пустыми паролями
-  неактуально; после назначения паролей это первая линия защиты. Встроенный Administrator (RID 500)
-  по умолчанию не блокируется; он отключён.
-- Различия версий: Windows 11 22H2 и новее на чистой установке уже задаёт 10/10/10; на Windows 10
-  и на обновлённых системах порог «никогда». Файл фиксирует значения явно.
-- Проверка: `net accounts`.
-- Откат: `net accounts /lockoutthreshold:0`.
+- Value: `$true` → `net.exe accounts /lockoutthreshold:10 /lockoutduration:15 /lockoutwindow:15`.
+- What it does: after 10 wrong passwords in a row the account is locked for 15 minutes; the counter
+  resets after 15 minutes.
+- Expected effect: password guessing over the network (SMB, RDP if it is ever enabled) becomes useless.
+- Cross-links: applies to all local accounts, including Admin. Irrelevant while passwords are blank;
+  once passwords are assigned, this is the first line of defense. The built-in Administrator (RID 500)
+  is not locked out by default; it is disabled.
+- Version differences: Windows 11 22H2 and later already sets 10/10/10 on a clean install; on Windows 10
+  and on upgraded systems the threshold is "never". The file sets the values explicitly.
+- Verification: `net accounts`.
+- Rollback: `net accounts /lockoutthreshold:0`.
 
 ## DisableRemoteAssistance
 
-- Значение: `$true`.
-- Что делает: `HKLM\SYSTEM\CurrentControlSet\Control\Remote Assistance\fAllowToGetHelp = 0`,
+- Value: `$true`.
+- What it does: `HKLM\SYSTEM\CurrentControlSet\Control\Remote Assistance\fAllowToGetHelp = 0`,
   `fAllowFullControl = 0`.
-- Ожидаемый эффект: приглашения удалённого помощника (msra.exe) невозможны; правило брандмауэра
-  «Удалённый помощник» не активируется.
-- Кросс-связи: Quick Assist удаляется отдельно (раздел 13). Для удалённой поддержки своим админом
-  нужен отдельный инструмент (параметр конструктора «удалённое администрирование»).
-- Различия версий: нет.
-- Проверка: Свойства системы → Удалённый доступ: флажок снят и недоступен.
-- Откат: `fAllowToGetHelp = 1`.
+- Expected effect: Remote Assistance invitations (msra.exe) are impossible; the firewall rule
+  «Удалённый помощник» (Remote Assistance) is not activated.
+- Cross-links: Quick Assist is removed separately (section 13). Remote support by your own administrator
+  requires a separate tool (the "remote administration" constructor parameter).
+- Version differences: none.
+- Verification: System Properties → Remote: the check box is cleared and unavailable.
+- Rollback: `fAllowToGetHelp = 1`.
 
 ## DisableRemoteDesktopInbound
 
-- Значение: `$true` → `HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\fDenyTSConnections = 1`.
-- Ожидаемый эффект: входящий RDP выключен (умолчание Windows), исходящие подключения к другим
-  ПК работают.
-- Кросс-связи: `UserAuthentication=1` (NLA) действует, если RDP включат; `AccountLockout` защищает
-  от перебора; `LimitBlankPasswordUse` не пустит по RDP учётные записи без пароля. Служба TermService
-  остаётся в ручном режиме.
-- Различия версий: нет.
-- Проверка: Параметры → Система → Удалённый рабочий стол: выключен.
-- Откат: значение 0 плюс правило брандмауэра «Удалённый рабочий стол» (`Enable-NetFirewallRule -DisplayGroup "Remote Desktop"`).
+- Value: `$true` → `HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\fDenyTSConnections = 1`.
+- Expected effect: inbound RDP is off (Windows default); outbound connections to other
+  PCs work.
+- Cross-links: `UserAuthentication=1` (NLA) applies if RDP is enabled; `AccountLockout` protects
+  against password guessing; `LimitBlankPasswordUse` will not let accounts without a password in over RDP. The TermService service
+  stays in manual mode.
+- Version differences: none.
+- Verification: Settings → System → Remote Desktop: off.
+- Rollback: value 0 plus the firewall rule «Удалённый рабочий стол» (Remote Desktop) (`Enable-NetFirewallRule -DisplayGroup "Remote Desktop"`).
 
 ## DisableRemoteRegistry
 
-- Значение: `$true` → служба `RemoteRegistry` тип запуска 4 (отключена).
-- Ожидаемый эффект: удалённое чтение и запись реестра невозможны (используется атаками для
-  разведки и закрепления).
-- Кросс-связи: на клиентских Windows 10/11 служба и так отключена; фиксируется явно. Некоторые
-  средства инвентаризации (старые агенты мониторинга) требуют её включения.
-- Различия версий: на Windows 7/8 служба была в ручном режиме.
-- Проверка: `Get-Service RemoteRegistry | Select StartType` → Disabled.
-- Откат: `Set-Service RemoteRegistry -StartupType Manual`.
+- Value: `$true` → service `RemoteRegistry` startup type 4 (disabled).
+- Expected effect: remote reading and writing of the registry is impossible (attacks use it for
+  reconnaissance and persistence).
+- Cross-links: on client Windows 10/11 the service is disabled anyway; it is set explicitly. Some
+  inventory tools (old monitoring agents) require it to be enabled.
+- Version differences: on Windows 7/8 the service was in manual mode.
+- Verification: `Get-Service RemoteRegistry | Select StartType` → Disabled.
+- Rollback: `Set-Service RemoteRegistry -StartupType Manual`.
 
 ## PreventAutoDeviceEncryption
 
-- Значение: `$true` → `HKLM\SYSTEM\CurrentControlSet\Control\BitLocker\PreventDeviceEncryption = 1`.
-- Что делает: запрещает автоматическое «шифрование устройства» (упрощённый BitLocker).
-- Почему: без домена и без учётной записи Microsoft ключ восстановления некуда сохранить.
-  Windows 11 24H2 на чистой установке шифрует системный диск на любом ПК с TPM (требования к
-  Modern Standby и HSTI сняты). При локальной учётной записи диск остаётся зашифрованным с «чистым
-  ключом» в ожидании входа в аккаунт Microsoft. Последствия: клонирование и восстановление диска
-  усложняются, а при сбое TPM или замене платы данные могут быть потеряны без ключа.
-- Ожидаемый эффект: диск не шифруется. Защита от кражи ноутбука включается осознанно (параметр
-  конструктора «BitLocker для ноутбуков» с обязательным сохранением ключа восстановления на USB
-  или печатью до перезагрузки).
-- Кросс-связи: на ПК без TPM (обход проверки в разделе 01) шифрование устройства недоступно и
-  без этого ключа. Полноценный BitLocker вручную (`manage-bde`, Панель управления) ключ не запрещает.
-- Различия версий: ключ действует с Windows 8.1. Автошифрование на Pro 24H2 при чистой установке
-  стало новым поведением 2024 года; на 23H2 и старше оно включалось только на устройствах с Modern Standby.
-- Проверка: `Get-BitLockerVolume C: | Select ProtectionStatus, VolumeStatus` → Off, FullyDecrypted;
+- Value: `$true` → `HKLM\SYSTEM\CurrentControlSet\Control\BitLocker\PreventDeviceEncryption = 1`.
+- What it does: prevents automatic «шифрование устройства» (device encryption), a simplified form of BitLocker.
+- Why: without a domain and without a Microsoft account there is nowhere to save the recovery key.
+  Windows 11 24H2 on a clean install encrypts the system drive on any PC with TPM (the
+  Modern Standby and HSTI requirements have been dropped). With a local account the drive stays encrypted with a "clear
+  key", waiting for a sign-in to a Microsoft account. Consequences: cloning and restoring the drive
+  become harder, and after a TPM failure or a motherboard replacement data may be lost without the key.
+- Expected effect: the drive is not encrypted. Protection against laptop theft is enabled deliberately (the
+  "BitLocker for laptops" constructor parameter, with mandatory saving of the recovery key to USB
+  or printing it before the reboot).
+- Cross-links: on PCs without TPM (check bypassed in section 01) device encryption is unavailable even
+  without this key. The key does not prevent full BitLocker enabled manually (`manage-bde`, Control Panel).
+- Version differences: the key works since Windows 8.1. Automatic encryption on Pro 24H2 on a clean install
+  became new behavior in 2024; on 23H2 and older it was enabled only on devices with Modern Standby.
+- Verification: `Get-BitLockerVolume C: | Select ProtectionStatus, VolumeStatus` → Off, FullyDecrypted;
   `manage-bde -status`.
-- Откат: удалить значение, затем Параметры → Конфиденциальность и защита → Шифрование устройства.
+- Rollback: delete the value, then Settings → Privacy & security → Device encryption.

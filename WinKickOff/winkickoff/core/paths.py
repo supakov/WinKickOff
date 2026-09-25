@@ -45,7 +45,7 @@ def app_paths(*, create: bool = True) -> AppPaths:
 
     Frozen build:  root = folder of the exe, data = sys._MEIPASS (root/_internal), docs = data/docs.
     From sources:  root = WinKickOff/, data = root, docs = repository root (root's parent),
-                   because docs/reference lives one level above the package folder.
+                   because docs/technical/reference and docs/user live one level above the package folder.
     """
     if getattr(sys, "frozen", False):
         root = Path(sys.executable).resolve().parent

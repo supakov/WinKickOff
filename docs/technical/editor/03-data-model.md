@@ -1,9 +1,9 @@
-# 03. Модель данных
+# 03. Data model
 
-Редакция 0.2 от 25.09.2026. Форматы: TOML для каталога (читается `tomllib`, редактируется людьми),
-JSON для профилей и справочников (пишется программой).
+Revision 0.2 of 25.09.2026. Formats: TOML for the catalog (read by `tomllib`, edited by people),
+JSON for profiles and reference data (written by the program).
 
-## 1. Группы дерева: `rules/groups.toml`
+## 1. Tree groups: `rules/groups.toml`
 
 ```toml
 [[group]]
@@ -19,9 +19,9 @@ title = "Защита учётных данных"
 order = 2
 ```
 
-Идентификатор с точками задаёт путь; `parent` обязателен для вложенных. Порядок узлов по `order`.
+A dotted identifier defines the path; `parent` is required for nested groups. Nodes are ordered by `order`.
 
-## 2. Правило: `rules/NN-<направление>.toml`
+## 2. Rule: `rules/NN-<направление>.toml`
 
 ```toml
 [[rule]]
@@ -54,27 +54,27 @@ value = 1
 why = "block potentially unwanted apps"
 ```
 
-Поля правила:
+Rule fields:
 
-| Поле | Обязательное | Смысл |
+| Field | Required | Meaning |
 |---|---|---|
-| id | да | `группа.имя`, латиница, точки; уникален в каталоге |
-| group | да | Идентификатор группы дерева |
-| phase | да | `windowspe`, `specialize-xml`, `specialize`, `default-user`, `user-first-logon`, `post-oobe`, `oobe-xml` |
-| title | да | Название в дереве |
-| level | да | `baseline` (выключение даёт предупреждение), `recommended`, `optional`, `risky` (включение даёт предупреждение) |
-| default | да | Состояние в пресете «Офис» |
-| requires | нет | Идентификаторы правил, без которых это правило выключается |
-| conflicts | нет | Идентификаторы правил, которые выключаются при включении этого |
-| tags | нет | Слова для поиска |
-| doc | да | Ссылка на карточку справочника |
-| summary | да | Одно-два предложения |
-| effect, risk, versions | effect да | Текст для панели описания |
-| verify, rollback | нет | Команда проверки и способ отката |
-| params | нет | Таблица параметров (ниже) |
-| actions | да | Список действий; правило без действий недопустимо (кроме `level = "baseline"` с `phase = "oobe-xml"` для служебных) |
+| id | yes | `группа.имя`, Latin letters, dots; unique in the catalog |
+| group | yes | Identifier of the tree group |
+| phase | yes | `windowspe`, `specialize-xml`, `specialize`, `default-user`, `user-first-logon`, `post-oobe`, `oobe-xml` |
+| title | yes | Title in the tree |
+| level | yes | `baseline` (disabling gives a warning), `recommended`, `optional`, `risky` (enabling gives a warning) |
+| default | yes | State in the «Офис» (Office) preset |
+| requires | no | Identifiers of rules without which this rule is disabled |
+| conflicts | no | Identifiers of rules that are disabled when this one is enabled |
+| tags | no | Words for search |
+| doc | yes | Link to the reference card |
+| summary | yes | One or two sentences |
+| effect, risk, versions | effect yes | Text for the description panel |
+| verify, rollback | no | Verification command and rollback method |
+| params | no | Parameter table (below) |
+| actions | yes | List of actions; a rule without actions is not allowed (except `level = "baseline"` with `phase = "oobe-xml"` for internal rules) |
 
-### Параметры
+### Parameters
 
 ```toml
 [rule.params.seconds]
@@ -91,33 +91,33 @@ default = 1
 values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
 ```
 
-В действиях параметр подставляется строкой `"{seconds}"`; генератор приводит к типу действия.
+In actions, a parameter is substituted as the string `"{seconds}"`; the generator converts it to the action's type.
 
-### Действия
+### Actions
 
-| type | Поля | Генерируется |
+| type | Fields | Generated |
 |---|---|---|
 | reg | path, name, kind (DWord, QWord, String, ExpandString, MultiString, Binary), value, why? | `Set-Reg ...` |
 | reg-remove | path, name | `Remove-Reg ...` |
 | service | name, start (2, 3, 4) | `Set-ServiceStart ...` |
-| exe | file, args (список строк) | `Invoke-Exe ...` |
-| feature | name, state (`Enabled`, `Disabled`) | обёртка рантайма над DISM |
-| capability | pattern | обёртка рантайма |
-| appx | names (список) | обёртка рантайма (deprovision + remove) |
-| ps | script (многострочный литерал) | текст как есть |
-| xml-pe-command | command, description | `RunSynchronousCommand` в windowsPE |
-| xml-specialize-command | command, description | `RunSynchronousCommand` в specialize |
-| xml-oobe | element, value | элемент внутри `<OOBE>` |
+| exe | file, args (list of strings) | `Invoke-Exe ...` |
+| feature | name, state (`Enabled`, `Disabled`) | runtime wrapper around DISM |
+| capability | pattern | runtime wrapper |
+| appx | names (list) | runtime wrapper (deprovision + remove) |
+| ps | script (multiline literal) | text as is |
+| xml-pe-command | command, description | `RunSynchronousCommand` in windowsPE |
+| xml-specialize-command | command, description | `RunSynchronousCommand` in specialize |
+| xml-oobe | element, value | element inside `<OOBE>` |
 
-Пути реестра: префикс `HKLM:\`, `HKCU:\` (только фаза user-first-logon), `DU:\` (профиль по умолчанию;
-генератор заменяет на `$du\`). Литеральные строки TOML в одинарных кавычках не требуют экранирования
-обратных слешей.
+Registry paths: prefix `HKLM:\`, `HKCU:\` (user-first-logon phase only), `DU:\` (default user profile;
+the generator replaces it with `$du\`). TOML literal strings in single quotes do not require escaping
+backslashes.
 
-Идентификаторы правил каталога 0.2 (перенос v0.2): по одному правилу на логически отдельную
-настройку; безусловные действия v0.2 сгруппированы в правила уровня `baseline`
-(например `uac.baseline`, `lsa.baseline`, `edge.baseline`, `default-user.baseline`).
+Rule identifiers of catalog 0.2 (port of v0.2): one rule per logically separate
+setting; the unconditional actions of v0.2 are grouped into rules of the `baseline` level
+(for example `uac.baseline`, `lsa.baseline`, `edge.baseline`, `default-user.baseline`).
 
-## 3. Переводы: `rules/lang/uk.toml`
+## 3. Translations: `rules/lang/uk.toml`
 
 ```toml
 ["defender.pua"]
@@ -125,10 +125,10 @@ title = "Блокувати потенційно небажані програм
 summary = "..."
 ```
 
-Ключ таблицы это идентификатор правила; переводятся `title`, `summary`, `effect`, `risk`, `versions`,
-`rollback`, названия параметров. Отсутствующий перевод показывает русский текст.
+The table key is the rule identifier; `title`, `summary`, `effect`, `risk`, `versions`,
+`rollback` and parameter titles are translated. A missing translation shows the Russian text.
 
-## 4. Профиль: `profiles/<имя>.json`
+## 4. Profile: `profiles/<имя>.json`
 
 ```json
 {
@@ -154,34 +154,34 @@ summary = "..."
 }
 ```
 
-- В `rules` перечислены все правила каталога (полнота нужна для сравнения профилей и для того,
-  чтобы новое правило каталога было заметно при загрузке).
-- `params` присутствует только у правил с параметрами; отсутствующий параметр = значение по умолчанию.
-- Правила из старого профиля, которых нет в каталоге, переносятся в `unknown` и не теряются.
-- Пароли открытым текстом; профили с паролем помечаются в списке недавних.
+- `rules` lists all rules of the catalog (completeness is needed for comparing profiles and so
+  that a new catalog rule is noticeable on load).
+- `params` is present only for rules with parameters; a missing parameter = the default value.
+- Rules from an old profile that are not in the catalog are moved to `unknown` and are not lost.
+- Passwords are in plain text; profiles with a password are marked in the recent list.
 
-## 5. Справочники
+## 5. Reference data
 
 - `resources/keyboards.json`: `{ "tag": "uk-UA", "lcid": "0422", "klid": "00020422", "title": "Українська (розширена)", "transient": false }`;
-  для `ru-UA`: `"lcid": null, "transient": true, "fallback": "ru"`.
+  for `ru-UA`: `"lcid": null, "transient": true, "fallback": "ru"`.
 - `resources/timezones.json`: `{ "id": "FLE Standard Time", "title": "(UTC+02:00) Киев", "recommended": true }`.
-- Языки с `transient: true` не попадают в `InputLocale` (вместо них `fallback`), но попадают в
-  список для скрипта первого входа (правило `languages.user-input-list`).
+- Languages with `transient: true` do not go into `InputLocale` (their `fallback` is used instead), but they do go into
+  the list for the first sign-in script (rule `languages.user-input-list`).
 
-## 6. Встроенный профиль в XML
+## 6. Embedded profile in XML
 
-Генератор добавляет в `Extensions` элемент `<Profile format="json"><![CDATA[ ... ]]></Profile>` с
-тем же JSON, что сохраняется в файл. Импорт из XML читает его; если элемента нет (файл v0.2 или
-чужой), импорт разбирает действия из скриптов и сопоставляет с каталогом по типу, пути и имени
-(тот же код, что семантический golden), а несопоставленное показывает списком.
+The generator adds to `Extensions` the element `<Profile format="json"><![CDATA[ ... ]]></Profile>` with
+the same JSON that is saved to the file. Import from XML reads it; if the element is absent (a v0.2 file or a
+third-party one), the import parses the actions from the scripts and matches them against the catalog by type, path and name
+(the same code as the semantic golden), and shows whatever is unmatched as a list.
 
-## 7. Версионирование
+## 7. Versioning
 
-- `format_version` профиля: 2 (в 0.1 был 1; миграция: `config.*` → состояния правил по таблице соответствия).
-- `catalog_version` = содержимое `templates/VERSION`; при расхождении профиль загружается с
-  предупреждением и дополняется.
-- Версия приложения независима.
-- Каталог 0.3 (25.09.2026): страна перенесена из `languages.geo_id` в параметры `geo_id` и `geo_name`
-  правила `default-user.region`; поле `install.iso_language` удалено (язык интерфейса всегда равен языку
-  ISO); маркер блока в скриптах `# [<rule.id>]` без названия. При загрузке старого профиля `geo_id`
-  переносится в параметр правила с предупреждением, `iso_language` отбрасывается с предупреждением.
+- Profile `format_version`: 2 (in 0.1 it was 1; migration: `config.*` → rule states via a mapping table).
+- `catalog_version` = the contents of `templates/VERSION`; if they differ, the profile is loaded with
+  a warning and completed.
+- The application version is independent.
+- Catalog 0.3 (25.09.2026): the country moved from `languages.geo_id` to the parameters `geo_id` and `geo_name`
+  of the rule `default-user.region`; the field `install.iso_language` was removed (the display language always equals the ISO
+  language); the block marker in scripts `# [<rule.id>]` has no title. When an old profile is loaded, `geo_id`
+  is moved into the rule parameter with a warning, and `iso_language` is dropped with a warning.

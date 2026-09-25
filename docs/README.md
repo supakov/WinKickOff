@@ -1,11 +1,14 @@
-# Документация
+# Documentation
 
-| Раздел | Для кого | Что внутри |
-|---|---|---|
-| [technical/reference/](technical/reference/README.md) | администраторы, разработчики | Справочник: карточка на каждый параметр установки (ключи реестра, механизм, эффект, версии Windows, проверка, откат). На него ссылается каждое правило WinKickOff |
-| [appendices/](appendices/README.md) | все | Приложения: оригинальный файл UnattendedWinstall, наш файл ответов v0.2, критический разбор и отчёт критика |
-| [appendices/D-requirements-draft/](appendices/D-requirements-draft/02-constructor-requirements-draft.md) | заказчик | Первый черновик требований к конструктору (исторический); раздел 6 содержит открытые вопросы заказчику |
-| [technical/editor/](technical/editor/README.md) | разработчики | Постановка, архитектура, модель данных, тесты, план и задачи WinKickOff |
+| Section | Readers | Language | Content |
+|---|---|---|---|
+| [user/](user/README.md) | people who build answer files and install Windows | Русский, Українська, English | How to work with WinKickOff: quick start, profiles, installation and checks, safety, the list of rules |
+| [technical/reference/](technical/reference/README.md) | administrators, developers | English | Reference: a card for every installation parameter (registry keys, mechanism, effect, Windows versions, verification, rollback). Every WinKickOff rule links to it |
+| [technical/editor/](technical/editor/README.md) | developers | English | WinKickOff specification, architecture, data model, testing, plan and tasks |
+| [appendices/](appendices/README.md) | everyone | Русский | The original UnattendedWinstall file, our answer file v0.2, the reviews, the first requirements draft |
 
-Планируется разделение (задача T16): техническая документация на английском в `technical/`,
-пользовательская на украинском, английском и русском в `user/uk`, `user/en`, `user/ru`.
+**Русский.** Документация пользователя: [user/ru](user/ru/README.md). Техническая документация на английском,
+приложения на русском.
+
+**Українська.** Документація користувача: [user/uk](user/uk/README.md). Технічна документація англійською,
+додатки російською.

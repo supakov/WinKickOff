@@ -1,66 +1,66 @@
-# 04. Учётные записи в $Config и .NET Framework 3.5
+# 04. Accounts in $Config and .NET Framework 3.5
 
-Раздел `$Config` в `Setup-System.ps1`, группы «Users» и «Installation media».
+The `$Config` section in `Setup-System.ps1`, groups "Users" and "Installation media".
 
 ## AdminAccount, UserAccount
 
-- Значение: `'Admin'`, `'User'`.
-- Где применяется: сохраняются в `C:\ProgramData\Unattend\config.json` в конце `Setup-System.ps1`;
-  читаются `Post-OOBE.ps1`.
-- Что делает: сообщают Post-OOBE.ps1 имена учётных записей, которым нужно снять срок действия пароля.
-  Сами учётные записи создаёт XML (раздел 03), а не эти параметры.
-- Ожидаемый эффект: `Set-LocalUser -PasswordNeverExpires $true` для обоих имён после завершения OOBE.
-- Кросс-связи: имена обязаны совпадать с `<Name>` в `<LocalAccounts>`; при расхождении Post-OOBE.ps1
-  запишет в лог «user not found» и не снимет срок действия, но глобальная команда `net accounts`
-  (см. ниже) всё равно сработает. Конструктор должен вести оба места из одного поля.
-- Различия версий: нет.
-- Проверка: `Get-Content C:\ProgramData\Unattend\config.json`.
-- Откат: не применимо.
+- Value: `'Admin'`, `'User'`.
+- Where applied: saved to `C:\ProgramData\Unattend\config.json` at the end of `Setup-System.ps1`;
+  read by `Post-OOBE.ps1`.
+- What it does: tells Post-OOBE.ps1 the names of the accounts whose password expiration must be removed.
+  The accounts themselves are created by the XML (section 03), not by these parameters.
+- Expected effect: `Set-LocalUser -PasswordNeverExpires $true` for both names after OOBE completes.
+- Cross-links: the names must match `<Name>` in `<LocalAccounts>`; if they differ, Post-OOBE.ps1
+  writes "user not found" to the log and does not remove the expiration, but the global `net accounts`
+  command (see below) still takes effect. The constructor must drive both places from a single field.
+- Version differences: none.
+- Verification: `Get-Content C:\ProgramData\Unattend\config.json`.
+- Rollback: not applicable.
 
 ## PasswordNeverExpires
 
-- Значение: `$true`.
-- Где применяется: два места. `Setup-System.ps1` раздел 4 (specialize, всегда выполняется) и
-  `Post-OOBE.ps1` (после OOBE, для каждой учётной записи).
-- Что делает:
-  1. `net.exe accounts /maxpwage:unlimited`: максимальный срок действия пароля для всех локальных
-     учётных записей снимается (по умолчанию 42 дня).
-  2. `Set-LocalUser -Name <имя> -PasswordNeverExpires $true`: флаг «Срок действия пароля не ограничен»
-     на самих учётных записях Admin и User.
-- Ожидаемый эффект: Windows никогда не покажет «Ваш пароль истёк и должен быть изменён». Для пустых
-  паролей это критично: непрофессиональный пользователь не поймёт, что от него хотят.
-- Кросс-связи:
-  - Стартовые учётные записи без паролей (раздел 03). Отдельный проект управления пользователями
-    назначает пароли и вправе вернуть срок действия (`net accounts /maxpwage:90`).
-  - `AccountLockout` (раздел 08) задаётся той же утилитой `net accounts`; порядок вызовов не важен.
-  - Если Post-OOBE.ps1 не выполнится (ПК выключили до завершения), глобальная настройка из
-    specialize всё равно действует.
-- Различия версий: `net accounts` работает во всех версиях. `Set-LocalUser` доступен в Windows 10 1607+
-  (модуль Microsoft.PowerShell.LocalAccounts). На Windows 11 22H2+ значение по умолчанию 42 дня сохранено.
-- Проверка: `net accounts` → «Maximum password age: Unlimited»; `Get-LocalUser Admin | Select PasswordExpires`
-  (пусто).
-- Откат: `net accounts /maxpwage:42`; `Set-LocalUser -Name Admin -PasswordNeverExpires $false`.
+- Value: `$true`.
+- Where applied: two places. `Setup-System.ps1` section 4 (specialize, always runs) and
+  `Post-OOBE.ps1` (after OOBE, for each account).
+- What it does:
+  1. `net.exe accounts /maxpwage:unlimited`: the maximum password age for all local
+     accounts is removed (the default is 42 days).
+  2. `Set-LocalUser -Name <имя> -PasswordNeverExpires $true`: the «Срок действия пароля не ограничен»
+     (Password never expires) flag on the Admin and User accounts themselves.
+- Expected effect: Windows will never show "Your password has expired and must be changed". For empty
+  passwords this is critical: a non-professional user will not understand what is being asked of them.
+- Cross-links:
+  - Starter accounts without passwords (section 03). A separate user management project
+    assigns passwords and may restore password expiration (`net accounts /maxpwage:90`).
+  - `AccountLockout` (section 08) is set by the same `net accounts` utility; the order of calls does not matter.
+  - If Post-OOBE.ps1 does not run (the PC was switched off before it completed), the global setting from
+    specialize still applies.
+- Version differences: `net accounts` works in all versions. `Set-LocalUser` is available in Windows 10 1607+
+  (the Microsoft.PowerShell.LocalAccounts module). On Windows 11 22H2+ the default of 42 days is retained.
+- Verification: `net accounts` → "Maximum password age: Unlimited"; `Get-LocalUser Admin | Select PasswordExpires`
+  (empty).
+- Rollback: `net accounts /maxpwage:42`; `Set-LocalUser -Name Admin -PasswordNeverExpires $false`.
 
 ## EnableNetFx3
 
-- Значение: `$true`.
-- Где применяется: `Setup-System.ps1` раздел 0, specialize, SYSTEM.
-- Что делает: перебирает все готовые диски, ищет папку `sources\sxs` с `.cab` внутри (носитель
-  установки: USB, DVD, смонтированный ISO Ventoy). Если найдена:
+- Value: `$true`.
+- Where applied: `Setup-System.ps1` section 0, specialize, SYSTEM.
+- What it does: goes through all ready drives looking for a `sources\sxs` folder with `.cab` files inside (the installation
+  media: USB, DVD, an ISO mounted by Ventoy). If found:
   `dism.exe /Online /Enable-Feature /FeatureName:NetFx3 /All /LimitAccess /Source:<путь> /NoRestart /Quiet`.
-  Если не найдена: в лог пишется WARN, компонент не включается.
-- Ожидаемый эффект: .NET Framework 3.5 (включая 2.0 и 3.0) доступен сразу после установки без
-  интернета. Нужен старым программам учёта, клиент-банкам, драйверам ключей ЭЦП старых версий.
-- Кросс-связи:
-  - Носитель должен оставаться подключённым во время specialize (первая перезагрузка). Если флешку
-    вынули сразу после копирования файлов, компонент не установится; тогда его можно добавить позже
-    через Параметры → Дополнительные компоненты (нужен интернет) или командой DISM с носителя.
-  - `/LimitAccess` запрещает обращаться к Windows Update во время установки компонента: в specialize
-    сети всё равно нет, а без ключа DISM ждал бы тайм-аут.
-  - Обновления безопасности для .NET 3.5 приходят через Windows Update (раздел 06).
-- Различия версий: папка `sources\sxs` есть во всех официальных ISO Windows 10/11. На образах,
-  урезанных сторонними инструментами, может отсутствовать. В Windows 11 24H2 компонент по-прежнему
-  необязательный и по умолчанию выключен.
-- Проверка: `Get-WindowsOptionalFeature -Online -FeatureName NetFx3` → State Enabled;
-  в логе строка `dism.exe ... -> exit 0`.
-- Откат: `Disable-WindowsOptionalFeature -Online -FeatureName NetFx3`.
+  If not found: a WARN is written to the log and the feature is not enabled.
+- Expected effect: .NET Framework 3.5 (including 2.0 and 3.0) is available right after installation without
+  internet access. It is needed by old accounting software, bank client applications and old versions of digital signature key drivers.
+- Cross-links:
+  - The media must stay connected during specialize (the first reboot). If the USB drive
+    was removed right after the files were copied, the feature will not be installed; it can then be added later
+    via Settings → Optional features (requires internet) or with a DISM command from the media.
+  - `/LimitAccess` prevents contacting Windows Update while the feature is being installed: there is no network
+    in specialize anyway, and without this switch DISM would wait for a timeout.
+  - Security updates for .NET 3.5 arrive through Windows Update (section 06).
+- Version differences: the `sources\sxs` folder is present in all official Windows 10/11 ISOs. On images
+  stripped down by third-party tools it may be missing. In Windows 11 24H2 the feature is still
+  optional and disabled by default.
+- Verification: `Get-WindowsOptionalFeature -Online -FeatureName NetFx3` → State Enabled;
+  the log contains the line `dism.exe ... -> exit 0`.
+- Rollback: `Disable-WindowsOptionalFeature -Online -FeatureName NetFx3`.

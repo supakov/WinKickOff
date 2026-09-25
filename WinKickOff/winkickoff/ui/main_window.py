@@ -40,6 +40,7 @@ from winkickoff.ui.data_forms import AccountsForm, InstallForm, LanguagesForm
 log = logging.getLogger(__name__)
 
 WORKFLOW_NODE = "info:workflow"
+USER_DOCS = "docs/user/ru/README.md"  # the interface is Russian; other languages come with T14
 DATA_NODES: tuple[tuple[str, str], ...] = (
     ("data:install", "Установка: редакция, ключ, часовой пояс"),
     ("data:accounts", "Учётные записи"),
@@ -186,6 +187,7 @@ class MainWindow(tk.Tk):
         menubar.add_cascade(label="Сборка", menu=build_menu)
         help_menu = tk.Menu(menubar, tearoff=False)
         help_menu.add_command(label="Порядок работы", command=lambda: self.select_node(WORKFLOW_NODE))
+        help_menu.add_command(label="Документация пользователя", command=lambda: self.open_doc(USER_DOCS))
         help_menu.add_command(label="О программе", command=self.about)
         menubar.add_cascade(label="Справка", menu=help_menu)
         self.config(menu=menubar)
@@ -1130,7 +1132,8 @@ class MainWindow(tk.Tk):
                 ("", f"Настройки программы: {self.paths.settings_file}"),
                 ("", f"Шаблоны рантайма: {self.paths.templates}"),
                 ("h2", "Документация"),
-                ("link:doc:docs/technical/reference/README.md", "Справочник параметров: docs/technical/reference/README.md"),
+                ("link:doc:" + USER_DOCS, "Документация пользователя: " + USER_DOCS),
+                ("link:doc:docs/technical/reference/README.md", "Технический справочник параметров (на английском): docs/technical/reference/README.md"),
                 ("muted", "Постановка и план редактора: docs/technical/editor/ в репозитории проекта."),
             ]
         )

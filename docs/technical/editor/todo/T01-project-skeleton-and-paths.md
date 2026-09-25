@@ -1,34 +1,34 @@
-# T01. Каркас проекта, портабельные пути, лог, тесты
+# T01. Project skeleton, portable paths, log, tests
 
-Статус: done (25.09.2026: пакет, пути, лог, точка входа, `tools/run-tests.ps1`, тесты путей и исходников;
-внешний `Validate-Unattend.ps1` на собранном файле вызывается из `tests/test_build.py`. Проверка в чистом
-окружении Python переносится в приёмку T12 в ВМ). Этап 0. Зависимости: нет.
+Status: done (25.09.2026: package, paths, log, entry point, `tools/run-tests.ps1`, path and source tests;
+the external `Validate-Unattend.ps1` on the built file is called from `tests/test_build.py`. Verification in a clean
+Python environment moves to the T12 acceptance in a VM). Stage 0. Dependencies: none.
 
-## Цель
+## Goal
 
-Создать структуру `WinKickOff/` по `02-architecture.md`, раздел 2, реализовать `core/paths.py`,
-`core/log.py`, точку входа и тестовую инфраструктуру на `unittest`.
+Create the `WinKickOff/` structure according to `02-architecture.md`, section 2, implement `core/paths.py`,
+`core/log.py`, the entry point and the test infrastructure on `unittest`.
 
-## Шаги
+## Steps
 
-1. `WinKickOff/pyproject.toml`: имя `winkickoff`, `requires-python = ">=3.14"`, без зависимостей
-   времени выполнения; необязательные группы `build` (pyinstaller) и `dev` (ruff, mypy).
-2. Пакет `winkickoff` с подпакетами `core`, `ui`; `__init__.py` с `APP_VERSION`; `__main__.py`.
-3. `core/paths.py`: `AppPaths`, `app_paths()`; создание `profiles/`, `output/`, `logs/`.
-4. `core/log.py`: `setup_logging(paths)` в `logs/winkickoff.log`, ротация 1 МБ, три файла.
-5. `app.py`: DPI-awareness, загрузка каталога, окно; при ошибке каталога окно с сообщением.
-6. `tests/`: `test_paths.py` (dev и «замороженный» режим через подмену `sys.frozen`), запуск
+1. `WinKickOff/pyproject.toml`: name `winkickoff`, `requires-python = ">=3.14"`, no runtime
+   dependencies; optional groups `build` (pyinstaller) and `dev` (ruff, mypy).
+2. The `winkickoff` package with subpackages `core`, `ui`; `__init__.py` with `APP_VERSION`; `__main__.py`.
+3. `core/paths.py`: `AppPaths`, `app_paths()`; creation of `profiles/`, `output/`, `logs/`.
+4. `core/log.py`: `setup_logging(paths)` into `logs/winkickoff.log`, rotation at 1 MB, three files.
+5. `app.py`: DPI-awareness, catalog loading, window; on a catalog error, a window with a message.
+6. `tests/`: `test_paths.py` (dev and "frozen" mode by overriding `sys.frozen`), run with
    `python -m unittest discover -s tests`.
-7. `tools/run-tests.ps1`: запуск тестов и `Validate-Unattend.ps1` на собранном файле (когда появится).
-8. `README.md` в `WinKickOff/`: запуск из исходников, тесты, сборка, правила.
+7. `tools/run-tests.ps1`: running the tests and `Validate-Unattend.ps1` on the built file (once it exists).
+8. `README.md` in `WinKickOff/`: running from source, tests, build, rules.
 
-## Критерии приёмки
+## Acceptance criteria
 
-- `python -m winkickoff` открывает окно (в тестах создаётся скрытым).
-- Тесты путей зелёные; в пакете нет `os.getcwd()`, `APPDATA`, `winreg` (тест по исходникам).
+- `python -m winkickoff` opens the window (in tests it is created hidden).
+- Path tests are green; the package contains no `os.getcwd()`, `APPDATA`, `winreg` (a test over the sources).
 
-## Заметки исполнителя
+## Implementer notes
 
-25.09.2026: созданы `pyproject.toml`, пакет, `paths.py`, `log.py`, `app.py`, `__main__.py`, тесты
-путей и проверка исходников, `README.md`. Осталось: `tools/run-tests.ps1`, проверка на Python 3.14
-в чистом окружении (сделано только на машине заказчика через `py_compile` и `unittest`).
+25.09.2026: created `pyproject.toml`, the package, `paths.py`, `log.py`, `app.py`, `__main__.py`, path
+tests and the source verification, `README.md`. Remaining: `tools/run-tests.ps1`, verification on Python 3.14
+in a clean environment (done only on the customer's machine via `py_compile` and `unittest`).

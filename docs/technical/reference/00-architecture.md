@@ -1,125 +1,125 @@
-# 00. Устройство файла ответов и механизмы применения
+# 00. Answer file structure and application mechanisms
 
-## 1. Что такое файл ответов и где его берёт установщик
+## 1. What the answer file is and where Setup finds it
 
-`autounattend.xml` лежит в корне USB-носителя. Windows Setup ищет его на всех съёмных дисках при старте
-(в логе 13.09.2026: `UnattendSearchExplicitPath: Found unattend file at [E:\autounattend.xml]`).
-После копирования файлов Setup сохраняет его как `C:\Windows\Panther\unattend.xml` и читает оттуда на
-последующих проходах. Именно этот путь использует команда извлечения скриптов.
+`autounattend.xml` sits in the root of the USB media. Windows Setup searches all removable drives for it at startup
+(the 13.09.2026 log: `UnattendSearchExplicitPath: Found unattend file at [E:\autounattend.xml]`).
+After copying the files, Setup saves it as `C:\Windows\Panther\unattend.xml` and reads it from there in
+subsequent passes. This is the path the script extraction command uses.
 
-Один файл содержит две части:
+A single file contains two parts:
 
-1. Собственно ответы установщику: элементы в пространстве имён `urn:schemas-microsoft-com:unattend`,
-   разбитые по проходам (`<settings pass="...">`).
-2. Секция `<Extensions xmlns="urn:workgroup-unattend">`: своё пространство имён, установщик её не
-   разбирает и не проверяет. Внутри лежат три PowerShell-скрипта в блоках CDATA и скрипт извлечения.
+1. The actual answers to Setup: elements in the `urn:schemas-microsoft-com:unattend` namespace,
+   split by pass (`<settings pass="...">`).
+2. The `<Extensions xmlns="urn:workgroup-unattend">` section: a namespace of its own, which Setup neither
+   parses nor validates. It holds three PowerShell scripts in CDATA blocks and the extraction script.
 
-## 2. Проходы установки и что в них делается
+## 2. Setup passes and what happens in them
 
-| Проход | Когда | От чьего имени | Что делает наш файл |
+| Pass | When | Runs as | What our file does |
 |---|---|---|---|
-| windowsPE | В среде установки, до копирования файлов | SYSTEM в WinPE | Ключ продукта (выбор редакции), принятие лицензии, обход проверок железа через `HKLM\SYSTEM\Setup\LabConfig` |
-| offlineServicing | Применение к образу до первой загрузки | не используется | Пусто (в файле секция отсутствует, это допустимо) |
-| specialize | Первая загрузка установленной системы, до OOBE, без сети и без пользователей | SYSTEM | Извлечение скриптов, `BypassNRO`, запуск `Setup-System.ps1`, часовой пояс |
-| oobeSystem | Первичная настройка (экраны OOBE) | SYSTEM, затем создание учётных записей | Языки и регион, скрытие экранов OOBE, создание Admin и User |
-| после OOBE | Первый вход каждого пользователя | пользователь | Active Setup запускает `Setup-User.ps1` |
-| после OOBE | Каждая загрузка до завершения работы | SYSTEM | Задача планировщика `Unattend-PostOOBE` запускает `Post-OOBE.ps1`, затем удаляет себя |
+| windowsPE | In the Setup environment, before files are copied | SYSTEM in WinPE | Product key (edition selection), license acceptance, hardware check bypass via `HKLM\SYSTEM\Setup\LabConfig` |
+| offlineServicing | Applied to the image before the first boot | not used | Empty (the section is absent from the file, which is allowed) |
+| specialize | First boot of the installed system, before OOBE, with no network and no users | SYSTEM | Script extraction, `BypassNRO`, launching `Setup-System.ps1`, time zone |
+| oobeSystem | OOBE (the out-of-box experience screens) | SYSTEM, then account creation | Languages and region, hiding OOBE screens, creating Admin and User |
+| after OOBE | First sign-in of each user | the user | Active Setup runs `Setup-User.ps1` |
+| after OOBE | Every boot until its work is done | SYSTEM | The `Unattend-PostOOBE` scheduled task runs `Post-OOBE.ps1`, then deletes itself |
 
-Порядок внутри specialize строго по `<Order>`: 1 извлечение, 2 BypassNRO, 3 запуск скрипта.
-Все три команды обёрнуты так, чтобы вернуть код 0 при любой ошибке, потому что ненулевой код
-любой синхронной команды прерывает установку (документация WillReboot: «Other codes: the command failed,
-installation terminated»).
+Within specialize the order strictly follows `<Order>`: 1 extraction, 2 BypassNRO, 3 script launch.
+All three commands are wrapped so that they return code 0 on any error, because a non-zero code from
+any synchronous command aborts the installation (WillReboot documentation: "Other codes: the command failed,
+installation terminated").
 
-## 3. Жёсткие ограничения Windows Setup
+## 3. Hard constraints of Windows Setup
 
-Нарушение любого из них останавливает установку с сообщением «The provided unattend file is not valid»
-(код 0x80220005). Первое из них и вызвало сбой 13.09.2026.
+Violating any of them stops the installation with the message "The provided unattend file is not valid"
+(code 0x80220005). The first of them is what caused the failure on 13.09.2026.
 
-| Ограничение | Источник | Как соблюдается |
+| Constraint | Source | How it is met |
 |---|---|---|
-| Длина `RunSynchronousCommand/Path` не более 259 символов | Документация Path | Команды сокращены, тяжёлая логика вынесена в скрипт; в 0.2 максимум 241 символ |
-| Длина `Description` не более 259 символов | Документация Description | Максимум 111 |
-| XML-комментарии внутри `<component>` недопустимы | Наблюдение (валидатор SMI отвергает) | Единственный комментарий в шапке файла |
-| Синхронная команда обязана вернуть 0 | Документация WillReboot | Обёртки `try{...}catch{...};exit 0`, `trap` внутри скрипта, `exit 0` в конце каждого скрипта |
-| Все четыре значения International-Core должны быть заданы, иначе OOBE показывает экран языка | Automate OOBE | Заданы InputLocale, SystemLocale, UILanguage, UserLocale |
-| `Path` не может быть пустым | Документация Path | Нет пустых |
+| `RunSynchronousCommand/Path` length at most 259 characters | Path documentation | Commands shortened, heavy logic moved into the script; the maximum in 0.2 is 241 characters |
+| `Description` length at most 259 characters | Description documentation | Maximum 111 |
+| XML comments inside `<component>` are not allowed | Observation (the SMI validator rejects them) | The only comment is in the file header |
+| A synchronous command must return 0 | WillReboot documentation | `try{...}catch{...};exit 0` wrappers, `trap` inside the script, `exit 0` at the end of each script |
+| All four International-Core values must be set, otherwise OOBE shows the language screen | Automate OOBE | InputLocale, SystemLocale, UILanguage, UserLocale are set |
+| `Path` cannot be empty | Path documentation | None are empty |
 
-## 4. Методы применения настроек
+## 4. Methods of applying settings
 
-В файле используется семь способов изменить систему. Метод определяет, когда настройка действует,
-может ли пользователь её изменить и как её откатывать.
+The file uses seven ways of changing the system. The method determines when a setting takes effect,
+whether the user can change it and how to roll it back.
 
-| Метод | Как выглядит в скрипте | Когда действует | Может ли пользователь изменить в Параметрах | Откат |
+| Method | What it looks like in the script | When it takes effect | Can the user change it in Settings | Rollback |
 |---|---|---|---|---|
-| Политика в реестре (`Policies\...`) | `Set-Reg -Path "$Pol\..."` | Сразу или после перезагрузки, как GPO | Нет: пункт серый, подпись «управляется организацией» | Удалить значение |
-| Обычное значение реестра HKLM | `Set-Reg -Path 'HKLM:\SYSTEM\...'` | Как правило после перезагрузки | Да, если есть пункт в UI | Вернуть значение по умолчанию |
-| Значение в профиле по умолчанию (DU) | `Set-Reg -Path "$du\..."` | При создании каждого нового профиля | Да, это личная настройка пользователя | Изменить в HKCU или в кусте Default |
-| Тип запуска службы | `Set-ServiceStart` (пишет `Start` в реестр) | После перезагрузки | Да, через services.msc | `sc config <имя> start= <тип>` |
-| Утилиты командной строки | `Invoke-Exe 'auditpol.exe' ...`, `net.exe`, `wevtutil.exe`, `schtasks.exe`, `dism.exe` | Сразу | Зависит от утилиты | Обратная команда |
-| Командлеты DISM и Appx | `Disable-WindowsOptionalFeature`, `Remove-WindowsCapability`, `Remove-AppxProvisionedPackage` | Сразу (часть после перезагрузки) | Через «Дополнительные компоненты» и Store | Установить обратно |
-| Active Setup | Ключ `HKLM\...\Active Setup\Installed Components\{GUID}` | Один раз при первом входе каждого пользователя | Нет | Удалить ключ (новые пользователи), удалить HKCU-копию (повтор) |
+| Registry policy (`Policies\...`) | `Set-Reg -Path "$Pol\..."` | Immediately or after a reboot, like a GPO | No: the item is greyed out, labelled «управляется организацией» (managed by your organization) | Delete the value |
+| Ordinary HKLM registry value | `Set-Reg -Path 'HKLM:\SYSTEM\...'` | Usually after a reboot | Yes, if the UI has an item for it | Restore the default value |
+| Value in the default profile (DU) | `Set-Reg -Path "$du\..."` | When each new profile is created | Yes, it is the user's personal setting | Change it in HKCU or in the Default hive |
+| Service startup type | `Set-ServiceStart` (writes `Start` to the registry) | After a reboot | Yes, via services.msc | `sc config <имя> start= <тип>` |
+| Command-line utilities | `Invoke-Exe 'auditpol.exe' ...`, `net.exe`, `wevtutil.exe`, `schtasks.exe`, `dism.exe` | Immediately | Depends on the utility | The reverse command |
+| DISM and Appx cmdlets | `Disable-WindowsOptionalFeature`, `Remove-WindowsCapability`, `Remove-AppxProvisionedPackage` | Immediately (some after a reboot) | Via «Дополнительные компоненты» (Optional features) and the Store | Install it back |
+| Active Setup | Key `HKLM\...\Active Setup\Installed Components\{GUID}` | Once, at each user's first sign-in | No | Delete the key (new users), delete the HKCU copy (to run again) |
 
-Почему политики, а не только обычные значения: в рабочей группе без домена политика в реестре
-даёт единственный способ сделать настройку «не сбиваемой» непрофессиональным пользователем.
-Оборотная сторона: администратор тоже увидит серые пункты и должен знать, где лежит ключ. Все ключи
-перечислены в карточках.
+Why policies and not just ordinary values: in a workgroup without a domain, a registry policy
+is the only way to make a setting "tamper-proof" against a non-expert user.
+The downside: the administrator also sees greyed-out items and has to know where the key is. All keys
+are listed in the cards.
 
-## 5. Файлы после установки
+## 5. Files after installation
 
-| Путь | Что это | Кому доступно |
+| Path | What it is | Who can access it |
 |---|---|---|
-| `C:\ProgramData\Unattend\Scripts\Setup-System.ps1` | Скрипт настроек машины, выполнен один раз в specialize | Чтение всем, запись администраторам |
-| `C:\ProgramData\Unattend\Scripts\Setup-User.ps1` | Скрипт первого входа, выполняется Active Setup для каждого пользователя | То же |
-| `C:\ProgramData\Unattend\Scripts\Post-OOBE.ps1` | Очистка после OOBE | То же |
-| `C:\ProgramData\Unattend\Scripts\Post-OOBE.task.xml` | Описание задачи планировщика | То же |
-| `C:\ProgramData\Unattend\config.json` | Снимок `$Config` для Post-OOBE.ps1 и для аудита | То же |
-| `C:\ProgramData\Unattend\Logs\Setup-System.log` | Лог машины: каждая запись реестра с результатом OK/WARN/ERROR | То же |
-| `C:\ProgramData\Unattend\Logs\Setup-User.<имя>.log` | Лог первого входа, по файлу на пользователя | То же |
-| `C:\ProgramData\Unattend\Logs\Post-OOBE.log` | Лог очистки, включая перенесённые ошибки specialize | То же |
-| `C:\Windows\Temp\ua.err` | Временный файл ошибок обёрток specialize; удаляется Post-OOBE.ps1 | до очистки |
-| `C:\Windows\Panther\unattend.xml`, `unattend-original.xml` | Копии файла ответов, которые оставляет Setup; удаляются Post-OOBE.ps1 | до очистки |
+| `C:\ProgramData\Unattend\Scripts\Setup-System.ps1` | Machine settings script, run once in specialize | Read for everyone, write for administrators |
+| `C:\ProgramData\Unattend\Scripts\Setup-User.ps1` | First sign-in script, run by Active Setup for each user | Same |
+| `C:\ProgramData\Unattend\Scripts\Post-OOBE.ps1` | Cleanup after OOBE | Same |
+| `C:\ProgramData\Unattend\Scripts\Post-OOBE.task.xml` | Scheduled task definition | Same |
+| `C:\ProgramData\Unattend\config.json` | Snapshot of `$Config` for Post-OOBE.ps1 and for auditing | Same |
+| `C:\ProgramData\Unattend\Logs\Setup-System.log` | Machine log: every registry write with an OK/WARN/ERROR result | Same |
+| `C:\ProgramData\Unattend\Logs\Setup-User.<имя>.log` | First sign-in log, one file per user | Same |
+| `C:\ProgramData\Unattend\Logs\Post-OOBE.log` | Cleanup log, including errors carried over from specialize | Same |
+| `C:\Windows\Temp\ua.err` | Temporary error file of the specialize wrappers; deleted by Post-OOBE.ps1 | until cleanup |
+| `C:\Windows\Panther\unattend.xml`, `unattend-original.xml` | Copies of the answer file left by Setup; deleted by Post-OOBE.ps1 | until cleanup |
 
-Скрипты остаются на диске намеренно: по ним видно, что именно было применено. Паролей в них нет.
+The scripts are left on disk on purpose: they show exactly what was applied. They contain no passwords.
 
-## 6. Уровни логирования в Setup-System.log
+## 6. Logging levels in Setup-System.log
 
-| Уровень | Смысл |
+| Level | Meaning |
 |---|---|
-| OK | Значение записано, команда вернула 0 |
-| INFO | Служебное сообщение (пропуск отсутствующей службы, найден носитель) |
-| WARN | Команда вернула не 0 или компонент отсутствует; установка продолжается |
-| ERROR | Исключение при записи; установка продолжается благодаря `trap` |
-| UNHANDLED | Ошибка, перехваченная `trap` вне блоков try |
+| OK | The value was written, the command returned 0 |
+| INFO | Informational message (a missing service was skipped, installation media was found) |
+| WARN | The command returned a non-zero code or the component is missing; installation continues |
+| ERROR | Exception while writing; installation continues thanks to `trap` |
+| UNHANDLED | An error caught by `trap` outside try blocks |
 
-Строки `ERROR` и `UNHANDLED` после установки должны отсутствовать; `WARN` допустимы для компонентов,
-которых нет на данной сборке (например SMB1, PowerShell 2.0 на 24H2).
+After installation there must be no `ERROR` or `UNHANDLED` lines; `WARN` lines are acceptable for components
+that are absent from the given build (for example SMB1, PowerShell 2.0 on 24H2).
 
-## 7. Общая карта кросс-связей
+## 7. Overall cross-link map
 
-Подробная матрица в [17-cross-links.md](17-cross-links.md). Главные цепочки:
+The detailed matrix is in [17-cross-links.md](17-cross-links.md). The main chains:
 
-1. Стартовые учётные записи без пароля → `LimitBlankPasswordUse` (штатно) → сетевой вход и запрос UAC
-   для User недоступны до назначения паролей → `PasswordNeverExpires` не даёт Windows требовать смену
-   пустого пароля → отдельный проект пользователей назначает пароли и группы.
-2. `UILanguage` = язык ISO → все четыре языковых значения заданы → OOBE не показывает экран языка →
-   `Setup-User.ps1` закрепляет язык интерфейса и переставляет языки ввода.
-3. `LSAProtection` → правило ASR для LSASS не нужно → драйверы токенов ЭЦП должны быть подписаны
-   (иначе не загрузятся в LSA; для них откат `RunAsPPL`).
-4. `DisableSMB1` + `RequireSMBSigning` + `NTLMv2Only` → старые МФУ со сканированием в сетевую папку и
-   старые NAS могут не подключиться → нужны прошивки с SMB 2/3 и подписью или отключение параметров.
-5. `DisableLLMNR` (включено) + `DisableNetBIOS` (выключено) → имена компьютеров в рабочей группе
-   разрешаются через NetBIOS и mDNS → выключение NetBIOS оставит только mDNS.
-6. `MinimalTelemetry` оставляет DiagTrack в ручном режиме и не трогает оценку совместимости →
-   `DeferFeatureUpdatesDays` и предложения обновлений функций продолжают работать.
-7. `PreventAutoDeviceEncryption` → на 24H2 диск не шифруется автоматически → данные восстанавливаемы
-   без ключа, клонирование дисков работает; защита от кражи ноутбука включается осознанно.
-8. `RemoveBloatApps` не трогает Store и winget → приложения и компоненты обновляются →
-   `DisableConsumerContent` в профиле по умолчанию не даёт Store тихо ставить рекламные приложения.
+1. Starter accounts without a password → `LimitBlankPasswordUse` (Windows default) → network sign-in and UAC prompts
+   for User are unavailable until passwords are assigned → `PasswordNeverExpires` prevents Windows from demanding a change
+   of the blank password → a separate user management project assigns passwords and groups.
+2. `UILanguage` = ISO language → all four language values are set → OOBE does not show the language screen →
+   `Setup-User.ps1` pins the display language and reorders the input languages.
+3. `LSAProtection` → the ASR rule for LSASS is not needed → digital signature token drivers must be signed
+   (otherwise they will not load into LSA; for them the rollback is `RunAsPPL`).
+4. `DisableSMB1` + `RequireSMBSigning` + `NTLMv2Only` → old multifunction printers with scan-to-network-folder and
+   old NAS devices may fail to connect → firmware with SMB 2/3 and signing is needed, or the parameters must be disabled.
+5. `DisableLLMNR` (enabled) + `DisableNetBIOS` (disabled) → computer names in the workgroup
+   are resolved via NetBIOS and mDNS → turning NetBIOS off leaves only mDNS.
+6. `MinimalTelemetry` leaves DiagTrack in manual mode and does not touch compatibility appraisal →
+   `DeferFeatureUpdatesDays` and feature update offers keep working.
+7. `PreventAutoDeviceEncryption` → on 24H2 the disk is not encrypted automatically → data is recoverable
+   without a key, disk cloning works; protection against laptop theft is enabled deliberately.
+8. `RemoveBloatApps` does not touch the Store and winget → apps and components get updated →
+   `DisableConsumerContent` in the default profile prevents the Store from silently installing promotional apps.
 
-## 8. Что происходит при повторном запуске скриптов
+## 8. What happens when the scripts are run again
 
-Все три скрипта идемпотентны: повторный запуск `Setup-System.ps1` от администратора перезапишет те же
-значения и не сломает систему. Единственное отличие: куст профиля по умолчанию будет смонтирован заново,
-а приложения, уже удалённые, просто не найдутся. `Setup-User.ps1` можно запустить вручную от имени
-пользователя, чтобы заново выставить языки ввода. `Post-OOBE.ps1` после первого успешного запуска
-удаляет свою задачу, но сам скрипт можно запустить от администратора повторно.
+All three scripts are idempotent: rerunning `Setup-System.ps1` as an administrator rewrites the same
+values and does not break the system. The only difference: the default profile hive is mounted again,
+and apps that were already removed are simply not found. `Setup-User.ps1` can be run manually as the
+user to set the input languages again. `Post-OOBE.ps1` deletes its task after the first successful run,
+but the script itself can be run again as an administrator.

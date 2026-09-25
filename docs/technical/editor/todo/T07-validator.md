@@ -1,27 +1,27 @@
-# T07. Валидатор каталога, профиля и XML
+# T07. Catalog, profile and XML validator
 
-Статус: done (25.09.2026: `validate_profile`, `validate_xml`, `validate_catalog` (команда «Сборка, Проверить
-каталог правил»: ошибки загрузчика, якоря ссылок, тексты проверки и отката, риск), плохие профили
-`tests/profiles/bad-*.json`; эталон v0.2 без единого замечания. Строка таблицы 3.5 про язык ISO
-заменена пояснением в форме: редактор не видит ISO). Этап 3. Зависимости: T06.
+Status: done (25.09.2026: `validate_profile`, `validate_xml`, `validate_catalog` (the «Сборка, Проверить каталог правил»
+(Build, Check rule catalog) command: loader errors, link anchors, verification and rollback texts, risk), bad profiles
+`tests/profiles/bad-*.json`; the v0.2 baseline passes without a single finding. The row of table 3.5 about the ISO
+language was replaced by an explanation in the form: the editor does not see the ISO). Stage 3. Dependencies: T06.
 
-## Цель
+## Goal
 
-Реализовать `core/validate.py` по таблице `01-problem-statement.md`, раздел 3.5.
+Implement `core/validate.py` according to the table in `01-problem-statement.md`, section 3.5.
 
-## Шаги
+## Steps
 
-1. `Issue(level, target, message, doc)`; `target` это идентификатор правила, поле профиля или элемент XML.
-2. `validate_catalog(catalog)`: обёртка над проверками загрузчика для команды «Проверить каталог».
-3. `validate_profile(profile, catalog)`: учётные записи, языки, параметры в диапазоне, базовые
-   выключены (предупреждение), рискованные включены (предупреждение с текстом риска), пароль задан,
-   `ui_language` против языка ISO (поле профиля `iso_language`, если задано).
-4. `validate_xml(text)`: те же проверки, что в `tools/Validate-Unattend.ps1`, на `xml.etree`.
-5. Плохие профили в `tests/profiles/bad-*.json`, плохие XML-строки в тесте; хороший профиль без ошибок.
+1. `Issue(level, target, message, doc)`; `target` is a rule identifier, a profile field or an XML element.
+2. `validate_catalog(catalog)`: a wrapper over the loader checks for the «Проверить каталог» (Check catalog) command.
+3. `validate_profile(profile, catalog)`: accounts, languages, parameters within range, base rules turned
+   off (warning), risky rules turned on (warning with the risk text), password set, `ui_language` against
+   the ISO language (profile field `iso_language`, if set).
+4. `validate_xml(text)`: the same checks as in `tools/Validate-Unattend.ps1`, on `xml.etree`.
+5. Bad profiles in `tests/profiles/bad-*.json`, bad XML strings in the test; a good profile without errors.
 
-## Критерии приёмки
+## Acceptance criteria
 
-- Каждая строка таблицы 3.5 покрыта тестом «ловит» и «не ловит на хорошем».
-- Эталон v0.2 проходит `validate_xml` без ошибок и предупреждений.
+- Every row of table 3.5 is covered by a "catches it" test and a "does not fire on a good one" test.
+- The v0.2 baseline passes `validate_xml` without errors or warnings.
 
-## Заметки исполнителя
+## Implementer notes

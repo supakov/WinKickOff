@@ -1,123 +1,123 @@
-# 12. Телеметрия, реклама и предустановки, Copilot и Recall, виджеты, веб-поиск
+# 12. Telemetry, advertising and preinstalled apps, Copilot and Recall, widgets, web search
 
-Раздел 8 `Setup-System.ps1` плюс связанные значения в профиле по умолчанию (раздел 14).
-Это не косметика: каждый пункт либо уменьшает отправку данных наружу, либо убирает канал, через
-который на ПК появляются нежелательные приложения и ссылки.
+Section 8 of `Setup-System.ps1` plus the related values in the default user profile (section 14).
+This is not cosmetics: each item either reduces the data sent outside or removes a channel through
+which unwanted apps and links appear on the PC.
 
 ## MinimalTelemetry
 
-- Значение: `$true`.
-- Что делает:
+- Value: `$true`.
+- What it does:
 
-| Ключ | Значение | Эффект |
+| Key | Value | Effect |
 |---|---|---|
-| `Pol\DataCollection\AllowTelemetry` | 1 | Уровень диагностических данных «Обязательные» (минимум для Pro; 0 «Выкл» действует только на Enterprise/Education) |
-| `Pol\DataCollection\DoNotShowFeedbackNotifications` | 1 | Windows не просит оценить систему |
-| `Pol\DataCollection\AllowDeviceNameInDiagnosticData` | 0 | Имя ПК не отправляется |
-| `Pol\AdvertisingInfo\DisabledByGroupPolicy` | 1 | Рекламный идентификатор выключен для всех пользователей |
-| `Pol\Windows Error Reporting\Disabled` | 1 | Отчёты о сбоях не отправляются в Microsoft; локальные события 1000/1001 в журнале Application остаются |
-| `Pol\System\PublishUserActivities` | 0 | История действий (Timeline) не собирается |
-| `Pol\System\UploadUserActivities` | 0 | И не отправляется |
-| служба `DiagTrack` | Start = 3 (вручную) | Не отключена (4): служба нужна оценке совместимости для обновлений функций и отчётам Defender о заблокированных угрозах |
-| задачи планировщика | отключены | `Customer Experience Improvement Program\Consolidator`, `...\UsbCeip`, `Feedback\Siuf\DmClient`, `...\DmClientOnScenarioDownload` |
+| `Pol\DataCollection\AllowTelemetry` | 1 | Diagnostic data level «Обязательные» (Required), the minimum for Pro; 0 «Выкл» (Off) works only on Enterprise/Education |
+| `Pol\DataCollection\DoNotShowFeedbackNotifications` | 1 | Windows does not ask you to rate the system |
+| `Pol\DataCollection\AllowDeviceNameInDiagnosticData` | 0 | The PC name is not sent |
+| `Pol\AdvertisingInfo\DisabledByGroupPolicy` | 1 | The advertising ID is disabled for all users |
+| `Pol\Windows Error Reporting\Disabled` | 1 | Crash reports are not sent to Microsoft; local events 1000/1001 in the Application log remain |
+| `Pol\System\PublishUserActivities` | 0 | Activity history (Timeline) is not collected |
+| `Pol\System\UploadUserActivities` | 0 | Nor is it uploaded |
+| service `DiagTrack` | Start = 3 (manual) | Not disabled (4): the service is needed by the compatibility appraisal for feature updates and by Defender reports on blocked threats |
+| scheduled tasks | disabled | `Customer Experience Improvement Program\Consolidator`, `...\UsbCeip`, `Feedback\Siuf\DmClient`, `...\DmClientOnScenarioDownload` |
 
-- Ожидаемый эффект: минимальный уровень отправки данных, доступный на Pro, без ущерба для
-  обновлений и Defender. Переключатель «Необязательные диагностические данные» в Параметрах серый.
-- Кросс-связи:
-  - Оригинальный файл отключал DiagTrack (4) и задачи Application Experience (Compatibility Appraiser),
-    что мешало предложениям обновлений функций; здесь они оставлены ради `DeferFeatureUpdatesDays`
-    (раздел 06). Критик подтвердил, что задачи Appraiser на сборке 26200 отсутствуют под старыми именами.
-  - Windows Error Reporting отключён: дампы для разработчиков (`LocalDumps`) не затронуты; окно
-    «Программа перестала работать» появляется, отчёт не уходит.
-- Различия версий: значение `AllowTelemetry=0` на Windows 10/11 Pro трактуется как 1. В Windows 11
-  названия уровней: 1 «Обязательные», 3 «Необязательные». Задачи CEIP в 24H2 присутствуют, но
-  `Consolidator` может отсутствовать на части сборок (WARN в логе ожидаем).
-- Проверка: Параметры → Конфиденциальность → Диагностика: «управляется организацией»;
+- Expected effect: the minimum level of data sending available on Pro, without harming
+  updates and Defender. The «Необязательные диагностические данные» (Optional diagnostic data) switch in Settings is grayed out.
+- Cross-links:
+  - The original file disabled DiagTrack (4) and the Application Experience tasks (Compatibility Appraiser),
+    which interfered with feature update offers; here they are kept for the sake of `DeferFeatureUpdatesDays`
+    (section 06). The critic confirmed that the Appraiser tasks are absent under their old names on build 26200.
+  - Windows Error Reporting is disabled: developer dumps (`LocalDumps`) are not affected; the
+    «Программа перестала работать» (Program has stopped working) window appears, but the report is not sent.
+- Version differences: the value `AllowTelemetry=0` on Windows 10/11 Pro is treated as 1. In Windows 11
+  the level names are: 1 «Обязательные», 3 «Необязательные» (Optional). CEIP tasks are present in 24H2, but
+  `Consolidator` may be missing on some builds (a WARN in the log is expected).
+- Verification: Settings → Privacy → Diagnostics: «управляется организацией» (managed by your organization);
   `Get-Service DiagTrack | Select StartType` → Manual; `schtasks /Query /TN "\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip"` → Disabled.
-- Откат: удалить значения; `Set-Service DiagTrack -StartupType Automatic`; `schtasks /Change /Enable`.
+- Rollback: delete the values; `Set-Service DiagTrack -StartupType Automatic`; `schtasks /Change /Enable`.
 
 ## DisableConsumerContent
 
-- Значение: `$true`.
-- Что делает: в `Pol\CloudContent`: `DisableWindowsConsumerFeatures = 1`, `DisableSoftLanding = 1`,
+- Value: `$true`.
+- What it does: in `Pol\CloudContent`: `DisableWindowsConsumerFeatures = 1`, `DisableSoftLanding = 1`,
   `DisableCloudOptimizedContent = 1`, `DisableConsumerAccountStateContent = 1`,
-  `DisableThirdPartySuggestions = 1`; `Pol\Windows Chat\ChatIcon = 3` (скрыт);
+  `DisableThirdPartySuggestions = 1`; `Pol\Windows Chat\ChatIcon = 3` (hidden);
   `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Communications\ConfigureChatAutoInstall = 0`.
-  Плюс 17 значений `ContentDeliveryManager` и ещё пять в профиле по умолчанию (раздел 14).
-- Ожидаемый эффект: Store не ставит тихо TikTok, Candy Crush и подобное; в меню Пуск и на экране
-  блокировки нет рекламы и «советов»; нет автоустановки Teams (личного); нет «Завершим настройку
-  устройства» после входа.
-- Кросс-связи: главный рабочий механизм на Pro это значения `ContentDeliveryManager` в профиле
-  пользователя (раздел 14), а не политики. Политики `DisableWindowsConsumerFeatures`,
-  `DisableSoftLanding`, `DisableThirdPartySuggestions` действуют только на Enterprise/Education и на Pro
-  игнорируются; они оставлены как безвредные на случай других редакций.
-  `DisableCloudOptimizedContent` (Windows 10 20H2+/Windows 11) и `DisableConsumerAccountStateContent`
-  (Windows 11 22H2+) на Pro работают.
-- Различия версий: `Windows Chat` и `ConfigureChatAutoInstall` относятся к Windows 11 21H2-22H2
-  (значок чата Teams); в 23H2+ его нет, значения безвредны. На 24H2 без изменений.
-- Проверка: после установки в меню Пуск нет закреплённых сторонних приложений; Параметры →
-  Персонализация → Экран блокировки без «интересных фактов».
-- Откат: удалить значения; предустановки вернутся при следующем обращении Store к каналу подписок.
+  Plus 17 `ContentDeliveryManager` values and five more in the default user profile (section 14).
+- Expected effect: the Store does not silently install TikTok, Candy Crush and the like; the Start menu and the lock
+  screen show no ads and no "tips"; no automatic installation of (personal) Teams; no
+  «Завершим настройку устройства» (Let's finish setting up your device) after sign-in.
+- Cross-links: on Pro the main working mechanism is the `ContentDeliveryManager` values in the user
+  profile (section 14), not the policies. The policies `DisableWindowsConsumerFeatures`,
+  `DisableSoftLanding`, `DisableThirdPartySuggestions` work only on Enterprise/Education and are ignored on Pro;
+  they are kept as harmless in case of other editions.
+  `DisableCloudOptimizedContent` (Windows 10 20H2+/Windows 11) and `DisableConsumerAccountStateContent`
+  (Windows 11 22H2+) work on Pro.
+- Version differences: `Windows Chat` and `ConfigureChatAutoInstall` apply to Windows 11 21H2-22H2
+  (the Teams chat icon); in 23H2+ it no longer exists, and the values are harmless. No changes in 24H2.
+- Verification: after installation the Start menu has no pinned third-party apps; Settings →
+  Personalization → Lock screen without "fun facts".
+- Rollback: delete the values; the preinstalled apps will return the next time the Store contacts the subscription channel.
 
 ## DisableCopilotAndRecall
 
-- Значение: `$true`.
-- Что делает:
-  - `Pol\WindowsCopilot\TurnOffWindowsCopilot = 1` (машинная копия; действует только на 23H2 с Copilot
-    Preview) и та же политика в профиле по умолчанию (раздел 14), где она действительно применяется;
-  - `Pol\WindowsAI\DisableAIDataAnalysis = 1`: Recall (снимки экрана для «памяти» ПК) выключен;
-  - `Pol\WindowsAI\AllowRecallEnablement = 0`: пользователь не может включить Recall сам;
-  - `Pol\WindowsAI\DisableClickToDo = 1`: Click to Do (действия по содержимому экрана) выключен;
-  - `Disable-WindowsOptionalFeature -FeatureName Recall`, если компонент включён;
-  - приложение Copilot (`Microsoft.Copilot`, `Microsoft.Windows.Ai.Copilot.Provider`) удаляется
-    через `$AppsToRemove` (раздел 13); кнопка на панели задач скрыта в профиле по умолчанию.
-- Ожидаемый эффект: ни один ИИ-компонент не делает снимки экрана и не отправляет содержимое
-  документов в облако; кнопки Copilot нет.
-- Кросс-связи: Recall и Click to Do существуют только на Copilot+ PC (NPU) с 24H2; на обычных ПК
-  политики безвредны и заранее защищают от появления функций после обновления. Удаление приложения
-  Copilot через Store обратимо пользователем (Store сохранён).
-- Различия версий: `TurnOffWindowsCopilot` появился в 23H2, в 24H2 объявлен устаревшим (Copilot стал
-  обычным приложением). `DisableAIDataAnalysis` с 24H2, `AllowRecallEnablement` и `DisableClickToDo`
-  с обновлений 2025 года. Компонент `Recall` есть только в 24H2+.
-- Проверка: `Get-WindowsOptionalFeature -Online -FeatureName Recall` → Disabled или отсутствует;
-  `Get-AppxPackage -AllUsers Microsoft.Copilot` пусто.
-- Откат: удалить значения; установить Copilot из Store.
+- Value: `$true`.
+- What it does:
+  - `Pol\WindowsCopilot\TurnOffWindowsCopilot = 1` (machine copy; effective only on 23H2 with Copilot
+    Preview) and the same policy in the default user profile (section 14), where it actually applies;
+  - `Pol\WindowsAI\DisableAIDataAnalysis = 1`: Recall (screenshots for the PC's "memory") is off;
+  - `Pol\WindowsAI\AllowRecallEnablement = 0`: the user cannot enable Recall on their own;
+  - `Pol\WindowsAI\DisableClickToDo = 1`: Click to Do (actions on screen content) is off;
+  - `Disable-WindowsOptionalFeature -FeatureName Recall`, if the component is enabled;
+  - the Copilot app (`Microsoft.Copilot`, `Microsoft.Windows.Ai.Copilot.Provider`) is removed
+    through `$AppsToRemove` (section 13); the taskbar button is hidden in the default user profile.
+- Expected effect: no AI component takes screenshots or sends document content
+  to the cloud; there is no Copilot button.
+- Cross-links: Recall and Click to Do exist only on Copilot+ PCs (NPU) since 24H2; on ordinary PCs
+  the policies are harmless and protect in advance against these features appearing after an update. The user can reverse
+  the removal of the Copilot app through the Store (the Store is kept).
+- Version differences: `TurnOffWindowsCopilot` appeared in 23H2 and was declared deprecated in 24H2 (Copilot became
+  a regular app). `DisableAIDataAnalysis` since 24H2, `AllowRecallEnablement` and `DisableClickToDo`
+  since the 2025 updates. The `Recall` component exists only in 24H2+.
+- Verification: `Get-WindowsOptionalFeature -Online -FeatureName Recall` → Disabled or absent;
+  `Get-AppxPackage -AllUsers Microsoft.Copilot` is empty.
+- Rollback: delete the values; install Copilot from the Store.
 
 ## DisableWidgetsAndNews
 
-- Значение: `$true`.
-- Что делает: `HKLM\SOFTWARE\Policies\Microsoft\Dsh\AllowNewsAndInterests = 0` (виджеты Windows 11);
-  `Pol\Windows Feeds\EnableFeeds = 0` (лента «Новости и интересы» Windows 10); в профиле по умолчанию
-  `Explorer\Advanced\TaskbarDa = 0` (кнопка виджетов скрыта).
-- Ожидаемый эффект: нет кнопки виджетов и панели с новостями, погодой и рекламой MSN; фоновый
-  процесс `Widgets.exe` не запускается.
-- Кросс-связи: панель виджетов это WebView2 с контентом MSN, то есть постоянно открытая веб-страница
-  с рекламой на каждом ПК. Её отключение убирает и канал доставки вредоносной рекламы (malvertising).
-  Пакет `MicrosoftWindows.Client.WebExperience` не удаляется (системный).
-- Различия версий: `Dsh` политика с Windows 11 21H2, работает на Pro. `Windows Feeds` для
-  Windows 10 20H1+. На 24H2 без изменений.
-- Проверка: Параметры → Персонализация → Панель задач: «Виджеты» серый и выключен.
-- Откат: удалить значения.
+- Value: `$true`.
+- What it does: `HKLM\SOFTWARE\Policies\Microsoft\Dsh\AllowNewsAndInterests = 0` (Windows 11 widgets);
+  `Pol\Windows Feeds\EnableFeeds = 0` (the Windows 10 «Новости и интересы» (News and interests) feed); in the default user profile
+  `Explorer\Advanced\TaskbarDa = 0` (the widgets button is hidden).
+- Expected effect: no widgets button and no panel with news, weather and MSN ads; the background
+  process `Widgets.exe` does not start.
+- Cross-links: the widgets panel is WebView2 with MSN content, that is, a permanently open web page
+  with ads on every PC. Disabling it also removes a delivery channel for malicious advertising (malvertising).
+  The `MicrosoftWindows.Client.WebExperience` package is not removed (it is a system package).
+- Version differences: the `Dsh` policy since Windows 11 21H2, works on Pro. `Windows Feeds` for
+  Windows 10 20H1+. No changes in 24H2.
+- Verification: Settings → Personalization → Taskbar: «Виджеты» (Widgets) is grayed out and off.
+- Rollback: delete the values.
 
 ## DisableWebSearchInStart
 
-- Значение: `$true`.
-- Что делает: `Pol\Explorer\DisableSearchBoxSuggestions = 1` (нет результатов Bing в поиске меню Пуск);
+- Value: `$true`.
+- What it does: `Pol\Explorer\DisableSearchBoxSuggestions = 1` (no Bing results in Start menu search);
   `Pol\Windows Search\AllowCortana = 0`; `Pol\Windows Search\DisableWebSearch = 1`.
-- Ожидаемый эффект: поиск в меню Пуск ищет только приложения, файлы и параметры; ничего не
-  отправляется в Bing при каждом нажатии клавиши; нет «рекомендуемых» веб-результатов.
-- Кросс-связи: Cortana в Windows 11 удалена (2023), политика безвредна. Поиск в проводнике и
-  индексирование (`WSearch`) не затронуты: оригинальный файл переводил службу индексирования в
-  ручной режим, что ломало поиск в Outlook; здесь она не трогается.
-- Различия версий: `DisableSearchBoxSuggestions` с Windows 10 2004, действует на Pro. `DisableWebSearch`
-  из старого набора Windows 8.1/10, на 11 частично дублирует первую. На 24H2 без изменений.
-- Проверка: поиск в Пуске по слову «погода» не показывает веб-результатов.
-- Откат: удалить значения.
+- Expected effect: Start menu search looks only for apps, files and settings; nothing is
+  sent to Bing on every keystroke; no "recommended" web results.
+- Cross-links: Cortana was removed from Windows 11 (2023), so the policy is harmless. File Explorer search and
+  indexing (`WSearch`) are not affected: the original file switched the indexing service to
+  manual mode, which broke search in Outlook; here it is left untouched.
+- Version differences: `DisableSearchBoxSuggestions` since Windows 10 2004, works on Pro. `DisableWebSearch`
+  comes from the old Windows 8.1/10 set; on 11 it partially duplicates the first one. No changes in 24H2.
+- Verification: searching Start for the word "weather" shows no web results.
+- Rollback: delete the values.
 
-## LongPathsEnabled (безусловно)
+## LongPathsEnabled (unconditional)
 
-- Что делает: `HKLM\SYSTEM\CurrentControlSet\Control\FileSystem\LongPathsEnabled = 1`.
-- Эффект: программы с манифестом `longPathAware` (PowerShell 7, Git, современные архиваторы) работают
-  с путями длиннее 260 символов. Проводник и старые программы ограничение сохраняют.
-- Различия версий: Windows 10 1607+. Безвредно.
-- Откат: значение 0.
+- What it does: `HKLM\SYSTEM\CurrentControlSet\Control\FileSystem\LongPathsEnabled = 1`.
+- Effect: programs with a `longPathAware` manifest (PowerShell 7, Git, modern archivers) work
+  with paths longer than 260 characters. File Explorer and old programs keep the limit.
+- Version differences: Windows 10 1607+. Harmless.
+- Rollback: value 0.

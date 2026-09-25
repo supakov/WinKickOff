@@ -1,30 +1,30 @@
-# T08. Импорт профиля из XML и v0.2; проверка PowerShell
+# T08. Profile import from XML and v0.2; PowerShell check
 
-Статус: done (25.09.2026: импорт встроенного профиля; импорт по действиям для v0.2 и сборок без профиля
-(`core/actions_parser.py`: значения `$Config` читаются из файла, условия вычисляются, циклы по спискам
-и хеш-таблицам разворачиваются); `import_xml(v0.2)` равен пресету «Офис» по всем 130 правилам, параметрам,
-данным установки, языкам и учётным записям; проверка PowerShell). Этап 3. Зависимости: T06. Веха M3 вместе с T07.
+Status: done (25.09.2026: import of the embedded profile; action-based import for v0.2 and for builds without a profile
+(`core/actions_parser.py`: `$Config` values are read from the file, conditions are evaluated, loops over lists
+and hash tables are unrolled); `import_xml(v0.2)` equals the «Офис» (Office) preset across all 130 rules, parameters,
+installation data, languages and accounts; PowerShell check). Stage 3. Dependencies: T06. Milestone M3 together with T07.
 
-## Цель
+## Goal
 
-Открыть любой ранее собранный файл: со встроенным профилем напрямую, файл v0.2 через
-сопоставление действий с каталогом; проверять синтаксис скриптов через `powershell.exe`.
+Open any previously built file: one with an embedded profile directly, the v0.2 file by matching its
+actions against the catalog; check script syntax with `powershell.exe`.
 
-## Шаги
+## Steps
 
-1. `core/importer.py`: `import_xml(text, catalog) -> (Profile, warnings)`: если есть
-   `Extensions/Profile`, разбор JSON; иначе извлечение действий из CDATA (общий код с
-   `tests/v02_actions.py`, вынести в `core/actions_parser.py`) и сопоставление с правилами
-   по типу, пути и имени; правило считается включённым, если все его действия найдены.
-2. Несопоставленные действия и частично найденные правила возвращаются как предупреждения.
-3. `core/pscheck.py`: при наличии `powershell.exe` разбор скриптов через
-   `[System.Management.Automation.Language.Parser]::ParseFile` во временной папке `logs/tmp/`;
-   тайм-аут 30 секунд; иначе «пропущено».
-4. Тесты: импорт XML со встроенным профилем даёт равный профиль; импорт v0.2 даёт «Офис».
+1. `core/importer.py`: `import_xml(text, catalog) -> (Profile, warnings)`: if
+   `Extensions/Profile` is present, parse the JSON; otherwise extract the actions from CDATA (code shared with
+   `tests/v02_actions.py`, to be moved into `core/actions_parser.py`) and match them to rules
+   by type, path and name; a rule is considered enabled if all of its actions are found.
+2. Unmatched actions and partially found rules are returned as warnings.
+3. `core/pscheck.py`: when `powershell.exe` is available, parse the scripts with
+   `[System.Management.Automation.Language.Parser]::ParseFile` in the temporary folder `logs/tmp/`;
+   30-second timeout; otherwise "skipped".
+4. Tests: importing an XML with an embedded profile yields an equal profile; importing v0.2 yields «Офис».
 
-## Критерии приёмки
+## Acceptance criteria
 
-- `import_xml(v0.2)` равен пресету «Офис» по состояниям правил.
-- Без PowerShell функция возвращает «пропущено», не исключение.
+- `import_xml(v0.2)` equals the «Офис» preset in rule states.
+- Without PowerShell the function returns "skipped", not an exception.
 
-## Заметки исполнителя
+## Implementer notes

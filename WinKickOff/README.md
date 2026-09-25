@@ -1,105 +1,85 @@
 # WinKickOff
 
-Редактор конфигурации установки Windows 11 Pro для рабочих групп без домена. Показывает все правила
-настройки одним деревом с флажками и поиском, выключает зависимые правила автоматически, хранит выбор
-в профиле JSON и собирает `autounattend.xml` только из выбранного.
+Configuration editor for Windows 11 Pro installations in workgroups without a domain. It shows every
+installation rule in one tree with check boxes and search, disables dependent rules automatically, keeps
+the selection in a JSON profile and assembles `autounattend.xml` from the selected rules only.
 
-Состояние на 25.09.2026: рабочая версия 0.2.0. Каталог (130 правил, 24 группы) перенесён из файла
-ответов v0.2 целиком; генератор, проверки, пресеты, профили, формы данных и сборка из окна работают.
-Сборка пресета «Офис» покрывает все действия v0.2 и проходит `tools/Validate-Unattend.ps1` (36 из 36).
-Установка из собранного файла в виртуальной машине ещё не проверялась: до этого файл не применять на
-рабочих ПК. Оставшиеся задачи: `../docs/technical/editor/todo/`.
+User documentation (how to work with the program): [Русский](../docs/user/ru/README.md),
+[Українська](../docs/user/uk/README.md), [English](../docs/user/en/README.md).
+Specification, architecture, data model and plan: [`../docs/technical/editor/`](../docs/technical/editor/README.md).
 
-Постановка, архитектура, модель данных, план: `../docs/technical/editor/`.
+State on 25.09.2026: version 0.2.0. The catalog (130 rules, 24 groups) carries every action of the
+hand-written answer file v0.2; the generator, the checks, the presets, profiles, data forms, import and
+the build from the window work. A build of the «Офис» (Office) preset covers every v0.2 action and passes
+`tools/Validate-Unattend.ps1` (36 of 36). Installation from a built file has not been tested in a VM yet:
+do not use such a file on production PCs before that. Open tasks: `../docs/technical/editor/todo/`.
 
-## Порядок работы пользователя
+## Requirements
 
-Этот же текст показывает узел «Порядок работы» в начале дерева.
+- Python 3.14 (standard library only: tkinter, tomllib, json, xml.etree, logging).
+- Windows 10 1809+ or Windows 11.
 
-1. **Выбрать профиль.** Поле «Профиль» на панели сверху. «Пресет: Офис» повторяет проверенный файл
-   ответов v0.2. «Пресет: Строгий» добавляет ограничения, которые могут мешать старым программам.
-   Пресеты не перезаписываются: изменённый профиль сохраняется под своим именем.
-2. **Настроить правила.** Квадрат перед названием включает или выключает правило или всю группу;
-   «+» только раскрывает ветку. Зависимые правила меняются автоматически, список изменений
-   появляется внизу окна. Поиск (Ctrl+F) ищет по названию, тегам и техническим деталям.
-3. **Прочитать описание и задать параметры.** Справа для выбранного правила: что оно делает
-   технически, эффект, риски, версии Windows, проверка и откат. Параметры меняются под описанием.
-4. **Заполнить данные установки.** Узлы «Установка», «Учётные записи», «Языки и регион»:
-   редакция и ключ, часовой пояс, стартовые учётные записи, языки ввода и их порядок.
-5. **Сохранить профиль** (Ctrl+S) в папку `profiles/` рядом с программой, чтобы повторять установку
-   на других ПК.
-6. **Проверить (F7) и собрать (F9).** Сборка берёт только включённые правила, проверяет ограничения
-   установщика Windows и синтаксис PowerShell и предлагает сохранить `output/autounattend.xml`.
-   Профиль встраивается в собранный файл: «Файл, Открыть профиль из autounattend.xml» восстанавливает
-   настройки из готового файла. Написанный вручную v0.2 открывается так же: профиль восстанавливается по
-   действиям файла, сомнительные правила перечисляются в списке внизу.
-7. **Установить.** Файл кладётся в корень флешки с установочным образом Windows 11. Логи установки
-   на целевом ПК: `C:\ProgramData\Unattend\Logs`.
+## Commands
 
-## Где что хранится
-
-| Что | Где | Версионируется |
-|---|---|---|
-| Пресеты «Офис» и «Строгий» | `profiles/preset-*.json` | да; пересоздаются командой ниже |
-| Профили пользователя | `profiles/<имя>.json` | нет |
-| Собранные файлы ответов | `output/` (по умолчанию) | нет |
-| Лог программы | `logs/winkickoff.log` | нет |
-| Настройки: размер окна, последний профиль, недавние файлы | `settings.json` | нет |
-
-Программа ничего не пишет вне своей папки и не обращается в интернет. Проверка синтаксиса PowerShell
-запускает `powershell.exe` только для разбора файлов во временной папке `logs/tmp/`.
-
-## Требования
-
-- Python 3.14 (только стандартная библиотека: tkinter, tomllib, json, xml.etree, logging).
-- Windows 10 1809+ или Windows 11.
-
-## Команды
-
-Запуск из исходников:
+Run from sources:
 
 ```powershell
 cd WinKickOff
 python -m winkickoff
 ```
 
-Тесты (145 тестов; пишут только во временные папки, окно показывается прозрачным за пределами экрана):
+Tests (write only into temporary folders; the window is shown fully transparent outside the screen):
 
 ```powershell
 cd WinKickOff
 python -m unittest discover -s tests -v
 ```
 
-Пересоздать пресеты после правки каталога правил:
+After a change of the rule catalog, regenerate the presets and the rule lists of the user documentation:
 
 ```powershell
 cd WinKickOff
 python tools/make_presets.py
+python tools/make_rule_docs.py
 ```
 
-Что проверяют тесты сборки: результат детерминирован и только ASCII; выключенное правило не оставляет
-следов; фазы без правил не добавляют скриптов и задач; все действия `Setup-System.ps1` из v0.2
-присутствуют в сборке «Офиса»; команды, International-Core, OOBE, учётные записи и часовой пояс
-совпадают с v0.2; `tools/Validate-Unattend.ps1` принимает собранный файл.
+What the build tests check: the output is deterministic and ASCII only; a disabled rule leaves no trace;
+phases without rules add no scripts or tasks; every `Setup-System.ps1` action of v0.2 is present in the
+«Офис» build; commands, International-Core, OOBE, accounts and the time zone equal v0.2; importing v0.2 gives
+the «Офис» preset; `tools/Validate-Unattend.ps1` accepts the built file.
 
-## Структура
+## Where things are stored
+
+| What | Where | Versioned |
+|---|---|---|
+| Presets «Офис» and «Строгий» (Strict) | `profiles/preset-*.json` | yes; generated by `tools/make_presets.py` |
+| User profiles | `profiles/<name>.json` | no |
+| Built answer files | `output/` (default) | no |
+| Program log | `logs/winkickoff.log` | no |
+| Settings: window size, last profile, recent files | `settings.json` | no |
+
+The program writes nothing outside its folder and never goes online. The PowerShell syntax check runs
+`powershell.exe` only to parse files in the temporary folder `logs/tmp/`.
+
+## Structure
 
 ```
 WinKickOff/
-  winkickoff/        код: core (логика без интерфейса), ui (tkinter: окно, формы, флажки)
-  rules/             каталог правил (TOML): groups.toml, NN-<направление>.toml, lang/
-  templates/         рантайм XML и PowerShell со слотами (см. templates/README.md)
-  resources/         справочники раскладок и часовых поясов, строки интерфейса
-  profiles/          пресеты (создаются из каталога, см. profiles/README.md)
+  winkickoff/        code: core (logic without UI), ui (tkinter: window, forms, check boxes)
+  rules/             rule catalog (TOML): groups.toml, NN-<area>.toml, lang/ (translations)
+  templates/         runtime XML and PowerShell with slots (see templates/README.md)
+  resources/         keyboard layouts, time zones, interface strings
+  profiles/          presets (generated from the catalog, see profiles/README.md)
   tests/             unittest
-  tools/             make_presets.py, run-tests.ps1, build.ps1 (T12)
+  tools/             make_presets.py, make_rule_docs.py, run-tests.ps1, build.ps1 (T12)
 ```
 
-Рабочие папки `output/`, `logs/` создаются рядом при первом запуске и не версионируются.
+The working folders `output/`, `logs/` and `settings.json` are created next to the program on first use
+and are not versioned.
 
-## Правила проекта
+## Project rules
 
-- Никаких зависимостей за пределами стандартной библиотеки в приложении.
-- Никаких записей вне папки приложения; никаких обращений в интернет.
-- Без длинных и коротких тире в коде, данных и строках.
-- Правки каталога и шаблонов проверяются `python -m unittest` до коммита.
+- No dependencies beyond the standard library in the application.
+- No writes outside the program folder; no network access.
+- No em or en dashes in code, data, strings or documents.
+- Catalog and template changes are checked with `python -m unittest` before a commit.

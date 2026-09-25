@@ -1,0 +1,1094 @@
+# English translations of the rule catalog texts (rules/NN-*.toml).
+# Table key: rule id; _groups: group titles and summaries.
+# Fields: title, summary, effect, risk, versions, verify, rollback; params.<name>; values.<name>."<value>".
+# When a rule text changes in the catalog, change the translation too; tests/test_docs.py checks completeness.
+
+["install.bypass-tpm"]
+title = '''Bypass the TPM 2.0 check'''
+summary = '''Setup does not require TPM 2.0. On PCs that have a TPM, the module stays enabled and in use.'''
+effect = '''Installation proceeds on PCs without a TPM or with TPM 1.2, with no incompatibility message.'''
+risk = '''Without a TPM, automatic device encryption and BitLocker without a startup password are unavailable. Microsoft does not guarantee updates for unsupported PCs.'''
+versions = '''LabConfig keys work only in Windows 11 Setup (21H2 and later); Windows 10 ignores them.'''
+rollback = '''Remove the rule; it does not affect the installed system.'''
+
+["install.bypass-secureboot"]
+title = '''Bypass the Secure Boot check'''
+summary = '''Setup does not require Secure Boot to be enabled.'''
+effect = '''Installation proceeds on PCs with BIOS/CSM or with Secure Boot turned off.'''
+risk = '''Without Secure Boot, Credential Guard and some kernel protections do not work; LSA protection in this file is configured without a UEFI lock precisely for such PCs.'''
+versions = '''Windows 11 Setup only.'''
+
+["install.bypass-cpu"]
+title = '''Bypass the processor check'''
+summary = '''Setup does not check the processor against the list of supported models.'''
+effect = '''Installation proceeds on processors older than 8th generation Intel and Ryzen 2000.'''
+risk = '''In 24H2 the POPCNT and SSE4.2 instruction requirement cannot be bypassed: installation is impossible on very old processors.'''
+versions = '''Windows 11 Setup only.'''
+
+["install.bypass-ram"]
+title = '''Bypass the memory check'''
+summary = '''Setup does not require 4 GB of memory.'''
+effect = '''Installation proceeds on PCs with less memory; the system will run slowly.'''
+versions = '''Windows 11 Setup only.'''
+
+["install.bypass-storage"]
+title = '''Bypass the disk size check'''
+summary = '''Setup does not require 64 GB of disk space.'''
+effect = '''Installation proceeds on small disks; free space for updates must be monitored.'''
+versions = '''Windows 11 Setup only.'''
+
+["install.bypass-nro"]
+title = '''Allow completing OOBE without internet access and a Microsoft account'''
+summary = '''BypassNRO key: the out-of-box experience does not require a network connection or a Microsoft account.'''
+effect = '''A safeguard: accounts are created from the file, but if OOBE behavior changes, the key keeps setup from getting stuck on the network screen.'''
+versions = '''Windows 11 21H2 and later. Microsoft announced the removal of the bypasses in 2025 Insider builds; the key works on released 24H2 and 25H2.'''
+verify = '''reg query HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE /v BypassNRO'''
+rollback = '''Delete the value; it does not affect the installed system.'''
+
+["install.netfx3"]
+title = '''.NET Framework 3.5 from the installation media'''
+summary = '''Searches connected drives for the sources\sxs folder and enables .NET Framework 3.5 (including 2.0 and 3.0) without internet access.'''
+effect = '''Legacy accounting software, client-bank apps and drivers for digital signature keys work right after installation.'''
+risk = '''The media must stay connected during the first restart; otherwise the component is not installed and a WARN entry is written to the log. It can be added later through Settings when internet access is available.'''
+versions = '''The sources\sxs folder is present in all official Windows 10 and 11 ISOs; it may be missing from stripped-down images.'''
+verify = '''Get-WindowsOptionalFeature -Online -FeatureName NetFx3'''
+rollback = '''Disable-WindowsOptionalFeature -Online -FeatureName NetFx3'''
+
+["oobe.hide-eula"]
+title = '''Hide the license agreement screen'''
+summary = '''The license is accepted in Setup (AcceptEula), so the screen is not shown in OOBE.'''
+effect = '''One screen fewer; the organization is responsible for accepting the terms.'''
+
+["oobe.hide-oem-registration"]
+title = '''Hide the manufacturer registration screen'''
+summary = '''The OEM registration screen is not shown (it appears only on manufacturer images).'''
+effect = '''Harmless on Microsoft images; saves a screen on OEM images.'''
+
+["oobe.hide-online-account"]
+title = '''Hide the Microsoft account screens'''
+summary = '''The screens for signing in with a Microsoft account and creating a local account are not shown: accounts are defined in the file.'''
+effect = '''After setup, the system goes straight to the sign-in screen with the initial accounts.'''
+risk = '''Works only together with the accounts in the "Accounts" section; without them, OOBE will require creating an account.'''
+
+["oobe.hide-wireless"]
+title = '''Hide the network connection screen'''
+summary = '''The "Let's connect you to a network" screen is always hidden, not only on a wired connection.'''
+effect = '''Setup does not stop on laptops without a network cable; Wi-Fi is configured after sign-in.'''
+
+["oobe.protect-your-pc"]
+title = '''Privacy settings screen: turn off express settings'''
+summary = '''The privacy screen is not shown; diagnostic data sending, advertising and location are turned off by default.'''
+effect = '''SmartScreen and Defender are not affected: they are enabled by separate rules.'''
+versions = '''Value 3 works on Windows 10 and 11, including 24H2.'''
+params.mode = '''Mode'''
+values.mode."3" = '''Turn off all express settings'''
+values.mode."1" = '''Turn on express settings (data sending)'''
+
+["printing.spooler-automatic"]
+title = '''Print Spooler starts automatically'''
+summary = '''The Spooler service is set to automatic startup (registry and Set-Service); PrintNotify stays manual.'''
+effect = '''Printing works right after installation: USB and network printers, "Print to PDF". The original UnattendedWinstall file set the service to manual, and printing did not work.'''
+risk = '''Print Spooler has historically been a source of vulnerabilities (PrintNightmare); this is mitigated by the rule that restricts driver installation to administrators and by the firewall.'''
+versions = '''No changes across versions. 24H2 has Windows Protected Print mode (WPP); it is not enabled because older printers require their own drivers.'''
+verify = '''Get-Service Spooler | Select-Object Status, StartType'''
+rollback = '''Set-Service Spooler -StartupType Manual'''
+
+["printing.point-and-print-admins"]
+title = '''Only administrators can install printer drivers'''
+summary = '''Point and Print policy: installing and updating printer drivers requires administrator rights and shows a warning.'''
+effect = '''A standard user cannot install a printer driver; drivers that are already installed and class drivers are available to everyone.'''
+risk = '''An administrator must connect a network printer that needs a new driver. While Admin has a blank password, the credential prompt in a user session will not succeed.'''
+versions = '''Windows default since August 2021 (KB5005652); the rule enforces it through policy.'''
+verify = '''Get-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Printers\PointAndPrint' '''
+rollback = '''RestrictDriverInstallationToAdministrators = 0 (reopens the PrintNightmare attack vector).'''
+
+["update.unblock"]
+title = '''Remove all Windows Update blocks'''
+summary = '''Removes policies that turn off updates, driver updates or Store automatic updates, and returns disabled update services to manual startup.'''
+effect = '''Changes nothing on a clean image; removes leftovers of third-party "optimizers" and makes it safe to run the script again.'''
+versions = '''No changes.'''
+verify = '''Get-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'''
+
+["update.automatic"]
+title = '''Automatic update installation and active hours'''
+summary = '''Updates are downloaded and installed automatically; automatic restarts are not allowed during active hours.'''
+effect = '''Restarts happen at night or before the workday starts; the user sees a notification and can postpone within the policy limits.'''
+risk = '''Active hours cannot exceed 18 hours. PCs that run around the clock will restart outside active hours.'''
+versions = '''Works on Windows 10 and 11; in 24H2 fixed hours replace automatic detection of active hours.'''
+verify = '''Get-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'''
+rollback = '''Delete SetActiveHours, ActiveHoursStart, ActiveHoursEnd.'''
+params.start = '''Active hours start (hour)'''
+params.end = '''Active hours end (hour)'''
+
+["update.other-microsoft-products"]
+title = '''Updates for other Microsoft products (Office, .NET)'''
+summary = '''Opts in to Microsoft Update: fixes for Office (MSI), .NET and other products arrive together with Windows updates.'''
+effect = '''The toggle in Settings is turned on and locked. Office 365 (Click-to-Run) updates independently through its own mechanism.'''
+versions = '''No changes.'''
+verify = '''(New-Object -ComObject Microsoft.Update.ServiceManager).Services | Where-Object IsDefaultAUService'''
+
+["update.defer-feature"]
+title = '''Defer feature updates'''
+summary = '''Annual version updates arrive with a delay; monthly security updates are not deferred.'''
+effect = '''During the deferral period, Microsoft fixes the bugs of the first weeks and accounting software vendors release compatible versions.'''
+risk = '''Requires working compatibility assessment: the minimal telemetry rule intentionally leaves DiagTrack on manual startup instead of disabling it.'''
+versions = '''Windows 10 1703+ and Windows 11 Pro/Enterprise; Home has no deferral. Range 0-365 days.'''
+verify = '''Get-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate | Select-Object DeferFeatureUpdatesPeriodInDays'''
+rollback = '''Delete DeferFeatureUpdates and DeferFeatureUpdatesPeriodInDays.'''
+params.days = '''Deferral period, days'''
+
+["update.delivery-optimization-lan"]
+title = '''Delivery Optimization: share updates only on the local network'''
+summary = '''PCs on the same network share downloaded update fragments with each other; nothing is uploaded outside the network.'''
+effect = '''In an office with a dozen PCs, an update is downloaded from the internet only once. Port 7680 must be open between PCs (Windows creates the firewall rule itself).'''
+versions = '''Modes 0 (HTTP only), 1 (local network), 3 (internet) and 99 (simple mode) have been the same since Windows 10 1607.'''
+verify = '''Get-DOConfig'''
+params.mode = '''Mode'''
+values.mode."1" = '''Local network only'''
+values.mode."0" = '''HTTP only, no peer sharing'''
+values.mode."99" = '''Simple mode without the cloud'''
+
+["defender.realtime"]
+title = '''Real-time protection enabled and enforced'''
+summary = '''Removes the values that third-party scripts use to disable Defender, and enforces real-time protection, behavior monitoring, and scanning of downloads and scripts.'''
+effect = '''The antivirus cannot be turned off through the registry; the toggles in Windows Security are managed by policy.'''
+versions = '''No changes; Tamper Protection additionally prevents the protection from being weakened.'''
+verify = '''Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled, BehaviorMonitorEnabled'''
+
+["defender.cloud"]
+title = '''Cloud protection: MAPS, sample submission, block level'''
+summary = '''MAPS membership at the "Advanced" level, automatic submission of safe samples, "High" cloud block level, and waiting up to 50 seconds for a verdict.'''
+effect = '''New malicious files without signatures are blocked by cloud reputation within seconds; a suspicious file is held for up to a minute before its first run.'''
+risk = '''The "High" level increases false positives on rare in-house programs; the fix is a file exclusion or level 0. Requires internet access.'''
+versions = '''Windows 10 1607 (block level) and 1703 (timeout); no changes in 24H2.'''
+verify = '''Get-MpPreference | Select-Object MAPSReporting, SubmitSamplesConsent, CloudBlockLevel, CloudExtendedTimeout'''
+rollback = '''Delete the four values; Defender returns to its defaults.'''
+params.block_level = '''Cloud block level'''
+values.block_level."2" = '''High'''
+values.block_level."0" = '''Default'''
+values.block_level."4" = '''High plus (more false positives)'''
+values.block_level."6" = '''Zero tolerance (blocks everything unknown)'''
+params.timeout = '''Extended wait for the cloud verdict, seconds'''
+
+["defender.pua"]
+title = '''Block potentially unwanted apps (PUA)'''
+summary = '''Defender blocks adware, bundling installers, miners and "optimizers" on download and launch.'''
+effect = '''Closes the most common infection channel for non-professional users: "a free program from a website with a Download button".'''
+risk = '''Legitimate utilities flagged as PUA (some remote access tools) require an exclusion.'''
+versions = '''Policy since Windows 10 1607; toggle in Settings since 2004.'''
+verify = '''Get-MpPreference | Select-Object PUAProtection'''
+rollback = '''Delete the PUAProtection value.'''
+
+["defender.network-protection"]
+title = '''Network protection: block connections to dangerous addresses'''
+summary = '''No app, not just Edge, can connect to domains that have a poor reputation according to SmartScreen.'''
+effect = '''Phishing sites and command-and-control servers are blocked with a "Connection blocked" notification.'''
+risk = '''Works only when Defender is the primary antivirus; may conflict with VPN clients that have their own filters (use audit mode in that case).'''
+versions = '''Windows 10 1709+.'''
+verify = '''Get-MpPreference | Select-Object EnableNetworkProtection'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit (log only)'''
+
+["defender.asr"]
+title = '''Attack surface reduction (ASR) rules engine enabled'''
+summary = '''Enables the ASR engine; the rules themselves are listed in a subgroup and configured one by one.'''
+effect = '''Without this rule, no ASR rule takes effect.'''
+versions = '''Available in all editions with Defender (including Home); managed only through policies or PowerShell.'''
+verify = '''Get-MpPreference | Select-Object AttackSurfaceReductionRules_Ids'''
+
+["asr.vulnerable-drivers"]
+title = '''ASR: block abuse of exploited vulnerable signed drivers'''
+summary = '''Prevents drivers from the Microsoft vulnerable driver list from being written to disk (the BYOVD technique used to disable antivirus).'''
+effect = '''Drivers that are already installed are not affected.'''
+risk = '''Low: old RGB lighting and overclocking utilities.'''
+versions = '''Windows 10 1709+.'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+values.mode."6" = '''Warn'''
+
+["asr.wmi-persistence"]
+title = '''ASR: block persistence through WMI event subscriptions'''
+summary = '''Fileless malware cannot establish persistence in the WMI repository.'''
+effect = '''Closes a hidden autostart technique.'''
+risk = '''Low; interferes with the SCCM client, which is not present in a workgroup.'''
+versions = '''Windows 10 1903+.'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+values.mode."6" = '''Warn'''
+
+["asr.adobe-reader-child"]
+title = '''ASR: Adobe Reader cannot create child processes'''
+summary = '''An exploit in a PDF cannot launch anything from Adobe Reader.'''
+effect = '''Opening PDF files works as before.'''
+risk = '''Low.'''
+versions = '''Windows 10 1809+.'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+values.mode."6" = '''Warn'''
+
+["asr.office-child"]
+title = '''ASR: Office apps cannot create child processes'''
+summary = '''A macro in Word or Excel cannot launch cmd, PowerShell or an installer.'''
+effect = '''Applies only if Office is installed in Program Files.'''
+risk = '''Medium: add-ins that launch external programs.'''
+versions = '''Windows 10 1709+.'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+values.mode."6" = '''Warn'''
+
+["asr.email-executable"]
+title = '''ASR: block executable content from email client and webmail'''
+summary = '''.exe, .js and .zip files saved from Outlook and webmail do not run.'''
+effect = '''Stops attachments that act as downloaders.'''
+risk = '''Low.'''
+versions = '''Windows 10 1709+.'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+values.mode."6" = '''Warn'''
+
+["asr.obfuscated-scripts"]
+title = '''ASR: block execution of obfuscated scripts'''
+summary = '''PowerShell, JS and VBS scripts that show signs of obfuscation do not run. Requires cloud protection.'''
+effect = '''Stops downloaders that hide their code from antivirus.'''
+risk = '''Medium: some program installers use obfuscation.'''
+versions = '''Windows 10 1709+.'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+values.mode."6" = '''Warn'''
+
+["asr.script-download"]
+title = '''ASR: JavaScript and VBScript cannot launch downloaded content'''
+summary = '''A downloader script cannot launch a file it has just downloaded.'''
+effect = '''The typical "archive with a script inside" scheme stops working.'''
+risk = '''Low.'''
+versions = '''Windows 10 1709+.'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+values.mode."6" = '''Warn'''
+
+["asr.office-executable"]
+title = '''ASR: Office cannot create executable files'''
+summary = '''Macros cannot write .exe, .dll or .vbs files to disk.'''
+effect = '''Closes persistence through documents.'''
+risk = '''Low.'''
+versions = '''Windows 10 1709+.'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+values.mode."6" = '''Warn'''
+
+["asr.office-injection"]
+title = '''ASR: Office cannot inject code into other processes'''
+summary = '''Word, Excel, PowerPoint and OneNote cannot inject code into other processes.'''
+effect = '''There is no legitimate reason for such injection.'''
+risk = '''Low; incompatible with BeyondTrust Privilege Guard and Heimdal. Warn mode is not supported.'''
+versions = '''Windows 10 1709+.'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+
+["asr.office-comm-child"]
+title = '''ASR: Outlook cannot create child processes'''
+summary = '''Protects against exploits of Outlook rules and forms when credentials have been stolen.'''
+effect = '''Regular Outlook features keep working.'''
+risk = '''Low.'''
+versions = '''Windows 10 1709+.'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+values.mode."6" = '''Warn'''
+
+["asr.usb-untrusted"]
+title = '''ASR: block untrusted and unsigned programs from USB'''
+summary = '''Unsigned .exe, .dll and .scr files do not run directly from USB flash drives and SD cards.'''
+effect = '''Copying files from a USB flash drive is not blocked, only running them.'''
+risk = '''Medium: unsigned portable utilities.'''
+versions = '''Windows 10 1709+.'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+values.mode."6" = '''Warn'''
+
+["asr.office-win32-api"]
+title = '''ASR: block Win32 API calls from Office macros'''
+summary = '''VBA macros cannot call the Win32 API (shellcode that is never written to disk).'''
+effect = '''Regular macros do not need such calls.'''
+risk = '''Low.'''
+versions = '''Windows 10 1709+.'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+values.mode."6" = '''Warn'''
+
+["asr.ransomware"]
+title = '''ASR: use advanced protection against ransomware'''
+summary = '''Files that resemble ransomware according to cloud heuristics and have no positive reputation are blocked. Requires cloud protection.'''
+effect = '''An additional layer on top of signatures and behavior monitoring.'''
+risk = '''Medium: rare in-house programs are blocked until they build a reputation.'''
+versions = '''Windows 10 1803+.'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+values.mode."6" = '''Warn'''
+
+["asr.safe-mode-reboot"]
+title = '''ASR: block programs from restarting the PC in safe mode'''
+summary = '''Malicious code cannot put the PC into safe mode, where the antivirus does not run.'''
+effect = '''Safe mode is still available from the recovery environment.'''
+risk = '''Low.'''
+versions = '''Windows 10 1709+.'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+values.mode."6" = '''Warn'''
+
+["asr.copied-system-tools"]
+title = '''ASR: warn about copied or impersonated system tools'''
+summary = '''Copies of system32 utilities that run from other folders are blocked, with an option to allow them.'''
+effect = '''Warn mode by default because the rule is heuristic.'''
+risk = '''Elevated: legitimate programs that have system utility names and run from non-standard paths.'''
+versions = '''Windows 10 1709+.'''
+params.mode = '''Mode'''
+values.mode."6" = '''Warn'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+
+["asr.prevalence"]
+title = '''ASR: executable files without a reputation (audit)'''
+summary = '''Launches of rare or new .exe files are logged (audit). In block mode, the rule would shut out the organization's internal programs.'''
+effect = '''Event 1122 in the Defender log shows what would have been blocked.'''
+risk = '''High in block mode: in-house programs without a reputation. Enable it in the Strict profile after a month of auditing.'''
+versions = '''Windows 10 1803+.'''
+params.mode = '''Mode'''
+values.mode."2" = '''Audit'''
+values.mode."6" = '''Warn'''
+values.mode."1" = '''Block'''
+
+["asr.psexec-wmi"]
+title = '''ASR: processes created by PsExec and WMI (audit)'''
+summary = '''Remote execution through PsExec and WMI is logged. In block mode, the rule would interfere with remote administration by your own IT specialist.'''
+effect = '''Auditing reveals attempts at lateral movement across the network.'''
+risk = '''High in block mode if administration relies on PsExec/WMI.'''
+versions = '''Windows 10 1803+.'''
+params.mode = '''Mode'''
+values.mode."2" = '''Audit'''
+values.mode."6" = '''Warn'''
+values.mode."1" = '''Block'''
+
+["asr.lsass"]
+title = '''ASR: block credential stealing from LSASS'''
+summary = '''Duplicates the LSA protection rule (RunAsPPL) and produces a lot of noise in the log; off by default.'''
+effect = '''Makes sense only where LSA protection cannot be enabled (unsigned smart card plug-ins).'''
+risk = '''Many events from legitimate programs (the Chrome updater and others). Warn mode is not supported.'''
+versions = '''Windows 10 1803+.'''
+params.mode = '''Mode'''
+values.mode."1" = '''Block'''
+values.mode."2" = '''Audit'''
+
+["defender.controlled-folder-access"]
+title = '''Controlled Folder Access (mode)'''
+summary = '''Sets the protection mode for the Documents, Pictures and Desktop folders. The default is 0 (off), set as a policy so the user cannot turn it on by accident.'''
+effect = '''In block mode, only trusted apps can write to protected folders; ransomware launched by the user cannot damage documents.'''
+risk = '''Mode 1 breaks accounting software (1C, M.E.Doc, client-bank apps), older versions of Office and any in-house programs that write to Documents. Recommended path: a month in audit mode (2), review of events 1123/1124, then block mode.'''
+versions = '''Windows 10 1709+.'''
+verify = '''Get-MpPreference | Select-Object EnableControlledFolderAccess'''
+rollback = '''Value 0.'''
+params.mode = '''Mode'''
+values.mode."0" = '''Off'''
+values.mode."2" = '''Audit'''
+values.mode."1" = '''Block (breaks older programs)'''
+
+["defender.notifications"]
+title = '''Windows Security notifications are shown'''
+summary = '''Security Center notification policies are enforced in the enabled state.'''
+effect = '''The user sees messages about threats and scan results. The original UnattendedWinstall file turned off all notifications.'''
+versions = '''No changes.'''
+
+["defender.smartscreen-shell"]
+title = '''SmartScreen for downloaded programs and files'''
+summary = '''Running a program downloaded from the internet that has no reputation shows a warning (Warn) or is blocked (Block).'''
+effect = '''Works based on the Internet zone mark; files from USB flash drives and the local network are not checked (they are covered by the ASR rule for USB and by cloud protection).'''
+risk = '''Block mode prevents installing any uncommon program, including accounting software from developer websites.'''
+versions = '''ShellSmartScreenLevel policy since Windows 10 1703.'''
+verify = '''Windows Security -> App & browser control -> Check apps and files'''
+rollback = '''Delete ShellSmartScreenLevel; the default Warn remains, but the user will be able to turn it off.'''
+params.level = '''Level'''
+values.level."Warn" = '''Warn'''
+values.level."Block" = '''Block'''
+
+["uac.baseline"]
+title = '''UAC enabled, prompts on the secure desktop, Win+L works'''
+summary = '''Baseline UAC values: enabled, prompts on the secure desktop, standard users enter administrator credentials, installers require elevation, the built-in Administrator runs in Admin Approval Mode, and network logons of local administrators get a filtered token. The ban on locking the screen is removed.'''
+effect = '''The original UnattendedWinstall file blocked Win+L locking and removed UAC prompts; here it is the opposite.'''
+versions = '''The values have been the same since Windows Vista.'''
+verify = '''Get-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'''
+
+["uac.admin-always-notify"]
+title = '''UAC for administrators: always notify'''
+summary = '''The administrator sees a prompt for every elevation, including system components; this closes known UAC bypasses through trusted Windows programs.'''
+effect = '''More "Yes/No" prompts for Admin; protection against automatic elevation by malicious code.'''
+risk = '''With a blank password, a UAC prompt is just a "Yes" button: it protects against programs, not against the person at the keyboard.'''
+versions = '''The values have been the same since Windows Vista.'''
+verify = '''Control Panel -> User Accounts -> Change User Account Control settings'''
+rollback = '''Value 5 (Windows default).'''
+params.level = '''Level'''
+values.level."2" = '''Always notify'''
+values.level."5" = '''Only for third-party programs (Windows default)'''
+
+["accounts.inactivity-lock"]
+title = '''Lock the screen after inactivity'''
+summary = '''After the specified number of seconds without input, the screen locks regardless of screen saver and power settings.'''
+effect = '''The workstation is not left open; with a blank password, unlocking is just pressing Enter, so the rule becomes meaningful once passwords are assigned.'''
+versions = '''Policy since Windows 8; maximum 599940 seconds.'''
+verify = '''Get-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name InactivityTimeoutSecs'''
+rollback = '''Delete the value.'''
+params.seconds = '''Seconds of inactivity before locking'''
+
+["lsa.baseline"]
+title = '''Basic credential protection: no LM hashes, no anonymous access, no WDigest, SEHOP'''
+summary = '''LM hashes are not stored; accounts with blank passwords are limited to console logon; anonymous enumeration of shares and accounts is not allowed; passwords are not kept in memory in plain text (WDigest); Structured Exception Handler Overwrite Protection (SEHOP) is enabled.'''
+effect = '''A stolen hash or memory dump becomes of little use.'''
+risk = '''Very old devices (printers, NAS) that browse shares anonymously may not see them.'''
+versions = '''Most values match the Windows 10/11 defaults and are set explicitly; RestrictAnonymous=1 is stricter than the client Windows default.'''
+verify = '''Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'''
+
+["lsa.protection"]
+title = '''LSA protection (RunAsPPL): LSASS as a protected process'''
+summary = '''LSASS memory is inaccessible to other processes, even with administrator rights; hashes and passwords cannot be extracted.'''
+effect = '''Mimikatz and dumps through Task Manager do not work. Value 2 has no UEFI lock, so it can be rolled back through the registry.'''
+risk = '''Plug-ins loaded into LSA (digital signature token drivers, third-party sign-in providers) must be signed by Microsoft; unsigned ones will not load (events 3033/3063). Test the organization's digital signature keys before a broad rollout.'''
+versions = '''Value 2 is recognized by Windows 11 22H2 and later; Windows 10 treats any non-zero value as 1 (with a UEFI lock).'''
+verify = '''System log, event 12 from WinInit; Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Control\Lsa -Name RunAsPPL'''
+rollback = '''Delete the value or set it to 0, then restart.'''
+params.mode = '''Mode'''
+values.mode."2" = '''Enabled without a UEFI lock (reversible)'''
+values.mode."1" = '''Enabled with a UEFI lock (irreversible without firmware access)'''
+
+["lsa.ntlmv2-only"]
+title = '''NTLMv2 only (refuse LM and NTLMv1)'''
+summary = '''The client and server use only NTLMv2 and refuse LM and NTLMv1.'''
+effect = '''Intercepted hashes cannot be used in old NTLMv1 attacks; modern PCs and NAS devices are not affected.'''
+risk = '''Very old NAS devices, printers with scan to folder, and embedded devices that use NTLMv1 will stop connecting. Relax it together with the SMB rules after an inventory.'''
+versions = '''Without the key, the Windows 10/11 default is 3; in 24H2 Microsoft started phasing out NTLM.'''
+verify = '''Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Control\Lsa -Name LmCompatibilityLevel'''
+rollback = '''Value 3, or delete it.'''
+
+["accounts.lockout"]
+title = '''Lock out accounts after wrong passwords'''
+summary = '''After the specified number of consecutive wrong passwords, the account is locked for the specified time.'''
+effect = '''Password guessing over the network (SMB, RDP) becomes useless. Not relevant while passwords are blank; once passwords are assigned, it is the first line of defense.'''
+versions = '''Windows 11 22H2+ already sets 10/10/10 on a clean install; Windows 10 and upgraded systems use "never".'''
+verify = '''net accounts'''
+rollback = '''net accounts /lockoutthreshold:0'''
+params.threshold = '''Failed attempts before lockout'''
+params.duration = '''Lockout duration, minutes'''
+params.window = '''Lockout counter reset window, minutes'''
+
+["accounts.password-never-expires"]
+title = '''Passwords never expire (initial accounts)'''
+summary = '''The maximum password age is removed for all local accounts (the default is 42 days).'''
+effect = '''Windows will never show "Your password has expired" for the initial accounts with blank passwords. The user management project can restore password expiration when it assigns passwords.'''
+versions = '''No changes.'''
+verify = '''net accounts'''
+rollback = '''net accounts /maxpwage:42'''
+
+["remote.assistance-off"]
+title = '''Remote Assistance turned off'''
+summary = '''Remote Assistance invitations (msra.exe) and full remote control are not allowed.'''
+effect = '''One of the built-in remote control channels is closed; support from your own administrator requires a tool chosen by the organization.'''
+versions = '''No changes.'''
+verify = '''System Properties -> Remote'''
+rollback = '''fAllowToGetHelp = 1'''
+
+["remote.rdp-inbound-off"]
+title = '''Inbound Remote Desktop turned off'''
+summary = '''Inbound RDP connections are not allowed (the Windows default, set explicitly); outbound connections to other PCs work.'''
+effect = '''One of the main attack vectors against small networks is closed.'''
+versions = '''No changes.'''
+verify = '''Settings -> System -> Remote Desktop'''
+rollback = '''fDenyTSConnections = 0 and the "Remote Desktop" firewall rule.'''
+
+["remote.rdp-nla"]
+title = '''Network Level Authentication (NLA) for RDP'''
+summary = '''If RDP is ever enabled, connections will require authentication before the sign-in screen is shown.'''
+effect = '''Protects against attacks on the RDP sign-in screen (BlueKeep and similar).'''
+versions = '''Windows 10/11 default, set explicitly.'''
+
+["remote.registry-off"]
+title = '''Remote Registry service disabled'''
+summary = '''Remote reading and writing of the registry is not possible.'''
+effect = '''On client Windows the service is already disabled; the rule sets this explicitly. Old inventory agents may require it to be enabled.'''
+versions = '''On Windows 7/8 the service was set to manual.'''
+verify = '''Get-Service RemoteRegistry | Select-Object StartType'''
+rollback = '''Set-Service RemoteRegistry -StartupType Manual'''
+
+["encryption.prevent-auto-bitlocker"]
+title = '''Prevent automatic device encryption (BitLocker without a saved key)'''
+summary = '''Windows does not encrypt the system drive automatically. Without a domain or a Microsoft account, there is nowhere to store the recovery key.'''
+effect = '''Disk cloning and restore work; data is not lost if the TPM fails. Protection of laptops against theft is turned on deliberately, with the key saved.'''
+risk = '''Data on a stolen laptop is not protected by encryption until BitLocker is turned on manually.'''
+versions = '''On a clean install, Windows 11 24H2 encrypts the drive on any PC with a TPM; 23H2 and earlier do so only on Modern Standby devices. The registry key has been supported since Windows 8.1.'''
+verify = '''Get-BitLockerVolume C: | Select-Object ProtectionStatus, VolumeStatus'''
+rollback = '''Delete the value, then Settings -> Privacy & security -> Device encryption.'''
+
+["accounts.block-aad-join"]
+title = '''No "Allow my organization to manage my device" prompt'''
+summary = '''When a user signs in to Office or Teams with a work account, Windows does not offer to join the device to Entra ID.'''
+effect = '''A non-professional user cannot put the PC under someone else's cloud management with a single click.'''
+versions = '''No changes.'''
+
+["network.smb1-off"]
+title = '''SMB1 disabled and removed'''
+summary = '''The server does not respond over SMB1, the client driver is disabled, and the SMB1Protocol feature is removed if it is installed.'''
+effect = '''The 1996 protocol through which WannaCry and NotPetya spread is completely absent.'''
+risk = '''SMB1-only devices (multifunction printers with scan to network folder made before 2015, old NAS devices, Windows XP) will not connect. Solution: firmware with SMB2/3, scanning to FTP or e-mail.'''
+versions = '''Windows 11 24H2 does not contain SMB1 at all (a WARN about the driver in the log is expected); on Windows 10 1709+ and Windows 11 up to 23H2 the feature is not installed but available; on Windows 10 before 1709 it is installed.'''
+verify = '''Get-SmbServerConfiguration | Select-Object EnableSMB1Protocol'''
+rollback = '''Not recommended; Enable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol on builds where it exists.'''
+
+["network.smb-signing"]
+title = '''SMB signing required (server and client)'''
+summary = '''Every SMB packet is signed; NTLM relay and tampering with shared folder traffic are impossible.'''
+effect = '''Workgroup PCs configured with this file are compatible with each other; performance on gigabit networks drops by a few percent.'''
+risk = '''Old NAS devices and multifunction printers without SMB2 signing support will not connect. Relax it together with the SMB1 and NTLMv2 rules after an inventory.'''
+versions = '''Windows 11 24H2 and Server 2025 require signing by default on Pro and Enterprise; the rule sets it explicitly, also for Windows 10 and Windows 11 up to 23H2.'''
+verify = '''Get-SmbServerConfiguration | Select-Object RequireSecuritySignature; Get-SmbClientConfiguration | Select-Object RequireSecuritySignature'''
+rollback = '''Set-SmbServerConfiguration -RequireSecuritySignature $false; Set-SmbClientConfiguration -RequireSecuritySignature $false'''
+
+["network.llmnr-off"]
+title = '''LLMNR disabled (protection against name spoofing on the network)'''
+summary = '''LLMNR multicast name queries are disabled; Responder-type tools do not get hashes from these PCs.'''
+effect = '''Workgroup computer names continue to resolve through NetBIOS (left enabled) and mDNS.'''
+versions = '''Policy available since Windows Vista; in 24H2 Microsoft announced LLMNR as deprecated in favor of mDNS.'''
+verify = '''Get-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient' -Name EnableMulticast'''
+rollback = '''Delete the value.'''
+
+["network.netbios-off"]
+title = '''NetBIOS over TCP/IP disabled'''
+summary = '''Closes the second name spoofing channel (NBT-NS) and ports 137-139 on all current interfaces.'''
+effect = '''Without a domain and WINS, a name such as \\PC-BUH resolves only through mDNS (pc-buh.local) or the router's DNS; familiar shortcuts to shared folders may stop working.'''
+risk = '''Interfaces added after installation (a new Wi-Fi adapter, VPN) get the default setting. Enable it only after testing on the specific network.'''
+versions = '''The values have been the same since Windows 2000; in 24H2 NetBIOS is enabled by default.'''
+verify = '''Get-CimInstance Win32_NetworkAdapterConfiguration | Select-Object Description, TcpipNetbiosOptions'''
+rollback = '''NetbiosOptions = 0 for the interfaces, delete NodeType.'''
+
+["network.firewall"]
+title = '''Firewall on for all profiles, inbound blocked, dropped packets logged'''
+summary = '''Policy for the domain, private and public profiles: the firewall is on and cannot be turned off from Control Panel, inbound connections are blocked by default, outbound connections are allowed, dropped packets are written to a 16 MB file.'''
+effect = '''Allow rules (file and printer sharing, Delivery Optimization, mDNS) keep working; during an investigation you can see who tried to connect to which ports.'''
+risk = '''The network profile (private/public) is not set by the file; folder sharing requires the private profile.'''
+versions = '''The policy has been the same since Windows Vista.'''
+verify = '''Get-NetFirewallProfile | Select-Object Name, Enabled, DefaultInboundAction, LogBlocked'''
+rollback = '''Delete the profile keys under HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall.'''
+
+["removable.autorun-off"]
+title = '''AutoRun and AutoPlay disabled for all media'''
+summary = '''AutoRun is disabled for all drive types, autorun.inf files are ignored even on CDs, and AutoPlay is turned off for devices without a drive letter (phones, cameras).'''
+effect = '''Connecting a USB flash drive, disk or phone launches nothing and asks nothing. Running a file manually is covered by the ASR rule for USB.'''
+versions = '''Since Windows 7, autorun.inf on USB drives is always ignored; on CDs it still works, so NoAutorun is needed.'''
+verify = '''Get-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer'''
+rollback = '''Delete the three values.'''
+
+["scripts.open-in-notepad"]
+title = '''Script files (.js .vbs .hta and others) open in Notepad'''
+summary = '''Double-clicking a .js, .jse, .vbs, .vbe, .wsf, .wsh or .hta file shows its text in Notepad instead of running it.'''
+effect = '''The classic "archive with a script inside" phishing (invoice.pdf.js) does not work. cscript, wscript and mshta still work from the command line and from programs.'''
+risk = '''Installers that run .vbs files through the shell (rare) will open Notepad. A file association in the user profile (Open with) overrides this one.'''
+versions = '''The ProgIds have been the same since Windows XP.'''
+verify = '''(Get-ItemProperty 'HKLM:\SOFTWARE\Classes\VBSFile\Shell\Open\Command').'(default)' '''
+rollback = '''Restore the default values, for example for VBS: "%SystemRoot%\System32\WScript.exe" "%1" %*'''
+
+["scripts.remove-vbscript"]
+title = '''Remove the VBScript engine'''
+summary = '''The VBScript interpreter is removed as an optional feature.'''
+effect = '''Neither .vbs files, nor VBScript macros in old programs, nor the MSScriptControl component work.'''
+risk = '''Program installers from the 2000s, some printer drivers and old business applications use VBScript. The Notepad association provides most of the protection without breaking anything.'''
+versions = '''The feature exists only in Windows 11 24H2 and later; on 23H2 and Windows 10 the engine cannot be removed separately (WARN in the log).'''
+verify = '''Get-WindowsCapability -Online -Name 'VBSCRIPT*' '''
+rollback = '''Add-WindowsCapability -Online -Name VBSCRIPT~~~~ (requires an internet connection or a source).'''
+
+["edge.smartscreen-locked"]
+title = '''SmartScreen in Edge on, bypass not allowed'''
+summary = '''Reputation checks for sites and downloads, blocking of potentially unwanted downloads; after a warning the user cannot "continue to the site" or "keep anyway".'''
+effect = '''Edge protects against phishing and malicious downloads, and the warning cannot be bypassed with a single click.'''
+versions = '''Edge 79 and later policies; they are updated with the browser regardless of the Windows version.'''
+verify = '''edge://policy'''
+rollback = '''Delete the values from the Edge policy key.'''
+
+["edge.baseline"]
+title = '''Edge without first-run experience, ads and background processes'''
+summary = '''The first-run experience is hidden; recommendations, reporting for personalization, startup boost and background mode are turned off.'''
+effect = '''Edge remains the emergency browser: without it you cannot download another browser. It shows no ads and uses no memory in the background.'''
+versions = '''Edge 77 and later policies.'''
+
+["logging.eventlog-sizes"]
+title = '''Larger event logs (Security 256 MB, System and Application 64 MB, PowerShell 128 MB)'''
+summary = '''Log sizes are raised from 20 MB (15 MB for PowerShell) so that several weeks of history are not overwritten.'''
+effect = '''Without this rule, auditing and PowerShell logging become useless within a few days.'''
+versions = '''No changes.'''
+verify = '''wevtutil gl Security | findstr maxSize'''
+rollback = '''wevtutil sl Security /ms:20971520'''
+
+["logging.audit-policy"]
+title = '''Auditing: process creation with command line, logons, lockouts, accounts, removable storage'''
+summary = '''Event 4688 includes the full command line; the subcategories for logon, account lockout, user account and group management, credential validation, scheduled tasks and removable storage are enabled. Subcategories are specified by GUID: on the Ukrainian image auditpol does not accept English names.'''
+effect = '''In an incident, the Security log lets you reconstruct the chain: which process, with which arguments, under which user.'''
+risk = '''Removable storage auditing writes many events when large folders are copied to a USB flash drive.'''
+versions = '''The "Removable Storage" subcategory since Windows 8; the command line in 4688 since Windows 8.1; the GUIDs are the same in all versions.'''
+verify = '''auditpol /get /category:*'''
+rollback = '''auditpol /clear'''
+
+["logging.powershell"]
+title = '''PowerShell logging: script blocks and cmdlet invocations'''
+summary = '''The text of every executed script block (event 4104, including deobfuscated code) and the cmdlet invocations of all modules (4103) are written to the PowerShell log.'''
+effect = '''Malicious PowerShell loaders leave their full text in the log even after the file is deleted.'''
+risk = '''Secrets that an administrator passes on the command line end up in the log; only administrators have access to the log.'''
+versions = '''Script Block Logging since Windows 10 / WMF 5.0; also applies to PowerShell 7.'''
+verify = '''Get-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging'''
+rollback = '''Delete the two keys.'''
+
+["logging.powershell-v2-off"]
+title = '''PowerShell 2.0 disabled'''
+summary = '''The old engine, which supports neither logging nor antivirus scanning (AMSI), is disabled as a Windows feature.'''
+effect = '''The powershell -Version 2 command does not work; downgrade attacks are impossible.'''
+versions = '''The feature exists in Windows 10 and Windows 11 up to 23H2; in 24H2 (since August 2025) and 25H2 the engine is removed from the image, and the command logs an INFO message that it is missing.'''
+verify = '''Get-WindowsOptionalFeature -Online -FeatureName MicrosoftWindowsPowerShellV2Root'''
+rollback = '''Enable-WindowsOptionalFeature -Online -FeatureName MicrosoftWindowsPowerShellV2Root'''
+
+["privacy.telemetry-minimal"]
+title = '''Minimal telemetry without disabling compatibility assessment'''
+summary = '''Diagnostic data level "Required" (the minimum for Pro), no feedback requests, no device name in the data, advertising ID off, error reports not sent, activity history not collected, the DiagTrack service set to Manual, the CEIP and Feedback tasks disabled.'''
+effect = '''The minimum data sending available on Pro. DiagTrack is intentionally not disabled: compatibility assessment for feature updates and Defender reporting need it.'''
+risk = '''Crash reports are not sent to Microsoft; local events 1000/1001 in the Application log remain.'''
+versions = '''AllowTelemetry=0 is treated as 1 on Pro; the Consolidator task may be missing on some 24H2 builds (WARN in the log).'''
+verify = '''Get-Service DiagTrack | Select-Object StartType; schtasks /Query /TN "\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip"'''
+rollback = '''Delete the values; Set-Service DiagTrack -StartupType Automatic; schtasks /Change /Enable'''
+
+["privacy.consumer-content"]
+title = '''No ads, preinstalled apps or automatic Teams installation (machine policies)'''
+summary = '''CloudContent policies (some apply only to Enterprise/Education and are kept because they are harmless), the Teams Chat icon hidden, automatic installation of personal Teams disabled.'''
+effect = '''On Pro the main working mechanism is the values in the default user profile (a separate rule in the profile group); this part enforces the same at the machine level.'''
+versions = '''DisableWindowsConsumerFeatures, DisableSoftLanding, DisableThirdPartySuggestions are Enterprise/Education only; DisableCloudOptimizedContent (10 20H2+) and DisableConsumerAccountStateContent (11 22H2+) work on Pro; Windows Chat applies to 11 21H2-22H2.'''
+verify = '''Get-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'''
+rollback = '''Delete the values.'''
+
+["privacy.copilot-recall-off"]
+title = '''Copilot, Recall and Click to Do turned off'''
+summary = '''Copilot and WindowsAI policies: Recall (screen snapshots) is off and cannot be turned on by the user, Click to Do is off; the Recall feature is disabled if present.'''
+effect = '''No AI component takes screen snapshots or sends document contents. The Copilot app is removed by a separate rule in the apps group.'''
+versions = '''TurnOffWindowsCopilot since 23H2 (deprecated in 24H2, the copy in the user profile applies); DisableAIDataAnalysis since 24H2; AllowRecallEnablement and DisableClickToDo since the 2025 updates; the Recall feature only on Copilot+ PCs.'''
+verify = '''Get-WindowsOptionalFeature -Online -FeatureName Recall'''
+rollback = '''Delete the values.'''
+
+["privacy.widgets-off"]
+title = '''Widgets and news feed turned off'''
+summary = '''The Windows 11 widgets board and the Windows 10 "News and interests" feed are disabled by policy.'''
+effect = '''No widgets button and no constantly open MSN web page with ads; the Widgets.exe process does not start.'''
+versions = '''Dsh policy since Windows 11 21H2; Windows Feeds for Windows 10 20H1+.'''
+verify = '''Settings -> Personalization -> Taskbar -> Widgets'''
+rollback = '''Delete the values.'''
+
+["privacy.web-search-off"]
+title = '''No Bing web results in Start menu search'''
+summary = '''Start menu search finds only apps, files and settings; nothing is sent to Bing while typing.'''
+effect = '''Indexing and search in File Explorer and Outlook are not affected (the WSearch service is left untouched).'''
+versions = '''DisableSearchBoxSuggestions since Windows 10 2004; Cortana has been removed from Windows 11 (the policy is harmless).'''
+verify = '''Searching Start for the word "weather" shows no web results.'''
+rollback = '''Delete the values.'''
+
+["system.long-paths"]
+title = '''Long path support (more than 260 characters)'''
+summary = '''Programs with the longPathAware manifest (PowerShell 7, Git, modern archivers) work with paths longer than 260 characters.'''
+effect = '''File Explorer and older programs keep the limit; harmless.'''
+versions = '''Windows 10 1607+.'''
+verify = '''Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem -Name LongPathsEnabled'''
+rollback = '''Value 0.'''
+
+["apps.retail-demo-off"]
+title = '''Retail demo service disabled'''
+summary = '''The RetailDemo service is needed only on store display PCs.'''
+effect = '''One background service fewer.'''
+
+["apps.xbox-services-off"]
+title = '''Xbox services disabled, game recording (Game DVR) off'''
+summary = '''Xbox Live services (authentication, game saves, networking, controllers) are disabled; a policy prohibits game recording and Game Bar.'''
+effect = '''No Xbox background services and no background screen recording that slows down low-end PCs. Store games that use Xbox Live do not work.'''
+versions = '''XboxGipSvc since Windows 10 1709.'''
+verify = '''Get-Service Xbl*, XboxNetApiSvc, XboxGipSvc | Select-Object Name, StartType'''
+rollback = '''Set-Service <name> -StartupType Manual; delete AllowGameDVR.'''
+
+["apps.maps-broker-off"]
+title = '''Offline maps download service disabled'''
+summary = '''MapsBroker serves the Maps app; without the app the service is not needed. In the v0.2 file it was disabled under the Xbox condition; here it is tied to removing Maps.'''
+effect = '''One automatic service fewer.'''
+rollback = '''Set-Service MapsBroker -StartupType Automatic'''
+
+["apps.remove-quick-assist"]
+title = '''Remove Quick Assist'''
+summary = '''The built-in remote control tool that "tech support" scammers ask people to launch over the phone is removed (the Windows 10 feature and the Windows 11 Store version).'''
+effect = '''The organization chooses its own tool for support by its administrator. The user can reinstall Quick Assist from the Store.'''
+versions = '''The App.Support.QuickAssist feature in Windows 10 1809+ and 11 21H2; a Store app since 22H2.'''
+verify = '''Get-WindowsCapability -Online -Name 'App.Support.QuickAssist*' '''
+rollback = '''Store -> Quick Assist, or Add-WindowsCapability -Online -Name App.Support.QuickAssist~~~~0.0.1.0'''
+
+["apps.remove.bing-search"]
+title = '''Bing Search (for the Start menu)'''
+summary = '''Sends Start menu queries to Bing and shows ads.'''
+effect = '''Present in the 24H2 image and later.'''
+
+["apps.remove.bing-news"]
+title = '''News (MSN)'''
+summary = '''MSN news with ads.'''
+effect = '''Present in Windows 10 and 11 up to 23H2.'''
+
+["apps.remove.bing-weather"]
+title = '''Weather (MSN)'''
+summary = '''MSN Weather: ads and location requests.'''
+effect = '''Present in all versions.'''
+
+["apps.remove.get-help"]
+title = '''Get Help (technical support)'''
+summary = '''Chat with Microsoft support; not needed and serves as a channel for "support" scams.'''
+effect = '''Present in all versions.'''
+
+["apps.remove.get-started"]
+title = '''Tips (Get Started)'''
+summary = '''Advertising for Windows features.'''
+effect = '''Present in Windows 10 and 11 up to 22H2.'''
+
+["apps.remove.feedback-hub"]
+title = '''Feedback Hub'''
+summary = '''Sends feedback and diagnostics to Microsoft.'''
+effect = '''Present in all versions.'''
+
+["apps.remove.3d-viewer"]
+title = '''3D Viewer'''
+summary = '''Viewer for 3D models; not needed in an office.'''
+effect = '''Present in Windows 10 and 11 up to 22H2.'''
+
+["apps.remove.mixed-reality"]
+title = '''Mixed Reality Portal'''
+summary = '''Outdated portal for VR headsets.'''
+effect = '''Present in Windows 10 and 11 up to 23H2.'''
+
+["apps.remove.solitaire"]
+title = '''Microsoft Solitaire Collection'''
+summary = '''Card games with ads.'''
+effect = '''Present in all versions.'''
+
+["apps.remove.xbox-gaming-app"]
+title = '''Xbox app'''
+summary = '''Game store and Xbox Live.'''
+effect = '''Present in all versions.'''
+
+["apps.remove.xbox-app"]
+title = '''Xbox (old Windows 10 app)'''
+summary = '''The old Xbox app.'''
+effect = '''Present in Windows 10.'''
+
+["apps.remove.xbox-game-overlay"]
+title = '''Game Bar (overlay)'''
+summary = '''Game Bar overlay: background screen recording.'''
+effect = '''Present in all versions.'''
+
+["apps.remove.xbox-gaming-overlay"]
+title = '''Game Bar (Xbox Gaming Overlay)'''
+summary = '''The second part of Game Bar.'''
+effect = '''Present in all versions.'''
+
+["apps.remove.xbox-identity"]
+title = '''Xbox Identity Provider'''
+summary = '''Sign-in to Xbox Live.'''
+effect = '''Present in all versions.'''
+
+["apps.remove.xbox-speech-to-text"]
+title = '''Game Bar captions (Speech to Text)'''
+summary = '''Captions for game chat.'''
+effect = '''Present in all versions.'''
+
+["apps.remove.xbox-tcui"]
+title = '''Xbox Live interface (TCUI)'''
+summary = '''Internal Xbox Live interface component.'''
+effect = '''Present in all versions.'''
+
+["apps.remove.edge-game-assist"]
+title = '''Game Assist (Edge in-game overlay)'''
+summary = '''The browser's in-game overlay.'''
+effect = '''Present in 24H2 and later (2025).'''
+
+["apps.remove.maps"]
+title = '''Maps'''
+summary = '''Offline maps and the MapsBroker service.'''
+effect = '''Present in all versions.'''
+
+["apps.remove.people"]
+title = '''People (contacts)'''
+summary = '''Outdated contacts app with cloud sync.'''
+effect = '''Present in Windows 10 and 11 up to 23H2.'''
+
+["apps.remove.phone-link"]
+title = '''Phone Link'''
+summary = '''Access to the phone's SMS messages and files through the Microsoft cloud.'''
+effect = '''Present in all versions.'''
+
+["apps.remove.power-automate"]
+title = '''Power Automate'''
+summary = '''Desktop automation tool; potential for abuse.'''
+effect = '''Present in Windows 10 21H2+ and 11.'''
+
+["apps.remove.todo"]
+title = '''Microsoft To Do'''
+summary = '''Requires a Microsoft account.'''
+effect = '''Present in all versions.'''
+
+["apps.remove.family"]
+title = '''Family Safety'''
+summary = '''Requires a Microsoft account.'''
+effect = '''Present in Windows 11 22H2+.'''
+
+["apps.remove.dev-home"]
+title = '''Dev Home'''
+summary = '''Developer tool, retired in 2025.'''
+effect = '''Present in Windows 11 23H2-24H2.'''
+
+["apps.remove.clipchamp"]
+title = '''Clipchamp (video editor)'''
+summary = '''Cloud service with subscription ads.'''
+effect = '''Present in Windows 11 22H2+.'''
+
+["apps.remove.teams"]
+title = '''Teams (personal)'''
+summary = '''Not the work version; Teams for work is installed separately.'''
+effect = '''Present in Windows 11 23H2+.'''
+
+["apps.remove.skype"]
+title = '''Skype'''
+summary = '''The service was shut down in 2025.'''
+effect = '''Present in Windows 10 and 11 up to 23H2.'''
+
+["apps.remove.office-hub"]
+title = '''Office (Microsoft 365 launcher)'''
+summary = '''Advertising for a Microsoft 365 subscription.'''
+effect = '''Present in all versions.'''
+
+["apps.remove.outlook-new"]
+title = '''New Outlook'''
+summary = '''Mail through the Microsoft cloud; syncs IMAP passwords to the cloud.'''
+effect = '''Present in Windows 11 23H2+. Clear the check box if employees use the new Outlook.'''
+
+["apps.remove.mail-calendar"]
+title = '''Mail and Calendar'''
+summary = '''Replaced by the new Outlook and no longer updated.'''
+effect = '''Present in Windows 10 and 11 up to 24H2.'''
+
+["apps.remove.copilot"]
+title = '''Copilot (app)'''
+summary = '''AI assistant that sends data.'''
+effect = '''Present in Windows 11 24H2+.'''
+
+["apps.remove.copilot-provider"]
+title = '''Copilot provider'''
+summary = '''Internal Copilot component.'''
+effect = '''Present in Windows 11 23H2.'''
+
+["apps.remove.cortana"]
+title = '''Cortana'''
+summary = '''Removed by Microsoft in 2023; present on old images.'''
+effect = '''Present in Windows 10 and 11 up to 22H2.'''
+
+["default-user.show-file-extensions"]
+title = '''Show file name extensions'''
+summary = '''File name extensions are visible: "invoice.pdf.exe" cannot pass itself off as a PDF.'''
+effect = '''The most important security setting in this section; by default Windows hides extensions.'''
+versions = '''All versions.'''
+verify = '''Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name HideFileExt'''
+rollback = '''File Explorer Options -> View.'''
+
+["default-user.no-sync-provider-ads"]
+title = '''No OneDrive and Microsoft 365 ads in File Explorer'''
+summary = '''Sync provider notifications in File Explorer are turned off.'''
+effect = '''File Explorer does not show OneDrive and subscription banners.'''
+versions = '''Windows 10 1607+.'''
+
+["default-user.no-consumer-content"]
+title = '''No preinstalled apps, ads, tips or "Let's finish setting up" screen'''
+summary = '''17 ContentDeliveryManager values (the Store does not install apps silently, no tips or "fun facts"), no "Let's finish setting up your device" screen, no recommendations or Microsoft account reminders in Start, advertising ID and tailored experiences turned off.'''
+effect = '''These values do on Pro what the DisableWindowsConsumerFeatures policy does on Enterprise.'''
+versions = '''Start_IrisRecommendations since Windows 11 22H2; Start_AccountNotifications since 23H2; the rest since Windows 10.'''
+rollback = '''Settings -> Personalization and Privacy, or the same values in the Default hive.'''
+
+["default-user.widgets-button-off"]
+title = '''Widgets button hidden'''
+summary = '''The widgets button on the taskbar is hidden for every new user (duplicates the Dsh policy).'''
+effect = '''A taskbar without the weather and news button.'''
+versions = '''Windows 11.'''
+
+["default-user.copilot-off"]
+title = '''Copilot turned off in the user profile'''
+summary = '''The Copilot button is hidden; the TurnOffWindowsCopilot user policy is written to the profile (the only level where it applies).'''
+effect = '''Copilot Preview (23H2) does not appear; in 24H2 the app is removed by a separate rule.'''
+versions = '''ShowCopilotButton and the policy since Windows 11 23H2.'''
+
+["default-user.autoplay-off"]
+title = '''No AutoPlay dialog for media'''
+summary = '''The "What do you want to do with this media?" dialog is turned off for every new user.'''
+effect = '''Complements the machine-level AutoRun policy.'''
+versions = '''All versions.'''
+
+["default-user.region"]
+title = '''User region'''
+summary = '''Country (GeoID) for new users: affects the Store, weather and content offers; does not change the display language or the time zone.'''
+effect = '''Default is Ukraine (241, UA).'''
+versions = '''Windows 10 1803+ reads the Name value first.'''
+params.geo_id = '''Country GeoID'''
+params.geo_name = '''Two-letter country code'''
+
+["default-user.http-accept-language-optout"]
+title = '''Do not share the user's language list with websites'''
+summary = '''Browsers do not send the list of preferred languages to websites (reduces the fingerprint).'''
+effect = '''Websites determine the language by other means.'''
+versions = '''Windows 10+.'''
+
+["user-logon.pin-ui-language"]
+title = '''Pin the display language to the image language'''
+summary = '''Set-WinUILanguageOverride locks the display language to the installed one so that reordering input languages (English first) does not switch the interface.'''
+effect = '''The customer's requirement "do not change the display language" relies on this line.'''
+versions = '''Cmdlet available since Windows 8.'''
+verify = '''Under the user account: Get-WinUILanguageOverride returns the image language (for example uk-UA); the display language has not changed after the first sign-in.'''
+rollback = '''Set-WinUILanguageOverride without a parameter removes the override.'''
+
+["user-logon.input-languages"]
+title = '''User input language list from the profile (including "Russian (Ukraine)")'''
+summary = '''Replaces the user's input language list with the list from the "Languages and region" node (by default en-US, uk-UA, ru-UA). Languages without a numeric code, such as "Russian (Ukraine)", cannot be set in XML, so they are applied here; if Windows has not assigned them a keyboard layout, a fallback list is applied in which they are replaced with the base language.'''
+effect = '''The user's language switcher shows the same order as the profile; the sign-in screen keeps the list from XML (with the base language instead of "Russian (Ukraine)").'''
+versions = '''ru-UA as an input language is supported by Windows 10 1803+ and 11; on build 26200 it gets the temporary code 2000:00000419. Windows may shorten tags (uk-UA is displayed as uk).'''
+verify = '''Get-WinUserLanguageList | Select-Object LanguageTag, InputMethodTips'''
+rollback = '''Settings -> Language & region, or Set-WinUserLanguageList.'''
+
+["post-oobe.password-never-expires"]
+title = '''"Password never expires" flag on the initial accounts'''
+summary = '''PasswordNeverExpires is set for every account in the profile. Duplicates the machine-wide net accounts setting in case it is changed.'''
+effect = '''The initial accounts without a password will not be required to change the password.'''
+versions = '''Set-LocalUser since Windows 10 1607.'''
+verify = '''Get-LocalUser -Name Admin, User | Select-Object Name, PasswordExpires: the PasswordExpires field is empty.'''
+rollback = '''Set-LocalUser -Name <name> -PasswordNeverExpires $false as administrator; do this together with assigning passwords.'''
+
+["post-oobe.disable-builtin-accounts"]
+title = '''Built-in Administrator and Guest stay disabled'''
+summary = '''The accounts with RID 500 and 501 are found by SID (the names are localized on the Ukrainian image) and disabled if they are enabled.'''
+effect = '''The well-known names cannot be used to sign in.'''
+versions = '''Get-LocalUser since Windows 10 1607.'''
+verify = '''Get-LocalUser | Where-Object { $_.SID.Value -match '-50[01]$' } | Select-Object Name, Enabled: both accounts have Enabled = False.'''
+rollback = '''Enable-LocalUser -SID <SID> as administrator. Enabling the built-in Administrator is not recommended: its name is known to everyone.'''
+
+["post-oobe.collect-specialize-errors"]
+title = '''Move specialize pass errors to the log'''
+summary = '''If the specialize command wrappers recorded an error (the script was not extracted or failed), its text goes to Post-OOBE.log marked SPECIALIZE ERROR.'''
+effect = '''The only way to find out that the machine script did not run.'''
+verify = '''C:\ProgramData\Unattend\Logs\Post-OOBE.log: no SPECIALIZE ERROR lines; no C:\Windows\Temp\ua.err file.'''
+rollback = '''Not required: the rule only moves the error text to the log and deletes the temporary file.'''
+
+["post-oobe.delete-answer-file-copies"]
+title = '''Delete answer file copies from the system'''
+summary = '''Windows 11 24H2 leaves copies of the answer file (with account names and passwords, if there were any) in C:\Windows\Panther; they are deleted.'''
+effect = '''No description of the accounts remains on the disk.'''
+versions = '''Windows 10 kept one copy, 24H2 keeps two.'''
+verify = '''Test-Path C:\Windows\Panther\unattend.xml and Test-Path C:\Windows\Panther\unattend-original.xml return False.'''
+rollback = '''Cannot be rolled back and is not needed: the running system does not need the copies, and the original file remains on the installation media.'''
+
+[_groups."install"]
+title = '''Installation (windowsPE and specialize)'''
+summary = '''Bypassing compatibility checks, a local account without a network connection, .NET Framework 3.5 from the media.'''
+
+[_groups."oobe"]
+title = '''Out-of-box experience (OOBE)'''
+summary = '''Which OOBE screens are hidden and how the privacy settings are set.'''
+
+[_groups."printing"]
+title = '''Printing'''
+summary = '''Print Spooler and protection of printer driver installation.'''
+
+[_groups."update"]
+title = '''Windows Update'''
+summary = '''Automatic updates, other Microsoft products, feature update deferral, Delivery Optimization.'''
+
+[_groups."defender"]
+title = '''Microsoft Defender and SmartScreen'''
+summary = '''Real-time protection, cloud-delivered protection, PUA, network protection, ASR rules, SmartScreen.'''
+
+[_groups."defender.asr"]
+title = '''Attack surface reduction (ASR) rules'''
+summary = '''Each rule blocks one attack technique through Office, email, scripts, USB or drivers. Mode: block, audit, warn.'''
+
+[_groups."security"]
+title = '''Security'''
+summary = '''UAC, accounts, credential protection, remote access, encryption.'''
+
+[_groups."security.uac"]
+title = '''User Account Control (UAC)'''
+
+[_groups."security.accounts"]
+title = '''Accounts and sign-in'''
+
+[_groups."security.lsa"]
+title = '''Credential protection (LSA, NTLM)'''
+
+[_groups."security.remote"]
+title = '''Remote access'''
+
+[_groups."security.encryption"]
+title = '''Drive encryption'''
+
+[_groups."network"]
+title = '''Network and sharing'''
+summary = '''SMB, signing, name resolution, firewall.'''
+
+[_groups."removable"]
+title = '''Removable media, scripts, browser'''
+summary = '''AutoRun, script files, VBScript, Microsoft Edge policies.'''
+
+[_groups."removable.scripts"]
+title = '''Script files'''
+
+[_groups."removable.edge"]
+title = '''Microsoft Edge'''
+
+[_groups."logging"]
+title = '''Logging for investigations'''
+summary = '''Auditing, log sizes, PowerShell logging, disabling PowerShell 2.0.'''
+
+[_groups."privacy"]
+title = '''Telemetry, ads, AI'''
+summary = '''Minimal data sending, disabling ads and preinstalled apps, Copilot and Recall, widgets, web search.'''
+
+[_groups."system"]
+title = '''System'''
+summary = '''Other system settings.'''
+
+[_groups."apps"]
+title = '''Services and apps'''
+summary = '''Disabling unnecessary services and removing apps.'''
+
+[_groups."apps.remove"]
+title = '''Apps to remove'''
+summary = '''Each app is a separate rule: clear the check box to keep the app.'''
+
+[_groups."default-user"]
+title = '''Default user profile'''
+summary = '''Values that every new user gets at first sign-in (can be changed in Settings).'''
+
+[_groups."user-logon"]
+title = '''First sign-in of each user'''
+summary = '''Active Setup script: display language and input language list.'''
+
+[_groups."post-oobe"]
+title = '''After OOBE'''
+summary = '''Scheduled task after OOBE completes: passwords, built-in accounts, cleanup.'''

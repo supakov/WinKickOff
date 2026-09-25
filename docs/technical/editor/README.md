@@ -1,23 +1,23 @@
-# WinKickOff: редактор конфигурации установки. Документы проекта
+# WinKickOff: installation configuration editor. Project documents
 
-Статус: постановка и план в редакции 0.2 (25.09.2026). Код каркаса и каталог правил: `../../WinKickOff/`.
+Status: specification and plan at revision 0.2 (25.09.2026). Code and rule catalog: `../../../WinKickOff/`.
 
-Что это: настольная программа для Windows, которая показывает все правила настройки установки
-Windows 11 Pro одним деревом с флажками и поиском, позволяет выключить любое правило с автоматическим
-выключением зависимых, хранит выбор в профиле JSON и собирает `autounattend.xml` только из выбранного.
+What it is: a Windows desktop program that shows all Windows 11 Pro installation configuration rules
+in a single tree with check boxes and search, lets you disable any rule with automatic
+disabling of dependent rules, stores the selection in a JSON profile and builds `autounattend.xml` only from what is selected.
 
-| Документ | Содержание |
+| Document | Contents |
 |---|---|
-| [01-problem-statement.md](01-problem-statement.md) | Постановка: цель, сценарии, требования к каталогу, зависимостям, генерации, интерфейсу; критерии приёмки; риски |
-| [02-architecture.md](02-architecture.md) | Архитектура: структура `WinKickOff/`, модель в памяти, потоки данных, генератор по фазам, резолвер, интерфейс, сборка |
-| [03-data-model.md](03-data-model.md) | Формат правил TOML, групп, переводов; профиль JSON; справочники; встроенный профиль в XML |
-| [04-testing.md](04-testing.md) | `unittest`, семантический golden против v0.2, тесты по модулям, чек-листы |
-| [05-plan.md](05-plan.md) | Этапы, зависимости, оценка, вехи |
-| [06-critical-review-v0.1.md](06-critical-review-v0.1.md) | Почему редакция 0.1 не отвечала требованиям и что изменено |
-| [todo/](todo/README.md) | Задачи T01-T17 со статусами |
+| [01-problem-statement.md](01-problem-statement.md) | Specification: goal, scenarios, requirements for the catalog, dependencies, generation, interface; acceptance criteria; risks |
+| [02-architecture.md](02-architecture.md) | Architecture: `WinKickOff/` structure, in-memory model, data flows, per-phase generator, resolver, interface, build |
+| [03-data-model.md](03-data-model.md) | Format of TOML rules, groups, translations; JSON profile; reference data; embedded profile in XML |
+| [04-testing.md](04-testing.md) | `unittest`, semantic golden against v0.2, per-module tests, checklists |
+| [05-plan.md](05-plan.md) | Stages, dependencies, estimate, milestones |
+| [06-critical-review-v0.1.md](06-critical-review-v0.1.md) | Why revision 0.1 did not meet the requirements and what was changed |
+| [todo/](todo/README.md) | Tasks T01-T17 with statuses |
 
-Технологии, зафиксированные заказчиком: Python 3.14, tkinter из стандартной библиотеки, только
-Windows, портабельное приложение без установки и без привязки к путям системы.
+Technologies fixed by the customer: Python 3.14, tkinter from the standard library, Windows
+only, a portable application without installation and without ties to system paths.
 
-Связанные документы: справочник параметров `../../docs/technical/reference/` (источник описаний правил и
-ссылок «Подробнее»), первый черновик `../../docs/appendices/D-requirements-draft/02-constructor-requirements-draft.md` (исторический).
+Related documents: parameter reference `../reference/` (source of rule descriptions and
+of «Подробнее» (More details) links), first draft `../../appendices/D-requirements-draft/02-constructor-requirements-draft.md` (historical).

@@ -1,31 +1,31 @@
-# T04. Профиль JSON, пресеты, миграция, сравнение
+# T04. JSON profile, presets, migration, comparison
 
-Статус: done (25.09.2026: модель, загрузка, сохранение, сравнение; пресеты «Офис» и «Строгий» создаёт
-`tools/make_presets.py`, `test_presets.py` сверяет их с каталогом. Миграция формата 1 не нужна: профилей
-формата 1 не существует). Этап 2. Зависимости: T02.
+Status: done (25.09.2026: model, loading, saving, comparison; the «Офис» (Office) and «Строгий» (Strict) presets are created by
+`tools/make_presets.py`, and `test_presets.py` verifies them against the catalog. Migration of format 1 is not needed: no format 1
+profiles exist). Stage 2. Dependencies: T02.
 
-## Цель
+## Goal
 
-Реализовать `core/profile.py` по `03-data-model.md`, раздел 4, и пресеты как файлы.
+Implement `core/profile.py` per `03-data-model.md`, section 4, and presets as files.
 
-## Шаги
+## Steps
 
-1. `Profile` с разделами `meta`, `install`, `languages`, `accounts`, `rules`, `unknown`.
-2. `Profile.from_catalog(catalog)`: все правила с `default`, параметры с умолчаниями.
-3. `Profile.load(path, catalog) -> (Profile, warnings)`: дополнение новыми правилами, `unknown`,
-   миграция формата 1 → 2 по таблице `config → rules`.
-4. `Profile.save(path)`: порядок ключей, отступ 2, `ensure_ascii=False`.
+1. `Profile` with the sections `meta`, `install`, `languages`, `accounts`, `rules`, `unknown`.
+2. `Profile.from_catalog(catalog)`: all rules with `default`, parameters with their defaults.
+3. `Profile.load(path, catalog) -> (Profile, warnings)`: adding new rules, `unknown`,
+   migration of format 1 → 2 using the `config → rules` table.
+4. `Profile.save(path)`: key order, indent 2, `ensure_ascii=False`.
 5. `Profile.diff(other) -> list[Difference]`.
-6. `profiles/preset-office.json` (= каталог по умолчанию) и `preset-strict.json` (контролируемый
-   доступ к папкам, SmartScreen Block, ASR prevalence в блокировку, NetBIOS выключен, VBScript удалён).
+6. `profiles/preset-office.json` (= catalog defaults) and `preset-strict.json` (controlled
+   folder access, SmartScreen Block, ASR prevalence set to block, NetBIOS disabled, VBScript removed).
 7. `tests/test_profile.py`.
 
-## Критерии приёмки
+## Acceptance criteria
 
-- Цикл сохранения и загрузки даёт равный объект; пресет «Офис» равен `from_catalog`.
-- Неизвестное правило переживает цикл; новое правило каталога добавляется с предупреждением.
+- A save and load cycle yields an equal object; the «Офис» preset equals `from_catalog`.
+- An unknown rule survives the cycle; a new catalog rule is added with a warning.
 
-## Заметки исполнителя
+## Implementer notes
 
-25.09.2026: `Profile`, `from_catalog`, `load`, `save`, `diff` и тесты созданы; пресеты пока не
-записаны в файлы (генерируются из каталога при первом запуске, задача сохранить их в `profiles/`).
+25.09.2026: `Profile`, `from_catalog`, `load`, `save`, `diff` and tests are created; the presets are not yet
+written to files (they are generated from the catalog on first run; the task is to save them in `profiles/`).

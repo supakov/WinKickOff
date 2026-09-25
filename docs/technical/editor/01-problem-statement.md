@@ -1,182 +1,182 @@
-# 01. Постановка задачи: WinKickOff, редактор конфигурации установки Windows
+# 01. Specification: WinKickOff, a Windows installation configuration editor
 
-Редакция 0.2 от 25.09.2026 (заменяет 0.1; изменения обоснованы в `06-critical-review-v0.1.md`).
-Основа: файл ответов v0.2 и справочник `docs/technical/reference/`.
+Revision 0.2 of 25.09.2026 (replaces 0.1; the changes are justified in `06-critical-review-v0.1.md`).
+Basis: answer file v0.2 and the reference `docs/technical/reference/`.
 
-## 1. Цель
+## 1. Goal
 
-Дать администратору малой организации инструмент, который:
+Give the administrator of a small organization a tool that:
 
-1. показывает все правила настройки Windows 11 Pro одним деревом с флажками, поиском и описанием
-   каждого правила, включая технические детали (ключи реестра, значения, команды);
-2. позволяет выключить любое правило; зависящие от него правила выключаются автоматически, и это видно;
-3. хранит выбранный набор как профиль JSON;
-4. собирает из профиля `autounattend.xml`, в который попадает только выбранное;
-5. проверяет результат по правилам, нарушение которых останавливает Windows Setup, до записи на носитель;
-6. работает с флешки на любом ПК с Windows без установки и без прав администратора.
+1. shows all Windows 11 Pro configuration rules in a single tree with check boxes, search and a description
+   of each rule, including technical details (registry keys, values, commands);
+2. lets you disable any rule; the rules that depend on it are disabled automatically, and this is visible;
+3. stores the selected set as a JSON profile;
+4. builds from the profile an `autounattend.xml` that contains only what is selected;
+5. checks the result, before it is written to media, against the rules whose violation stops Windows Setup;
+6. runs from a flash drive on any Windows PC without installation and without administrator rights.
 
-Итог: изменение политики организации это правка профиля в дереве, а не правка PowerShell-кода;
-файл v0.2 становится одним из профилей («Офис»), а не единственным шаблоном.
+Outcome: changing the organization's policy means editing a profile in the tree, not editing PowerShell code;
+the v0.2 file becomes one of the profiles («Офис» (Office)) rather than the only template.
 
-## 2. Пользователи и сценарии
+## 2. Users and scenarios
 
-| Роль | Кто это | Сценарий |
+| Role | Who | Scenario |
 |---|---|---|
-| Администратор организации | Сотрудник с базовыми навыками Windows, без PowerShell | Открывает профиль «Офис», выключает «Подпись SMB обязательна» из-за старого МФУ, видит, что ничего зависимого не выключилось, собирает XML, копирует на флешку |
-| Технический специалист | Обслуживает несколько организаций | Ведёт профили по площадкам, ищет по слову «NetBIOS», сравнивает профили, обновляет каталог правил при выходе новой версии |
-| Автор каталога (этот проект) | Поддерживает правила и рантайм | Добавляет правило в TOML-файл, тесты подтверждают целостность каталога и покрытие v0.2 |
+| Organization administrator | An employee with basic Windows skills, no PowerShell | Opens the «Офис» profile, disables «Подпись SMB обязательна» (SMB signing required) because of an old multifunction printer, sees that nothing dependent was disabled, builds the XML, copies it to a flash drive |
+| Technical specialist | Serves several organizations | Maintains profiles per site, searches for the word "NetBIOS", compares profiles, updates the rule catalog when a new version is released |
+| Catalog author (this project) | Maintains the rules and the runtime | Adds a rule to a TOML file; tests confirm catalog integrity and v0.2 coverage |
 
-Сценарии:
+Scenarios:
 
-1. Новый профиль из пресета «Офис» (равен v0.2) или «Строгий».
-2. Найти правило по любому слову (название, тег, ключ реестра), выключить одним щелчком, увидеть
-   в строке состояния, что выключилось вслед за ним.
-3. Изменить параметр правила (например, минуты до блокировки) в панели описания.
-4. Отредактировать учётные записи, языки ввода, часовой пояс, редакцию и ключ: те же узлы дерева.
-5. Проверить профиль: список проблем внизу, двойной щелчок ведёт к правилу.
-6. Собрать XML в `output/` или на флешку; открыть папку.
-7. Импортировать профиль из ранее собранного XML (профиль встроен в файл) или из файла v0.2.
-8. Сравнить два профиля: список отличий по правилам и параметрам.
+1. New profile from the «Офис» preset (equal to v0.2) or from «Строгий» (Strict).
+2. Find a rule by any word (title, tag, registry key), disable it with one click, see
+   in the status bar what was disabled along with it.
+3. Change a rule parameter (for example, minutes until lock) in the description panel.
+4. Edit accounts, input languages, time zone, edition and key: nodes of the same tree.
+5. Check the profile: a list of problems at the bottom, a double click leads to the rule.
+6. Build the XML into `output/` or onto a flash drive; open the folder.
+7. Import a profile from a previously built XML (the profile is embedded in the file) or from the v0.2 file.
+8. Compare two profiles: a list of differences in rules and parameters.
 
-## 3. Функциональные требования
+## 3. Functional requirements
 
-### 3.1 Каталог правил
+### 3.1 Rule catalog
 
-- Правило это единица включения. Каждое действие файла v0.2 принадлежит ровно одному правилу.
-  Правила описаны во внешних файлах `rules/*.toml`; код правил не содержит.
-- У правила: идентификатор, группа в дереве, фаза применения, название, уровень (базовый,
-  рекомендуемый, необязательный, рискованный), состояние по умолчанию, зависимости `requires`,
-  конфликты `conflicts`, теги, параметры с типами и диапазонами, список действий, описание
-  (резюме, эффект, риск, версии Windows, проверка, откат, ссылка на справочник).
-- Типы действий: значение реестра (установить, удалить), тип запуска службы, запуск утилиты,
-  компонент Windows (включить, выключить), capability (удалить), приложения Appx (удалить),
-  фрагмент PowerShell для сложных случаев, команда XML в windowsPE или specialize, элемент OOBE.
-- Фазы: windowspe, specialize-xml, specialize, default-user, user-first-logon, post-oobe, oobe-xml.
-- Каталог целостен: идентификаторы уникальны, `requires` и `conflicts` указывают на существующие
-  правила, циклов нет, группы существуют, у каждого действия допустимый тип и обязательные поля,
-  у каждого правила есть резюме, эффект и ссылка на справочник. Это проверяет тест и команда «Проверить каталог».
-- Покрытие: при пресете «Офис» множество действий каталога включает каждое действие файла v0.2
-  с теми же значениями (семантический golden).
+- A rule is the unit of inclusion. Each action of the v0.2 file belongs to exactly one rule.
+  Rules are described in external files `rules/*.toml`; the code contains no rules.
+- A rule has: an identifier, a group in the tree, an application phase, a title, a level (baseline,
+  recommended, optional, risky), a default state, dependencies `requires`,
+  conflicts `conflicts`, tags, parameters with types and ranges, a list of actions, a description
+  (summary, effect, risk, Windows versions, verification, rollback, link to the reference).
+- Action types: registry value (set, remove), service startup type, running a utility,
+  Windows feature (enable, disable), capability (remove), Appx apps (remove),
+  a PowerShell fragment for complex cases, an XML command in windowsPE or specialize, an OOBE element.
+- Phases: windowspe, specialize-xml, specialize, default-user, user-first-logon, post-oobe, oobe-xml.
+- The catalog is consistent: identifiers are unique, `requires` and `conflicts` point to existing
+  rules, there are no cycles, groups exist, each action has a valid type and the required fields,
+  each rule has a summary, an effect and a reference link. This is verified by a test and by the «Проверить каталог» (Check catalog) command.
+- Coverage: with the «Офис» preset, the set of catalog actions includes every action of the v0.2 file
+  with the same values (semantic golden).
 
-### 3.2 Зависимости
+### 3.2 Dependencies
 
-- Выключение правила выключает транзитивно все правила, у которых оно в `requires`.
-- Включение правила включает транзитивно все его `requires` и выключает `conflicts`.
-- Групповая операция (флажок группы) применяет то же к каждому правилу группы.
-- Каждая операция возвращает список изменённых правил с причиной; интерфейс показывает его сразу.
-- Инфраструктура фаз (регистрация Active Setup, задача Post-OOBE, монтирование куста профиля
-  по умолчанию, извлечение скриптов) включается генератором автоматически по наличию правил фазы
-  и не является правилом.
+- Disabling a rule transitively disables all rules that have it in `requires`.
+- Enabling a rule transitively enables all its `requires` and disables its `conflicts`.
+- A group operation (group check box) applies the same to each rule of the group.
+- Each operation returns a list of changed rules with the reason; the interface shows it immediately.
+- Phase infrastructure (Active Setup registration, the Post-OOBE task, mounting the default user profile
+  hive, extracting the scripts) is included by the generator automatically when the phase has rules
+  and is not a rule.
 
-### 3.3 Профиль JSON
+### 3.3 JSON profile
 
-- Один файл на профиль, UTF-8, отступ 2, кириллица без экранирования, ключи в стабильном порядке.
-- Содержит: версию формата, версию каталога, имя, автора, даты, комментарий; данные установки
-  (редакция, режим ключа, ключ, часовой пояс); языки (интерфейс, форматы, регион, список ввода);
-  учётные записи; состояние каждого правила (включено или нет) и значения параметров.
-- Загрузка профиля старой версии каталога: новые правила получают состояние по умолчанию,
-  отсутствующие в каталоге правила сохраняются в разделе `unknown` с предупреждением.
-- Пресеты это файлы `profiles/preset-*.json`, а не код.
+- One file per profile, UTF-8, indent 2, Cyrillic without escaping, keys in a stable order.
+- Contains: format version, catalog version, name, author, dates, comment; installation data
+  (edition, key mode, key, time zone); languages (display language, formats, region, input list);
+  accounts; the state of each rule (enabled or not) and parameter values.
+- Loading a profile from an older catalog version: new rules get their default state,
+  rules missing from the catalog are kept in the `unknown` section with a warning.
+- Presets are files `profiles/preset-*.json`, not code.
 
-### 3.4 Генерация
+### 3.4 Generation
 
-- Рантайм (функции, обработка ошибок, монтирование куста, ожидание OOBE) хранится в
-  `templates/` и не меняется профилем.
-- Скрипты и XML собираются только из включённых правил в порядке: фаза, файл каталога, правило,
-  с топологической поправкой по `requires`. Каждый блок помечен идентификатором правила.
-- Профиль встраивается в XML (секция `Extensions/Profile`, JSON) для последующего импорта.
-- Генерация детерминирована: одинаковый профиль даёт одинаковые байты.
-- Результат в UTF-8 без BOM, CRLF.
+- The runtime (functions, error handling, hive mounting, waiting for OOBE) is stored in
+  `templates/` and is not changed by the profile.
+- Scripts and XML are assembled only from enabled rules in the order: phase, catalog file, rule,
+  with a topological correction by `requires`. Each block is marked with the rule identifier.
+- The profile is embedded in the XML (section `Extensions/Profile`, JSON) for later import.
+- Generation is deterministic: the same profile yields the same bytes.
+- The output is UTF-8 without BOM, CRLF.
 
-### 3.5 Валидация
+### 3.5 Validation
 
-| Проверка | Уровень | Реакция |
+| Verification | Level | Response |
 |---|---|---|
-| Целостность каталога (см. 3.1) | каталог | Ошибка при запуске, интерфейс показывает причину |
-| Длина каждого `Path` не более 259 символов | XML | Ошибка, сборка запрещена |
-| Нет комментариев внутри `<component>` | XML | Ошибка |
-| Все четыре значения International-Core заданы | XML | Ошибка |
-| Формат InputLocale `LLLL:KKKKKKKK` | профиль | Ошибка |
-| Имена учётных записей уникальны, не зарезервированы, без запрещённых символов, до 20 символов | профиль | Ошибка |
-| Хотя бы одна учётная запись в Administrators | профиль | Ошибка |
-| Параметр вне диапазона | профиль | Ошибка |
-| Включено правило уровня «рискованный» | профиль | Предупреждение с текстом риска |
-| Пароль задан | профиль | Предупреждение (открытый текст в XML) |
-| `UILanguage` не совпадает с языком ISO | профиль | Не проверяется: редактор не видит ISO. Форма «Языки и регион» объясняет, что значение равно языку ISO (решение 25.09.2026) |
-| Выключено правило уровня «базовый» | профиль | Предупреждение |
-| Синтаксис собранных скриптов по PowerShell 5.1 | XML | Ошибка (через `powershell.exe`, если доступен; иначе пропуск с пометкой) |
+| Catalog integrity (see 3.1) | catalog | Error at startup, the interface shows the reason |
+| The length of each `Path` is at most 259 characters | XML | Error, the build is blocked |
+| No comments inside `<component>` | XML | Error |
+| All four International-Core values are set | XML | Error |
+| InputLocale format `LLLL:KKKKKKKK` | profile | Error |
+| Account names are unique, not reserved, contain no forbidden characters, up to 20 characters | profile | Error |
+| At least one account in Administrators | profile | Error |
+| Parameter out of range | profile | Error |
+| A rule of the "risky" level is enabled | profile | Warning with the risk text |
+| A password is set | profile | Warning (plain text in the XML) |
+| `UILanguage` does not match the ISO language | profile | Not checked: the editor does not see the ISO. The «Языки и регион» (Languages and region) form explains that the value equals the ISO language (decision of 25.09.2026) |
+| A rule of the "baseline" level is disabled | profile | Warning |
+| Syntax of the built scripts under PowerShell 5.1 | XML | Error (via `powershell.exe` if available; otherwise skipped with a note) |
 
-### 3.6 Интерфейс
+### 3.6 Interface
 
-- Одно окно, три области: дерево (слева), панель описания и параметров (справа), сообщения (внизу).
-- Дерево: группы и правила с флажками в узлах; щелчок по флажку или пробел переключает; флажок
-  группы переключает группу; частично включённая группа отмечена особым знаком; узлы данных
-  (Установка, Учётные записи, Языки) в том же дереве.
-- Поиск: поле над деревом, фильтр по идентификатору, названию, тегам, резюме и содержимому
-  действий (ключи реестра, имена служб, команды); совпадения раскрыты, остальное скрыто; Ctrl+F.
-- Панель описания: название, состояние, уровень, фаза, резюме, таблица действий (автоматически
-  из данных), эффект, риск, версии Windows, зависимости (требует, требуется для, конфликтует),
-  проверка, откат, ссылка на справочник; параметры правила редактируются здесь же.
-- Строка состояния: результат последней операции («Выключено также: 3 правила», по щелчку список).
-- Меню: Файл (новый из пресета, открыть, сохранить, сохранить как, импорт из XML, недавние),
-  Профиль (сравнить, сбросить группу к пресету), Сборка (проверить, собрать, открыть папку),
-  Справка (о программе, справочник, проверить каталог).
-- Горячие клавиши: Ctrl+F поиск, Space переключить, Ctrl+S сохранить, F7 проверить, F9 собрать.
-- Языки интерфейса: русский, украинский (переводы во внешних файлах).
+- One window, three areas: tree (left), description and parameter panel (right), messages (bottom).
+- Tree: groups and rules with check boxes in the nodes; clicking a check box or pressing Space toggles it; a group
+  check box toggles the group; a partially enabled group is marked with a special sign; data nodes
+  (Installation, Accounts, Languages) are in the same tree.
+- Search: a field above the tree, filtering by identifier, title, tags, summary and action contents
+  (registry keys, service names, commands); matches are expanded, the rest is hidden; Ctrl+F.
+- Description panel: title, state, level, phase, summary, action table (built automatically
+  from the data), effect, risk, Windows versions, dependencies (requires, required by, conflicts with),
+  verification, rollback, reference link; the rule's parameters are edited right here.
+- Status bar: the result of the last operation («Выключено также: 3 правила» (Also disabled: 3 rules), a click shows the list).
+- Menus: File (new from preset, open, save, save as, import from XML, recent),
+  Profile (compare, reset group to preset), Build (check, build, open folder),
+  Help (about, reference, check catalog).
+- Hotkeys: Ctrl+F search, Space toggle, Ctrl+S save, F7 check, F9 build.
+- Interface languages: Russian, Ukrainian (translations in external files).
 
-## 4. Нефункциональные требования
+## 4. Non-functional requirements
 
-| Требование | Значение |
+| Requirement | Value |
 |---|---|
-| Платформа | Windows 10 1809+ и Windows 11, x64 |
-| Язык и библиотеки | Python 3.14; только стандартная библиотека в приложении (tkinter, ttk, tomllib, json, xml.etree, logging); сторонние пакеты только для сборки (PyInstaller) |
-| Тесты | `unittest` из стандартной библиотеки, запуск `python -m unittest`; совместимы с pytest |
-| Портабельность | Папка копируется куда угодно; никаких записей в реестр, `%APPDATA%`, `%PROGRAMDATA%`; пути от папки исполняемого файла |
-| Права | Без прав администратора |
-| Запуск | Один exe плюс папка `_internal` (onedir); старт до 2 секунд; каталог правил читается при старте (до 200 правил за 0,2 с) |
-| Размер | До 40 МБ |
-| Автономность | Никаких обращений в интернет |
-| Кодировки | UTF-8; XML без BOM, CRLF; профили UTF-8 |
-| Логи | `logs/winkickoff.log`, ротация 1 МБ, три файла |
-| Ошибки | Понятный текст пользователю, стек в лог; приложение не падает из-за плохого профиля или правила |
-| Качество | Аннотации типов; `ruff` и `mypy --strict` для `core` в ВМ или на машине разработчика, не обязательно на рабочем ПК заказчика |
-| Стиль текстов | Без длинных и коротких тире в любых строках, документации и комментариях |
+| Platform | Windows 10 1809+ and Windows 11, x64 |
+| Language and libraries | Python 3.14; only the standard library in the application (tkinter, ttk, tomllib, json, xml.etree, logging); third-party packages only for the build (PyInstaller) |
+| Tests | `unittest` from the standard library, run with `python -m unittest`; compatible with pytest |
+| Portability | The folder can be copied anywhere; no writes to the registry, `%APPDATA%`, `%PROGRAMDATA%`; paths are relative to the executable's folder |
+| Privileges | No administrator rights |
+| Launch | One exe plus the `_internal` folder (onedir); startup within 2 seconds; the rule catalog is read at startup (up to 200 rules in 0.2 s) |
+| Size | Up to 40 MB |
+| Offline operation | No internet access |
+| Encodings | UTF-8; XML without BOM, CRLF; profiles in UTF-8 |
+| Logs | `logs/winkickoff.log`, rotation at 1 MB, three files |
+| Errors | Clear text for the user, stack trace to the log; the application does not crash because of a bad profile or rule |
+| Quality | Type annotations; `ruff` and `mypy --strict` for `core` in a VM or on the developer's machine, not necessarily on the customer's work PC |
+| Text style | No em or en dashes in any strings, documentation or comments |
 
-## 5. Ограничения и допущения
+## 5. Constraints and assumptions
 
-- Целевая ОС: Windows 11 Pro 24H2 и новее с официального ISO. Каталог правил версии 0.2 повторяет
-  файл v0.2; новые правила добавляются отдельными задачами.
-- Разметка диска не задаётся (решение проекта): установщик спрашивает диск.
-- Пароли в XML открытым текстом (ограничение формата); редактор предупреждает.
-- Редактор не запускает установку и не проверяет ISO.
-- Применение правил к уже установленной Windows (задача T15) выполняет отдельный процесс PowerShell
-  по явному действию пользователя и запросу UAC; сам редактор остаётся без прав администратора.
-- Только Windows.
-- Никакие тесты и запуски не меняют состояние машины: чтение файлов проекта и запись только
-  внутрь папки приложения или `tmp_path` тестов.
+- Target OS: Windows 11 Pro 24H2 and newer from the official ISO. The rule catalog version 0.2 reproduces
+  the v0.2 file; new rules are added as separate tasks.
+- Disk partitioning is not specified (a project decision): the installer asks for the disk.
+- Passwords are in plain text in the XML (a format limitation); the editor warns about this.
+- The editor does not run the installation and does not check the ISO.
+- Applying rules to an already installed Windows (task T15) is done by a separate PowerShell process
+  on an explicit user action and a UAC prompt; the editor itself stays without administrator rights.
+- Windows only.
+- No tests or runs change the state of the machine: they read project files and write only
+  inside the application folder or the tests' `tmp_path`.
 
-## 6. Критерии приёмки
+## 6. Acceptance criteria
 
-1. Каталог правил проходит проверку целостности; семантический golden: каждое действие v0.2
-   присутствует в каталоге с тем же значением при пресете «Офис».
-2. Выключение любого правила в интерфейсе выключает всех зависимых; включение включает требуемых;
-   тесты на резолвере и дымовой тест интерфейса.
-3. Собранный из пресета «Офис» файл проходит `tools/Validate-Unattend.ps1` и содержит ровно
-   включённые правила (по идентификаторам в комментариях блоков).
-4. Собранный из профиля с половиной выключенных правил файл не содержит ни одного их действия.
-5. Поиск находит правило по ключу реестра и по тегу; путь «найти, выключить, собрать» укладывается
-   в 4 действия пользователя.
-6. Приложение запускается с флешки на чистой Windows 11 без Python, ничего не пишет вне своей папки.
-7. Приёмочная установка в ВМ с файлом из пресета «Офис» проходит без вопросов, кроме выбора диска.
+1. The rule catalog passes the integrity verification; semantic golden: each v0.2 action
+   is present in the catalog with the same value under the «Офис» preset.
+2. Disabling any rule in the interface disables all dependent rules; enabling one enables the required ones;
+   tests on the resolver and a UI smoke test.
+3. A file built from the «Офис» preset passes `tools/Validate-Unattend.ps1` and contains exactly
+   the enabled rules (by the identifiers in the block comments).
+4. A file built from a profile with half of the rules disabled contains none of their actions.
+5. Search finds a rule by registry key and by tag; the path "find, disable, build" takes
+   no more than 4 user actions.
+6. The application starts from a flash drive on a clean Windows 11 without Python and writes nothing outside its folder.
+7. An acceptance installation in a VM with a file from the «Офис» preset completes without questions, except for disk selection.
 
-## 7. Риски
+## 7. Risks
 
-| Риск | Вероятность | Смягчение |
+| Risk | Likelihood | Mitigation |
 |---|---|---|
-| Перенос 150+ действий v0.2 в каталог с ошибками | Высокая | Семантический golden сравнивает каталог с v0.2 автоматически |
-| Неполные или неверные зависимости в каталоге | Средняя | Обзор зависимостей в панели описания; тест на циклы; ревью каталога по справочнику кросс-связей |
-| Дерево из 100+ правил медленно рисуется в tkinter | Низкая | `Treeview` держит тысячи узлов; поиск фильтрует, а не перестраивает |
-| Флажки в `Treeview` нештатные | Средняя | Проверенный приём: символы в тексте узла и обработка щелчка по колонке; альтернативно изображения |
-| Новая версия Windows меняет поведение unattend | Средняя | Версия каталога и рантайма отдельно от приложения; приёмочный тест на выпуск |
-| PyInstaller отстаёт от Python 3.14 | Средняя | Сборка на 3.13 без изменения кода как запасной вариант |
-| Defender/SmartScreen блокирует неподписанный exe | Средняя | Инструкция; подпись при наличии сертификата |
+| Errors when transferring 150+ v0.2 actions into the catalog | High | The semantic golden compares the catalog with v0.2 automatically |
+| Incomplete or wrong dependencies in the catalog | Medium | Dependency overview in the description panel; cycle test; review of the catalog against the cross-links reference |
+| A tree of 100+ rules renders slowly in tkinter | Low | `Treeview` handles thousands of nodes; search filters rather than rebuilds |
+| Check boxes in `Treeview` are non-standard | Medium | A proven technique: symbols in the node text and handling clicks on the column; images as an alternative |
+| A new Windows version changes unattend behavior | Medium | Catalog and runtime versions are separate from the application; acceptance test for each release |
+| PyInstaller lags behind Python 3.14 | Medium | Building on 3.13 without code changes as a fallback |
+| Defender/SmartScreen blocks the unsigned exe | Medium | Instructions; signing if a certificate is available |
