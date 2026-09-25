@@ -2,12 +2,13 @@
 
 Файл для агентов и разработчиков: где что лежит, что читать первым, какие правила действуют,
 в каком состоянии работы. Обновляется при каждом изменении структуры, команд или статуса задач.
-Последнее обновление: 25.09.2026 (вечер: редакция 0.2 постановки редактора, каркас WinKickOff).
+Последнее обновление: 25.09.2026 (ночь: генератор, пресеты, профили и сборка в окне WinKickOff; задача T15).
 
 Репозиторий: https://github.com/supakov/WindowsInstaller (приватный, ветка `main`). Локальная папка
 `C:\Users\User\projects\Windows installer` и репозиторий должны совпадать: после каждой законченной
 задачи коммит и push. Сообщения коммитов на русском, первая строка до 72 символов, без длинных тире,
-в конце строка `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>` для коммитов, сделанных агентом.
+в конце строка `Co-Authored-By: <модель агента> <noreply@anthropic.com>` для коммитов, сделанных агентом
+(имя модели берётся из текущей сессии агента, например `Claude Opus 5.5`).
 
 ## 1. О проекте в трёх предложениях
 
@@ -56,17 +57,21 @@ Windows installer/
 │       ├── 05-plan.md             этапы, зависимости, оценка (28 дней), вехи
 │       ├── 06-critical-review-v0.1.md  почему редакция 0.1 не отвечала требованиям
 │       └── todo/                  задачи T01-T14 со статусами (README.md индекс)
-└── WinKickOff/                    КОД РЕДАКТОРА (каркас) И КАТАЛОГ ПРАВИЛ
-    ├── README.md                  запуск, тесты, структура, правила
+└── WinKickOff/                    КОД РЕДАКТОРА 0.2.0 И КАТАЛОГ ПРАВИЛ 0.3
+    ├── README.md                  порядок работы пользователя, где что хранится, команды, структура
     ├── pyproject.toml             requires-python >= 3.14, без зависимостей времени выполнения
-    ├── winkickoff/                пакет: app.py (старт), core/ (paths, log, catalog, deps, profile, render,
-    │                              validate, importer, pscheck), ui/main_window.py (дерево, поиск, описание)
+    ├── winkickoff/                пакет: app.py (старт), core/ (paths, log, catalog, deps, profile, resources,
+    │                              render, validate, importer, pscheck), ui/ (main_window: дерево, поиск,
+    │                              описание, параметры, профили, сборка; data_forms: установка, учётные
+    │                              записи, языки; checkimages: картинки флажков)
     ├── rules/                     КАТАЛОГ ПРАВИЛ: groups.toml (24 группы), 00-13-*.toml (130 правил), lang/uk.toml
-    ├── templates/                 README со слотами рантайма (T05), VERSION = 0.2
+    ├── templates/                 рантайм со слотами: autounattend.template.xml, три *.runtime.ps1,
+    │                              section-*.ps1; README со слотами; VERSION = 0.3
     ├── resources/                 keyboards.json, timezones.json, strings.ru.json
-    ├── profiles/                  README; пресеты появятся в T04
-    ├── tests/                     unittest: paths, sources, catalog, deps, profile, render, coverage_v02 (53 теста)
-    └── tools/run-tests.ps1
+    ├── profiles/                  preset-office.json («Офис» = v0.2), preset-strict.json («Строгий»), README
+    ├── tests/                     unittest, 112 тестов: каталог, резолвер, профиль, рендер, сборка против v0.2,
+    │                              проверки, импорт, пресеты, PowerShell, дымовой тест окна
+    └── tools/                     make_presets.py (пересоздать пресеты), run-tests.ps1
 ```
 
 Рабочие папки `WinKickOff/output/`, `WinKickOff/logs/`, `__pycache__/`, профили пользователей
@@ -113,6 +118,13 @@ cd WinKickOff
 python -m unittest discover -s tests -v
 ```
 
+Пересоздать пресеты после правки каталога (тест `test_presets.py` падает, если забыть):
+
+```powershell
+cd WinKickOff
+python tools/make_presets.py
+```
+
 Запустить редактор из исходников:
 
 ```powershell
@@ -147,6 +159,19 @@ Get-ChildItem -Recurse -Include *.md,*.ps1,*.py,*.toml,*.json -File | Where-Obje
   служебный адрес `265459095+stanislavperec-ua@users.noreply.github.com` (`git config user.email`,
   только для этой папки). Файлы хранятся байт в байт (`.gitattributes`: `* -text`), CRLF.
 - На рабочем ПК есть Python 3.14.3 с tkinter 8.6 и tomllib; pytest отсутствует и не устанавливается.
+  PyInstaller тоже не установлен: установка пакета это изменение ПК, поэтому сборка exe (T12) только в ВМ
+  или по отдельной команде заказчика.
+- Сборка WinKickOff повторяет v0.2 по смыслу, а не байт в байт: тест `test_build.py` сравнивает действия
+  `Setup-System.ps1`, команды проходов, International-Core, OOBE, учётные записи и часовой пояс.
+  `tools/Validate-Unattend.ps1` принимает оба варианта (блок `$Config` в v0.2 или маркеры `# [rule.id]`).
+- Всё, что пишет генератор (шапка, маркеры, встроенный профиль), только ASCII; профиль встраивается в
+  `Extensions/Profile` как JSON с экранированными национальными символами, поэтому «Открыть профиль из
+  собранного XML» восстанавливает настройки из готового файла.
+- Treeview в tkinter не раскладывает строки в скрытом окне; дымовой тест окна показывает его прозрачным
+  за пределами экрана. Флажки в дереве это картинки (`identify_element` возвращает `image`), «+» это
+  `Treeitem.indicator`: щелчок по «+» только раскрывает ветку.
+- Каталог 0.3: страна перенесена в параметры правила `default-user.region` (строка `"241"`), поле
+  `iso_language` удалено; старые профили переносятся при загрузке с предупреждением.
 
 ## 7. Состояние работ
 
@@ -159,10 +184,11 @@ Get-ChildItem -Recurse -Include *.md,*.ps1,*.py,*.toml,*.json -File | Where-Obje
 | Утилита проверки | Готова, 36 проверок, 0 ошибок на v0.2 | 25.09.2026 | `tools/Validate-Unattend.ps1` |
 | Репозиторий GitHub | Подключён, локальная папка и `origin/main` совпадают | 25.09.2026 | https://github.com/supakov/WindowsInstaller |
 | Постановка редактора | Редакция 0.2: модель правил, зависимости, дерево с поиском, внешние TOML | 25.09.2026 | `draft/install-editor/01-06` |
-| Задачи редактора | T01, T02, T03, T04, T09 in-progress (каркас создан); T05-T08, T10-T14 todo | 25.09.2026 | `draft/install-editor/todo/` |
-| Каталог правил | 130 правил, 24 группы, целостность и покрытие v0.2 подтверждены тестами | 25.09.2026 | `WinKickOff/rules/` |
-| Код редактора | Каркас: пути, лог, загрузчик каталога, резолвер, профиль, рендер действий, окно с деревом и поиском; 53 теста зелёные | 25.09.2026 | `WinKickOff/` |
-| Генератор, валидатор, импорт, формы данных, сборка | Не начаты (T05-T08, T10-T12) | | |
+| Задачи редактора | T02, T04, T05, T06 done; T01, T03, T07-T11 in-progress; T12-T15 todo | 25.09.2026 | `draft/install-editor/todo/` |
+| Каталог правил | 0.3: 130 правил, 24 группы, целостность и покрытие v0.2 подтверждены тестами | 25.09.2026 | `WinKickOff/rules/` |
+| Код редактора | 0.2.0: генератор, проверки профиля и XML, импорт встроенного профиля, проверка PowerShell, пресеты, окно с флажками, параметрами, формами, профилями и сборкой; 112 тестов зелёные | 25.09.2026 | `WinKickOff/` |
+| Сборка «Офиса» из редактора | Покрывает все действия v0.2, валидатор 36 из 36; установка в ВМ не проверялась | 25.09.2026 | `WinKickOff/output/` (не версионируется) |
+| Применение правил к работающей Windows | Задача T15 поставлена: аудит только на чтение, применение через UAC, откат | 25.09.2026 | `draft/install-editor/todo/T15-apply-to-running-system.md` |
 | Пункты заказчика к v0.3 | Ожидаются | | |
 
 Открытые вопросы заказчику: `docs/02-constructor-requirements-draft.md`, раздел 6.

@@ -55,7 +55,7 @@ class RealCatalogTest(unittest.TestCase):
     def test_loads_with_rules_and_groups(self) -> None:
         self.assertGreater(len(self.catalog.rules), 60)
         self.assertGreater(len(self.catalog.groups), 15)
-        self.assertEqual(self.catalog.version, "0.2")
+        self.assertEqual(self.catalog.version, "0.3")
 
     def test_every_rule_has_actions_and_docs(self) -> None:
         for rule in self.catalog.rules.values():

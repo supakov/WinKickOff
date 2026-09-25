@@ -74,6 +74,23 @@ class ProfileTest(unittest.TestCase):
         self.assertIn(("param", "update.defer-feature.days"), kinds)
         self.assertIn(("install", "time_zone"), kinds)
 
+    def test_catalog_02_fields_are_migrated(self) -> None:
+        data = Profile.from_catalog(self.catalog).to_dict(self.catalog)
+        data["languages"]["geo_id"] = 176  # an old profile with the country in the languages section
+        data["install"]["iso_language"] = "uk-UA"
+        profile, warnings = Profile.from_dict(data, self.catalog)
+        self.assertEqual(profile.param(self.catalog, "default-user.region", "geo_id"), "176")
+        self.assertNotIn("geo_id", profile.languages)
+        self.assertNotIn("iso_language", profile.install)
+        self.assertTrue(any("geo_id" in w for w in warnings))
+        self.assertTrue(any("iso_language" in w for w in warnings))
+
+        data["languages"]["geo_id"] = 241  # the default: nothing to carry over, no warning
+        del data["install"]["iso_language"]
+        profile, warnings = Profile.from_dict(data, self.catalog)
+        self.assertNotIn("geo_id", profile.rules["default-user.region"].params)
+        self.assertEqual(warnings, [])
+
     def test_bad_json_object(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "bad.json"

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+  <!--
+{{header}}
+  -->
+{{settings}}
+  <Extensions xmlns="urn:workgroup-unattend">
+    <ExtractScript>
+param(
+    [xml] $Document
+);
+
+$scriptsDir = 'C:\ProgramData\Unattend\Scripts';
+$null = New-Item -Path $scriptsDir -ItemType Directory -Force -ErrorAction SilentlyContinue;
+$null = New-Item -Path 'C:\ProgramData\Unattend\Logs' -ItemType Directory -Force -ErrorAction SilentlyContinue;
+$utf8Bom = [System.Text.UTF8Encoding]::new($true);
+foreach( $file in $Document.unattend.Extensions.File ) {
+    $path = [System.Environment]::ExpandEnvironmentVariables( $file.GetAttribute( 'path' ) );
+    $dir = [System.IO.Path]::GetDirectoryName( $path );
+    if( -not (Test-Path $dir) ) { $null = New-Item -Path $dir -ItemType Directory -Force; }
+    [System.IO.File]::WriteAllText( $path, $file.InnerText.Trim(), $utf8Bom );
+}
+    </ExtractScript>
+{{files}}
+    <Profile format="json"><![CDATA[
+{{profile_json}}
+]]></Profile>
+  </Extensions>
+</unattend>

@@ -65,7 +65,7 @@ class RenderCatalogTest(unittest.TestCase):
             if rule.phase in ("windowspe", "specialize-xml", "oobe-xml"):
                 continue
             block = render_block(rule, profile.params_for(catalog, rule.id))
-            self.assertTrue(block.startswith(f"# [{rule.id}] "), rule.id)
+            self.assertEqual(block.splitlines()[0], f"# [{rule.id}]", rule.id)
             self.assertNotIn("{", block.splitlines()[1] if len(rule.actions) == 1 and rule.actions[0].type != "ps" else "", rule.id)
 
 

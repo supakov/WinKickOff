@@ -104,7 +104,8 @@ if ($ext) {
     $e = $null; $null = [System.Management.Automation.PSParser]::Tokenize($ext.ExtractScript, [ref]$e)
     Add-Result 'ExtractScript parses' ($e.Count -eq 0) "errors: $($e.Count)"
     $files = @($ext.File)
-    Add-Result 'Embedded files present' ($files.Count -ge 3) "count: $($files.Count)"
+    # Hand-written v0.2 always embeds three scripts; a WinKickOff build embeds only those its enabled rules need.
+    Add-Result 'Embedded files present' ($files.Count -ge 1) "count: $($files.Count)"
     $tmp = Join-Path $env:TEMP ("unattend-validate-" + [guid]::NewGuid().ToString('N'))
     $null = New-Item -ItemType Directory -Path $tmp -Force
     try {
@@ -130,8 +131,10 @@ if ($ext) {
                 try { $tx = [xml]::new(); $tx.LoadXml($m.Groups[1].Value); Add-Result 'Embedded task XML well-formed' $true $tx.Task.Triggers.FirstChild.Name }
                 catch { Add-Result 'Embedded task XML well-formed' $false $_.Exception.Message }
             }
+            # v0.2 keeps its switches in a $Config block; WinKickOff builds mark every rule block with "# [rule.id]".
             $cfgMatch = [regex]::Match($body, '\$Config = @\{(.*?)\n\}', 'Singleline')
-            Add-Result '$Config block found in Setup-System.ps1' $cfgMatch.Success
+            $ruleMarks = [regex]::Matches($body, '(?m)^\s*# \[[a-z0-9.-]+\]\s*$').Count
+            Add-Result 'Setup-System.ps1 has a $Config block or rule blocks' ($cfgMatch.Success -or $ruleMarks -gt 0) $(if ($cfgMatch.Success) { '$Config' } else { "$ruleMarks rule blocks" })
         }
     } finally { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
 }

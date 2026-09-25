@@ -238,9 +238,14 @@ def parse_asr_rules(script: str) -> list[Action]:
     return out
 
 
-def parse_v02_actions(xml_path: Path) -> set[Action]:
-    text = xml_path.read_text(encoding="utf-8")
-    script = extract_script(text, "Setup-System.ps1")
+def parse_v02_actions(source: Path | str) -> set[Action]:
+    """Actions of Setup-System.ps1 embedded in an answer file (a path or the XML text itself)."""
+    text = source.read_text(encoding="utf-8") if isinstance(source, Path) else source
+    return parse_script_actions(extract_script(text, "Setup-System.ps1"))
+
+
+def parse_script_actions(script: str) -> set[Action]:
+    """Normalised actions of a Setup-System.ps1 text (v0.2 or a WinKickOff build)."""
     lines = expand_foreach(script.splitlines())
     scanner = _Scanner()
     actions: set[Action] = set()

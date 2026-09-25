@@ -20,7 +20,7 @@ PS_KEY_STRINGS = (
     "'wuauserv','UsoSvc','BITS','DoSvc','WaaSMedicSvc'",
     "NetBT\\Parameters\\Interfaces",
     "Set-WinUILanguageOverride",
-    "New-WinUserLanguageList 'en-US'",
+    "Set-WinUserLanguageList -LanguageList $list -Force",
     "-PasswordNeverExpires $true",
     "-match '-50[01]$'",
     "C:\\Windows\\Temp\\ua.err",

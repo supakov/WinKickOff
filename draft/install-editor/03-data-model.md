@@ -133,14 +133,14 @@ summary = "..."
 ```json
 {
   "format_version": 2,
-  "catalog_version": "0.2",
+  "catalog_version": "0.3",
   "name": "Офис",
   "author": "",
   "created": "2026-09-25T10:00:00",
   "modified": "2026-09-25T10:00:00",
   "comment": "",
   "install": { "edition": "Pro", "product_key_mode": "generic", "product_key": "", "time_zone": "FLE Standard Time" },
-  "languages": { "ui_language": "uk-UA", "system_locale": "uk-UA", "user_locale": "uk-UA", "geo_id": 241, "input": ["en-US", "uk-UA", "ru-UA"] },
+  "languages": { "ui_language": "uk-UA", "system_locale": "uk-UA", "user_locale": "uk-UA", "input": ["en-US", "uk-UA", "ru-UA"] },
   "accounts": [
     { "name": "Admin", "display_name": "Admin", "group": "Administrators", "description": "Local administrator (starter account)", "password": "" },
     { "name": "User",  "display_name": "User",  "group": "Users", "description": "Standard user (starter account)", "password": "" }
@@ -181,3 +181,7 @@ summary = "..."
 - `catalog_version` = содержимое `templates/VERSION`; при расхождении профиль загружается с
   предупреждением и дополняется.
 - Версия приложения независима.
+- Каталог 0.3 (25.09.2026): страна перенесена из `languages.geo_id` в параметры `geo_id` и `geo_name`
+  правила `default-user.region`; поле `install.iso_language` удалено (язык интерфейса всегда равен языку
+  ISO); маркер блока в скриптах `# [<rule.id>]` без названия. При загрузке старого профиля `geo_id`
+  переносится в параметр правила с предупреждением, `iso_language` отбрасывается с предупреждением.

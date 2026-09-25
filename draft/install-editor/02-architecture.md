@@ -49,7 +49,7 @@ WinKickOff/
     Setup-System.runtime.ps1       функции, trap, шапка, монтирование куста
     Setup-User.runtime.ps1         шапка и лог скрипта первого входа
     Post-OOBE.runtime.ps1          ожидание OOBE, чтение профиля, завершение
-    VERSION                        версия каталога и рантайма (0.2)
+    VERSION                        версия каталога и рантайма (0.3)
   resources/
     strings.ru.json, strings.uk.json   строки интерфейса
     keyboards.json, timezones.json     справочники
@@ -77,7 +77,7 @@ Rule
 Profile
   meta: format_version, catalog_version, name, author, created, modified, comment
   install: edition, product_key_mode, product_key, time_zone
-  languages: ui_language, system_locale, user_locale, geo_id, input[]
+  languages: ui_language, system_locale, user_locale, input[]  (страна: параметры geo_id и geo_name правила default-user.region)
   accounts: [Account(name, display_name, group, description, password)]
   rules: dict[id, RuleState(enabled, params: dict)]
   unknown: dict
@@ -174,7 +174,8 @@ templates/* ──────────────────────�
 | appx | `Remove-Apps @('<name>', ...)` |
 | ps | текст как есть, с отступом |
 
-Каждый блок начинается строкой `# [<rule.id>] <title>`; значения параметров подставляются по имени
+Каждый блок начинается строкой `# [<rule.id>]` (без названия: всё, что пишет генератор, только ASCII,
+название правила видно в редакторе по идентификатору); значения параметров подставляются по имени
 `{param}` с приведением типа. Строки экранируются для PowerShell (удвоение одинарных кавычек).
 
 XML-действия: `xml-pe-command` и `xml-specialize-command` добавляют `RunSynchronousCommand` с

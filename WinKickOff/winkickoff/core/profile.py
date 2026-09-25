@@ -19,15 +19,14 @@ DEFAULT_INSTALL: dict[str, Any] = {
     "product_key_mode": "generic",  # generic | custom | ask
     "product_key": "",
     "time_zone": "FLE Standard Time",
-    "iso_language": "uk-UA",
 }
 DEFAULT_LANGUAGES: dict[str, Any] = {
-    "ui_language": "uk-UA",
+    "ui_language": "uk-UA",  # must equal the language of the installation ISO
     "system_locale": "uk-UA",
     "user_locale": "uk-UA",
-    "geo_id": 241,
-    "input": ["en-US", "uk-UA", "ru-UA"],
+    "input": ["en-US", "uk-UA", "ru-UA"],  # tags or LCID:KLID pairs; the first is the default
 }
+# The country (GeoID) is a parameter of the rule default-user.region, not a profile field.
 
 
 @dataclass
@@ -76,6 +75,26 @@ class Difference:
     key: str
     before: Any
     after: Any
+
+
+REGION_RULE = "default-user.region"
+
+
+def _migrate_catalog_02(
+    data: dict[str, Any], raw_languages: dict[str, Any], rules: dict[str, RuleState], catalog: Catalog, warnings: list[str]
+) -> None:
+    """Profiles of catalog 0.2 kept the country in languages.geo_id and had install.iso_language."""
+    geo_id = raw_languages.get("geo_id")
+    region = catalog.rules.get(REGION_RULE)
+    if geo_id is not None and region is not None and "geo_id" in region.params and "geo_id" not in rules[REGION_RULE].params:
+        value = str(geo_id) if region.params["geo_id"].type == "string" else geo_id
+        if value != region.params["geo_id"].default:
+            rules[REGION_RULE].params["geo_id"] = value
+            warnings.append(
+                f"languages.geo_id = {geo_id} перенесено в параметр правила {REGION_RULE}; проверьте код страны geo_name"
+            )
+    if "iso_language" in (data.get("install") or {}):
+        warnings.append("поле install.iso_language больше не используется: язык интерфейса всегда равен языку ISO")
 
 
 def _now() -> str:
@@ -190,7 +209,9 @@ class Profile:
         install = dict(DEFAULT_INSTALL)
         install.update({k: v for k, v in (data.get("install") or {}).items() if k in DEFAULT_INSTALL})
         languages = copy.deepcopy(DEFAULT_LANGUAGES)
-        languages.update({k: v for k, v in (data.get("languages") or {}).items() if k in DEFAULT_LANGUAGES})
+        raw_languages = data.get("languages") or {}
+        languages.update({k: v for k, v in raw_languages.items() if k in DEFAULT_LANGUAGES})
+        _migrate_catalog_02(data, raw_languages, rules, catalog, warnings)
         accounts_raw = data.get("accounts")
         accounts = [Account.from_dict(a) for a in accounts_raw] if isinstance(accounts_raw, list) else [copy.copy(a) for a in DEFAULT_ACCOUNTS]
         catalog_version = str(data.get("catalog_version", catalog.version))

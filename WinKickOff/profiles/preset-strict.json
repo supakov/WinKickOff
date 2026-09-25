@@ -1,0 +1,443 @@
+{
+  "format_version": 2,
+  "catalog_version": "0.3",
+  "name": "Строгий",
+  "author": "",
+  "created": "2026-09-25T00:00:00",
+  "modified": "2026-09-25T00:00:00",
+  "comment": "Офис плюс ограничения, которые могут мешать старым программам: контролируемый доступ к папкам в режиме блокировки, SmartScreen запрещает запуск программ без репутации, правило ASR по распространённости блокирует, NetBIOS выключен, движок VBScript удаляется. Перед массовым внедрением проверить на одном ПК.",
+  "install": {
+    "edition": "Pro",
+    "product_key_mode": "generic",
+    "product_key": "",
+    "time_zone": "FLE Standard Time"
+  },
+  "languages": {
+    "ui_language": "uk-UA",
+    "system_locale": "uk-UA",
+    "user_locale": "uk-UA",
+    "input": [
+      "en-US",
+      "uk-UA",
+      "ru-UA"
+    ]
+  },
+  "accounts": [
+    {
+      "name": "Admin",
+      "display_name": "Admin",
+      "group": "Administrators",
+      "description": "Local administrator (starter account)",
+      "password": ""
+    },
+    {
+      "name": "User",
+      "display_name": "User",
+      "group": "Users",
+      "description": "Standard user (starter account)",
+      "password": ""
+    }
+  ],
+  "rules": {
+    "install.bypass-tpm": {
+      "enabled": true
+    },
+    "install.bypass-secureboot": {
+      "enabled": true
+    },
+    "install.bypass-cpu": {
+      "enabled": true
+    },
+    "install.bypass-ram": {
+      "enabled": true
+    },
+    "install.bypass-storage": {
+      "enabled": true
+    },
+    "install.bypass-nro": {
+      "enabled": true
+    },
+    "install.netfx3": {
+      "enabled": true
+    },
+    "oobe.hide-eula": {
+      "enabled": true
+    },
+    "oobe.hide-oem-registration": {
+      "enabled": true
+    },
+    "oobe.hide-online-account": {
+      "enabled": true
+    },
+    "oobe.hide-wireless": {
+      "enabled": true
+    },
+    "oobe.protect-your-pc": {
+      "enabled": true
+    },
+    "printing.spooler-automatic": {
+      "enabled": true
+    },
+    "printing.point-and-print-admins": {
+      "enabled": true
+    },
+    "update.unblock": {
+      "enabled": true
+    },
+    "update.automatic": {
+      "enabled": true
+    },
+    "update.other-microsoft-products": {
+      "enabled": true
+    },
+    "update.defer-feature": {
+      "enabled": true
+    },
+    "update.delivery-optimization-lan": {
+      "enabled": true
+    },
+    "defender.realtime": {
+      "enabled": true
+    },
+    "defender.cloud": {
+      "enabled": true
+    },
+    "defender.pua": {
+      "enabled": true
+    },
+    "defender.network-protection": {
+      "enabled": true
+    },
+    "defender.asr": {
+      "enabled": true
+    },
+    "asr.vulnerable-drivers": {
+      "enabled": true
+    },
+    "asr.wmi-persistence": {
+      "enabled": true
+    },
+    "asr.adobe-reader-child": {
+      "enabled": true
+    },
+    "asr.office-child": {
+      "enabled": true
+    },
+    "asr.email-executable": {
+      "enabled": true
+    },
+    "asr.obfuscated-scripts": {
+      "enabled": true
+    },
+    "asr.script-download": {
+      "enabled": true
+    },
+    "asr.office-executable": {
+      "enabled": true
+    },
+    "asr.office-injection": {
+      "enabled": true
+    },
+    "asr.office-comm-child": {
+      "enabled": true
+    },
+    "asr.usb-untrusted": {
+      "enabled": true
+    },
+    "asr.office-win32-api": {
+      "enabled": true
+    },
+    "asr.ransomware": {
+      "enabled": true
+    },
+    "asr.safe-mode-reboot": {
+      "enabled": true
+    },
+    "asr.copied-system-tools": {
+      "enabled": true
+    },
+    "asr.prevalence": {
+      "enabled": true,
+      "params": {
+        "mode": 1
+      }
+    },
+    "asr.psexec-wmi": {
+      "enabled": true
+    },
+    "asr.lsass": {
+      "enabled": false
+    },
+    "defender.controlled-folder-access": {
+      "enabled": true,
+      "params": {
+        "mode": 1
+      }
+    },
+    "defender.notifications": {
+      "enabled": true
+    },
+    "defender.smartscreen-shell": {
+      "enabled": true,
+      "params": {
+        "level": "Block"
+      }
+    },
+    "uac.baseline": {
+      "enabled": true
+    },
+    "uac.admin-always-notify": {
+      "enabled": true
+    },
+    "accounts.inactivity-lock": {
+      "enabled": true
+    },
+    "lsa.baseline": {
+      "enabled": true
+    },
+    "lsa.protection": {
+      "enabled": true
+    },
+    "lsa.ntlmv2-only": {
+      "enabled": true
+    },
+    "accounts.lockout": {
+      "enabled": true
+    },
+    "accounts.password-never-expires": {
+      "enabled": true
+    },
+    "remote.assistance-off": {
+      "enabled": true
+    },
+    "remote.rdp-inbound-off": {
+      "enabled": true
+    },
+    "remote.rdp-nla": {
+      "enabled": true
+    },
+    "remote.registry-off": {
+      "enabled": true
+    },
+    "encryption.prevent-auto-bitlocker": {
+      "enabled": true
+    },
+    "accounts.block-aad-join": {
+      "enabled": true
+    },
+    "network.smb1-off": {
+      "enabled": true
+    },
+    "network.smb-signing": {
+      "enabled": true
+    },
+    "network.llmnr-off": {
+      "enabled": true
+    },
+    "network.netbios-off": {
+      "enabled": true
+    },
+    "network.firewall": {
+      "enabled": true
+    },
+    "removable.autorun-off": {
+      "enabled": true
+    },
+    "scripts.open-in-notepad": {
+      "enabled": true
+    },
+    "scripts.remove-vbscript": {
+      "enabled": true
+    },
+    "edge.smartscreen-locked": {
+      "enabled": true
+    },
+    "edge.baseline": {
+      "enabled": true
+    },
+    "logging.eventlog-sizes": {
+      "enabled": true
+    },
+    "logging.audit-policy": {
+      "enabled": true
+    },
+    "logging.powershell": {
+      "enabled": true
+    },
+    "logging.powershell-v2-off": {
+      "enabled": true
+    },
+    "privacy.telemetry-minimal": {
+      "enabled": true
+    },
+    "privacy.consumer-content": {
+      "enabled": true
+    },
+    "privacy.copilot-recall-off": {
+      "enabled": true
+    },
+    "privacy.widgets-off": {
+      "enabled": true
+    },
+    "privacy.web-search-off": {
+      "enabled": true
+    },
+    "system.long-paths": {
+      "enabled": true
+    },
+    "apps.retail-demo-off": {
+      "enabled": true
+    },
+    "apps.xbox-services-off": {
+      "enabled": true
+    },
+    "apps.maps-broker-off": {
+      "enabled": true
+    },
+    "apps.remove-quick-assist": {
+      "enabled": true
+    },
+    "apps.remove.bing-search": {
+      "enabled": true
+    },
+    "apps.remove.bing-news": {
+      "enabled": true
+    },
+    "apps.remove.bing-weather": {
+      "enabled": true
+    },
+    "apps.remove.get-help": {
+      "enabled": true
+    },
+    "apps.remove.get-started": {
+      "enabled": true
+    },
+    "apps.remove.feedback-hub": {
+      "enabled": true
+    },
+    "apps.remove.3d-viewer": {
+      "enabled": true
+    },
+    "apps.remove.mixed-reality": {
+      "enabled": true
+    },
+    "apps.remove.solitaire": {
+      "enabled": true
+    },
+    "apps.remove.xbox-gaming-app": {
+      "enabled": true
+    },
+    "apps.remove.xbox-app": {
+      "enabled": true
+    },
+    "apps.remove.xbox-game-overlay": {
+      "enabled": true
+    },
+    "apps.remove.xbox-gaming-overlay": {
+      "enabled": true
+    },
+    "apps.remove.xbox-identity": {
+      "enabled": true
+    },
+    "apps.remove.xbox-speech-to-text": {
+      "enabled": true
+    },
+    "apps.remove.xbox-tcui": {
+      "enabled": true
+    },
+    "apps.remove.edge-game-assist": {
+      "enabled": true
+    },
+    "apps.remove.maps": {
+      "enabled": true
+    },
+    "apps.remove.people": {
+      "enabled": true
+    },
+    "apps.remove.phone-link": {
+      "enabled": true
+    },
+    "apps.remove.power-automate": {
+      "enabled": true
+    },
+    "apps.remove.todo": {
+      "enabled": true
+    },
+    "apps.remove.family": {
+      "enabled": true
+    },
+    "apps.remove.dev-home": {
+      "enabled": true
+    },
+    "apps.remove.clipchamp": {
+      "enabled": true
+    },
+    "apps.remove.teams": {
+      "enabled": true
+    },
+    "apps.remove.skype": {
+      "enabled": true
+    },
+    "apps.remove.office-hub": {
+      "enabled": true
+    },
+    "apps.remove.outlook-new": {
+      "enabled": true
+    },
+    "apps.remove.mail-calendar": {
+      "enabled": true
+    },
+    "apps.remove.copilot": {
+      "enabled": true
+    },
+    "apps.remove.copilot-provider": {
+      "enabled": true
+    },
+    "apps.remove.cortana": {
+      "enabled": true
+    },
+    "default-user.show-file-extensions": {
+      "enabled": true
+    },
+    "default-user.no-sync-provider-ads": {
+      "enabled": true
+    },
+    "default-user.no-consumer-content": {
+      "enabled": true
+    },
+    "default-user.widgets-button-off": {
+      "enabled": true
+    },
+    "default-user.copilot-off": {
+      "enabled": true
+    },
+    "default-user.autoplay-off": {
+      "enabled": true
+    },
+    "default-user.region": {
+      "enabled": true
+    },
+    "default-user.http-accept-language-optout": {
+      "enabled": true
+    },
+    "user-logon.pin-ui-language": {
+      "enabled": true
+    },
+    "user-logon.input-languages": {
+      "enabled": true
+    },
+    "post-oobe.password-never-expires": {
+      "enabled": true
+    },
+    "post-oobe.disable-builtin-accounts": {
+      "enabled": true
+    },
+    "post-oobe.collect-specialize-errors": {
+      "enabled": true
+    },
+    "post-oobe.delete-answer-file-copies": {
+      "enabled": true
+    }
+  },
+  "unknown": {}
+}
