@@ -61,12 +61,12 @@ Windows installer/
     ├── README.md                  developer README: run, test, structure; links to user docs
     ├── pyproject.toml             requires-python >= 3.14, no runtime dependencies
     ├── winkickoff/                package: app.py (start), core/ (paths, log, catalog, deps, profile, resources,
-    │                              render, validate, verify, actions_parser, importer, pscheck, settings),
+    │                              render, validate, verify, actions_parser, importer, pscheck, settings, i18n, apply),
     │                              ui/ (main_window: tree, search, description, parameters, profiles, build;
     │                              data_forms: install, accounts, languages; checkimages: check box images)
     ├── rules/                     RULE CATALOG: groups.toml (24 groups), 00-13-*.toml (130 rules), lang/*.toml
-    ├── templates/                 runtime with slots: autounattend.template.xml, three *.runtime.ps1,
-    │                              section-*.ps1; README lists the slots; VERSION = 0.3
+    ├── templates/                 runtime with slots: autounattend.template.xml, Setup-System, Setup-User, Post-OOBE,
+    │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.3
     ├── resources/                 keyboards.json, timezones.json, strings.uk.json, strings.en.json (interface translations)
     ├── profiles/                  presets «Офис» (equals v0.2), «Строгий» (Strict), «Ноутбук» (Laptop), README
     ├── tests/                     unittest: catalog, resolver, profile, render, build against v0.2, validation,
@@ -188,6 +188,8 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 - Interface translations: the Russian source text is the key; wrap every user-facing string in `tr()` (or
   `N_()` at module level) and add its uk and en translation to `WinKickOff/resources/strings.<lang>.json`,
   otherwise `tests/test_i18n.py` fails. Rule texts are translated in `WinKickOff/rules/lang/<lang>.toml`.
+- T15 scripts: tests only generate and parse Apply, Undo and Audit scripts; `run_audit` is exercised with a harmless
+  script and `launch_elevated` is always mocked. Never run an apply or an audit on the customer's PC from an agent.
 - Catalog 0.3: the country moved into the parameters of rule `default-user.region` (string `"241"`), the field
   `iso_language` was removed; old profiles are migrated on load with a warning.
 
@@ -202,11 +204,11 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Answer file checker | Done, 36 checks, 0 errors on v0.2 | 25.09.2026 | `tools/Validate-Unattend.ps1` |
 | GitHub repository | Connected, the local folder and `origin/main` match | 25.09.2026 | https://github.com/supakov/WindowsInstaller |
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
-| Editor tasks | T01-T11, T14, T16, T17 done (milestones M1-M4); T12 in progress (build script, the build only in a VM); T13 blocked (VM acceptance); T15 todo | 25.09.2026 | `docs/technical/editor/todo/` |
+| Editor tasks | T01-T11, T14, T16, T17 done (milestones M1-M4); T12 in progress (build script, the build only in a VM); T13 and T15 blocked (implemented, acceptance needs a VM) | 25.09.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.3: 130 rules, 24 groups, integrity and v0.2 coverage confirmed by tests | 25.09.2026 | `WinKickOff/rules/` |
 | Editor code | 0.2.0: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, three presets, window in Russian, Ukrainian and English with check boxes, parameters, forms, profiles, comparison, recent files and build; 162 tests | 25.09.2026 | `WinKickOff/` |
 | «Офис» build from the editor | Covers every v0.2 action, validator 36 of 36; installation in a VM not yet tested | 25.09.2026 | `WinKickOff/output/` (not versioned) |
-| Applying rules to a running Windows | Task T15: read-only audit, apply through UAC, rollback | 25.09.2026 | `docs/technical/editor/todo/T15-apply-to-running-system.md` |
+| Applying rules to a running Windows | T15 implemented: read-only audit, apply scripts with backup, undo, apply through UAC (off by default); acceptance in a VM pending | 25.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done: the root describes the toolkit; XML files and reviews in `docs/appendices/` | 25.09.2026 | `README.md`, `docs/appendices/` |
 | Documentation split | T16 done: technical in English, user documentation in ru, uk, en; complete catalog translations uk and en | 25.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
 | Customer items for v0.3 | Awaited | | |

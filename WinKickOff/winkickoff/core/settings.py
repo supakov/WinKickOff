@@ -24,6 +24,7 @@ class Settings:
     last_profile: str = ""  # relative to the program folder when inside it
     recent: list[str] = field(default_factory=list)  # profiles (.json) and answer files (.xml), newest first
     language: str = "ru"  # interface language: ru, uk or en
+    allow_apply: bool = False  # «Применить сейчас» on this PC; off until the user turns it on
 
     @classmethod
     def load(cls, path: Path) -> Settings:
@@ -44,13 +45,14 @@ class Settings:
             geometry=geometry if _GEOMETRY_RE.match(geometry) else "",
             last_profile=str(data.get("last_profile", "")),
             language=str(data.get("language", "ru")) if data.get("language") in ("ru", "uk", "en") else "ru",
+            allow_apply=data.get("allow_apply") is True,
             recent=[str(item) for item in recent][:MAX_RECENT] if isinstance(recent, list) else [],
         )
 
     def save(self, path: Path) -> None:
         """Write through a temporary file in the same folder, so a crash never leaves half a file."""
         data: dict[str, Any] = {"geometry": self.geometry, "last_profile": self.last_profile, "recent": self.recent,
-                                "language": self.language}
+                                "language": self.language, "allow_apply": self.allow_apply}
         tmp = path.with_name(path.name + ".tmp")
         try:
             tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

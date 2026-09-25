@@ -37,6 +37,7 @@ remembers the choice and keeps the open profile when switching.
 | [Profiles and presets](profiles.md) | Ready-made sets of settings, your own profiles, moving to another computer, restoring from a finished file |
 | [Installation and checks](install-and-check.md) | Preparing the USB drive, what Windows Setup will ask, how to check the result and where to find the logs |
 | [Safety](safety.md) | What you must do before using the file on work computers, and which decisions were made deliberately |
+| [This PC](this-pc.md) | Checking an already installed Windows and applying selected rules without reinstalling, rollback |
 | [Rule list](rules.md) | All installation rules by group: what each one does, whether it is enabled in "Office", risks |
 
 ## In short

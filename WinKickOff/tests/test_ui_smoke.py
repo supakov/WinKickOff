@@ -6,7 +6,9 @@ only for a mapped window); all files go to a temporary folder. Dialogs are repla
 
 from __future__ import annotations
 
+import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -263,6 +265,63 @@ class MainWindowSmokeTest(unittest.TestCase):
             self.assertEqual(param_row[3:], ("900", "600"))
         finally:
             window.destroy()
+
+    def test_apply_now_is_off_by_default(self) -> None:
+        self.assertFalse(self.win.settings.allow_apply)
+        self.assertEqual(str(self.win.pc_menu.entrycget(2, "state")), "disabled")
+        with mock.patch("winkickoff.ui.main_window.apply_module.launch_elevated") as launch, \
+             mock.patch("winkickoff.ui.main_window.messagebox.showinfo"):
+            self.assertFalse(self.win.apply_now())
+        launch.assert_not_called()
+
+    def test_audit_on_this_pc_shows_statuses(self) -> None:
+        report = {"computer": "TEST", "admin": False, "results": [
+            {"rule": "defender.pua", "check": "HKLM:\\X\\PUAProtection", "status": "differs", "current": "0", "expected": "1"}]}
+        self.win.select_node("r:defender.pua")
+        with mock.patch("winkickoff.ui.main_window.run_audit", return_value=json.dumps(report)) as run:
+            self.win.audit_selected()
+            deadline = time.monotonic() + 30
+            while self.win._busy and time.monotonic() < deadline:
+                self.win.update()
+                time.sleep(0.02)
+        script = run.call_args.args[0]
+        self.assertIn("Test-Reg -Rule 'defender.pua'", script)
+        rows = [self.win.messages.item(i, "values") for i in self.win.messages.get_children()]
+        self.assertTrue(any("не действует" in r[2] and "PUAProtection" in r[2] for r in rows), rows)
+        self.assertIn("не действует 1", self.win.status_var.get())
+
+    def test_save_apply_scripts(self) -> None:
+        self.win.select_node("g:" + self.catalog.rules["defender.pua"].group)
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch("winkickoff.ui.main_window.filedialog.askdirectory", return_value=tmp):
+            folder = self.win.save_apply_scripts()
+            self.assertIsNotNone(folder)
+            names = sorted(p.name for p in folder.iterdir())
+            self.assertEqual(names, ["Apply.ps1", "README.txt", "Undo-Apply.ps1"])
+            self.assertTrue((folder / "Apply.ps1").read_bytes().startswith(b"\xef\xbb\xbf"))
+            self.assertIn("defender.pua", (folder / "README.txt").read_text(encoding="utf-8-sig"))
+
+    def test_apply_now_after_permission_and_confirmation(self) -> None:
+        self.win.select_node("r:remote.registry-off")
+        with mock.patch("winkickoff.ui.main_window.messagebox.askyesno", return_value=True):
+            self.win.allow_apply_var.set(True)
+            self.win.toggle_allow_apply()
+        try:
+            self.assertEqual(str(self.win.pc_menu.entrycget(2, "state")), "normal")
+            with mock.patch("winkickoff.ui.main_window.apply_module.launch_elevated") as launch, \
+                 mock.patch("winkickoff.ui.main_window.messagebox.askyesno", return_value=False):
+                self.assertFalse(self.win.apply_now())  # the user said no
+            launch.assert_not_called()
+            with mock.patch("winkickoff.ui.main_window.apply_module.launch_elevated") as launch, \
+                 mock.patch("winkickoff.ui.main_window.messagebox.askyesno", return_value=True):
+                self.assertTrue(self.win.apply_now())
+            launch.assert_called_once()
+            script = launch.call_args.args[0]
+            self.assertTrue(script.is_relative_to(self.paths.logs))
+            self.assertIn("# [remote.registry-off]", script.read_text(encoding="utf-8-sig"))
+        finally:
+            self.win.allow_apply_var.set(False)
+            self.win.toggle_allow_apply()
 
     def test_reserved_account_name_is_refused(self) -> None:
         self.win.show_item("data:accounts")

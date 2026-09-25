@@ -1,7 +1,7 @@
 # T15. Applying a selected rule or branch to a running Windows
 
-Status: todo (task added 25.09.2026 at the customer's request). Stage 6. Dependencies: T06, T08, T11.
-Can be started after milestone M4 without waiting for T12-T14.
+Status: blocked (25.09.2026: implemented and tested without touching the computer; step 7, the acceptance
+in a VM, needs a virtual machine that only the customer can run). Stage 6. Dependencies: T06, T08, T11.
 
 ## Goal
 
@@ -77,3 +77,23 @@ Tests never apply anything; functional verification is done only in a virtual ma
 - App removal and disabling of features cannot be rolled back instantly.
 
 ## Implementer notes
+
+25.09.2026, implemented (steps 1-6):
+- `core/apply.py`: `plan_apply` (selected rules and groups, enabled requirements added, install-only phases
+  and the first sign-in phase excluded with the reason, flags "not rolled back automatically" for appx,
+  capability, ps and exe actions and "restart" for services, components and `HKLM:\SYSTEM` values);
+  `render_audit`, `render_apply`, `render_undo`; `parse_audit_report`; `run_audit` (powershell.exe, read-only
+  script, report in `logs/tmp`); `launch_elevated` (ShellExecute "runas", the UAC prompt).
+- Templates `Audit.runtime.ps1` (only reads; without administrator rights components and other users' apps
+  are "unknown"; default user values are checked in HKCU), `Apply.runtime.ps1` (administrator check,
+  `Save-RegState` before every registry change, feature states, removed apps and capabilities listed;
+  `backup-*.json` and `apply-*.log` next to the script), `Undo.runtime.ps1`.
+- Window: menu «Этот ПК» (This PC) and the tree context menu: «Проверить выбранное на этом ПК» (Check the
+  selection on this PC), «Сохранить скрипт применения выбранного...» (Save an apply script: `Apply.ps1`,
+  `Undo-Apply.ps1`, `README.txt`), «Применить выбранное сейчас...» (Apply now: off by default, enabled by
+  «Разрешить применение на этом ПК» (Allow applying on this PC) with a warning, stored as `allow_apply` in
+  `settings.json`; confirmation with the computer name, irreversible rules and restart; scripts in `logs/`).
+- Tests: `tests/test_apply.py` (plan, flags, scripts parse in PowerShell 5.1, the audit contains no mutating
+  command, report statuses, the runner with a harmless script in a temporary folder) and window tests with
+  the audit runner and the elevation mocked. Nothing is applied and no audit runs on the customer's PC in tests.
+- User documentation: `docs/user/{ru,uk,en}/this-pc.md`.

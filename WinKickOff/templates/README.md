@@ -12,6 +12,9 @@ the blocks of the enabled rules and with profile data; everything else is copied
 | `section-post-oobe-task.ps1` | Scheduled task for `Post-OOBE.ps1` (added when the post-oobe phase has rules) | none |
 | `Setup-User.runtime.ps1` | Per-user log, input language lists from the profile | `input_languages`, `input_fallback`, `transient_languages`, `blocks` |
 | `Post-OOBE.runtime.ps1` | Waiting for OOBE to finish, list of accounts, removal of the task | `accounts`, `blocks` |
+| `Audit.runtime.ps1` | Read-only audit of selected rules on a running Windows (T15): Test-Reg, Test-ServiceStart, Test-Feature, Test-AppAbsent and others; JSON report | `build_label`, `blocks` |
+| `Apply.runtime.ps1` | Applying selected rules to a running Windows (T15): administrator check, the same helpers as Setup-System with the previous state saved to `backup-*.json`, default user hive mounting | `build_label`, `accounts`, `blocks` |
+| `Undo.runtime.ps1` | Restoring from `backup-*.json` (T15) | `build_label` |
 
 `VERSION` holds the version of the catalog and the runtime; profiles store it as `catalog_version`.
 Any change of a template or of the catalog that changes the output file needs a new version and a run of

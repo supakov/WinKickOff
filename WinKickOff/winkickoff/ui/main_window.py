@@ -16,6 +16,7 @@ import logging
 import os
 import re
 import threading
+import time
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
@@ -24,6 +25,18 @@ from typing import Any
 
 from winkickoff import APP_NAME, APP_VERSION
 from winkickoff.core.catalog import Action, Catalog, Group, Param, Rule
+from winkickoff.core.apply import (
+    ApplyPlan,
+    parse_audit_report,
+    plan_apply,
+    render_apply,
+    render_audit,
+    render_undo,
+    run_audit,
+    status_title,
+    write_script,
+)
+from winkickoff.core import apply as apply_module
 from winkickoff.core.deps import Change, Resolver
 from winkickoff.core.i18n import LANGUAGE_NAMES, N_, catalog_texts, language, tr
 from winkickoff.core.importer import IMPORTED_NAME, ImportFailed, import_xml
@@ -198,6 +211,15 @@ class MainWindow(tk.Tk):
         for code, name in LANGUAGE_NAMES.items():  # native names, never translated
             view_menu.add_radiobutton(label=name, value=code, variable=self.language_var, command=lambda c=code: self.change_language(c))
         menubar.add_cascade(label=tr("Язык"), menu=view_menu)
+        self.pc_menu = tk.Menu(menubar, tearoff=False)
+        self._fill_pc_menu(self.pc_menu)
+        self.pc_menu.add_separator()
+        self.allow_apply_var = tk.BooleanVar(value=self.settings.allow_apply)
+        self.pc_menu.add_checkbutton(label=tr("Разрешить применение на этом ПК"), variable=self.allow_apply_var,
+                                     command=self.toggle_allow_apply)
+        menubar.add_cascade(label=tr("Этот ПК"), menu=self.pc_menu)
+        self.tree_menu = tk.Menu(self, tearoff=False)
+        self._fill_pc_menu(self.tree_menu)
         help_menu = tk.Menu(menubar, tearoff=False)
         help_menu.add_command(label=tr("Порядок работы"), command=lambda: self.select_node(WORKFLOW_NODE))
         help_menu.add_command(label=tr("Документация пользователя"), command=lambda: self.open_doc(user_docs()))
@@ -256,6 +278,7 @@ class MainWindow(tk.Tk):
         self.tree.bind("<Button-1>", self._on_tree_click)
         self.tree.bind("<Double-Button-1>", self._on_tree_double)
         self.tree.bind("<space>", self._on_space)
+        self.tree.bind("<Button-3>", self._on_tree_right_click)
         self.tree.bind("<<TreeviewSelect>>", self._on_tree_select)
         self.tree.bind("<<TreeviewOpen>>", lambda _e: self._open_groups.add(self.tree.focus()))
         self.tree.bind("<<TreeviewClose>>", lambda _e: self._open_groups.discard(self.tree.focus()))
@@ -1224,6 +1247,189 @@ class MainWindow(tk.Tk):
             parent=self,
         ):
             self._open_folder(path.parent)
+
+    # ----------------------------------------------------------------- this PC (task T15)
+
+    def _fill_pc_menu(self, menu: tk.Menu) -> None:
+        menu.add_command(label=tr("Проверить выбранное на этом ПК"), command=self.audit_selected)
+        menu.add_command(label=tr("Сохранить скрипт применения выбранного..."), command=self.save_apply_scripts)
+        menu.add_command(label=tr("Применить выбранное сейчас..."), command=self.apply_now,
+                         state=tk.NORMAL if self.settings.allow_apply else tk.DISABLED)
+
+    def _update_apply_state(self) -> None:
+        state = tk.NORMAL if self.settings.allow_apply else tk.DISABLED
+        for menu in (self.pc_menu, self.tree_menu):
+            menu.entryconfigure(2, state=state)
+
+    def _on_tree_right_click(self, event: tk.Event) -> str | None:  # type: ignore[type-arg]
+        item = self.tree.identify_row(event.y)
+        if not (item.startswith("r:") or item.startswith("g:")):
+            return None
+        self.tree.selection_set(item)
+        self.tree.focus(item)
+        self.tree_menu.tk_popup(event.x_root, event.y_root)
+        return "break"
+
+    def toggle_allow_apply(self) -> None:
+        wanted = bool(self.allow_apply_var.get())
+        if wanted and not messagebox.askyesno(APP_NAME, tr(
+                "Разрешить применение правил к этому компьютеру?\n\n"
+                "Скрипт применения меняет реестр, службы и компоненты Windows. Сначала проверьте его на тестовом "
+                "компьютере или виртуальной машине. Удаление приложений и шаги на PowerShell нельзя откатить "
+                "автоматически. Применение всегда запускается через запрос контроля учётных записей."),
+                icon=messagebox.WARNING, default=messagebox.NO, parent=self):
+            self.allow_apply_var.set(False)
+            wanted = False
+        self.settings.allow_apply = wanted
+        self.settings.save(self.paths.settings_file)
+        self._update_apply_state()
+
+    def _apply_items(self) -> list[str]:
+        items = [i for i in self.tree.selection() if i.startswith("r:") or i.startswith("g:")]
+        if not items:
+            messagebox.showinfo(APP_NAME, tr("Выберите в дереве правило или группу."), parent=self)
+        return items
+
+    def _plan_issues(self, plan: ApplyPlan) -> list[Issue]:
+        issues = [Issue("info", rule.id, tr("не применяется: {0}", tr(reason))) for rule, reason in plan.excluded]
+        for planned in plan.rules:
+            notes = []
+            if planned.requirement:
+                notes.append(tr("нужно для выбранного правила"))
+            if planned.irreversible:
+                notes.append(tr("автоматически не откатывается"))
+            if planned.reboot:
+                notes.append(tr("нужна перезагрузка"))
+            level = "warning" if planned.irreversible else "info"
+            issues.append(Issue(level, planned.rule.id, tr("будет применено") + (": " + "; ".join(notes) if notes else "")))
+        return issues
+
+    def audit_selected(self) -> None:
+        """Read-only check on this PC: which of the selected rules already take effect."""
+        if self._busy:
+            return
+        items = self._apply_items()
+        if not items:
+            return
+        plan = plan_apply(self.catalog, self.profile, items)
+        excluded = [Issue("info", rule.id, tr("не проверяется: {0}", tr(reason))) for rule, reason in plan.excluded]
+        if not plan.rules:
+            self.show_issues(excluded)
+            self.set_status(tr("Среди выбранного нет правил, которые можно проверить на работающей системе"))
+            return
+        script = render_audit(plan.rule_ids, self.profile, self.catalog, self.paths.templates, APP_VERSION)
+        outcome: dict[str, Any] = {}
+
+        def work() -> None:
+            try:
+                outcome["text"] = run_audit(script, self.paths.logs / "tmp")
+            except Exception as exc:  # noqa: BLE001 - shown to the user
+                outcome["error"] = exc
+
+        thread = threading.Thread(target=work, name="audit", daemon=True)
+        self.set_busy(True, tr("Проверка на этом ПК (только чтение)..."))
+        thread.start()
+
+        def poll() -> None:
+            if thread.is_alive():
+                self.after(150, poll)
+                return
+            self.set_busy(False)
+            if "error" in outcome:
+                self.show_issues([Issue("error", "audit", tr("Проверка не выполнена: {0}", outcome["error"]))] + excluded)
+                self.set_status(tr("Проверка на этом ПК не выполнена"))
+                return
+            self.show_audit(outcome["text"], excluded)
+
+        self.after(150, poll)
+
+    def show_audit(self, report_text: str, excluded: list[Issue]) -> None:
+        meta, results = parse_audit_report(report_text)
+        issues: list[Issue] = []
+        counts = {"applied": 0, "not-applied": 0, "partial": 0, "unknown": 0}
+        for rule_id, result in results.items():
+            counts[result.status] = counts.get(result.status, 0) + 1
+            details = [f"{c['check']}: {c['current'] or tr('нет значения')} ({tr('нужно')} {c['expected']})"
+                       for c in result.checks if c["status"] == "differs"][:3]
+            level = "info" if result.status in ("applied", "unknown") else "warning"
+            issues.append(Issue(level, rule_id, status_title(result.status) + (": " + "; ".join(details) if details else "")))
+        self.show_issues(issues + excluded)
+        note = "" if str(meta.get("admin")).lower() == "true" else tr(" Без прав администратора часть проверок недоступна.")
+        self.set_status(tr("Проверка на этом ПК: действует {0}, не действует {1}, частично {2}, не проверяется {3}.",
+                           counts["applied"], counts["not-applied"], counts["partial"], counts["unknown"]) + note)
+
+    def _write_apply_folder(self, folder: Path, plan: ApplyPlan) -> Path:
+        folder.mkdir(parents=True, exist_ok=True)
+        apply_path = folder / "Apply.ps1"
+        write_script(apply_path, render_apply(plan, self.profile, self.catalog, self.paths.templates, APP_VERSION))
+        write_script(folder / "Undo-Apply.ps1", render_undo(self.paths.templates, self.profile, APP_VERSION))
+        lines = [tr("Скрипты применения WinKickOff {0}, профиль «{1}».", APP_VERSION, tr(self.profile.name)), "",
+                 tr("1. Сначала проверьте на тестовом компьютере или виртуальной машине."),
+                 tr("2. Запустите Apply.ps1 от имени администратора: powershell -ExecutionPolicy Bypass -File Apply.ps1"),
+                 tr("3. Журнал и резервная копия прежних значений появятся рядом со скриптом (apply-*.log, backup-*.json)."),
+                 tr("4. Откат: Undo-Apply.ps1 от имени администратора. Удалённые приложения и шаги на PowerShell не откатываются."),
+                 tr("5. После применения перезагрузите компьютер."), "", tr("Правила:")]
+        for planned in plan.rules:
+            flags = (tr(" (не откатывается)") if planned.irreversible else "") + (tr(" (нужна перезагрузка)") if planned.reboot else "")
+            lines.append(f"- {planned.rule.id}: {self.rule_title(planned.rule.id)}{flags}")
+        if plan.excluded:
+            lines += ["", tr("Не применяются:")]
+            lines += [f"- {rule.id}: {tr(reason)}" for rule, reason in plan.excluded]
+        (folder / "README.txt").write_bytes(("\n".join(lines) + "\n").replace("\n", "\r\n").encode("utf-8-sig"))
+        return apply_path
+
+    def save_apply_scripts(self) -> Path | None:
+        items = self._apply_items()
+        if not items:
+            return None
+        plan = plan_apply(self.catalog, self.profile, items)
+        self.show_issues(self._plan_issues(plan))
+        if not plan.rules:
+            self.set_status(tr("Среди выбранного нет правил, которые можно применить к работающей системе"))
+            return None
+        name = filedialog.askdirectory(parent=self, title=tr("Папка для скриптов применения"), initialdir=str(self.paths.output))
+        if not name:
+            return None
+        folder = Path(name) / time.strftime("apply-%Y%m%d-%H%M%S")
+        try:
+            self._write_apply_folder(folder, plan)
+        except OSError as exc:
+            messagebox.showerror(APP_NAME, tr("Скрипты не записаны:\n{0}", exc), parent=self)
+            return None
+        self.set_status(tr("Скрипты применения сохранены: {0} (правил: {1})", folder, len(plan.rules)))
+        return folder
+
+    def apply_now(self) -> bool:
+        """Apply the selection to this PC: confirmation, scripts in logs/, launch through UAC."""
+        if not self.settings.allow_apply:
+            messagebox.showinfo(APP_NAME, tr("Применение на этом ПК выключено. Включите его в меню «Этот ПК»."), parent=self)
+            return False
+        items = self._apply_items()
+        if not items:
+            return False
+        plan = plan_apply(self.catalog, self.profile, items)
+        self.show_issues(self._plan_issues(plan))
+        if not plan.rules:
+            self.set_status(tr("Среди выбранного нет правил, которые можно применить к работающей системе"))
+            return False
+        irreversible = [self.rule_title(p.rule.id) for p in plan.rules if p.irreversible]
+        text = tr("Применить выбранные правила ({1}) к компьютеру {0}?", os.environ.get("COMPUTERNAME", "?"), len(plan.rules))
+        if irreversible:
+            text += "\n\n" + tr("Автоматически не откатываются: {0}.", "; ".join(irreversible[:8]) + ("..." if len(irreversible) > 8 else ""))
+        if any(p.reboot for p in plan.rules):
+            text += "\n\n" + tr("После применения нужна перезагрузка.")
+        text += "\n\n" + tr("Windows запросит подтверждение прав администратора. Прежние значения сохраняются для отката (Undo-Apply.ps1).")
+        if not messagebox.askyesno(APP_NAME, text, icon=messagebox.WARNING, default=messagebox.NO, parent=self):
+            return False
+        folder = self.paths.logs / time.strftime("apply-%Y%m%d-%H%M%S")
+        try:
+            script = self._write_apply_folder(folder, plan)
+            apply_module.launch_elevated(script)
+        except (OSError, RuntimeError) as exc:
+            messagebox.showerror(APP_NAME, tr("Применение не запущено:\n{0}", exc), parent=self)
+            return False
+        self.set_status(tr("Скрипт применения запущен; журнал и резервная копия: {0}", folder))
+        return True
 
     def open_output_folder(self) -> None:
         self._open_folder(self._last_output.parent if self._last_output else self.paths.output)
