@@ -47,6 +47,7 @@ Registry paths are abbreviated: `HKLM` = `HKEY_LOCAL_MACHINE`, `Pol` = `HKLM\SOF
 | [15-per-user-script.md](15-per-user-script.md) | Active Setup and Setup-User.ps1: input languages for each user | no parameters, mechanism |
 | [16-post-oobe.md](16-post-oobe.md) | Scheduled task and Post-OOBE.ps1: cleanup after OOBE | no parameters, mechanism |
 | [17-cross-links.md](17-cross-links.md) | Summary cross-link matrix and known inconsistencies of version 0.2 | none |
+| [18-browsers.md](18-browsers.md) | Browser policies for Microsoft Edge, Google Chrome and Brave (issue #1), corrections to the issue scripts | WinKickOff rules only, not in v0.2 |
 
 ## Windows version conventions
 

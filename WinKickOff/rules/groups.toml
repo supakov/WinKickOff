@@ -82,9 +82,9 @@ summary = "SMB, подпись, разрешение имён, брандмау�
 
 [[group]]
 id = "removable"
-title = "Носители, скрипты, браузер"
+title = "Носители и скрипты"
 order = 80
-summary = "Автозапуск, скриптовые файлы, VBScript, политики Microsoft Edge."
+summary = "Автозапуск, скриптовые файлы, VBScript."
 
 [[group]]
 id = "removable.scripts"
@@ -93,10 +93,28 @@ title = "Скриптовые файлы"
 order = 1
 
 [[group]]
-id = "removable.edge"
-parent = "removable"
+id = "browsers"
+title = "Браузеры"
+order = 85
+summary = "Политики Microsoft Edge, Google Chrome и Brave: защита, телеметрия, реклама, ИИ-функции. Правила, кроме двух правил Edge из v0.2, выключены по умолчанию; политики неустановленного браузера ни на что не влияют."
+
+[[group]]
+id = "browsers.edge"
+parent = "browsers"
 title = "Microsoft Edge"
+order = 1
+
+[[group]]
+id = "browsers.chrome"
+parent = "browsers"
+title = "Google Chrome"
 order = 2
+
+[[group]]
+id = "browsers.brave"
+parent = "browsers"
+title = "Brave"
+order = 3
 
 [[group]]
 id = "logging"

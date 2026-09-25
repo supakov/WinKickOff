@@ -1,4 +1,5 @@
 # Съёмные носители, скриптовые файлы, Microsoft Edge. Раздел 6 скрипта машины v0.2.
+# Правила Edge относятся к группе browsers.edge (раздел «Браузеры»).
 
 [[rule]]
 id = "removable.autorun-off"
@@ -131,7 +132,7 @@ pattern = "VBSCRIPT*"
 
 [[rule]]
 id = "edge.smartscreen-locked"
-group = "removable.edge"
+group = "browsers.edge"
 phase = "specialize"
 title = "SmartScreen в Edge включён, обход запрещён"
 level = "recommended"
@@ -174,7 +175,7 @@ value = 1
 
 [[rule]]
 id = "edge.baseline"
-group = "removable.edge"
+group = "browsers.edge"
 phase = "specialize"
 title = "Edge без мастера первого запуска, рекламы и фоновых процессов"
 level = "baseline"

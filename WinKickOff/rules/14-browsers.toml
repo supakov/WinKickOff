@@ -1,0 +1,950 @@
+# Браузеры: Microsoft Edge, Google Chrome, Brave (issue #1). Создаётся tools/make_browser_rules.py;
+# правьте таблицу в этом инструменте, а не файл. Все правила выключены по умолчанию: пресет «Офис» равен v0.2.
+
+[[rule]]
+id = "edge.diagnostic-data-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: не отправлять диагностические данные"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "diagnosticdata", "телеметрия", "диагностика"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Edge не отправляет Microsoft ни обязательные, ни необязательные диагностические данные о работе браузера."
+effect = "Сведения об использовании браузера и посещённых сайтах не уходят в Microsoft. Заменяет устаревшие политики MetricsReportingEnabled и SendSiteInfoToImproveServices из сценария issue #1."
+versions = "Edge 122 и новее на Windows 10 и 11; старые версии Edge подчиняются общей настройке телеметрии Windows."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "DiagnosticData"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.search-telemetry-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: не собирать запросы к сторонним поисковикам"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "edge3pserptelemetryenabled", "телеметрия", "поиск", "serp"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Edge не собирает сведения о поиске в сторонних поисковых системах (телеметрия 3P SERP)."
+effect = "Запросы к Google и другим поисковикам не попадают в телеметрию Edge."
+versions = "Edge 120 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "Edge3PSerpTelemetryEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.sidebar-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: скрыть боковую панель"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "hubssidebarenabled", "боковая панель", "sidebar", "copilot"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Боковая панель Edge с приложениями и ярлыками не показывается."
+effect = "Меньше отвлекающих элементов. До Edge 141 вместе с панелью скрывается и кнопка Copilot; с версии 141 значок Copilot управляется политикой, которая действует только для профилей Entra ID."
+versions = "Edge 99 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "HubsSidebarEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.shopping-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: выключить помощника покупок"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "edgeshoppingassistantenabled", "покупки", "shopping", "реклама"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Edge не показывает сравнение цен, купоны и кэшбэк на сайтах магазинов."
+effect = "Нет всплывающих предложений на страницах магазинов, и адреса этих страниц не передаются сервису покупок."
+versions = "Edge 87 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "EdgeShoppingAssistantEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.rewards-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: скрыть Microsoft Rewards"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "showmicrosoftrewards", "rewards", "реклама", "бонусы"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Программа бонусов Microsoft Rewards не показывается в Edge, а её переключатель в параметрах выключен."
+effect = "Нет предложений зарабатывать баллы за поиск и покупки."
+versions = "Edge 88 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "ShowMicrosoftRewards"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.insider-promo-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: без рекламы программы Edge Insider"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "microsoftedgeinsiderpromotionenabled", "insider", "реклама"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Edge не предлагает установить тестовые сборки браузера."
+effect = "Пользователи не ставят нестабильные версии Edge по рекламному предложению."
+versions = "Edge 98 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "MicrosoftEdgeInsiderPromotionEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.sync-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: запретить синхронизацию"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "syncdisabled", "синхронизация", "sync", "облако"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Синхронизация избранного, паролей, истории и настроек Edge с облачной учётной записью выключена."
+effect = "Данные браузера не уходят в облако и не попадают на личные устройства сотрудников."
+risk = "Избранное и настройки не переносятся между компьютерами пользователя."
+versions = "Edge 77 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "SyncDisabled"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "edge.translate-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: не предлагать перевод страниц"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "translateenabled", "перевод", "translate"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Edge не предлагает перевести страницу на другом языке."
+effect = "Текст страниц не отправляется в облачный переводчик."
+risk = "Сотрудники, которые читают иностранные сайты, лишаются встроенного перевода."
+versions = "Edge 77 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "TranslateEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.web-capture-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: выключить веб-снимок"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "webcaptureenabled", "снимок", "web capture"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Функция снимка страницы и её фрагментов (Web Capture) недоступна."
+effect = "Меньше встроенных функций, которые передают содержимое страниц сервисам Microsoft."
+risk = "Снимки страниц придётся делать средствами Windows."
+versions = "Edge 87 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "WebCaptureEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.autofill-address-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: не сохранять адреса для автозаполнения"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "autofilladdressenabled", "автозаполнение", "autofill", "адреса"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Edge не сохраняет адреса и не подставляет их в формы."
+effect = "Личные данные сотрудников не хранятся в профиле браузера."
+versions = "Edge 77 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "AutofillAddressEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.search-suggest-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: без поисковых подсказок"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "searchsuggestenabled", "подсказки", "поиск", "suggest"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Адресная строка Edge не показывает подсказки поисковой системы."
+effect = "Набираемый текст не отправляется поисковику до нажатия Enter."
+versions = "Edge 77 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "SearchSuggestEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.feedback-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: без отправки отзывов"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "userfeedbackallowed", "отзывы", "feedback"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Кнопка отзывов и отправка отзывов в Microsoft отключены."
+effect = "Снимки экрана и описания проблем не уходят из браузера в Microsoft."
+versions = "Edge 77 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "UserFeedbackAllowed"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.signin-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: запретить вход в браузер"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "browsersignin", "вход", "signin", "учётная запись"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Вход в Edge с учётной записью Microsoft или рабочей учётной записью запрещён."
+effect = "Профиль браузера остаётся локальным и не связан с облачной учётной записью."
+risk = "Недоступны синхронизация и функции, которым нужен вход. В сценарии из issue #1 строка закомментирована: включайте осознанно."
+versions = "Edge 77 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "BrowserSignin"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.password-manager-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: запретить сохранение паролей"
+level = "risky"
+default = false
+tags = ["edge", "браузер", "политика", "passwordmanagerenabled", "пароли", "password"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Встроенный менеджер паролей Edge не предлагает сохранять пароли."
+effect = "Пароли не хранятся в профиле браузера."
+risk = "Без менеджера паролей пользователи чаще повторяют пароли или записывают их. Включать, только если в организации есть отдельный менеджер паролей. В сценарии из issue #1 строка закомментирована: включайте осознанно."
+versions = "Edge 77 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "PasswordManagerEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.autofill-cards-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: не сохранять банковские карты"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "autofillcreditcardenabled", "карты", "autofill", "платежи"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Edge не сохраняет данные банковских карт и не подставляет их в формы."
+effect = "Данные карт не хранятся в профиле браузера."
+risk = "В сценарии из issue #1 строка закомментирована: включайте осознанно."
+versions = "Edge 77 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "AutofillCreditCardEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "chrome.metrics-off"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: не отправлять статистику и отчёты о сбоях"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "metricsreportingenabled", "телеметрия", "статистика", "metrics"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Chrome не отправляет Google статистику использования и отчёты о сбоях."
+effect = "Сведения о работе браузера не уходят в Google."
+versions = "Chrome 8 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "MetricsReportingEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "chrome.variations"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: ограничить полевые испытания (variations)"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "chromevariations", "variations", "эксперименты", "телеметрия"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Chrome не включает у пользователя экспериментальные функции, которые Google раздаёт без обновления браузера."
+effect = "Поведение браузера меняется только с обновлениями. Значение 1 сохраняет срочные исправления безопасности."
+risk = "Значение 2 может задержать критические исправления безопасности: Google его не рекомендует. В сценарии issue #1 было несуществующее имя ChromeVariationsEnabled."
+versions = "Chrome 83 и новее."
+
+[rule.params.mode]
+type = "enum"
+title = "Режим полевых испытаний"
+default = 1
+values = [ { value = 1, title = "Только критические исправления безопасности и стабильности" }, { value = 2, title = "Выключить все (не рекомендуется Google)" } ]
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "ChromeVariations"
+kind = "DWord"
+value = "{mode}"
+
+[[rule]]
+id = "chrome.sync"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: синхронизация с Google"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "syncdisabled", "синхронизация", "sync", "google"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Синхронизация закладок, паролей, истории и настроек Chrome с аккаунтом Google запрещена (или оставлена на выбор пользователя)."
+effect = "Данные браузера не уходят в облако Google и не попадают на личные устройства сотрудников."
+risk = "В сценарии issue #1 стояло 0, что оставляет выбор пользователю; по умолчанию здесь запрет, как для Edge."
+versions = "Chrome 8 и новее."
+
+[rule.params.value]
+type = "enum"
+title = "Синхронизация"
+default = 1
+values = [ { value = 1, title = "Запрещена" }, { value = 0, title = "Решает пользователь (как в сценарии issue #1)" } ]
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "SyncDisabled"
+kind = "DWord"
+value = "{value}"
+
+[[rule]]
+id = "chrome.background-off"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: не работать в фоне после закрытия"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "backgroundmodeenabled", "фон", "background", "память"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Chrome и его приложения не продолжают работать после закрытия последнего окна."
+effect = "Браузер не занимает память и сеть, когда им не пользуются."
+versions = "Chrome 19 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "BackgroundModeEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "chrome.genai-off"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: выключить функции генеративного ИИ"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "genaidefaultsettings", "ии", "ai", "gemini", "genai"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Функции генеративного ИИ Chrome (помощь в написании текста, упорядочивание вкладок, поиск по истории и другие) по умолчанию запрещены."
+effect = "Содержимое страниц и тексты сотрудников не отправляются в модели Google."
+versions = "Chrome 130 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "GenAiDefaultSettings"
+kind = "DWord"
+value = 2
+
+[[rule]]
+id = "chrome.genai-local-model-off"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: не загружать локальную модель ИИ"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "genailocalfoundationalmodelsettings", "ии", "модель", "диск"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Chrome не скачивает на компьютер локальную модель генеративного ИИ."
+effect = "На диске не появляется модель объёмом в гигабайты, не расходуется трафик."
+versions = "Chrome 124 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "GenAILocalFoundationalModelSettings"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "chrome.devtools-genai-off"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: выключить ИИ в инструментах разработчика"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "devtoolsgenaisettings", "ии", "devtools"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Функции генеративного ИИ в инструментах разработчика Chrome запрещены."
+effect = "Код и данные страниц не отправляются в модели Google из DevTools."
+versions = "Chrome 125 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "DevToolsGenAiSettings"
+kind = "DWord"
+value = 2
+
+[[rule]]
+id = "chrome.lens-overlay-off"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: выключить Google Lens поверх страницы"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "lensoverlaysettings", "lens", "поиск", "ии"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Поиск Google Lens по содержимому экрана (Lens Overlay) недоступен."
+effect = "Снимки страниц не отправляются в Google для визуального поиска."
+risk = "В сценарии issue #1 стояло 0, что разрешает функцию; здесь 1. С Chrome 147 политика объявлена устаревшей."
+versions = "Chrome 126 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "LensOverlaySettings"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "chrome.translate-off"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: не предлагать перевод страниц"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "translateenabled", "перевод", "translate"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Chrome не предлагает перевести страницу на другом языке."
+effect = "Текст страниц не отправляется в облачный переводчик Google."
+risk = "Сотрудники, которые читают иностранные сайты, лишаются встроенного перевода."
+versions = "Chrome 12 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "TranslateEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "chrome.signin-off"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: запретить вход в браузер"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "browsersignin", "вход", "signin", "google"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Вход в Chrome с аккаунтом Google запрещён."
+effect = "Профиль браузера остаётся локальным и не связан с аккаунтом Google."
+risk = "Недоступны синхронизация и функции, которым нужен вход."
+versions = "Chrome 70 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "BrowserSignin"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "chrome.search-suggest-off"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: без поисковых подсказок"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "searchsuggestenabled", "подсказки", "поиск", "suggest"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Адресная строка Chrome не показывает подсказки поисковой системы."
+effect = "Набираемый текст не отправляется поисковику до нажатия Enter."
+versions = "Chrome 8 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "SearchSuggestEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "chrome.cast-private-only"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: трансляция Cast только в локальной сети"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "mediaroutercastallowallips", "cast", "трансляция", "сеть"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Google Cast подключается только к устройствам с частными адресами локальной сети."
+effect = "Экран нельзя транслировать на устройства с публичными адресами."
+versions = "Chrome 67 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "MediaRouterCastAllowAllIPs"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "chrome.promotions-off"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: без рекламных страниц и акций"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "promotionsenabled", "реклама", "promotions"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Chrome не показывает рекламные вкладки и акции Google."
+effect = "Меньше рекламы при запуске и обновлении браузера. Заменяет устаревшую политику PromotionalTabsEnabled из сценария issue #1."
+versions = "Chrome 128 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "PromotionsEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "chrome.password-manager-off"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: запретить сохранение паролей"
+level = "risky"
+default = false
+tags = ["chrome", "браузер", "политика", "passwordmanagerenabled", "пароли", "password"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Встроенный менеджер паролей Chrome не предлагает сохранять пароли."
+effect = "Пароли не хранятся в профиле браузера."
+risk = "Без менеджера паролей пользователи чаще повторяют пароли или записывают их. Включать, только если в организации есть отдельный менеджер паролей. В сценарии из issue #1 строка закомментирована: включайте осознанно."
+versions = "Chrome 8 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "PasswordManagerEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "chrome.autofill-address-off"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: не сохранять адреса для автозаполнения"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "autofilladdressenabled", "автозаполнение", "autofill", "адреса"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Chrome не сохраняет адреса и не подставляет их в формы."
+effect = "Личные данные сотрудников не хранятся в профиле браузера."
+risk = "В сценарии из issue #1 строка закомментирована: включайте осознанно."
+versions = "Chrome 69 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "AutofillAddressEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "chrome.autofill-cards-off"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: не сохранять банковские карты"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "autofillcreditcardenabled", "карты", "autofill", "платежи"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Chrome не сохраняет данные банковских карт и не подставляет их в формы."
+effect = "Данные карт не хранятся в профиле браузера."
+risk = "В сценарии из issue #1 строка закомментирована: включайте осознанно."
+versions = "Chrome 63 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "AutofillCreditCardEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "chrome.builtin-dns-off"
+group = "browsers.chrome"
+phase = "specialize"
+title = "Chrome: DNS Windows вместо встроенного клиента"
+level = "optional"
+default = false
+tags = ["chrome", "браузер", "политика", "builtindnsclientenabled", "dns", "сеть"]
+doc = "docs/technical/reference/18-browsers.md#google-chrome"
+summary = "Chrome разрешает имена через DNS-клиент Windows, а не через свой встроенный."
+effect = "Действуют DNS-настройки организации, файл hosts и фильтрующий DNS, если он есть."
+risk = "В сценарии из issue #1 строка закомментирована: включайте осознанно."
+versions = "Chrome 25 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+name = "BuiltInDnsClientEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "brave.rewards-off"
+group = "browsers.brave"
+phase = "specialize"
+title = "Brave: выключить Brave Rewards"
+level = "optional"
+default = false
+tags = ["brave", "браузер", "политика", "braverewardsdisabled", "rewards", "реклама", "криптовалюта"]
+doc = "docs/technical/reference/18-browsers.md#brave"
+summary = "Программа вознаграждений за просмотр рекламы Brave Rewards недоступна."
+effect = "Браузер не показывает собственную рекламу и не начисляет токены."
+versions = "Политики Brave; действуют, если Brave установлен."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+name = "BraveRewardsDisabled"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "brave.wallet-off"
+group = "browsers.brave"
+phase = "specialize"
+title = "Brave: выключить криптокошелёк"
+level = "optional"
+default = false
+tags = ["brave", "браузер", "политика", "bravewalletdisabled", "wallet", "криптовалюта"]
+doc = "docs/technical/reference/18-browsers.md#brave"
+summary = "Встроенный криптовалютный кошелёк Brave Wallet недоступен."
+effect = "На рабочих компьютерах не появляются кошельки и расширения для криптовалют."
+versions = "Политики Brave; действуют, если Brave установлен."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+name = "BraveWalletDisabled"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "brave.vpn-off"
+group = "browsers.brave"
+phase = "specialize"
+title = "Brave: выключить Brave VPN"
+level = "optional"
+default = false
+tags = ["brave", "браузер", "политика", "bravevpndisabled", "vpn", "сеть"]
+doc = "docs/technical/reference/18-browsers.md#brave"
+summary = "Платный VPN Brave недоступен."
+effect = "Трафик браузера не уходит в VPN в обход сетевых правил организации."
+versions = "Политики Brave; действуют, если Brave установлен."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+name = "BraveVPNDisabled"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "brave.ai-chat-off"
+group = "browsers.brave"
+phase = "specialize"
+title = "Brave: выключить ИИ-помощника Leo"
+level = "optional"
+default = false
+tags = ["brave", "браузер", "политика", "braveaichatenabled", "ии", "leo", "ai"]
+doc = "docs/technical/reference/18-browsers.md#brave"
+summary = "ИИ-помощник Leo (AI Chat) в Brave недоступен."
+effect = "Содержимое страниц и тексты сотрудников не отправляются в модели ИИ. В сценарии issue #1 было также несуществующее имя BraveLeoEnabled."
+versions = "Политики Brave; действуют, если Brave установлен."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+name = "BraveAIChatEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "brave.stats-ping-off"
+group = "browsers.brave"
+phase = "specialize"
+title = "Brave: без ежедневного отчёта об использовании"
+level = "optional"
+default = false
+tags = ["brave", "браузер", "политика", "bravestatspingenabled", "телеметрия", "stats"]
+doc = "docs/technical/reference/18-browsers.md#brave"
+summary = "Brave не отправляет ежедневный анонимный сигнал об использовании (stats ping)."
+effect = "Меньше обращений браузера к серверам Brave. В сценарии issue #1 было также несуществующее имя BraveStatsPingDisabled."
+versions = "Политики Brave; действуют, если Brave установлен."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+name = "BraveStatsPingEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "brave.p3a-off"
+group = "browsers.brave"
+phase = "specialize"
+title = "Brave: без аналитики продукта (P3A)"
+level = "optional"
+default = false
+tags = ["brave", "браузер", "политика", "bravep3aenabled", "телеметрия", "p3a"]
+doc = "docs/technical/reference/18-browsers.md#brave"
+summary = "Brave не отправляет обезличенную аналитику продукта P3A."
+effect = "Сведения об использовании функций браузера не уходят в Brave. В сценарии issue #1 было несуществующее имя BraveP3ADisabled."
+versions = "Политики Brave; действуют, если Brave установлен."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+name = "BraveP3AEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "brave.news-off"
+group = "browsers.brave"
+phase = "specialize"
+title = "Brave: выключить Brave News"
+level = "optional"
+default = false
+tags = ["brave", "браузер", "политика", "bravenewsdisabled", "новости", "news"]
+doc = "docs/technical/reference/18-browsers.md#brave"
+summary = "Лента новостей Brave News на новой вкладке недоступна."
+effect = "Новая вкладка без новостей и рекламных материалов."
+versions = "Политики Brave; действуют, если Brave установлен."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+name = "BraveNewsDisabled"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "brave.talk-off"
+group = "browsers.brave"
+phase = "specialize"
+title = "Brave: выключить Brave Talk"
+level = "optional"
+default = false
+tags = ["brave", "браузер", "политика", "bravetalkdisabled", "talk", "видеозвонки"]
+doc = "docs/technical/reference/18-browsers.md#brave"
+summary = "Сервис видеозвонков Brave Talk недоступен."
+effect = "Видеосвязь идёт только через утверждённые в организации сервисы."
+versions = "Политики Brave; действуют, если Brave установлен."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+name = "BraveTalkDisabled"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "brave.playlist-off"
+group = "browsers.brave"
+phase = "specialize"
+title = "Brave: выключить Playlist"
+level = "optional"
+default = false
+tags = ["brave", "браузер", "политика", "braveplaylistenabled", "playlist", "медиа"]
+doc = "docs/technical/reference/18-browsers.md#brave"
+summary = "Функция сохранения видео и аудио для офлайн-просмотра (Playlist) недоступна."
+effect = "Медиафайлы не накапливаются в профиле браузера."
+versions = "Политики Brave; действуют, если Brave установлен."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+name = "BravePlaylistEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "brave.speedreader-off"
+group = "browsers.brave"
+phase = "specialize"
+title = "Brave: выключить Speedreader"
+level = "optional"
+default = false
+tags = ["brave", "браузер", "политика", "bravespeedreaderenabled", "speedreader", "чтение"]
+doc = "docs/technical/reference/18-browsers.md#brave"
+summary = "Режим упрощённого чтения Speedreader недоступен."
+effect = "Меньше встроенных функций, меняющих вид страниц."
+versions = "Политики Brave; действуют, если Brave установлен."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+name = "BraveSpeedreaderEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "brave.wayback-off"
+group = "browsers.brave"
+phase = "specialize"
+title = "Brave: без подсказок Wayback Machine"
+level = "optional"
+default = false
+tags = ["brave", "браузер", "политика", "bravewaybackmachineenabled", "wayback", "архив"]
+doc = "docs/technical/reference/18-browsers.md#brave"
+summary = "Brave не предлагает открыть архивную копию недоступной страницы в Wayback Machine."
+effect = "Адреса недоступных страниц не отправляются в архив интернета."
+versions = "Политики Brave; действуют, если Brave установлен."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+name = "BraveWaybackMachineEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "brave.web-discovery-off"
+group = "browsers.brave"
+phase = "specialize"
+title = "Brave: выключить Web Discovery"
+level = "optional"
+default = false
+tags = ["brave", "браузер", "политика", "bravewebdiscoveryenabled", "web discovery", "поиск", "телеметрия"]
+doc = "docs/technical/reference/18-browsers.md#brave"
+summary = "Brave не передаёт сведения о посещённых страницах для наполнения своего поискового индекса."
+effect = "Адреса посещённых сайтов не уходят в Brave Search."
+versions = "Политики Brave; действуют, если Brave установлен."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+name = "BraveWebDiscoveryEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "brave.translate-off"
+group = "browsers.brave"
+phase = "specialize"
+title = "Brave: не предлагать перевод страниц"
+level = "optional"
+default = false
+tags = ["brave", "браузер", "политика", "translateenabled", "перевод", "translate"]
+doc = "docs/technical/reference/18-browsers.md#brave"
+summary = "Brave не предлагает перевести страницу на другом языке."
+effect = "Текст страниц не отправляется в облачный переводчик."
+risk = "Сотрудники, которые читают иностранные сайты, лишаются встроенного перевода."
+versions = "Политики Brave; действуют, если Brave установлен."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+name = "TranslateEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "brave.tor-off"
+group = "browsers.brave"
+phase = "specialize"
+title = "Brave: запретить окна Tor"
+level = "recommended"
+default = false
+tags = ["brave", "браузер", "политика", "tordisabled", "tor", "сеть", "анонимность"]
+doc = "docs/technical/reference/18-browsers.md#brave"
+summary = "Приватные окна с подключением к сети Tor в Brave недоступны."
+effect = "Трафик браузера не уходит в сеть Tor в обход фильтрации и журналов организации."
+versions = "Политики Brave; действуют, если Brave установлен."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+name = "TorDisabled"
+kind = "DWord"
+value = 1

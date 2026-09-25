@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 25.09.2026 (the toolkit is named WinKickOff; WindowsInstaller is the umbrella repository).
+Last update: 25.09.2026 (issue #1: the «Браузеры» (Browsers) section of the catalog, 46 rules).
 
 Repository: https://github.com/supakov/WindowsInstaller (private, branch `main`). The local folder
 `C:\Users\User\projects\Windows installer` and the repository must match: commit and push after every
@@ -49,7 +49,7 @@ Windows installer/
 ├── docs/
 │   ├── README.md                  entry point to the documentation (three languages)
 │   ├── technical/                 TECHNICAL DOCUMENTATION, English
-│   │   ├── reference/             reference: a card for every installation parameter (18 files)
+│   │   ├── reference/             reference: a card for every installation parameter (19 files)
 │   │   └── editor/                WinKickOff specification: problem, architecture, data model, testing,
 │   │       │                      plan (days, milestones), review of revision 0.1
 │   │       └── todo/              tasks T01-T17 with status (README.md is the index)
@@ -66,14 +66,15 @@ Windows installer/
     │                              render, validate, verify, actions_parser, importer, pscheck, settings, i18n, apply),
     │                              ui/ (main_window: tree, search, description, parameters, profiles, build;
     │                              data_forms: install, accounts, languages; checkimages: check box images)
-    ├── rules/                     RULE CATALOG: groups.toml (24 groups), 00-13-*.toml (130 rules), lang/*.toml
+    ├── rules/                     RULE CATALOG: groups.toml (27 groups), 00-14-*.toml (176 rules), lang/*.toml
     ├── templates/                 runtime with slots: autounattend.template.xml, Setup-System, Setup-User, Post-OOBE,
     │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.3
     ├── resources/                 keyboards.json, timezones.json, strings.uk.json, strings.en.json (interface translations)
     ├── profiles/                  presets «Офис» (equals v0.2), «Строгий» (Strict), «Ноутбук» (Laptop), README
     ├── tests/                     unittest: catalog, resolver, profile, render, build against v0.2, validation,
     │                              import, presets, PowerShell, settings, portability, window smoke test, docs
-    └── tools/                     make_presets.py, make_rule_docs.py, run-tests.ps1
+    └── tools/                     make_presets.py, make_rule_docs.py, run-tests.ps1,
+                                   make_browser_rules.py (generates rules/14-browsers.toml)
 ```
 
 Working folders `WinKickOff/output/`, `WinKickOff/logs/`, `WinKickOff/settings.json`, `__pycache__/` and
@@ -168,7 +169,11 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 - Known inconsistencies of v0.2 are listed in `docs/technical/reference/17-cross-links.md`, section 3; in the
   editor catalog `MapsBroker` already belongs to the removal of Maps, not to Xbox.
 - Of the 153 actions of the v0.2 script, 47 ran unconditionally; in the editor every action belongs to a
-  rule (130 rules: 47 baseline, 18 ASR, 33 apps and so on) and any rule can be disabled.
+  rule (130 rules for v0.2: 47 baseline, 18 ASR, 33 apps and so on) and any rule can be disabled.
+- Browser rules (issue #1) are generated: edit the table in `WinKickOff/tools/make_browser_rules.py` and rerun it,
+  not `rules/14-browsers.toml`. Every policy name was checked against the vendors' definitions; several lines
+  of the issue's scripts were invalid or obsolete (`docs/technical/reference/18-browsers.md`, corrections).
+  New rules must be `default = false`: the «Офис» (Office) preset equals the catalog defaults and v0.2.
 - GitHub rejects a push with a personal e-mail in the commit author; this repository has the local address
   `265459095+stanislavperec-ua@users.noreply.github.com` (`git config user.email`, this folder only).
   Files are stored byte for byte (`.gitattributes`: `* -text`), CRLF.
@@ -202,17 +207,18 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Answer file v0.2 | Reference, frozen; checked by the validator and the critic; acceptance install in a VM by the customer not yet confirmed | 13.09.2026 | `docs/appendices/B-autounattend-v0.2/` |
 | Review of the original | Done | 12.09.2026 | `docs/appendices/C-critical-review/01-critical-review.md` |
 | Critic's report and fixes | Done (9 accepted, 3 rejected) | 13.09.2026 | `docs/appendices/C-critical-review/03-critic-report-v0.2.docx` |
-| Parameter reference | Done, 18 files, English | 25.09.2026 | `docs/technical/reference/` |
+| Parameter reference | Done, 19 files, English | 25.09.2026 | `docs/technical/reference/` |
 | Answer file checker | Done, 36 checks, 0 errors on v0.2 | 25.09.2026 | `tools/Validate-Unattend.ps1` |
 | GitHub repository | Connected, the local folder and `origin/main` match | 25.09.2026 | https://github.com/supakov/WindowsInstaller |
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
 | Editor tasks | T01-T11, T14, T16, T17 done (milestones M1-M4); T12 in progress (build script, the build only in a VM); T13 and T15 blocked (implemented, acceptance needs a VM) | 25.09.2026 | `docs/technical/editor/todo/` |
-| Rule catalog | 0.3: 130 rules, 24 groups, integrity and v0.2 coverage confirmed by tests | 25.09.2026 | `WinKickOff/rules/` |
-| Editor code | 0.2.0: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, three presets, window in Russian, Ukrainian and English with check boxes, parameters, forms, profiles, comparison, recent files and build; 162 tests | 25.09.2026 | `WinKickOff/` |
+| Rule catalog | 0.3: 176 rules, 27 groups (130 carry v0.2, 46 browser policies of issue #1 are off by default), integrity and v0.2 coverage confirmed by tests | 25.09.2026 | `WinKickOff/rules/` |
+| Editor code | 0.2.0: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, three presets, window in Russian, Ukrainian and English with check boxes, parameters, forms, profiles, comparison, recent files and build; 177 tests | 25.09.2026 | `WinKickOff/` |
 | «Офис» build from the editor | Covers every v0.2 action, validator 36 of 36; installation in a VM not yet tested | 25.09.2026 | `WinKickOff/output/` (not versioned) |
 | Applying rules to a running Windows | T15 implemented: read-only audit, apply scripts with backup, undo, apply through UAC (off by default); acceptance in a VM pending | 25.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done: the root describes the umbrella repository and its WinKickOff project; XML files and reviews in `docs/appendices/` | 25.09.2026 | `README.md`, `docs/appendices/` |
 | Documentation split | T16 done: technical in English, user documentation in ru, uk, en; complete catalog translations uk and en | 25.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
+| GitHub issues | #1 "Web Browsers debloat" done: section «Браузеры» (Edge, Chrome, Brave), 46 rules off by default, card 18; the customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md` |
 | Customer items for v0.3 | Awaited | | |
 
 Open questions to the customer: `docs/appendices/D-requirements-draft/02-constructor-requirements-draft.md`,

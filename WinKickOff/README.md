@@ -10,8 +10,8 @@ User documentation (how to work with the program): [Русский](../docs/user
 [Українська](../docs/user/uk/README.md), [English](../docs/user/en/README.md).
 Specification, architecture, data model and plan: [`../docs/technical/editor/`](../docs/technical/editor/README.md).
 
-State on 25.09.2026: version 0.2.0. The catalog (130 rules, 24 groups) carries every action of the
-hand-written answer file v0.2; the generator, the checks, the presets, profiles, data forms, import and
+State on 25.09.2026: version 0.2.0. The catalog (176 rules, 27 groups) carries every action of the
+hand-written answer file v0.2 and, off by default, the Edge, Chrome and Brave policies of issue #1; the generator, the checks, the presets, profiles, data forms, import and
 the build from the window work. A build of the «Офис» (Office) preset covers every v0.2 action and passes
 `tools/Validate-Unattend.ps1` (36 of 36). Installation from a built file has not been tested in a VM yet:
 do not use such a file on production PCs before that. Open tasks: `../docs/technical/editor/todo/`.
@@ -73,7 +73,7 @@ WinKickOff/
   resources/         keyboard layouts, time zones, interface strings
   profiles/          presets (generated from the catalog, see profiles/README.md)
   tests/             unittest
-  tools/             make_presets.py, make_rule_docs.py, run-tests.ps1, build.ps1 (T12)
+  tools/             make_presets.py, make_rule_docs.py, make_browser_rules.py, run-tests.ps1, build.ps1 (T12)
 ```
 
 The working folders `output/`, `logs/` and `settings.json` are created next to the program on first use

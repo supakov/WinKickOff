@@ -437,6 +437,144 @@
     },
     "post-oobe.delete-answer-file-copies": {
       "enabled": true
+    },
+    "edge.diagnostic-data-off": {
+      "enabled": false
+    },
+    "edge.search-telemetry-off": {
+      "enabled": false
+    },
+    "edge.sidebar-off": {
+      "enabled": false
+    },
+    "edge.shopping-off": {
+      "enabled": false
+    },
+    "edge.rewards-off": {
+      "enabled": false
+    },
+    "edge.insider-promo-off": {
+      "enabled": false
+    },
+    "edge.sync-off": {
+      "enabled": false
+    },
+    "edge.translate-off": {
+      "enabled": false
+    },
+    "edge.web-capture-off": {
+      "enabled": false
+    },
+    "edge.autofill-address-off": {
+      "enabled": false
+    },
+    "edge.search-suggest-off": {
+      "enabled": false
+    },
+    "edge.feedback-off": {
+      "enabled": false
+    },
+    "edge.signin-off": {
+      "enabled": false
+    },
+    "edge.password-manager-off": {
+      "enabled": false
+    },
+    "edge.autofill-cards-off": {
+      "enabled": false
+    },
+    "chrome.metrics-off": {
+      "enabled": false
+    },
+    "chrome.variations": {
+      "enabled": false
+    },
+    "chrome.sync": {
+      "enabled": false
+    },
+    "chrome.background-off": {
+      "enabled": false
+    },
+    "chrome.genai-off": {
+      "enabled": false
+    },
+    "chrome.genai-local-model-off": {
+      "enabled": false
+    },
+    "chrome.devtools-genai-off": {
+      "enabled": false
+    },
+    "chrome.lens-overlay-off": {
+      "enabled": false
+    },
+    "chrome.translate-off": {
+      "enabled": false
+    },
+    "chrome.signin-off": {
+      "enabled": false
+    },
+    "chrome.search-suggest-off": {
+      "enabled": false
+    },
+    "chrome.cast-private-only": {
+      "enabled": false
+    },
+    "chrome.promotions-off": {
+      "enabled": false
+    },
+    "chrome.password-manager-off": {
+      "enabled": false
+    },
+    "chrome.autofill-address-off": {
+      "enabled": false
+    },
+    "chrome.autofill-cards-off": {
+      "enabled": false
+    },
+    "chrome.builtin-dns-off": {
+      "enabled": false
+    },
+    "brave.rewards-off": {
+      "enabled": false
+    },
+    "brave.wallet-off": {
+      "enabled": false
+    },
+    "brave.vpn-off": {
+      "enabled": false
+    },
+    "brave.ai-chat-off": {
+      "enabled": false
+    },
+    "brave.stats-ping-off": {
+      "enabled": false
+    },
+    "brave.p3a-off": {
+      "enabled": false
+    },
+    "brave.news-off": {
+      "enabled": false
+    },
+    "brave.talk-off": {
+      "enabled": false
+    },
+    "brave.playlist-off": {
+      "enabled": false
+    },
+    "brave.speedreader-off": {
+      "enabled": false
+    },
+    "brave.wayback-off": {
+      "enabled": false
+    },
+    "brave.web-discovery-off": {
+      "enabled": false
+    },
+    "brave.translate-off": {
+      "enabled": false
+    },
+    "brave.tor-off": {
+      "enabled": false
     }
   },
   "unknown": {}
