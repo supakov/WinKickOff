@@ -40,3 +40,18 @@ the profile contains passwords, keep the file secret: the passwords are stored i
   are listed at the bottom of the window. After restoring, click "Check" (F7).
 
 Save the restored profile if you want to use it again.
+
+## Profiles after a program update
+
+A new version of the program opens profiles saved by an older one:
+
+- rules present in the profile keep their states and parameters, even if their default changed in the new
+  version;
+- new catalog rules get their defaults; the program reports in one line how many there are and how many of
+  them are on;
+- rules no longer in the catalog are not lost: they are kept in the `unknown` section of the profile and come
+  back if the rule reappears;
+- outdated fields are migrated (the country of catalog 0.2, for example), with a message as well.
+
+Presets always match their program version. To bring new recommendations into your profile, open a preset
+and choose "File, Compare with profile...": the list shows every difference.

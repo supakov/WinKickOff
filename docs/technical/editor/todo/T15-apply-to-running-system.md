@@ -97,3 +97,16 @@ Tests never apply anything; functional verification is done only in a virtual ma
   command, report statuses, the runner with a harmless script in a temporary folder) and window tests with
   the audit runner and the elevation mocked. Nothing is applied and no audit runs on the customer's PC in tests.
 - User documentation: `docs/user/{ru,uk,en}/this-pc.md`.
+
+### 26.09.2026: return to Windows defaults, apply without a hidden switch
+
+- Customer report: «Применить выбранное сейчас...» looked always disabled; its switch sat in another menu. Now
+  the items are always available; the first apply or return asks the permission question of
+  «Разрешить применение на этом ПК» (Allow applying on this PC) and remembers the answer.
+- New item «Вернуть выбранное к умолчаниям Windows сейчас...» (Return the selection to Windows defaults now):
+  `plan_revert` / `render_revert` in `core/apply.py` return the selected rules and the rules that require them to
+  the values of a clean Windows, whatever the profile says. Data: the optional action field `default`
+  (78 values in catalog 0.4); a missing policy is the default; unknown defaults are listed and left alone. The
+  script is the apply script (same backup), so `Undo-Apply.ps1` in `logs/revert-*` undoes the return.
+- Tests: `RevertTest` in `tests/test_apply.py`, window tests `test_apply_now_asks_for_permission_first` and
+  `test_revert_now_returns_windows_defaults`.

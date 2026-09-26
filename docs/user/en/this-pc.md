@@ -25,10 +25,23 @@ The script can be taken to another computer. Test it on a test computer or a vir
 
 ## Apply now
 
-"Apply the selection now..." is unavailable by default. The "Allow applying on this PC" item of the
-"This PC" menu turns it on (with a warning). Before starting, the program shows the computer name, the
-number of rules, what is not rolled back automatically and whether a restart is needed; then Windows asks
-for administrator rights. The log and the backup are saved in the program's `logs` folder.
+"Apply the selection now..." asks, the first time, for permission to change this computer (with a
+warning); the answer is kept in the "Allow applying on this PC" item of the "This PC" menu, where it can
+also be withdrawn. Before starting, the program shows the computer name, the number of rules, what is not
+rolled back automatically and whether a restart is needed; then Windows asks for administrator rights. The
+log and the backup are saved in the program's `logs` folder.
+
+## Return to Windows defaults
+
+"Return the selection to Windows defaults now..." undoes the selected rules on this computer: the values go
+back to those of a clean Windows, whether the rules came with the installation or were applied later.
+Policies are simply deleted; other values and service start types come from the catalog. Rules that depend
+on the selected ones are returned together with them. Permission, confirmation and administrator rights are
+asked for as when applying; the previous values are saved to a backup, and `Undo-Apply.ps1` in the
+`logs\revert-*` folder undoes the return.
+
+Not returned automatically: removed apps and components, PowerShell steps and values whose Windows default
+depends on the build (SMB signing, for example). They are listed at the bottom of the window.
 
 ## What is not applied
 

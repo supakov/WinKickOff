@@ -59,6 +59,7 @@ name = "ProcessCreationIncludeCmdLine_Enabled"
 kind = "DWord"
 value = 1
 why = "command line in event 4688"
+default = "absent"
 
 [[rule.actions]]
 type = "exe"
@@ -172,8 +173,10 @@ rollback = "Enable-WindowsOptionalFeature -Online -FeatureName MicrosoftWindowsP
 type = "feature"
 name = "MicrosoftWindowsPowerShellV2Root"
 state = "Disabled"
+default = "Enabled"
 
 [[rule.actions]]
 type = "feature"
 name = "MicrosoftWindowsPowerShellV2"
 state = "Disabled"
+default = "Enabled"

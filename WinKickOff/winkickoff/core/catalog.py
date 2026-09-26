@@ -29,12 +29,14 @@ REG_PREFIXES: tuple[str, ...] = ("HKLM:\\", "HKCU:\\", "DU:\\")
 PARAM_TYPES: tuple[str, ...] = ("int", "enum", "string", "bool")
 
 # action type -> (required fields, optional fields)
+# "default" is the state of a clean Windows, used to return a rule to Windows defaults on a running PC:
+# DEFAULT_ABSENT (no such value), DEFAULT_UNKNOWN (not restored automatically) or the value itself.
 ACTION_FIELDS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
-    "reg": (("path", "name", "kind", "value"), ("why",)),
-    "reg-remove": (("path", "name"), ()),
-    "service": (("name", "start"), ()),
+    "reg": (("path", "name", "kind", "value"), ("why", "default")),
+    "reg-remove": (("path", "name"), ("default",)),
+    "service": (("name", "start"), ("default",)),
     "exe": (("file", "args"), ()),
-    "feature": (("name", "state"), ()),
+    "feature": (("name", "state"), ("default",)),
     "capability": (("pattern",), ()),
     "appx": (("names",), ()),
     "ps": (("script",), ()),
@@ -48,6 +50,8 @@ XML_ACTION_PHASE: dict[str, str] = {
     "xml-oobe": "oobe-xml",
 }
 SCRIPT_PHASES: tuple[str, ...] = ("specialize", "default-user", "user-first-logon", "post-oobe")
+DEFAULT_ABSENT = "absent"
+DEFAULT_UNKNOWN = "unknown"
 
 _ID_RE = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*$")
 _PLACEHOLDER_RE = re.compile(r"\{([a-z_][a-z0-9_]*)\}")
@@ -341,7 +345,32 @@ def _parse_action(raw: dict[str, Any], file: str, rule_id: str, index: int) -> A
         raise CatalogError(f"action {index}: appx names must be a non-empty list", file=file, rule_id=rule_id)
     if atype == "ps" and not str(fields["script"]).strip():
         raise CatalogError(f"action {index}: empty ps script", file=file, rule_id=rule_id)
+    if "default" in fields:
+        problem = _default_problem(atype, fields)
+        if problem:
+            raise CatalogError(f"action {index} ({atype}): default {problem}", file=file, rule_id=rule_id)
     return Action(type=atype, fields=fields, rule_id=rule_id)
+
+
+def _default_problem(atype: str, fields: dict[str, Any]) -> str:
+    default = fields["default"]
+    sentinels = (DEFAULT_ABSENT, DEFAULT_UNKNOWN)
+    if atype == "reg-remove":
+        return "" if default in sentinels else f"must be '{DEFAULT_ABSENT}' or '{DEFAULT_UNKNOWN}'"
+    if atype == "service":
+        return "" if default in (2, 3, 4) or default == DEFAULT_UNKNOWN else "must be 2, 3, 4 or 'unknown'"
+    if atype == "feature":
+        return "" if default in ("Enabled", "Disabled", DEFAULT_UNKNOWN) else "must be Enabled, Disabled or 'unknown'"
+    if default in sentinels:
+        return ""
+    kind = fields["kind"]
+    if kind in ("DWord", "QWord") and not (isinstance(default, int) and not isinstance(default, bool)):
+        return f"of a {kind} value must be an integer"
+    if kind in ("String", "ExpandString") and not isinstance(default, str):
+        return f"of a {kind} value must be a string"
+    if kind in ("MultiString", "Binary"):
+        return f"of a {kind} value can only be '{DEFAULT_ABSENT}' or '{DEFAULT_UNKNOWN}'"
+    return ""
 
 
 def _parse_rule(raw: dict[str, Any], file: str, position: int) -> Rule:

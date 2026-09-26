@@ -21,6 +21,7 @@ name = "EnableLUA"
 kind = "DWord"
 value = 1
 why = "UAC on"
+default = 1
 
 [[rule.actions]]
 type = "reg"
@@ -28,6 +29,7 @@ path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
 name = "PromptOnSecureDesktop"
 kind = "DWord"
 value = 1
+default = 1
 
 [[rule.actions]]
 type = "reg"
@@ -36,6 +38,7 @@ name = "ConsentPromptBehaviorUser"
 kind = "DWord"
 value = 3
 why = "standard users: ask for admin credentials on secure desktop"
+default = 3
 
 [[rule.actions]]
 type = "reg"
@@ -43,6 +46,7 @@ path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
 name = "EnableInstallerDetection"
 kind = "DWord"
 value = 1
+default = 1
 
 [[rule.actions]]
 type = "reg"
@@ -50,6 +54,7 @@ path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
 name = "FilterAdministratorToken"
 kind = "DWord"
 value = 1
+default = 0
 
 [[rule.actions]]
 type = "reg"
@@ -58,6 +63,7 @@ name = "LocalAccountTokenFilterPolicy"
 kind = "DWord"
 value = 0
 why = "no remote admin token for local accounts"
+default = "absent"
 
 [[rule.actions]]
 type = "reg-remove"
@@ -99,6 +105,7 @@ name = "ConsentPromptBehaviorAdmin"
 kind = "DWord"
 value = "{level}"
 why = "UAC level for admins"
+default = 5
 
 [[rule]]
 id = "accounts.inactivity-lock"
@@ -129,6 +136,7 @@ name = "InactivityTimeoutSecs"
 kind = "DWord"
 value = "{seconds}"
 why = "lock after idle"
+default = "absent"
 
 [[rule]]
 id = "lsa.baseline"
@@ -151,6 +159,7 @@ path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'
 name = "NoLMHash"
 kind = "DWord"
 value = 1
+default = 1
 
 [[rule.actions]]
 type = "reg"
@@ -159,6 +168,7 @@ name = "LimitBlankPasswordUse"
 kind = "DWord"
 value = 1
 why = "blank passwords: console only"
+default = 1
 
 [[rule.actions]]
 type = "reg"
@@ -166,6 +176,7 @@ path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'
 name = "RestrictAnonymous"
 kind = "DWord"
 value = 1
+default = 0
 
 [[rule.actions]]
 type = "reg"
@@ -173,6 +184,7 @@ path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'
 name = "RestrictAnonymousSAM"
 kind = "DWord"
 value = 1
+default = 1
 
 [[rule.actions]]
 type = "reg"
@@ -180,6 +192,7 @@ path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'
 name = "EveryoneIncludesAnonymous"
 kind = "DWord"
 value = 0
+default = 0
 
 [[rule.actions]]
 type = "reg"
@@ -188,6 +201,7 @@ name = "UseLogonCredential"
 kind = "DWord"
 value = 0
 why = "no plaintext creds in memory"
+default = "absent"
 
 [[rule.actions]]
 type = "reg"
@@ -196,6 +210,7 @@ name = "DisableExceptionChainValidation"
 kind = "DWord"
 value = 0
 why = "SEHOP on"
+default = "absent"
 
 [[rule]]
 id = "lsa.protection"
@@ -226,6 +241,7 @@ name = "RunAsPPL"
 kind = "DWord"
 value = "{mode}"
 why = "LSA protection (no UEFI lock)"
+default = "absent"
 
 [[rule]]
 id = "lsa.ntlmv2-only"
@@ -250,6 +266,7 @@ name = "LmCompatibilityLevel"
 kind = "DWord"
 value = 5
 why = "NTLMv2 only"
+default = "absent"
 
 [[rule]]
 id = "accounts.lockout"
@@ -333,6 +350,7 @@ path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Remote Assistance'
 name = "fAllowToGetHelp"
 kind = "DWord"
 value = 0
+default = 1
 
 [[rule.actions]]
 type = "reg"
@@ -340,6 +358,7 @@ path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Remote Assistance'
 name = "fAllowFullControl"
 kind = "DWord"
 value = 0
+default = 1
 
 [[rule]]
 id = "remote.rdp-inbound-off"
@@ -362,6 +381,7 @@ path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server'
 name = "fDenyTSConnections"
 kind = "DWord"
 value = 1
+default = 1
 
 [[rule]]
 id = "remote.rdp-nla"
@@ -383,6 +403,7 @@ name = "UserAuthentication"
 kind = "DWord"
 value = 1
 why = "NLA if RDP is ever enabled"
+default = 1
 
 [[rule]]
 id = "remote.registry-off"
@@ -403,6 +424,7 @@ rollback = "Set-Service RemoteRegistry -StartupType Manual"
 type = "service"
 name = "RemoteRegistry"
 start = 4
+default = 4
 
 [[rule]]
 id = "encryption.prevent-auto-bitlocker"
@@ -427,6 +449,7 @@ name = "PreventDeviceEncryption"
 kind = "DWord"
 value = 1
 why = "no silent BitLocker; enable deliberately with a saved recovery key"
+default = "absent"
 
 [[rule]]
 id = "accounts.block-aad-join"

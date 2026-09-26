@@ -5,7 +5,9 @@ The editor itself never changes the computer. It generates PowerShell scripts:
 - Audit-*.ps1 only reads and writes a JSON report; it may run without administrator rights;
 - Apply-*.ps1 changes the system, saving the previous state of every registry value, service start
   type and optional feature to backup-<time>.json first; it runs elevated (UAC);
-- Undo-Apply.ps1 restores from that backup.
+- Undo-Apply.ps1 restores from that backup;
+- the same apply script can instead return rules to the values of a clean Windows (plan_revert): the
+  `default` field of an action, or a missing value for anything under SOFTWARE\\Policies.
 
 Rules that act only during installation (windowsPE, XML commands, OOBE) and rules of the first sign-in
 of each user (input languages: on 12.09.2026 a live change of layouts broke keyboard switching on the
@@ -24,11 +26,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from winkickoff.core.catalog import Catalog, Rule
+from winkickoff.core.catalog import DEFAULT_ABSENT, DEFAULT_UNKNOWN, Action, Catalog, Rule
 from winkickoff.core.deps import Resolver
 from winkickoff.core.i18n import N_, tr
 from winkickoff.core.profile import Profile
-from winkickoff.core.render import fill, ps_quote, render_block, render_reg_value, substitute
+from winkickoff.core.render import fill, ps_quote, render_block, render_reg_path, render_reg_value, substitute
 
 INSTALL_ONLY_PHASES = {"windowspe", "specialize-xml", "oobe-xml"}
 USER_PHASE = "user-first-logon"
@@ -133,6 +135,127 @@ def render_apply(plan: ApplyPlan, profile: Profile, catalog: Catalog, templates_
 
 def render_undo(templates_dir: Path, profile: Profile, app_version: str = "0.0.0") -> str:
     text = fill((templates_dir / "Undo.runtime.ps1").read_text(encoding="utf-8"), {"build_label": _label(profile, app_version)})
+    return text.replace("\r\n", "\n")
+
+
+# --------------------------------------------------------------------------- return to Windows defaults
+
+GPO_ROOTS = ("HKLM:\\SOFTWARE\\POLICIES\\", "DU:\\SOFTWARE\\POLICIES\\", "HKCU:\\SOFTWARE\\POLICIES\\")
+REASON_NO_DEFAULTS = N_("значения Windows по умолчанию неизвестны; откат вручную по описанию правила")
+REASON_ALREADY_DEFAULT = N_("правило только удаляет значения, которых нет в чистой Windows: возвращать нечего")
+
+
+def windows_default(action: Action) -> tuple[str, Any] | None:
+    """How one action returns to a clean Windows: ("remove", None), ("set", value), ("service", start),
+    ("feature", state), ("keep", None) when there is nothing to do, or None when the default is unknown.
+    A value under SOFTWARE\\Policies needs no data: a missing policy is the Windows default."""
+    default = action.fields.get("default")
+    if default == DEFAULT_UNKNOWN:
+        return None
+    if action.type == "reg":
+        if default is None:
+            return ("remove", None) if str(action.fields["path"]).upper().startswith(GPO_ROOTS) else None
+        return ("remove", None) if default == DEFAULT_ABSENT else ("set", default)
+    if action.type == "reg-remove":
+        return ("keep", None)
+    if action.type == "service" and default is not None:
+        return ("service", int(default))
+    if action.type == "feature" and default is not None:
+        return ("feature", str(default))
+    return None
+
+
+def _revert_line(action: Action, step: tuple[str, Any], params: dict[str, Any]) -> str | None:
+    kind, value = step
+    f = {key: substitute(v, params) for key, v in action.fields.items() if key != "default"}
+    if kind == "remove":
+        return f"Remove-Reg -Path {render_reg_path(str(f['path']))} -Name {ps_quote(str(f['name']))}"
+    if kind == "set":
+        return (f"Set-Reg -Path {render_reg_path(str(f['path']))} -Name {ps_quote(str(f['name']))} -Type {f['kind']} "
+                f"-Value {render_reg_value(str(f['kind']), value)} -Why 'Windows default'")
+    if kind == "service":
+        return f"Set-ServiceStart -Name {ps_quote(str(f['name']))} -Start {int(value)}"
+    if kind == "feature":
+        return f"Set-Feature -Name {ps_quote(str(f['name']))} -State {value}"
+    return None
+
+
+@dataclass
+class PlannedRevert:
+    rule: Rule
+    lines: list[str]  # PowerShell calls that restore the Windows defaults
+    skipped: list[Action] = field(default_factory=list)  # actions without a known default
+    dependent: bool = False  # added because it requires a selected rule
+    reboot: bool = False
+
+
+@dataclass
+class RevertPlan:
+    rules: list[PlannedRevert] = field(default_factory=list)
+    excluded: list[tuple[Rule, str]] = field(default_factory=list)
+
+    @property
+    def rule_ids(self) -> list[str]:
+        return [p.rule.id for p in self.rules]
+
+
+def plan_revert(catalog: Catalog, items: list[str]) -> RevertPlan:
+    """Return the selected rules, and the rules that require them, to the values of a clean Windows.
+    The profile does not matter: the rules may have come from an installation or an earlier apply."""
+    plan = RevertPlan()
+    wanted: dict[str, bool] = {rule_id: False for rule_id in selected_rules(catalog, items)}  # id -> dependent
+    stack = list(wanted)
+    while stack:
+        for dependent in catalog.required_by(stack.pop()):
+            if dependent not in wanted:
+                wanted[dependent] = True
+                stack.append(dependent)
+    for rule_id in catalog.order:
+        if rule_id not in wanted:
+            continue
+        rule = catalog.rules[rule_id]
+        if rule.phase in INSTALL_ONLY_PHASES:
+            plan.excluded.append((rule, REASON_INSTALL_ONLY))
+            continue
+        if rule.phase == USER_PHASE:
+            plan.excluded.append((rule, REASON_USER_PHASE))
+            continue
+        params = {name: param.default for name, param in rule.params.items()}
+        lines: list[str] = []
+        skipped: list[Action] = []
+        for action in rule.actions:
+            step = windows_default(action)
+            if step is None:
+                skipped.append(action)
+                continue
+            line = _revert_line(action, step, params)
+            if line:
+                lines.append(line)
+        if not lines:
+            plan.excluded.append((rule, REASON_NO_DEFAULTS if skipped else REASON_ALREADY_DEFAULT))
+            continue
+        reboot = any(a.type in REBOOT_TYPES for a in rule.actions) or any(
+            a.type == "reg" and str(a.fields.get("path", "")).upper().startswith("HKLM:\\SYSTEM\\") for a in rule.actions)
+        plan.rules.append(PlannedRevert(rule, lines, skipped, wanted[rule_id], reboot))
+    return plan
+
+
+def render_revert(plan: RevertPlan, profile: Profile, templates_dir: Path, app_version: str = "0.0.0") -> str:
+    """The apply script with blocks that restore Windows defaults; its backup works with Undo-Apply.ps1."""
+    by_phase: dict[str, list[str]] = defaultdict(list)
+    for planned in plan.rules:
+        by_phase[planned.rule.phase].append("\n".join([f"# [{planned.rule.id}] Windows defaults"] + planned.lines))
+    blocks: list[str] = []
+    blocks += by_phase.get("specialize", [])
+    if by_phase.get("default-user"):
+        inner = "\n\n".join(by_phase["default-user"])
+        blocks.append("if (Mount-DefaultUser) {\n" + "\n".join("    " + line if line else line for line in inner.splitlines())
+                      + "\n    Dismount-DefaultUser\n}")
+    blocks += by_phase.get("post-oobe", [])
+    accounts = ",".join(ps_quote(a.name) for a in profile.accounts)
+    text = fill((templates_dir / "Apply.runtime.ps1").read_text(encoding="utf-8"),
+                {"build_label": _label(profile, app_version) + " (return to Windows defaults)", "accounts": accounts,
+                 "blocks": "\n\n".join(blocks) or "# (nothing to return)"})
     return text.replace("\r\n", "\n")
 
 

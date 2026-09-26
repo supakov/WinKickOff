@@ -188,12 +188,13 @@ class Profile:
             warnings.append(tr("формат профиля {0}, ожидался {1}: применены значения по умолчанию для недостающего", fmt, FORMAT_VERSION))
         raw_rules = data.get("rules", {}) if isinstance(data.get("rules"), dict) else {}
         rules: dict[str, RuleState] = {}
+        new_rules: list[str] = []
         for rule in catalog.rules.values():
             entry = raw_rules.get(rule.id)
             if entry is None:
                 rules[rule.id] = RuleState(enabled=rule.default)
                 if raw_rules:
-                    warnings.append(tr("новое правило каталога {0}: установлено значение по умолчанию", rule.id))
+                    new_rules.append(rule.id)
                 continue
             params: dict[str, Any] = {}
             for pname, pvalue in (entry.get("params") or {}).items():
@@ -202,6 +203,10 @@ class Profile:
                 else:
                     warnings.append(tr("{0}: неизвестный параметр {1} пропущен", rule.id, pname))
             rules[rule.id] = RuleState(enabled=bool(entry.get("enabled", rule.default)), params=params)
+        if new_rules:
+            enabled = sum(1 for r in new_rules if rules[r].enabled)
+            shown = ", ".join(new_rules[:12]) + (", ..." if len(new_rules) > 12 else "")
+            warnings.append(tr("новых правил каталога: {0}, из них включено по умолчанию {1}: {2}", len(new_rules), enabled, shown))
         unknown = {rid: entry for rid, entry in raw_rules.items() if rid not in catalog.rules}
         if unknown:
             warnings.append(tr("правила, отсутствующие в каталоге, сохранены в 'unknown': ") + ", ".join(sorted(unknown)))

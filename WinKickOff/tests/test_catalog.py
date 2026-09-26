@@ -55,7 +55,7 @@ class RealCatalogTest(unittest.TestCase):
     def test_loads_with_rules_and_groups(self) -> None:
         self.assertGreater(len(self.catalog.rules), 60)
         self.assertGreater(len(self.catalog.groups), 15)
-        self.assertEqual(self.catalog.version, "0.3")
+        self.assertEqual(self.catalog.version, "0.4")
 
     def test_every_rule_has_actions_and_docs(self) -> None:
         for rule in self.catalog.rules.values():
@@ -128,6 +128,14 @@ class BrokenCatalogTest(unittest.TestCase):
 
     def test_placeholder_without_param(self) -> None:
         self._expect(RULE_OK.replace("value = 1", 'value = "{n}"'), "undeclared params")
+
+    def test_windows_default_must_fit_the_value(self) -> None:
+        self._expect(RULE_OK.replace("value = 1", 'value = 1\ndefault = "5"'), "must be an integer")
+        self._expect(RULE_OK.replace("value = 1", 'value = 1\ndefault = "none"'), "must be an integer")
+        for good in ("5", '"absent"', '"unknown"'):
+            with self.subTest(default=good), tempfile.TemporaryDirectory() as tmp:
+                root = write_catalog(tmp, RULE_OK.replace("value = 1", f"value = 1\ndefault = {good}"))
+                self.assertIn("a.one", load_catalog(root / "rules", docs_root=root).rules)
 
     def test_missing_doc_file(self) -> None:
         self._expect(RULE_OK.replace('doc = "README.md"', 'doc = "nope.md"'), "doc file not found")

@@ -17,6 +17,7 @@ effect = "Одна фоновая служба меньше."
 type = "service"
 name = "RetailDemo"
 start = 4
+default = 3
 
 [[rule]]
 id = "apps.xbox-services-off"
@@ -37,21 +38,25 @@ rollback = "Set-Service <имя> -StartupType Manual; удалить AllowGameDV
 type = "service"
 name = "XblAuthManager"
 start = 4
+default = 3
 
 [[rule.actions]]
 type = "service"
 name = "XblGameSave"
 start = 4
+default = 3
 
 [[rule.actions]]
 type = "service"
 name = "XboxNetApiSvc"
 start = 4
+default = 3
 
 [[rule.actions]]
 type = "service"
 name = "XboxGipSvc"
 start = 4
+default = 3
 
 [[rule.actions]]
 type = "reg"
@@ -78,6 +83,7 @@ rollback = "Set-Service MapsBroker -StartupType Automatic"
 type = "service"
 name = "MapsBroker"
 start = 4
+default = 2
 
 [[rule]]
 id = "apps.remove-quick-assist"
@@ -652,3 +658,4 @@ rollback = 'Для пользователя: запустить %SystemRoot%\Sys
 type = "reg-remove"
 path = 'DU:\Software\Microsoft\Windows\CurrentVersion\Run'
 name = "OneDriveSetup"
+default = "unknown"

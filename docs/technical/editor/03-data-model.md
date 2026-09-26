@@ -97,17 +97,24 @@ In actions, a parameter is substituted as the string `"{seconds}"`; the generato
 
 | type | Fields | Generated |
 |---|---|---|
-| reg | path, name, kind (DWord, QWord, String, ExpandString, MultiString, Binary), value, why? | `Set-Reg ...` |
-| reg-remove | path, name | `Remove-Reg ...` |
-| service | name, start (2, 3, 4) | `Set-ServiceStart ...` |
+| reg | path, name, kind (DWord, QWord, String, ExpandString, MultiString, Binary), value, why?, default? | `Set-Reg ...` |
+| reg-remove | path, name, default? | `Remove-Reg ...` |
+| service | name, start (2, 3, 4), default? | `Set-ServiceStart ...` |
 | exe | file, args (list of strings) | `Invoke-Exe ...` |
-| feature | name, state (`Enabled`, `Disabled`) | runtime wrapper around DISM |
+| feature | name, state (`Enabled`, `Disabled`), default? | runtime wrapper around DISM |
 | capability | pattern | runtime wrapper |
 | appx | names (list) | runtime wrapper (deprovision + remove) |
 | ps | script (multiline literal) | text as is |
 | xml-pe-command | command, description | `RunSynchronousCommand` in windowsPE |
 | xml-specialize-command | command, description | `RunSynchronousCommand` in specialize |
 | xml-oobe | element, value | element inside `<OOBE>` |
+
+`default` (catalog 0.4) is the state of a clean Windows, used by «Вернуть выбранное к умолчаниям Windows»
+(Return the selection to Windows defaults, `core/apply.py` `plan_revert`): `"absent"` (no such value), a value of
+the action's kind, a start type 2-4, `Enabled`/`Disabled`, or `"unknown"` (not returned automatically). Without
+the field a value under `SOFTWARE\Policies` returns to "absent" (a missing policy is the Windows default), a
+`reg-remove` needs nothing (the removed values do not exist in a clean Windows) and anything else is unknown.
+Write a default only when it is certain for Windows 10 and 11; if it changed between builds, write `"unknown"`.
 
 Registry paths: prefix `HKLM:\`, `HKCU:\` (user-first-logon phase only), `DU:\` (default user profile;
 the generator replaces it with `$du\`). TOML literal strings in single quotes do not require escaping
@@ -149,7 +156,7 @@ breaks, and no stale entries. The language (`ru`, `uk`, `en`) is chosen in the m
 ```json
 {
   "format_version": 2,
-  "catalog_version": "0.3",
+  "catalog_version": "0.4",
   "name": "Офис",
   "author": "",
   "created": "2026-09-25T10:00:00",
@@ -201,3 +208,6 @@ third-party one), the import parses the actions from the scripts and matches the
   of the rule `default-user.region`; the field `install.iso_language` was removed (the display language always equals the ISO
   language); the block marker in scripts `# [<rule.id>]` has no title. When an old profile is loaded, `geo_id`
   is moved into the rule parameter with a warning, and `iso_language` is dropped with a warning.
+- Catalog 0.4 (26.09.2026): the optional action field `default`, the rule `apps.remove.onedrive`, new defaults
+  (browser policies, `update.other-microsoft-products`, `asr.usb-untrusted`, `uac.admin-always-notify`). Profiles
+  of 0.3 load with a warning; their saved rule states are kept, new rules get the defaults (one message).

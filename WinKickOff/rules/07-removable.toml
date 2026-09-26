@@ -23,6 +23,7 @@ name = "NoDriveTypeAutoRun"
 kind = "DWord"
 value = 255
 why = "AutoRun off for all drives"
+default = "absent"
 
 [[rule.actions]]
 type = "reg"
@@ -30,6 +31,7 @@ path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer'
 name = "NoAutorun"
 kind = "DWord"
 value = 1
+default = "absent"
 
 [[rule.actions]]
 type = "reg"

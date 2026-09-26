@@ -22,16 +22,19 @@ path = 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters'
 name = "SMB1"
 kind = "DWord"
 value = 0
+default = "absent"
 
 [[rule.actions]]
 type = "service"
 name = "mrxsmb10"
 start = 4
+default = "unknown"
 
 [[rule.actions]]
 type = "feature"
 name = "SMB1Protocol"
 state = "Disabled"
+default = "Disabled"
 
 [[rule]]
 id = "network.smb-signing"
@@ -55,6 +58,7 @@ path = 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters'
 name = "RequireSecuritySignature"
 kind = "DWord"
 value = 1
+default = "unknown"
 
 [[rule.actions]]
 type = "reg"
@@ -62,6 +66,7 @@ path = 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters'
 name = "EnableSecuritySignature"
 kind = "DWord"
 value = 1
+default = "unknown"
 
 [[rule.actions]]
 type = "reg"
@@ -69,6 +74,7 @@ path = 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters'
 name = "RequireSecuritySignature"
 kind = "DWord"
 value = 1
+default = "unknown"
 
 [[rule.actions]]
 type = "reg"
@@ -76,6 +82,7 @@ path = 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters'
 name = "EnableSecuritySignature"
 kind = "DWord"
 value = 1
+default = "unknown"
 
 [[rule]]
 id = "network.llmnr-off"
@@ -123,6 +130,7 @@ name = "NodeType"
 kind = "DWord"
 value = 2
 why = "P-node: no NBT broadcasts"
+default = "absent"
 
 [[rule.actions]]
 type = "ps"

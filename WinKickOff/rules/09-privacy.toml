@@ -71,6 +71,7 @@ value = 0
 type = "service"
 name = "DiagTrack"
 start = 3
+default = 2
 
 [[rule.actions]]
 type = "exe"
@@ -155,6 +156,7 @@ path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Communications'
 name = "ConfigureChatAutoInstall"
 kind = "DWord"
 value = 0
+default = "absent"
 
 [[rule]]
 id = "privacy.copilot-recall-off"
@@ -292,3 +294,4 @@ path = 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem'
 name = "LongPathsEnabled"
 kind = "DWord"
 value = 1
+default = 0

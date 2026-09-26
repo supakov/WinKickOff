@@ -63,6 +63,21 @@ class ProfileTest(unittest.TestCase):
         self.assertTrue(any("ghost.rule" in w for w in warnings))
         self.assertIn("ghost.rule", loaded.to_dict(self.catalog)["unknown"])
 
+    def test_old_profile_gets_new_rules_in_one_warning(self) -> None:
+        # a profile saved before the browser section: its rules keep their states, new rules get the defaults
+        data = Profile.from_catalog(self.catalog).to_dict(self.catalog)
+        data["rules"]["uac.admin-always-notify"] = {"enabled": True}
+        new = [r for r in self.catalog.order if r.split(".")[0] in ("edge", "chrome", "brave")]
+        for rule_id in new:
+            del data["rules"][rule_id]
+        loaded, warnings = Profile.from_dict(data, self.catalog)
+        self.assertTrue(loaded.is_enabled("uac.admin-always-notify"))  # a saved state wins over a new default
+        about_new = [w for w in warnings if "новых правил" in w]
+        self.assertEqual(len(about_new), 1, warnings)
+        self.assertIn(str(len(new)), about_new[0])
+        for rule_id in new:
+            self.assertEqual(loaded.is_enabled(rule_id), self.catalog.rules[rule_id].default)
+
     def test_diff_reports_rule_param_and_install_changes(self) -> None:
         a = Profile.from_catalog(self.catalog)
         b = a.copy()

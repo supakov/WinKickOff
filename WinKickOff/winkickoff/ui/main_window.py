@@ -27,10 +27,13 @@ from winkickoff import APP_NAME, APP_VERSION
 from winkickoff.core.catalog import Action, Catalog, Group, Param, Rule
 from winkickoff.core.apply import (
     ApplyPlan,
+    RevertPlan,
     parse_audit_report,
     plan_apply,
+    plan_revert,
     render_apply,
     render_audit,
+    render_revert,
     render_undo,
     run_audit,
     status_title,
@@ -1251,15 +1254,12 @@ class MainWindow(tk.Tk):
     # ----------------------------------------------------------------- this PC (task T15)
 
     def _fill_pc_menu(self, menu: tk.Menu) -> None:
+        # Always available: the first apply or return asks for permission (toggle_allow_apply) instead of a
+        # greyed-out item whose switch is hard to find.
         menu.add_command(label=tr("Проверить выбранное на этом ПК"), command=self.audit_selected)
         menu.add_command(label=tr("Сохранить скрипт применения выбранного..."), command=self.save_apply_scripts)
-        menu.add_command(label=tr("Применить выбранное сейчас..."), command=self.apply_now,
-                         state=tk.NORMAL if self.settings.allow_apply else tk.DISABLED)
-
-    def _update_apply_state(self) -> None:
-        state = tk.NORMAL if self.settings.allow_apply else tk.DISABLED
-        for menu in (self.pc_menu, self.tree_menu):
-            menu.entryconfigure(2, state=state)
+        menu.add_command(label=tr("Применить выбранное сейчас..."), command=self.apply_now)
+        menu.add_command(label=tr("Вернуть выбранное к умолчаниям Windows сейчас..."), command=self.revert_now)
 
     def _on_tree_right_click(self, event: tk.Event) -> str | None:  # type: ignore[type-arg]
         item = self.tree.identify_row(event.y)
@@ -1282,7 +1282,14 @@ class MainWindow(tk.Tk):
             wanted = False
         self.settings.allow_apply = wanted
         self.settings.save(self.paths.settings_file)
-        self._update_apply_state()
+
+    def _ensure_apply_allowed(self) -> bool:
+        """Changes to this PC need the permission of «Этот ПК, Разрешить применение»; ask for it once."""
+        if self.settings.allow_apply:
+            return True
+        self.allow_apply_var.set(True)
+        self.toggle_allow_apply()
+        return self.settings.allow_apply
 
     def _apply_items(self) -> list[str]:
         items = [i for i in self.tree.selection() if i.startswith("r:") or i.startswith("g:")]
@@ -1401,11 +1408,8 @@ class MainWindow(tk.Tk):
 
     def apply_now(self) -> bool:
         """Apply the selection to this PC: confirmation, scripts in logs/, launch through UAC."""
-        if not self.settings.allow_apply:
-            messagebox.showinfo(APP_NAME, tr("Применение на этом ПК выключено. Включите его в меню «Этот ПК»."), parent=self)
-            return False
         items = self._apply_items()
-        if not items:
+        if not items or not self._ensure_apply_allowed():
             return False
         plan = plan_apply(self.catalog, self.profile, items)
         self.show_issues(self._plan_issues(plan))
@@ -1429,6 +1433,72 @@ class MainWindow(tk.Tk):
             messagebox.showerror(APP_NAME, tr("Применение не запущено:\n{0}", exc), parent=self)
             return False
         self.set_status(tr("Скрипт применения запущен; журнал и резервная копия: {0}", folder))
+        return True
+
+    def _revert_issues(self, plan: RevertPlan) -> list[Issue]:
+        issues = [Issue("info", rule.id, tr("не возвращается: {0}", tr(reason))) for rule, reason in plan.excluded]
+        for planned in plan.rules:
+            notes = []
+            if planned.dependent:
+                notes.append(tr("зависит от выбранного правила"))
+            if planned.skipped:
+                notes.append(tr("не возвращается автоматически: {0}", ", ".join(sorted({a.type for a in planned.skipped}))))
+            if planned.reboot:
+                notes.append(tr("нужна перезагрузка"))
+            level = "warning" if planned.skipped else "info"
+            issues.append(Issue(level, planned.rule.id, tr("будет возвращено к умолчаниям Windows") + (": " + "; ".join(notes) if notes else "")))
+        return issues
+
+    def _write_revert_folder(self, folder: Path, plan: RevertPlan) -> Path:
+        folder.mkdir(parents=True, exist_ok=True)
+        script_path = folder / "Apply.ps1"
+        write_script(script_path, render_revert(plan, self.profile, self.paths.templates, APP_VERSION))
+        write_script(folder / "Undo-Apply.ps1", render_undo(self.paths.templates, self.profile, APP_VERSION))
+        lines = [tr("Возврат к значениям Windows по умолчанию, WinKickOff {0}.", APP_VERSION), "",
+                 tr("1. Сначала проверьте на тестовом компьютере или виртуальной машине."),
+                 tr("2. Запустите Apply.ps1 от имени администратора: powershell -ExecutionPolicy Bypass -File Apply.ps1"),
+                 tr("3. Журнал и резервная копия прежних значений появятся рядом со скриптом (apply-*.log, backup-*.json)."),
+                 tr("4. Отмена возврата: Undo-Apply.ps1 от имени администратора."),
+                 tr("5. После применения перезагрузите компьютер."), "", tr("Правила:")]
+        for planned in plan.rules:
+            flags = tr(" (частично)") if planned.skipped else ""
+            lines.append(f"- {planned.rule.id}: {self.rule_title(planned.rule.id)}{flags}")
+        if plan.excluded:
+            lines += ["", tr("Не возвращаются:")]
+            lines += [f"- {rule.id}: {tr(reason)}" for rule, reason in plan.excluded]
+        (folder / "README.txt").write_bytes(("\n".join(lines) + "\n").replace("\n", "\r\n").encode("utf-8-sig"))
+        return script_path
+
+    def revert_now(self) -> bool:
+        """Return the selected rules on this PC to the values of a clean Windows, through UAC, with a backup."""
+        items = self._apply_items()
+        if not items or not self._ensure_apply_allowed():
+            return False
+        plan = plan_revert(self.catalog, items)
+        self.show_issues(self._revert_issues(plan))
+        if not plan.rules:
+            self.set_status(tr("Среди выбранного нет правил, которые можно вернуть к умолчаниям Windows на работающей системе"))
+            return False
+        partial = [self.rule_title(p.rule.id) for p in plan.rules if p.skipped]
+        text = tr("Вернуть выбранные правила ({1}) на компьютере {0} к значениям Windows по умолчанию?",
+                  os.environ.get("COMPUTERNAME", "?"), len(plan.rules))
+        dependents = [self.rule_title(p.rule.id) for p in plan.rules if p.dependent]
+        if dependents:
+            text += "\n\n" + tr("Вместе с ними: {0}.", "; ".join(dependents[:8]) + ("..." if len(dependents) > 8 else ""))
+        if partial:
+            text += "\n\n" + tr("Возвращаются не полностью (приложения, скрипты, значения с неизвестным умолчанием): {0}.",
+                                "; ".join(partial[:8]) + ("..." if len(partial) > 8 else ""))
+        text += "\n\n" + tr("Windows запросит подтверждение прав администратора. Прежние значения сохраняются для отката (Undo-Apply.ps1).")
+        if not messagebox.askyesno(APP_NAME, text, icon=messagebox.WARNING, default=messagebox.NO, parent=self):
+            return False
+        folder = self.paths.logs / time.strftime("revert-%Y%m%d-%H%M%S")
+        try:
+            script = self._write_revert_folder(folder, plan)
+            apply_module.launch_elevated(script)
+        except (OSError, RuntimeError) as exc:
+            messagebox.showerror(APP_NAME, tr("Возврат не запущен:\n{0}", exc), parent=self)
+            return False
+        self.set_status(tr("Скрипт возврата к умолчаниям запущен; журнал и резервная копия: {0}", folder))
         return True
 
     def open_output_folder(self) -> None:

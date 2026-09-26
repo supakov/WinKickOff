@@ -265,13 +265,19 @@ class MainWindowSmokeTest(unittest.TestCase):
         finally:
             window.destroy()
 
-    def test_apply_now_is_off_by_default(self) -> None:
+    def test_apply_now_asks_for_permission_first(self) -> None:
         self.assertFalse(self.win.settings.allow_apply)
-        self.assertEqual(str(self.win.pc_menu.entrycget(2, "state")), "disabled")
+        for index in (2, 3):  # apply and return are never greyed out
+            self.assertEqual(str(self.win.tree_menu.entrycget(index, "state")), "normal")
+        self.win.select_node("r:remote.registry-off")
         with mock.patch("winkickoff.ui.main_window.apply_module.launch_elevated") as launch, \
-             mock.patch("winkickoff.ui.main_window.messagebox.showinfo"):
+             mock.patch("winkickoff.ui.main_window.messagebox.askyesno", return_value=False) as ask:
             self.assertFalse(self.win.apply_now())
+            self.assertFalse(self.win.revert_now())
         launch.assert_not_called()
+        self.assertEqual(ask.call_count, 2)  # only the permission question, twice
+        self.assertFalse(self.win.settings.allow_apply)
+        self.assertFalse(self.win.allow_apply_var.get())
 
     def test_audit_on_this_pc_shows_statuses(self) -> None:
         report = {"computer": "TEST", "admin": False, "results": [
@@ -306,7 +312,6 @@ class MainWindowSmokeTest(unittest.TestCase):
             self.win.allow_apply_var.set(True)
             self.win.toggle_allow_apply()
         try:
-            self.assertEqual(str(self.win.pc_menu.entrycget(2, "state")), "normal")
             with mock.patch("winkickoff.ui.main_window.apply_module.launch_elevated") as launch, \
                  mock.patch("winkickoff.ui.main_window.messagebox.askyesno", return_value=False):
                 self.assertFalse(self.win.apply_now())  # the user said no
@@ -321,6 +326,23 @@ class MainWindowSmokeTest(unittest.TestCase):
         finally:
             self.win.allow_apply_var.set(False)
             self.win.toggle_allow_apply()
+
+    def test_revert_now_returns_windows_defaults(self) -> None:
+        self.win.select_node("r:uac.admin-always-notify")
+        with mock.patch("winkickoff.ui.main_window.apply_module.launch_elevated") as launch, \
+             mock.patch("winkickoff.ui.main_window.messagebox.askyesno", return_value=True):
+            try:
+                self.assertTrue(self.win.revert_now())  # permission and confirmation both answered yes
+            finally:
+                self.win.allow_apply_var.set(False)
+                self.win.toggle_allow_apply()
+        launch.assert_called_once()
+        script = launch.call_args.args[0]
+        self.assertTrue(script.is_relative_to(self.paths.logs))
+        text = script.read_text(encoding="utf-8-sig")
+        self.assertIn("# [uac.admin-always-notify] Windows defaults", text)
+        self.assertIn("-Value 5", text)
+        self.assertTrue((script.parent / "Undo-Apply.ps1").exists())
 
     def test_reserved_account_name_is_refused(self) -> None:
         self.win.show_item("data:accounts")

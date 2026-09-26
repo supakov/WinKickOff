@@ -20,11 +20,13 @@ rollback = "Set-Service Spooler -StartupType Manual"
 type = "service"
 name = "Spooler"
 start = 2
+default = 2
 
 [[rule.actions]]
 type = "service"
 name = "PrintNotify"
 start = 3
+default = 3
 
 [[rule.actions]]
 type = "ps"
