@@ -1,26 +1,25 @@
-# AGENTS.md: map of the WindowsInstaller repository
+# AGENTS.md: map of the WinKickOff repository
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 25.09.2026 (issue #1: the «Браузеры» (Browsers) section, 46 rules; issue #2: memstechtips preset).
+Last update: 26.09.2026 (repository renamed to WinKickOff; release candidate 1.0.0-rc.1 with CI in GitHub Actions).
 
-Repository: https://github.com/supakov/WindowsInstaller (private, branch `main`). The local folder
-`C:\Users\User\projects\Windows installer` and the repository must match: commit and push after every
-finished task. Commit messages are in Russian (the customer reads the history), first line up to 72
+Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
+`git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
+after every finished task. Commit messages are in Russian (the customer reads the history), first line up to 72
 characters, no em or en dashes, and a commit made by an agent ends with the line
 `Co-Authored-By: <agent model> <noreply@anthropic.com>` (the model name of the current agent session,
 for example `Claude Opus 5.5`).
 
 ## 1. The repository in three sentences
 
-WindowsInstaller is an umbrella repository for a group of projects that install and configure Windows 11
-Pro in small workgroups without a domain, where the PCs are used by non-professionals and the organisation
-is under constant cyber attack; priorities are security and updatability, no cosmetics and no third-party
-programs. For now it holds one project, the WinKickOff toolkit: the editor (Python 3.14, tkinter, portable)
-that shows every installation rule in a searchable tree, disables dependent rules automatically and
-assembles `autounattend.xml` from the selection only, the answer file checker `tools/Validate-Unattend.ps1`
-and the check and apply scripts for a running Windows. The hand-written answer file v0.2 the catalog grew
-from is kept in the documentation appendices as the reference.
+WinKickOff is a toolkit that installs and configures Windows 11 Pro in small workgroups without a domain,
+where the PCs are used by non-professionals and the organisation is under constant cyber attack; priorities
+are security and updatability, no cosmetics and no third-party programs. Its tools: the editor (Python 3.14,
+tkinter, portable) that shows every installation rule in a searchable tree, disables dependent rules
+automatically and assembles `autounattend.xml` from the selection only, the answer file checker
+`tools/Validate-Unattend.ps1`, and the check, apply and return-to-defaults scripts for a running Windows.
+The hand-written answer file v0.2 the catalog grew from is kept in the documentation appendices as the reference.
 
 ## 2. What to read first
 
@@ -35,15 +34,17 @@ from is kept in the documentation appendices as the reference.
 | Understand why the editor is built on rules, not on `$Config` | `docs/technical/editor/06-critical-review-v0.1.md` |
 | Add or change an installation rule | `docs/technical/editor/03-data-model.md`, a file `WinKickOff/rules/NN-*.toml`, then `python -m unittest` in `WinKickOff/` |
 | Write or update user documentation | `docs/user/README.md`, the Russian source in `docs/user/ru/`, then the same change in `uk` and `en` |
+| Build or release | `.github/workflows/build.yml`, `WinKickOff/tools/build.ps1`, section 5 of this file |
 | See what the critic checked in v0.2 | `docs/appendices/C-critical-review/03-critic-report-v0.2.docx` (Word, at the customer's request) |
 
 ## 3. Folder structure
 
 ```
-Windows installer/
+(repository root)
 ├── AGENTS.md                      this file
-├── README.md                      UMBRELLA REPOSITORY: purpose, projects (WinKickOff only for now), quick start, user docs
+├── README.md                      the toolkit: purpose, tools, quick start, user docs, builds
 ├── .gitignore, .gitattributes     what is not versioned; files are stored byte for byte (CRLF)
+├── .github/workflows/build.yml    CI: tests, checker, portable build on every push; a tag v<version> publishes a release
 ├── tools/
 │   └── Validate-Unattend.ps1      answer file checker (36 checks), read-only; without -Path it checks Appendix B
 ├── docs/
@@ -55,26 +56,28 @@ Windows installer/
 │   │       │                      plan (days, milestones), review of revision 0.1
 │   │       └── todo/              tasks T01-T17 with status (README.md is the index)
 │   ├── user/                      USER DOCUMENTATION: ru (source), uk, en; the same files in each language
+│   ├── releases/                  release notes v<version>.md (ru, uk, en), used by the release job
 │   └── appendices/                APPENDICES, frozen, Russian: README describes them
 │       ├── A-unattendedwinstall/  original UnattendedWinstall answer file (MIT, SOURCE.md, LICENSE)
 │       ├── B-autounattend-v0.2/   our hand-written answer file v0.2 (the reference) and its README: history, VM checklist
 │       ├── C-critical-review/     review of the original and the critic's report on v0.2 (docx)
 │       └── D-requirements-draft/  first requirements draft; section 6 holds open questions to the customer
-└── WinKickOff/                    EDITOR 0.2.0 AND RULE CATALOG 0.3
+└── WinKickOff/                    EDITOR 1.0.0-rc.1 AND RULE CATALOG 0.4
     ├── README.md                  developer README: run, test, structure; links to user docs
     ├── pyproject.toml             requires-python >= 3.14, no runtime dependencies
     ├── winkickoff/                package: app.py (start), core/ (paths, log, catalog, deps, profile, resources,
     │                              render, validate, verify, actions_parser, importer, pscheck, settings, i18n, apply),
     │                              ui/ (main_window: tree, search, description, parameters, profiles, build;
     │                              data_forms: install, accounts, languages; checkimages: check box images)
-    ├── rules/                     RULE CATALOG: groups.toml (27 groups), 00-14-*.toml (176 rules), lang/*.toml
+    ├── rules/                     RULE CATALOG: groups.toml (27 groups), 00-14-*.toml (177 rules), lang/*.toml
     ├── templates/                 runtime with slots: autounattend.template.xml, Setup-System, Setup-User, Post-OOBE,
-    │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.3
+    │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.4
     ├── resources/                 keyboards.json, timezones.json, strings.uk.json, strings.en.json (interface translations)
-    ├── profiles/                  presets «Офис» (equals v0.2), «Строгий» (Strict), «Ноутбук» (Laptop), memstechtips, README
+    ├── profiles/                  presets «Офис» (= catalog defaults), «Строгий» (Strict), «Ноутбук» (Laptop), memstechtips, README
     ├── tests/                     unittest: catalog, resolver, profile, render, build against v0.2, validation,
-    │                              import, presets, PowerShell, settings, portability, window smoke test, docs
-    └── tools/                     make_presets.py, make_rule_docs.py, run-tests.ps1,
+    │                              import, presets, PowerShell, settings, portability, window smoke test, docs;
+    │                              v02_actions.py holds the v0.2 reference profile (V02_DIFFERENCES)
+    └── tools/                     make_presets.py, make_rule_docs.py, run-tests.ps1, build.ps1 (portable zip),
                                    make_browser_rules.py (generates rules/14-browsers.toml),
                                    memstechtips.py (maps Appendix A onto the catalog for make_presets.py)
 ```
@@ -89,6 +92,7 @@ user profiles (all but `preset-*.json`) are not versioned.
    No "temporary" or "reversible" changes to the system: on 12.09.2026 such a test broke the keyboard
    layout switching. Anything that changes the system is done in a virtual machine or written down as
    instructions. The only exception is a separate, explicit command of the customer for a specific action.
+   The portable build installs PyInstaller, so it runs in GitHub Actions or a VM, never on the customer's PC.
 2. The em dash (U+2014) and the en dash (U+2013) are forbidden in every text we create, in any language:
    documents, code, data, comments, interface strings, commit messages. Number ranges use a hyphen
    (08:00-20:00, T01-T06). Checks: `WinKickOff/tests/test_sources.py` and `test_docs.py`, and the command in section 5.
@@ -142,6 +146,16 @@ python tools/make_presets.py
 python tools/make_rule_docs.py
 ```
 
+Build and release (GitHub Actions, `.github/workflows/build.yml`): every push to `main` runs the tests, the
+checker and `WinKickOff/tools/build.ps1`, the zip is an artifact of the run. A release: set `APP_VERSION` in
+`WinKickOff/winkickoff/__init__.py` (and `version` in `pyproject.toml`), add `docs/releases/v<version>.md`
+(`test_docs.py` checks it), push, then push the tag; the job publishes the release (a prerelease for `-rc`):
+
+```bash
+git tag -a v1.0.0-rc.1 -m "WinKickOff 1.0.0-rc.1"
+git push origin v1.0.0-rc.1
+```
+
 Run the editor from sources:
 
 ```powershell
@@ -175,7 +189,16 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 - Browser rules (issue #1) are generated: edit the table in `WinKickOff/tools/make_browser_rules.py` and rerun it,
   not `rules/14-browsers.toml`. Every policy name was checked against the vendors' definitions; several lines
   of the issue's scripts were invalid or obsolete (`docs/technical/reference/18-browsers.md`, corrections).
-  New rules must be `default = false`: the «Офис» (Office) preset equals the catalog defaults and v0.2.
+  `DEFAULT_ON` in the tool holds the browser rules that are on by default (commit d33fc41).
+- Since 26.09.2026 the catalog defaults, and so the «Офис» (Office) preset, differ from v0.2: browser policies,
+  `apps.remove.onedrive` on; `update.other-microsoft-products`, `asr.usb-untrusted`, `uac.admin-always-notify`
+  off (Task Manager opened by Admin must not ask for UAC). Tests that compare with v0.2 use `reference_profile()`
+  of `WinKickOff/tests/v02_actions.py`; a new rule that is on by default goes into `V02_DIFFERENCES` as off.
+  Presets are generated: change defaults in the rules or the preset functions of `WinKickOff/tools/make_presets.py`,
+  never by hand in `profiles/preset-*.json` (a hand edit is overwritten by the next generation).
+- Return to Windows defaults (context menu, `core/apply.py` `plan_revert`) uses the action field `default`; a
+  value under `SOFTWARE\Policies` needs none. Write a default only when it is certain for Windows 10 and 11,
+  otherwise `"unknown"` (the SMB signing defaults changed in 24H2, for example).
 - The memstechtips preset (issue #2) is computed, not hand-made: a rule is on when the original of Appendix A has at
   least one of its actions and none of them contradicts the original; `EQUIVALENT` in `WinKickOff/tools/memstechtips.py` lists
   values with the same effect on Pro (`AllowTelemetry` 0 acts as 1). A catalog change can change the preset and
@@ -186,8 +209,8 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
   `265459095+stanislavperec-ua@users.noreply.github.com` (`git config user.email`, this folder only).
   Files are stored byte for byte (`.gitattributes`: `* -text`), CRLF.
 - The work PC has Python 3.14.3 with tkinter 8.6 and tomllib; pytest is absent and is not installed.
-  PyInstaller is not installed either: installing a package changes the PC, so building the exe (T12)
-  happens only in a VM or on a separate command of the customer.
+  PyInstaller is not installed either: installing a package changes the PC, so the exe (T12) is built by
+  GitHub Actions, in a VM or on a separate command of the customer.
 - A WinKickOff build matches v0.2 in meaning, not byte for byte: `test_build.py` compares the actions of
   `Setup-System.ps1`, the pass commands, International-Core, OOBE, accounts and the time zone.
   `tools/Validate-Unattend.ps1` accepts both styles (the `$Config` block of v0.2 or `# [rule.id]` markers).
@@ -195,7 +218,7 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
   `Extensions/Profile` as JSON with escaped national characters, so «Открыть профиль из autounattend.xml»
   (Open profile from autounattend.xml) restores the settings from a built file. A file without a profile
   (v0.2) is imported by its actions: `core/actions_parser.py` reads `$Config` from the file itself and
-  evaluates the conditions; importing v0.2 gives exactly the «Офис» (Office) preset (`test_importer.py`).
+  evaluates the conditions; importing v0.2 gives exactly the v0.2 reference profile (`test_importer.py`).
 - tkinter's Treeview does not lay out rows in a hidden window; the window smoke test shows it fully
   transparent outside the screen. Tree check boxes are images (`identify_element` returns `image`), the "+"
   is `Treeitem.indicator`: a click on "+" only expands the branch. Text tag bindings in a Text widget follow
@@ -207,27 +230,29 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
   script and `launch_elevated` is always mocked. Never run an apply or an audit on the customer's PC from an agent.
 - Catalog 0.3: the country moved into the parameters of rule `default-user.region` (string `"241"`), the field
   `iso_language` was removed; old profiles are migrated on load with a warning.
+- Nothing in the repository depends on the name of the local folder of a clone.
 
 ## 7. Work status
 
 | Area | State | Date | Where |
 |---|---|---|---|
-| Answer file v0.2 | Reference, frozen; checked by the validator and the critic; acceptance install in a VM by the customer not yet confirmed | 13.09.2026 | `docs/appendices/B-autounattend-v0.2/` |
+| Answer file v0.2 | Reference, frozen; checked by the validator and the critic | 13.09.2026 | `docs/appendices/B-autounattend-v0.2/` |
 | Review of the original | Done | 12.09.2026 | `docs/appendices/C-critical-review/01-critical-review.md` |
 | Critic's report and fixes | Done (9 accepted, 3 rejected) | 13.09.2026 | `docs/appendices/C-critical-review/03-critic-report-v0.2.docx` |
 | Parameter reference | Done, 19 files, English | 25.09.2026 | `docs/technical/reference/` |
 | Answer file checker | Done, 36 checks, 0 errors on v0.2 | 25.09.2026 | `tools/Validate-Unattend.ps1` |
-| GitHub repository | Connected, the local folder and `origin/main` match | 25.09.2026 | https://github.com/supakov/WindowsInstaller |
+| GitHub repository | Renamed to WinKickOff; the local clone and `origin/main` match; CI in GitHub Actions | 26.09.2026 | https://github.com/supakov/WinKickOff |
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
-| Editor tasks | T01-T11, T14, T16, T17 done (milestones M1-M4); T12 in progress (build script, the build only in a VM); T13 and T15 blocked (implemented, acceptance needs a VM) | 25.09.2026 | `docs/technical/editor/todo/` |
-| Rule catalog | 0.3: 176 rules, 27 groups (130 carry v0.2, 46 browser policies of issue #1 are off by default), integrity and v0.2 coverage confirmed by tests | 25.09.2026 | `WinKickOff/rules/` |
-| Editor code | 0.2.0: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, three presets, window in Russian, Ukrainian and English with check boxes, parameters, forms, profiles, comparison, recent files and build; 179 tests | 25.09.2026 | `WinKickOff/` |
-| «Офис» build from the editor | Covers every v0.2 action, validator 36 of 36; installation in a VM not yet tested | 25.09.2026 | `WinKickOff/output/` (not versioned) |
-| Applying rules to a running Windows | T15 implemented: read-only audit, apply scripts with backup, undo, apply through UAC (off by default); acceptance in a VM pending | 25.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
-| Repository layout | T17 done: the root describes the umbrella repository and its WinKickOff project; XML files and reviews in `docs/appendices/` | 25.09.2026 | `README.md`, `docs/appendices/` |
+| Editor tasks | T01-T12, T14, T16, T17 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 26.09.2026 | `docs/technical/editor/todo/` |
+| Rule catalog | 0.4: 177 rules, 27 groups (130 carry v0.2, 46 browser policies, OneDrive), Windows defaults for return, integrity and v0.2 coverage confirmed by tests | 26.09.2026 | `WinKickOff/rules/` |
+| Editor code | 1.0.0-rc.1: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window in Russian, Ukrainian and English with check boxes, parameters, forms, profiles, comparison, recent files and build; 192 tests | 26.09.2026 | `WinKickOff/` |
+| Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
+| Applying rules to a running Windows | T15: read-only audit, apply and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 26.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
+| Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |
 | Documentation split | T16 done: technical in English, user documentation in ru, uk, en; complete catalog translations uk and en | 25.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
-| GitHub issues | #1 "Web Browsers debloat" done: section «Браузеры» (Edge, Chrome, Brave), 46 rules off by default, card 18. #2 "memstechtips profile" done: preset of 59 rules computed from Appendix A, report of what is added, contradicted and not transferable. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md`, `WinKickOff/profiles/preset-memstechtips.json`, `docs/technical/memstechtips-profile.md` |
-| Customer items for v0.3 | Awaited | | |
+| GitHub issues | #1 "Web Browsers debloat" done: section «Браузеры» (Edge, Chrome, Brave), 46 rules off by default, card 18. #2 "memstechtips profile" done: preset of 60 rules computed from Appendix A, report of what is added, contradicted and not transferable. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md`, `WinKickOff/profiles/preset-memstechtips.json`, `docs/technical/memstechtips-profile.md` |
+| Release candidate | 1.0.0-rc.1: tag and GitHub release built by CI | 26.09.2026 | `docs/releases/v1.0.0-rc.1.md` |
+| Tuning of preset defaults | Awaited from the customer | | `WinKickOff/tools/make_presets.py`, rule defaults |
 
 Open questions to the customer: `docs/appendices/D-requirements-draft/02-constructor-requirements-draft.md`,
 section 6; whether Appendix D should get a sample WinKickOff build.

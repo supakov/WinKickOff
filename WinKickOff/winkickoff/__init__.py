@@ -1,4 +1,4 @@
 """WinKickOff: editor that assembles autounattend.xml from a catalog of rules."""
 
 APP_NAME = "WinKickOff"
-APP_VERSION = "0.2.0"
+APP_VERSION = "1.0.0-rc.1"

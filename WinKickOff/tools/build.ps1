@@ -2,19 +2,19 @@
 .SYNOPSIS
     Build the portable WinKickOff folder (PyInstaller, onedir) and a zip with the version.
 .DESCRIPTION
-    RUN ONLY IN A VIRTUAL MACHINE OR ON A BUILD PC. The script creates a virtual environment inside
-    WinKickOff\build\ and installs PyInstaller from the internet into it; pip may also use its cache in
-    the user profile. That is a change of the computer, which the project rules forbid on the customer's
-    work PC (AGENTS.md, rule 1).
+    RUN ONLY IN A VIRTUAL MACHINE, ON A BUILD PC OR IN GITHUB ACTIONS (.github/workflows/build.yml). The
+    script creates a virtual environment inside WinKickOff\build\ and installs PyInstaller from the internet
+    into it; pip may also use its cache in the user profile. That is a change of the computer, which the
+    project rules forbid on the customer's work PC (AGENTS.md, rule 1).
 
     Steps: unit tests, venv with PyInstaller, onedir build without a console window, data files
-    (rules, templates, resources, presets, technical reference, user documentation), a copy of the
-    user documentation next to the exe, a zip dist\WinKickOff-<version>.zip.
+    (rules, templates, resources, every profiles\preset-*.json, technical reference, user documentation),
+    a copy of the documentation next to the exe, a zip dist\WinKickOff-<version>.zip.
 
     Layout of the result (app_paths() in frozen mode):
       dist\WinKickOff\WinKickOff.exe
       dist\WinKickOff\_internal\{rules,templates,resources,profiles,docs\technical\reference,docs\user}
-      dist\WinKickOff\docs\user\...           (the same user documentation, easy to find)
+      dist\WinKickOff\docs\{user,technical}\...  (the same documentation, easy to find; user links resolve)
       profiles\, output\, logs\, settings.json are created next to the exe on first use.
 .EXAMPLE
     powershell -NoProfile -ExecutionPolicy Bypass -File tools\build.ps1
@@ -50,10 +50,14 @@ try {
     # Absolute sources: with --specpath PyInstaller resolves relative paths from the spec folder.
     $data = @(
         "$root\rules;rules", "$root\templates;templates", "$root\resources;resources",
-        "$root\profiles\preset-office.json;profiles", "$root\profiles\preset-strict.json;profiles",
         "$repo\docs\technical\reference;docs\technical\reference",
+        "$repo\docs\technical\memstechtips-profile.md;docs\technical",
         "$repo\docs\user;docs\user"
     )
+    # Every preset: a fixed list once left the Laptop and memstechtips presets out of the build.
+    $presets = @(Get-ChildItem -Path (Join-Path $root 'profiles') -Filter 'preset-*.json' -File)
+    if ($presets.Count -lt 1) { throw "no presets in $root\profiles" }
+    foreach ($preset in $presets) { $data += "$($preset.FullName);profiles" }
     $pyiArgs = @('--noconfirm', '--clean', '--noconsole', '--onedir', '--name', 'WinKickOff',
               '--distpath', 'dist', '--workpath', 'build\pyinstaller', '--specpath', 'build',
               '--paths', $root)
@@ -63,7 +67,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
 
     $dist = Join-Path $root 'dist\WinKickOff'
+    $built = @(Get-ChildItem -Path (Join-Path $dist '_internal\profiles') -Filter 'preset-*.json' -File)
+    if ($built.Count -ne $presets.Count) { throw "presets in the build: $($built.Count) of $($presets.Count)" }
     Copy-Item -Path (Join-Path $repo 'docs\user') -Destination (Join-Path $dist 'docs\user') -Recurse -Force
+    $tech = New-Item -ItemType Directory -Force -Path (Join-Path $dist 'docs\technical')
+    Copy-Item -Path (Join-Path $repo 'docs\technical\reference') -Destination $tech.FullName -Recurse -Force
+    Copy-Item -Path (Join-Path $repo 'docs\technical\memstechtips-profile.md') -Destination $tech.FullName -Force
     $zip = Join-Path $root "dist\WinKickOff-$version.zip"
     Compress-Archive -Path $dist -DestinationPath $zip -Force
     $size = [math]::Round(((Get-ChildItem $dist -Recurse -File | Measure-Object Length -Sum).Sum) / 1MB, 1)

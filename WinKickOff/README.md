@@ -1,20 +1,21 @@
 # WinKickOff
 
-A toolkit for installing and configuring Windows 11 Pro in workgroups without a domain, a project of the
-WindowsInstaller umbrella repository. Its main tool, the editor in this folder, shows every installation
-rule in one tree with check boxes and search, disables dependent rules automatically, keeps the selection
-in a JSON profile and assembles `autounattend.xml` from the selected rules only; its «Этот ПК» (This PC) menu
-checks and applies rules on a running Windows. The answer file checker is `../tools/Validate-Unattend.ps1`.
+The editor of the WinKickOff toolkit (installing and configuring Windows 11 Pro in workgroups without a
+domain). It shows every installation rule in one tree with check boxes and search, disables dependent rules
+automatically, keeps the selection in a JSON profile and assembles `autounattend.xml` from the selected rules
+only; its «Этот ПК» (This PC) menu checks, applies and returns rules to Windows defaults on a running Windows.
+The answer file checker is `../tools/Validate-Unattend.ps1`.
 
 User documentation (how to work with the program): [Русский](../docs/user/ru/README.md),
 [Українська](../docs/user/uk/README.md), [English](../docs/user/en/README.md).
 Specification, architecture, data model and plan: [`../docs/technical/editor/`](../docs/technical/editor/README.md).
 
-State on 25.09.2026: version 0.2.0. The catalog (176 rules, 27 groups) carries every action of the
-hand-written answer file v0.2 and, off by default, the Edge, Chrome and Brave policies of issue #1; the generator, the checks, the presets, profiles, data forms, import and
-the build from the window work. A build of the «Офис» (Office) preset covers every v0.2 action and passes
-`tools/Validate-Unattend.ps1` (36 of 36). Installation from a built file has not been tested in a VM yet:
-do not use such a file on production PCs before that. Open tasks: `../docs/technical/editor/todo/`.
+State on 26.09.2026: version 1.0.0-rc.1. The catalog 0.4 (177 rules, 27 groups) carries every action of the
+hand-written answer file v0.2, the Edge, Chrome and Brave policies and the OneDrive removal; the generator, the
+checks, four presets, profiles, data forms, import, the build from the window and the This PC menu work.
+The «Офис» (Office) preset equals the catalog defaults; a build passes `tools/Validate-Unattend.ps1` (36 of
+36), and installation from a built file has been confirmed by the customer on real hardware. Test every new
+answer file in a VM first. Open tasks: `../docs/technical/editor/todo/`.
 
 ## Requirements
 
@@ -46,9 +47,13 @@ python tools/make_rule_docs.py
 ```
 
 What the build tests check: the output is deterministic and ASCII only; a disabled rule leaves no trace;
-phases without rules add no scripts or tasks; every `Setup-System.ps1` action of v0.2 is present in the
-«Офис» build; commands, International-Core, OOBE, accounts and the time zone equal v0.2; importing v0.2 gives
-the «Офис» preset; `tools/Validate-Unattend.ps1` accepts the built file.
+phases without rules add no scripts or tasks; every `Setup-System.ps1` action of v0.2 is present in the build
+of the v0.2 reference profile (`tests/v02_actions.py`); commands, International-Core, OOBE, accounts and the
+time zone equal v0.2; importing v0.2 gives the reference profile; `tools/Validate-Unattend.ps1` accepts the
+built file.
+
+The portable zip is built by GitHub Actions (`../.github/workflows/build.yml`) with `tools/build.ps1`; it needs
+PyInstaller from the internet, so it never runs on the customer's work PC.
 
 ## Where things are stored
 

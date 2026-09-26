@@ -1,32 +1,30 @@
-# WindowsInstaller
+# WinKickOff
 
-**User documentation of WinKickOff:** [Русский](docs/user/ru/README.md) · [Українська](docs/user/uk/README.md) · [English](docs/user/en/README.md)
+**User documentation:** [Русский](docs/user/ru/README.md) · [Українська](docs/user/uk/README.md) · [English](docs/user/en/README.md)
 
-An umbrella repository for a group of projects that install and configure Windows in small workgroups
-without a Windows domain, where the computers are used by non-professionals and the organisation is under
-constant cyber attack. The goal: Windows 11 Pro hardened and updatable from the first boot, without
-configuring every PC by hand and without third-party programs.
+A toolkit for installing and configuring Windows 11 Pro in small workgroups without a Windows domain,
+where the computers are used by non-professionals and the organisation is under constant cyber attack.
+The goal: Windows hardened and updatable from the first boot, without configuring every PC by hand and
+without third-party programs.
 
-## Projects
+State on 26.09.2026: version 1.0.0-rc.1 (release candidate). Installation from a built answer file has been
+confirmed by the customer on real hardware. Downloads: the GitHub releases of the repository (portable zip,
+no installation, no administrator rights).
 
-| Project | What it is | Where | State |
-|---|---|---|---|
-| **WinKickOff** | Toolkit for installing and configuring Windows in workgroups: the editor that builds `autounattend.xml` from a searchable catalog of rules, the answer file checker, checking and applying rules on a running Windows | [`WinKickOff/`](WinKickOff/README.md), checker in [`tools/`](tools/Validate-Unattend.ps1) | 0.2.0: the full cycle works in the window; installation from a built file not yet tested in a VM |
-
-For now WinKickOff is the only project. Passwords and groups of the accounts are assigned by a separate
-project of the customer after installation.
-
-## WinKickOff tools
+## Tools
 
 | Tool | What it does |
 |---|---|
 | Editor (`WinKickOff/`) | Every installation rule in a searchable tree with descriptions; dependent rules are disabled automatically; profiles and presets; the output is `autounattend.xml` built from the selection only; interface in Russian, Ukrainian and English |
-| This PC (menu of the editor) | Read-only check of an installed Windows, apply scripts with backup and rollback for selected rules |
+| This PC (menu of the editor) | Read-only check of an installed Windows; apply the selected rules or return them to Windows defaults, with a backup and rollback |
 | Validate-Unattend (`tools/Validate-Unattend.ps1`) | Static check of any answer file against the limits of Windows Setup (36 checks), read-only |
+
+Passwords and groups of the accounts are assigned by a separate project of the customer after installation.
 
 ## Quick start
 
-Python 3.14 for Windows is needed (standard library only).
+Portable build: unzip `WinKickOff-<version>.zip` from a release and run `WinKickOff.exe`. From sources,
+Python 3.14 for Windows is needed (standard library only):
 
 ```powershell
 cd WinKickOff
@@ -48,21 +46,24 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 
 - Every new answer file is first tested by an installation in a virtual machine, then used on production PCs.
 - The starter accounts Admin and User are created without passwords: passwords and groups are assigned by a
   separate project after installation. A password entered in the editor is stored in the file in plain text.
-- The tools change nothing on the computer they run on unless the user explicitly applies rules through
-  «Этот ПК» (This PC): the editor writes only into its own folder, the checker only reads the file.
+- The tools change nothing on the computer they run on unless the user explicitly applies or returns rules
+  through «Этот ПК» (This PC): the editor writes only into its own folder, the checker only reads the file.
 
 ## Documentation
 
-- [docs/](docs/README.md): user documentation in three languages, technical documentation, appendices.
+- [docs/](docs/README.md): user documentation in three languages, technical documentation, appendices,
+  [release notes](docs/releases/).
 - [Appendices](docs/appendices/README.md) (Russian): the original UnattendedWinstall file, our hand-written
   answer file v0.2 (the reference the WinKickOff catalog grew from), the reviews.
 - [AGENTS.md](AGENTS.md): repository map for developers and agents.
 
-## Repository
+## Repository and builds
 
-https://github.com/supakov/WindowsInstaller (private). The local folder and the repository match; the
-program's working folders (`output/`, `logs/`, `settings.json`) and user profiles are not versioned.
+https://github.com/supakov/WinKickOff (private). Every push to `main` runs the tests, the answer file checker
+and the portable build in GitHub Actions ([`.github/workflows/build.yml`](.github/workflows/build.yml)); a tag
+`v<version>` also publishes a release with the zip. The program's working folders (`output/`, `logs/`,
+`settings.json`) and user profiles are not versioned.
 
 ```bash
-git clone https://github.com/supakov/WindowsInstaller.git
+git clone https://github.com/supakov/WinKickOff.git
 ```

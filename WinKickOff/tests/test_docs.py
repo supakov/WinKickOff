@@ -15,6 +15,7 @@ import re
 import unittest
 from pathlib import Path
 
+from winkickoff import APP_VERSION
 from winkickoff.core.catalog import heading_anchors, load_catalog
 from winkickoff.core.i18n import LANGUAGES, CatalogTexts
 
@@ -66,6 +67,14 @@ class DocsTest(unittest.TestCase):
         files = markdown_files() + list((ROOT / "rules" / "lang").glob("*.toml"))
         bad = [str(p.relative_to(REPO)) for p in files if any(d in p.read_text(encoding="utf-8") for d in DASHES)]
         self.assertEqual(bad, [])
+
+    def test_release_notes_of_this_version_exist(self) -> None:
+        # .github/workflows/build.yml publishes a tag v<APP_VERSION> with these notes
+        notes = REPO / "docs" / "releases" / f"v{APP_VERSION}.md"
+        self.assertTrue(notes.exists(), notes)
+        text = notes.read_text(encoding="utf-8")
+        for heading in ("## Русский", "## Українська", "## English"):
+            self.assertIn(heading, text)
 
     def test_technical_docs_are_english(self) -> None:
         bad = []

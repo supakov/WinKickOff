@@ -1,7 +1,7 @@
 # T12. PyInstaller build and portability verification
 
-Status: in-progress (25.09.2026: `tools/build.ps1` written and syntax-checked; the build itself installs
-PyInstaller and therefore runs only in a VM, see AGENTS.md rule 1). Stage 5. Dependencies: T11.
+Status: done (26.09.2026: the build runs in GitHub Actions, see the notes at the end; never on the
+customer's work PC, AGENTS.md rule 1). Stage 5. Dependencies: T11.
 
 ## Goal
 
@@ -33,3 +33,14 @@ A portable build `dist/WinKickOff/` and a portability checklist in a VM.
 and the user documentation in `_internal`, copies the user documentation next to the exe and zips the
 folder. Not executed on the customer's PC. Remaining: run in a VM, icon and version resource, the
 portability checklist, SmartScreen note for the unsigned exe in the user documentation.
+
+### 26.09.2026: build in GitHub Actions, release candidate
+
+- `.github/workflows/build.yml` runs on `windows-latest` with Python 3.14: unit tests, the answer file checker on
+  Appendix B, `tools/build.ps1 -SkipTests`; the zip is an artifact of every run. A tag `v<APP_VERSION>` also
+  runs the release job: `gh release create` with `docs/releases/v<version>.md` (a prerelease for `-rc`).
+- Bug found by the customer: the portable build had only the «Офис» (Office) and «Строгий» (Strict) presets
+  because `build.ps1` listed them by name. It now takes every `profiles/preset-*.json` and fails when the build
+  holds fewer presets than the source; `test_presets.py` forbids preset names in the script.
+- The documentation next to the exe now includes `docs/technical/reference` and the memstechtips report, so the
+  links of the user documentation resolve there too.

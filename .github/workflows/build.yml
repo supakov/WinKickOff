@@ -1,0 +1,85 @@
+# WinKickOff: tests, the answer file checker and the portable build on every push to main and every pull
+# request; a tag v<version> (for example v1.0.0-rc.1) also publishes a GitHub release with the zip.
+# The build needs PyInstaller from the internet, so it runs here (or in a VM), never on the customer's PC.
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-and-build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: WinKickOff
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Version
+        id: version
+        run: |
+          $version = python -c "import winkickoff; print(winkickoff.APP_VERSION)"
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "WinKickOff $version"
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and "v$version" -ne $env:GITHUB_REF_NAME) {
+            throw "tag $env:GITHUB_REF_NAME does not match APP_VERSION $version (winkickoff/__init__.py)"
+          }
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Answer file checker (v0.2 reference)
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File ..\tools\Validate-Unattend.ps1
+
+      - name: Portable build
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools\build.ps1 -SkipTests
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WinKickOff-${{ steps.version.outputs.version }}
+          path: WinKickOff/dist/WinKickOff-*.zip
+          if-no-files-found: error
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: WinKickOff-${{ needs.test-and-build.outputs.version }}
+          path: dist
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          notes="docs/releases/${TAG}.md"
+          test -f "$notes" || { echo "release notes $notes are missing"; exit 1; }
+          flags=""
+          case "$TAG" in *-rc*|*-beta*|*-alpha*) flags="--prerelease" ;; esac
+          gh release create "$TAG" dist/*.zip --verify-tag --title "WinKickOff ${TAG#v}" --notes-file "$notes" $flags

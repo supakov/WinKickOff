@@ -104,6 +104,13 @@ class PresetsTest(unittest.TestCase):
         expected = self.maker.memstechtips_report(self.catalog).replace("\n", "\r\n")
         self.assertEqual(on_disk, expected, "the memstechtips report is stale: run python tools/make_presets.py")
 
+    def test_build_takes_every_preset(self) -> None:
+        # tools/build.ps1 once listed two presets by name and the portable build lost the other two
+        script = (ROOT / "tools" / "build.ps1").read_text(encoding="utf-8")
+        self.assertIn("-Filter 'preset-*.json'", script)
+        for file_name in PRESETS:
+            self.assertNotIn(file_name, script)
+
     def test_presets_hold_no_passwords(self) -> None:
         for file_name in PRESETS:
             profile, _ = Profile.load(ROOT / "profiles" / file_name, self.catalog)
