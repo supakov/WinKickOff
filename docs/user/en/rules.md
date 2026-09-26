@@ -1,6 +1,6 @@
 # Rule list
 
-Every rule of the WinKickOff catalog 0.3 by group, 176 in total. This file is generated from the catalog by `python tools/make_rule_docs.py` and is not edited by hand. In the program every rule also shows its technical details, the check after installation and the rollback.
+Every rule of the WinKickOff catalog 0.3 by group, 177 in total. This file is generated from the catalog by `python tools/make_rule_docs.py` and is not edited by hand. In the program every rule also shows its technical details, the check after installation and the rollback.
 
 Levels: baseline (the core of the protection, disabling is not recommended), recommended, optional, risky (may disturb programs, enable deliberately).
 
@@ -79,7 +79,7 @@ Automatic updates, other Microsoft products, feature update deferral, Delivery O
   Updates are downloaded and installed automatically; automatic restarts are not allowed during active hours.
   Effect: Restarts happen at night or before the workday starts; the user sees a notification and can postpone within the policy limits.
   Risk: Active hours cannot exceed 18 hours. PCs that run around the clock will restart outside active hours.
-- **Updates for other Microsoft products (Office, .NET)** (`update.other-microsoft-products`). Level: recommended. "Office": enabled; "Strict": enabled.
+- **Updates for other Microsoft products (Office, .NET)** (`update.other-microsoft-products`). Level: recommended. "Office": disabled; "Strict": enabled.
   Opts in to Microsoft Update: fixes for Office (MSI), .NET and other products arrive together with Windows updates.
   Effect: The toggle in Settings is turned on and locked. Office 365 (Click-to-Run) updates independently through its own mechanism.
 - **Defer feature updates** (`update.defer-feature`). Level: optional. "Office": enabled; "Strict": enabled.
@@ -168,7 +168,7 @@ Each rule blocks one attack technique through Office, email, scripts, USB or dri
   Protects against exploits of Outlook rules and forms when credentials have been stolen.
   Effect: Regular Outlook features keep working.
   Risk: Low.
-- **ASR: block untrusted and unsigned programs from USB** (`asr.usb-untrusted`). Level: recommended. "Office": enabled; "Strict": enabled.
+- **ASR: block untrusted and unsigned programs from USB** (`asr.usb-untrusted`). Level: recommended. "Office": disabled; "Strict": enabled.
   Unsigned .exe, .dll and .scr files do not run directly from USB flash drives and SD cards.
   Effect: Copying files from a USB flash drive is not blocked, only running them.
   Risk: Medium: unsigned portable utilities.
@@ -210,9 +210,9 @@ UAC, accounts, credential protection, remote access, encryption.
 - **UAC enabled, prompts on the secure desktop, Win+L works** (`uac.baseline`). Level: baseline. "Office": enabled; "Strict": enabled.
   Baseline UAC values: enabled, prompts on the secure desktop, standard users enter administrator credentials, installers require elevation, the built-in Administrator runs in Admin Approval Mode, and network logons of local administrators get a filtered token. The ban on locking the screen is removed.
   Effect: The original UnattendedWinstall file blocked Win+L locking and removed UAC prompts; here it is the opposite.
-- **UAC for administrators: always notify** (`uac.admin-always-notify`). Level: recommended. "Office": enabled; "Strict": enabled.
+- **UAC for administrators: always notify** (`uac.admin-always-notify`). Level: recommended. "Office": disabled; "Strict": enabled.
   The administrator sees a prompt for every elevation, including system components; this closes known UAC bypasses through trusted Windows programs.
-  Effect: More "Yes/No" prompts for Admin; protection against automatic elevation by malicious code.
+  Effect: More "Yes/No" prompts for Admin, including when opening Task Manager (Ctrl+Shift+Esc), the Registry Editor and other Windows tools that otherwise elevate without a prompt; protection against automatic elevation by malicious code. For a standard user (User) these tools open without a prompt in any case.
   Risk: With a blank password, a UAC prompt is just a "Yes" button: it protects against programs, not against the person at the keyboard.
 
 ### Accounts and sign-in
@@ -312,7 +312,7 @@ AutoRun, script files, VBScript.
 
 ## Browsers
 
-Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertising, AI features. All rules except two Edge rules from v0.2 are off by default; policies for a browser that is not installed have no effect.
+Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertising, AI features. Part of the policies is on by default: telemetry, advertising, AI features, page translation, card autofill, the Brave wallet and VPN; sync, browser sign-in and password managers are off. Policies for a browser that is not installed have no effect.
 
 ### Microsoft Edge
 
@@ -322,29 +322,29 @@ Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertisi
 - **Edge without first-run experience, ads and background processes** (`edge.baseline`). Level: baseline. "Office": enabled; "Strict": enabled.
   The first-run experience is hidden; recommendations, reporting for personalization, startup boost and background mode are turned off.
   Effect: Edge remains the emergency browser: without it you cannot download another browser. It shows no ads and uses no memory in the background.
-- **Edge: do not send diagnostic data** (`edge.diagnostic-data-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Edge: do not send diagnostic data** (`edge.diagnostic-data-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Edge does not send required or optional diagnostic data about the browser to Microsoft.
   Effect: Information about browser usage and visited sites is not sent to Microsoft. Replaces the deprecated MetricsReportingEnabled and SendSiteInfoToImproveServices policies from the issue #1 script.
-- **Edge: do not collect queries to third-party search engines** (`edge.search-telemetry-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Edge: do not collect queries to third-party search engines** (`edge.search-telemetry-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Edge does not collect information about searches on third-party search engines (3P SERP telemetry).
   Effect: Queries to Google and other search engines are not included in Edge telemetry.
 - **Edge: hide the sidebar** (`edge.sidebar-off`). Level: optional. "Office": disabled; "Strict": disabled.
   The Edge sidebar with apps and shortcuts is not shown.
   Effect: Fewer distracting elements. Before Edge 141, hiding the sidebar also hides the Copilot button; starting with version 141, the Copilot icon is controlled by a policy that applies only to Entra ID profiles.
-- **Edge: turn off the shopping assistant** (`edge.shopping-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Edge: turn off the shopping assistant** (`edge.shopping-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Edge does not show price comparisons, coupons or cashback on store websites.
   Effect: No pop-up offers on store pages, and the addresses of those pages are not sent to the shopping service.
-- **Edge: hide Microsoft Rewards** (`edge.rewards-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Edge: hide Microsoft Rewards** (`edge.rewards-off`). Level: optional. "Office": enabled; "Strict": enabled.
   The Microsoft Rewards bonus program is not shown in Edge, and its switch in settings is turned off.
   Effect: No offers to earn points for searches and purchases.
-- **Edge: no Edge Insider program promotion** (`edge.insider-promo-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Edge: no Edge Insider program promotion** (`edge.insider-promo-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Edge does not offer to install preview builds of the browser.
   Effect: Users do not install unstable versions of Edge in response to a promotional offer.
 - **Edge: block sync** (`edge.sync-off`). Level: optional. "Office": disabled; "Strict": disabled.
   Sync of Edge favorites, passwords, history and settings with a cloud account is turned off.
   Effect: Browser data does not go to the cloud and does not end up on employees' personal devices.
   Risk: Favorites and settings are not carried over between the user's computers.
-- **Edge: do not offer page translation** (`edge.translate-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Edge: do not offer page translation** (`edge.translate-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Edge does not offer to translate a page written in another language.
   Effect: Page text is not sent to a cloud translation service.
   Risk: Employees who read foreign-language websites lose built-in translation.
@@ -358,7 +358,7 @@ Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertisi
 - **Edge: no search suggestions** (`edge.search-suggest-off`). Level: optional. "Office": disabled; "Strict": disabled.
   The Edge address bar does not show search engine suggestions.
   Effect: Typed text is not sent to the search engine until Enter is pressed.
-- **Edge: no feedback submission** (`edge.feedback-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Edge: no feedback submission** (`edge.feedback-off`). Level: optional. "Office": enabled; "Strict": enabled.
   The feedback button and sending feedback to Microsoft are disabled.
   Effect: Screenshots and problem descriptions are not sent from the browser to Microsoft.
 - **Edge: block browser sign-in** (`edge.signin-off`). Level: optional. "Office": disabled; "Strict": disabled.
@@ -369,17 +369,17 @@ Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertisi
   The built-in Edge password manager does not offer to save passwords.
   Effect: Passwords are not stored in the browser profile.
   Risk: Without a password manager, users reuse passwords or write them down more often. Enable only if the organization has a separate password manager. In the issue #1 script this line is commented out: enable it deliberately.
-- **Edge: do not save payment cards** (`edge.autofill-cards-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Edge: do not save payment cards** (`edge.autofill-cards-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Edge does not save payment card details or fill them into forms.
   Effect: Card details are not stored in the browser profile.
   Risk: In the issue #1 script this line is commented out: enable it deliberately.
 
 ### Google Chrome
 
-- **Chrome: do not send usage statistics and crash reports** (`chrome.metrics-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Chrome: do not send usage statistics and crash reports** (`chrome.metrics-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Chrome does not send usage statistics and crash reports to Google.
   Effect: Information about browser operation is not sent to Google.
-- **Chrome: limit field trials (variations)** (`chrome.variations`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Chrome: limit field trials (variations)** (`chrome.variations`). Level: optional. "Office": enabled; "Strict": enabled.
   Chrome does not enable experimental features for the user that Google rolls out without a browser update.
   Effect: Browser behavior changes only with updates. Value 1 keeps urgent security fixes.
   Risk: Value 2 may delay critical security fixes: Google does not recommend it. The issue #1 script used the nonexistent name ChromeVariationsEnabled.
@@ -387,23 +387,23 @@ Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertisi
   Sync of Chrome bookmarks, passwords, history and settings with a Google account is blocked (or left to the user's choice).
   Effect: Browser data does not go to the Google cloud and does not end up on employees' personal devices.
   Risk: The issue #1 script set 0, which leaves the choice to the user; here the default is to block it, as for Edge.
-- **Chrome: do not run in the background after closing** (`chrome.background-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Chrome: do not run in the background after closing** (`chrome.background-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Chrome and its apps do not keep running after the last window is closed.
   Effect: The browser does not use memory or network when it is not in use.
-- **Chrome: turn off generative AI features** (`chrome.genai-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Chrome: turn off generative AI features** (`chrome.genai-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Chrome generative AI features (writing help, tab organization, history search and others) are blocked by default.
   Effect: Page content and employees' texts are not sent to Google models.
-- **Chrome: do not download the local AI model** (`chrome.genai-local-model-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Chrome: do not download the local AI model** (`chrome.genai-local-model-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Chrome does not download a local generative AI model to the computer.
   Effect: A model several gigabytes in size does not appear on the disk, and no network traffic is spent.
-- **Chrome: turn off AI in developer tools** (`chrome.devtools-genai-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Chrome: turn off AI in developer tools** (`chrome.devtools-genai-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Generative AI features in Chrome developer tools are blocked.
   Effect: Page code and data are not sent to Google models from DevTools.
 - **Chrome: turn off Google Lens over the page** (`chrome.lens-overlay-off`). Level: optional. "Office": disabled; "Strict": disabled.
   Google Lens search of screen content (Lens Overlay) is unavailable.
   Effect: Page screenshots are not sent to Google for visual search.
   Risk: The issue #1 script set 0, which allows the feature; here it is 1. Starting with Chrome 147, the policy is deprecated.
-- **Chrome: do not offer page translation** (`chrome.translate-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Chrome: do not offer page translation** (`chrome.translate-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Chrome does not offer to translate a page written in another language.
   Effect: Page text is not sent to the Google cloud translation service.
   Risk: Employees who read foreign-language websites lose built-in translation.
@@ -414,10 +414,10 @@ Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertisi
 - **Chrome: no search suggestions** (`chrome.search-suggest-off`). Level: optional. "Office": disabled; "Strict": disabled.
   The Chrome address bar does not show search engine suggestions.
   Effect: Typed text is not sent to the search engine until Enter is pressed.
-- **Chrome: Cast only on the local network** (`chrome.cast-private-only`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Chrome: Cast only on the local network** (`chrome.cast-private-only`). Level: optional. "Office": enabled; "Strict": enabled.
   Google Cast connects only to devices with private local network addresses.
   Effect: The screen cannot be cast to devices with public addresses.
-- **Chrome: no promotional pages or campaigns** (`chrome.promotions-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Chrome: no promotional pages or campaigns** (`chrome.promotions-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Chrome does not show Google promotional tabs and campaigns.
   Effect: Less advertising when the browser starts and updates. Replaces the deprecated PromotionalTabsEnabled policy from the issue #1 script.
 - **Chrome: block password saving** (`chrome.password-manager-off`). Level: risky. "Office": disabled; "Strict": disabled.
@@ -428,7 +428,7 @@ Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertisi
   Chrome does not save addresses or fill them into forms.
   Effect: Employees' personal data is not stored in the browser profile.
   Risk: In the issue #1 script this line is commented out: enable it deliberately.
-- **Chrome: do not save payment cards** (`chrome.autofill-cards-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Chrome: do not save payment cards** (`chrome.autofill-cards-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Chrome does not save payment card details or fill them into forms.
   Effect: Card details are not stored in the browser profile.
   Risk: In the issue #1 script this line is commented out: enable it deliberately.
@@ -439,47 +439,47 @@ Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertisi
 
 ### Brave
 
-- **Brave: turn off Brave Rewards** (`brave.rewards-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Brave: turn off Brave Rewards** (`brave.rewards-off`). Level: optional. "Office": enabled; "Strict": enabled.
   The Brave Rewards program, which rewards users for viewing ads, is unavailable.
   Effect: The browser does not show its own ads and does not award tokens.
-- **Brave: turn off the crypto wallet** (`brave.wallet-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Brave: turn off the crypto wallet** (`brave.wallet-off`). Level: optional. "Office": enabled; "Strict": enabled.
   The built-in Brave Wallet cryptocurrency wallet is unavailable.
   Effect: Cryptocurrency wallets and extensions do not appear on work computers.
-- **Brave: turn off Brave VPN** (`brave.vpn-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Brave: turn off Brave VPN** (`brave.vpn-off`). Level: optional. "Office": enabled; "Strict": enabled.
   The paid Brave VPN is unavailable.
   Effect: Browser traffic does not go through a VPN, bypassing the organization's network rules.
-- **Brave: turn off the Leo AI assistant** (`brave.ai-chat-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Brave: turn off the Leo AI assistant** (`brave.ai-chat-off`). Level: optional. "Office": enabled; "Strict": enabled.
   The Leo AI assistant (AI Chat) in Brave is unavailable.
   Effect: Page content and employees' texts are not sent to AI models. The issue #1 script also used the nonexistent name BraveLeoEnabled.
-- **Brave: no daily usage report** (`brave.stats-ping-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Brave: no daily usage report** (`brave.stats-ping-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Brave does not send the daily anonymous usage signal (stats ping).
   Effect: Fewer browser connections to Brave servers. The issue #1 script also used the nonexistent name BraveStatsPingDisabled.
-- **Brave: no product analytics (P3A)** (`brave.p3a-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Brave: no product analytics (P3A)** (`brave.p3a-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Brave does not send anonymized P3A product analytics.
   Effect: Information about the use of browser features is not sent to Brave. The issue #1 script used the nonexistent name BraveP3ADisabled.
-- **Brave: turn off Brave News** (`brave.news-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Brave: turn off Brave News** (`brave.news-off`). Level: optional. "Office": enabled; "Strict": enabled.
   The Brave News feed on the new tab page is unavailable.
   Effect: The new tab page has no news or promotional content.
-- **Brave: turn off Brave Talk** (`brave.talk-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Brave: turn off Brave Talk** (`brave.talk-off`). Level: optional. "Office": enabled; "Strict": enabled.
   The Brave Talk video calling service is unavailable.
   Effect: Video calls go only through services approved by the organization.
-- **Brave: turn off Playlist** (`brave.playlist-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Brave: turn off Playlist** (`brave.playlist-off`). Level: optional. "Office": enabled; "Strict": enabled.
   The feature for saving video and audio for offline viewing (Playlist) is unavailable.
   Effect: Media files do not accumulate in the browser profile.
-- **Brave: turn off Speedreader** (`brave.speedreader-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Brave: turn off Speedreader** (`brave.speedreader-off`). Level: optional. "Office": enabled; "Strict": enabled.
   The Speedreader simplified reading mode is unavailable.
   Effect: Fewer built-in features that change how pages look.
-- **Brave: no Wayback Machine prompts** (`brave.wayback-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Brave: no Wayback Machine prompts** (`brave.wayback-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Brave does not offer to open an archived copy of an unavailable page in the Wayback Machine.
   Effect: Addresses of unavailable pages are not sent to the internet archive.
-- **Brave: turn off Web Discovery** (`brave.web-discovery-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Brave: turn off Web Discovery** (`brave.web-discovery-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Brave does not share information about visited pages to populate its search index.
   Effect: Addresses of visited sites are not sent to Brave Search.
-- **Brave: do not offer page translation** (`brave.translate-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Brave: do not offer page translation** (`brave.translate-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Brave does not offer to translate a page written in another language.
   Effect: Page text is not sent to a cloud translation service.
   Risk: Employees who read foreign-language websites lose built-in translation.
-- **Brave: block Tor windows** (`brave.tor-off`). Level: recommended. "Office": disabled; "Strict": disabled.
+- **Brave: block Tor windows** (`brave.tor-off`). Level: recommended. "Office": enabled; "Strict": enabled.
   Private windows connected to the Tor network are unavailable in Brave.
   Effect: Browser traffic does not go to the Tor network, bypassing the organization's filtering and logs.
 
@@ -651,6 +651,10 @@ Each app is a separate rule: clear the check box to keep the app.
 - **Cortana** (`apps.remove.cortana`). Level: optional. "Office": enabled; "Strict": enabled.
   Removed by Microsoft in 2023; present on old images.
   Effect: Present in Windows 10 and 11 up to 22H2.
+- **OneDrive** (`apps.remove.onedrive`). Level: optional. "Office": enabled; "Strict": enabled.
+  OneDrive is not installed for users: the autostart of its installer is removed from the default profile.
+  Effect: Accounts created after installation (Admin, User and later ones) get a profile without OneDrive: no icon, no OneDrive folder, no file sync with the cloud. Users who have already signed in keep their OneDrive.
+  Risk: User files are not copied to the Microsoft cloud; the organisation sets up backups separately.
 
 ## Default user profile
 

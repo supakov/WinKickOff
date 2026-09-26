@@ -1,4 +1,4 @@
-"""Semantic golden: every action of the v0.2 answer file is present in the catalog (office preset)."""
+"""Semantic golden: every action of the v0.2 answer file is present in the catalog (v0.2 reference profile)."""
 
 from __future__ import annotations
 
@@ -6,10 +6,9 @@ import unittest
 from pathlib import Path
 
 from winkickoff.core.catalog import load_catalog
-from winkickoff.core.profile import Profile
 
 from v02_actions import V02
-from v02_actions import catalog_actions, extract_script, parse_v02_actions
+from v02_actions import V02_DIFFERENCES, catalog_actions, extract_script, parse_v02_actions, reference_profile
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -33,9 +32,16 @@ class CoverageV02Test(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.catalog = load_catalog(ROOT / "rules", docs_root=ROOT.parent)
-        cls.profile = Profile.from_catalog(cls.catalog)
+        cls.profile = reference_profile(cls.catalog)
         cls.v02 = parse_v02_actions(V02)
         cls.mine = catalog_actions(cls.catalog, cls.profile)
+
+    def test_reference_differences_are_real(self) -> None:
+        # every listed rule exists and its default really differs from its v0.2 state
+        for rule_id, enabled in V02_DIFFERENCES.items():
+            with self.subTest(rule=rule_id):
+                self.assertIn(rule_id, self.catalog.rules)
+                self.assertNotEqual(self.catalog.rules[rule_id].default, enabled)
 
     def test_parser_found_a_plausible_number_of_actions(self) -> None:
         regs = [a for a in self.v02 if a[0] == "reg"]

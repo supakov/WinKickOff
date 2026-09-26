@@ -31,7 +31,7 @@ skip the language page and to create an administrator).
 | Contradict a catalog rule (the catalog sets another value) | 11 |
 | Not transferable: no rule in the catalog | 253 |
 | Registry key removals (context menu and viewer tweaks), not transferable | 6 |
-| Rules enabled in the preset | 59 of 176 |
+| Rules enabled in the preset | 60 of 177 |
 | Actions enabled rules add beyond the original | 16 |
 | Rules left off because they contradict the original | 7 |
 
@@ -111,6 +111,12 @@ The original has part of the rule; the preset also gets the listed actions.
   - `hklm:\software\policies\microsoft\windows\windows search\disablewebsearch = 1` (DWord)
 - `default-user.copilot-off`: Copilot turned off in the user profile (1 of 2 actions in the original). Adds:
   - `hkcu:\software\policies\microsoft\windows\windowscopilot\turnoffwindowscopilot = 1` (DWord)
+
+### Implemented by a script of the original
+
+The original reaches the goal of the rule with a script of its own (see the mechanisms below).
+
+- `apps.remove.onedrive`: OneDrive, as `OneDriveRemoval.ps1` does
 
 ### Required by an enabled rule
 
@@ -455,7 +461,7 @@ items weaken security and must not be transferred. A needed item becomes a new c
 |---|---|
 | `EdgeRemoval.ps1` | Removes Microsoft Edge and repeats the removal at every start by a scheduled task. Not transferred: the PC is left without a browser, and updates bring Edge back. WinKickOff keeps Edge and restricts it with the policies of the «Браузеры» (Browsers) section. |
 | `OpenWebSearch.cmd` | Sends `microsoft-edge:` links and web results of Windows search to another browser by rewriting protocol handlers; `OpenWebSearchRepair.ps1` and its task restore them after updates. Not transferred: it only makes sense after Edge is removed. |
-| `OneDriveRemoval.ps1` | Removes OneDrive with `takeown` and deletion of files at restart, again at every sign-in. Not transferred: without a Microsoft account OneDrive is inactive; the rule `default-user.no-sync-provider-ads` hides its ads in Explorer. |
+| `OneDriveRemoval.ps1` | Removes OneDrive with `takeown` and deletion of files at restart, again at every sign-in. The intent is transferred as the rule `apps.remove.onedrive` (new users get no OneDrive); the deletion of system files and the repeating task are not. |
 | `BloatRemoval.ps1` | Removes apps, capabilities and optional features. Its lists are mapped above; the scheduled task that repeats the removal is not transferred: WinKickOff removes apps once, in specialize. |
 | `WinhanceUserCustomizations` | A task running as SYSTEM applies the per-user settings in the session of the signed-in user and restarts the PC 20 seconds later. Not transferred: WinKickOff writes these settings into the default user profile, so every user gets them without a restart. |
 

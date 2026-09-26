@@ -27,7 +27,7 @@ from winkickoff.core.paths import AppPaths
 from winkickoff.core.profile import Profile
 from winkickoff.core.resources import Resources
 
-from v02_actions import V02
+from v02_actions import V02, reference_profile
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -225,8 +225,7 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.assertTrue(self.win.import_file(V02))
         self.assertEqual(self.win.profile.name, "Импорт autounattend")
         self.assertTrue(self.win.dirty)
-        office, _ = Profile.load(self.office_path, self.catalog)
-        self.assertEqual(self.win.profile.enabled_ids(), office.enabled_ids())
+        self.assertEqual(self.win.profile.enabled_ids(), reference_profile(self.catalog).enabled_ids())
         rows = [self.win.messages.item(i, "values")[2] for i in self.win.messages.get_children()]
         self.assertTrue(any("по действиям" in r for r in rows), rows)
 

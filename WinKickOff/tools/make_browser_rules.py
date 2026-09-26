@@ -278,15 +278,31 @@ RULES: list[tuple] = [
 ]
 
 
+# Rules on by default, so in the «Офис» (Office) preset: the selection made on 26.09.2026 in commit d33fc41.
+# The rest (sync, sign-in, sidebar, password managers and others that change what users see) stay off.
+DEFAULT_ON = {
+    "edge.diagnostic-data-off", "edge.search-telemetry-off", "edge.shopping-off", "edge.rewards-off",
+    "edge.insider-promo-off", "edge.translate-off", "edge.feedback-off", "edge.autofill-cards-off",
+    "chrome.metrics-off", "chrome.variations", "chrome.background-off", "chrome.genai-off",
+    "chrome.genai-local-model-off", "chrome.devtools-genai-off", "chrome.translate-off", "chrome.cast-private-only",
+    "chrome.promotions-off", "chrome.autofill-cards-off",
+    "brave.rewards-off", "brave.wallet-off", "brave.vpn-off", "brave.ai-chat-off", "brave.stats-ping-off",
+    "brave.p3a-off", "brave.news-off", "brave.talk-off", "brave.playlist-off", "brave.speedreader-off",
+    "brave.wayback-off", "brave.web-discovery-off", "brave.translate-off", "brave.tor-off",
+}
+
+
 def q(text: str) -> str:
     assert '"' not in text and "\\" not in text, text
     return f'"{text}"'
 
 
 def render() -> str:
+    known = {f"{r[0]}.{r[1]}" for r in RULES}
+    assert DEFAULT_ON <= known, sorted(DEFAULT_ON - known)
     out = [
         "# Браузеры: Microsoft Edge, Google Chrome, Brave (issue #1). Создаётся tools/make_browser_rules.py;",
-        "# правьте таблицу в этом инструменте, а не файл. Все правила выключены по умолчанию: пресет «Офис» равен v0.2.",
+        "# правьте таблицу в этом инструменте, а не файл. Включённые по умолчанию правила перечислены в DEFAULT_ON.",
         "",
     ]
     for browser, suffix, name, value, level, title, summary, effect, risk, versions, tags in RULES:
@@ -298,7 +314,7 @@ def render() -> str:
             'phase = "specialize"',
             f"title = {q(title)}",
             f'level = "{level}"',
-            "default = false",
+            f"default = {'true' if f'{browser}.{suffix}' in DEFAULT_ON else 'false'}",
             "tags = [" + ", ".join(q(t) for t in dict.fromkeys([product.lower(), "браузер", "политика", name.lower()] + tags)) + "]",
             f'doc = "{DOC}#{anchor}"',
             f"summary = {q(summary)}",

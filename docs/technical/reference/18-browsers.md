@@ -7,9 +7,13 @@ separate rule of the «Браузеры» (Browsers) section, so any of them can
 by `WinKickOff/tools/make_browser_rules.py`.
 
 All rules write machine policies (`HKLM`) in the specialize pass, apply to every user and cannot be changed
-by users in the browser settings. A policy of a browser that is not installed has no effect. The new rules
-are off by default, so the «Офис» (Office) preset still equals v0.2; the two Edge rules of v0.2
-(`edge.smartscreen-locked`, `edge.baseline`, card 10) moved into the same section and stay on.
+by users in the browser settings. A policy of a browser that is not installed has no effect. Since
+26.09.2026 (commit d33fc41) a part of the rules is on by default and so in every preset built from the
+defaults: telemetry, advertising, shopping and rewards, AI features, page translation, card autofill, the
+Brave wallet, VPN, news, Tor and the like (`DEFAULT_ON` in `WinKickOff/tools/make_browser_rules.py`). Sync,
+browser sign-in, the Edge sidebar and web capture, search suggestions, address autofill, the Chrome Lens
+overlay and built-in DNS client and the password managers stay off. The two Edge
+rules of v0.2 (`edge.smartscreen-locked`, `edge.baseline`, card 10) moved into the same section and stay on.
 
 ## Microsoft Edge
 

@@ -5,7 +5,7 @@
   "author": "",
   "created": "2026-09-25T00:00:00",
   "modified": "2026-09-25T00:00:00",
-  "comment": "Офис плюс ограничения, которые могут мешать старым программам: контролируемый доступ к папкам в режиме блокировки, SmartScreen запрещает запуск программ без репутации, правило ASR по распространённости блокирует, NetBIOS выключен, движок VBScript удаляется. Перед массовым внедрением проверить на одном ПК.",
+  "comment": "Офис плюс ограничения, которые могут мешать старым программам: контролируемый доступ к папкам в режиме блокировки, SmartScreen запрещает запуск программ без репутации, правило ASR по распространённости блокирует, неподписанные программы с USB не запускаются, UAC всегда спрашивает администратора, обновления других продуктов Microsoft включены, NetBIOS выключен, движок VBScript удаляется. Перед массовым внедрением проверить на одном ПК.",
   "install": {
     "edition": "Pro",
     "product_key_mode": "generic",
@@ -396,6 +396,9 @@
     "apps.remove.cortana": {
       "enabled": true
     },
+    "apps.remove.onedrive": {
+      "enabled": true
+    },
     "default-user.show-file-extensions": {
       "enabled": true
     },
@@ -439,28 +442,28 @@
       "enabled": true
     },
     "edge.diagnostic-data-off": {
-      "enabled": false
+      "enabled": true
     },
     "edge.search-telemetry-off": {
-      "enabled": false
+      "enabled": true
     },
     "edge.sidebar-off": {
       "enabled": false
     },
     "edge.shopping-off": {
-      "enabled": false
+      "enabled": true
     },
     "edge.rewards-off": {
-      "enabled": false
+      "enabled": true
     },
     "edge.insider-promo-off": {
-      "enabled": false
+      "enabled": true
     },
     "edge.sync-off": {
       "enabled": false
     },
     "edge.translate-off": {
-      "enabled": false
+      "enabled": true
     },
     "edge.web-capture-off": {
       "enabled": false
@@ -472,7 +475,7 @@
       "enabled": false
     },
     "edge.feedback-off": {
-      "enabled": false
+      "enabled": true
     },
     "edge.signin-off": {
       "enabled": false
@@ -481,34 +484,34 @@
       "enabled": false
     },
     "edge.autofill-cards-off": {
-      "enabled": false
+      "enabled": true
     },
     "chrome.metrics-off": {
-      "enabled": false
+      "enabled": true
     },
     "chrome.variations": {
-      "enabled": false
+      "enabled": true
     },
     "chrome.sync": {
       "enabled": false
     },
     "chrome.background-off": {
-      "enabled": false
+      "enabled": true
     },
     "chrome.genai-off": {
-      "enabled": false
+      "enabled": true
     },
     "chrome.genai-local-model-off": {
-      "enabled": false
+      "enabled": true
     },
     "chrome.devtools-genai-off": {
-      "enabled": false
+      "enabled": true
     },
     "chrome.lens-overlay-off": {
       "enabled": false
     },
     "chrome.translate-off": {
-      "enabled": false
+      "enabled": true
     },
     "chrome.signin-off": {
       "enabled": false
@@ -517,10 +520,10 @@
       "enabled": false
     },
     "chrome.cast-private-only": {
-      "enabled": false
+      "enabled": true
     },
     "chrome.promotions-off": {
-      "enabled": false
+      "enabled": true
     },
     "chrome.password-manager-off": {
       "enabled": false
@@ -529,52 +532,52 @@
       "enabled": false
     },
     "chrome.autofill-cards-off": {
-      "enabled": false
+      "enabled": true
     },
     "chrome.builtin-dns-off": {
       "enabled": false
     },
     "brave.rewards-off": {
-      "enabled": false
+      "enabled": true
     },
     "brave.wallet-off": {
-      "enabled": false
+      "enabled": true
     },
     "brave.vpn-off": {
-      "enabled": false
+      "enabled": true
     },
     "brave.ai-chat-off": {
-      "enabled": false
+      "enabled": true
     },
     "brave.stats-ping-off": {
-      "enabled": false
+      "enabled": true
     },
     "brave.p3a-off": {
-      "enabled": false
+      "enabled": true
     },
     "brave.news-off": {
-      "enabled": false
+      "enabled": true
     },
     "brave.talk-off": {
-      "enabled": false
+      "enabled": true
     },
     "brave.playlist-off": {
-      "enabled": false
+      "enabled": true
     },
     "brave.speedreader-off": {
-      "enabled": false
+      "enabled": true
     },
     "brave.wayback-off": {
-      "enabled": false
+      "enabled": true
     },
     "brave.web-discovery-off": {
-      "enabled": false
+      "enabled": true
     },
     "brave.translate-off": {
-      "enabled": false
+      "enabled": true
     },
     "brave.tor-off": {
-      "enabled": false
+      "enabled": true
     }
   },
   "unknown": {}

@@ -68,11 +68,12 @@ class RealCatalogTest(unittest.TestCase):
         self.assertEqual(len(asr), 18)
         for rule in asr:
             self.assertIn("defender.asr", rule.requires, rule.id)
-        self.assertEqual(sum(1 for r in asr if r.default), 17)
+        # asr.lsass and, since 26.09.2026, asr.usb-untrusted are off by default
+        self.assertEqual(sum(1 for r in asr if r.default), 16)
 
     def test_removable_apps_count(self) -> None:
         apps = self.catalog.rules_in_group("apps.remove")
-        self.assertEqual(len(apps), 33)
+        self.assertEqual(len(apps), 34)  # 33 of v0.2 and OneDrive
 
     def test_search_finds_by_registry_name_and_tag(self) -> None:
         self.assertIn("defender.pua", self.catalog.search("PUAProtection"))

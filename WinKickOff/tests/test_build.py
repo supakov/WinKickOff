@@ -1,4 +1,5 @@
-"""core/render.py Renderer.build: the office preset reproduces v0.2, disabled rules leave no trace."""
+"""core/render.py Renderer.build: the v0.2 reference profile reproduces v0.2, the office preset builds cleanly,
+disabled rules leave no trace."""
 
 from __future__ import annotations
 
@@ -17,7 +18,7 @@ from winkickoff.core.resources import Resources
 from winkickoff.core.validate import has_errors, validate_xml
 
 from v02_actions import V02
-from v02_actions import extract_script, parse_script_actions, parse_script_actions_ordered, parse_v02_actions, rule_actions
+from v02_actions import extract_script, parse_script_actions, parse_script_actions_ordered, parse_v02_actions, reference_profile, rule_actions
 
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = ROOT.parent / "tools" / "Validate-Unattend.ps1"
@@ -141,11 +142,13 @@ class DisabledRulesLeaveNoTraceTest(BuildTestBase):
 
 
 @unittest.skipUnless(V02.exists(), "v0.2 answer file not found next to WinKickOff")
-class OfficeMatchesV02Test(BuildTestBase):
+class ReferenceMatchesV02Test(BuildTestBase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
         cls.v02_text = V02.read_text(encoding="utf-8")
+        cls.reference = reference_profile(cls.catalog)
+        cls.result = cls.renderer.build(cls.reference, app_version="test")
 
     def test_apply_order_follows_v02(self) -> None:
         """Rules are applied in the order of the v0.2 sections. ASR rules come from the $AsrRules table
@@ -155,14 +158,14 @@ class OfficeMatchesV02Test(BuildTestBase):
         position = {action: index for index, action in enumerate(ordered)}
 
         def first_position(rule_id: str) -> float | None:
-            found = [position[a] for a in rule_actions(self.catalog, self.office, self.catalog.rules[rule_id]) if a in position]
+            found = [position[a] for a in rule_actions(self.catalog, self.reference, self.catalog.rules[rule_id]) if a in position]
             return min(found) if found else None
 
         asr_anchor = first_position("defender.asr")
         self.assertIsNotNone(asr_anchor)
         last_value, last_rule = -1.0, ""
         checked = 0
-        for rule_id in Resolver(self.catalog).apply_order(self.office):
+        for rule_id in Resolver(self.catalog).apply_order(self.reference):
             rule = self.catalog.rules[rule_id]
             if rule.phase not in ("specialize", "default-user"):
                 continue

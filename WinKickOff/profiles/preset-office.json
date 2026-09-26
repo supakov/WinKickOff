@@ -4,8 +4,8 @@
   "name": "Офис",
   "author": "",
   "created": "2026-09-25T00:00:00",
-  "modified": "2026-09-26T11:10:25",
-  "comment": "Соответствует проверенному файлу ответов v0.2: безопасность и обновляемость для рабочих групп без домена. Стартовые Admin и User без паролей.",
+  "modified": "2026-09-25T00:00:00",
+  "comment": "Безопасность и обновляемость для рабочих групп без домена; равен значениям каталога по умолчанию. Основа: проверенный файл ответов v0.2 с изменениями 26.09.2026: политики браузеров, OneDrive не устанавливается, UAC администратора как в Windows (без запроса для диспетчера задач), без правила ASR для USB и без обновлений других продуктов Microsoft. Стартовые Admin и User без паролей.",
   "install": {
     "edition": "Pro",
     "product_key_mode": "generic",
@@ -178,7 +178,7 @@
       "enabled": true
     },
     "uac.admin-always-notify": {
-      "enabled": true
+      "enabled": false
     },
     "accounts.inactivity-lock": {
       "enabled": true
@@ -385,6 +385,9 @@
       "enabled": true
     },
     "apps.remove.cortana": {
+      "enabled": true
+    },
+    "apps.remove.onedrive": {
       "enabled": true
     },
     "default-user.show-file-extensions": {

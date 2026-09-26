@@ -13,7 +13,7 @@ from winkickoff.core.profile import Account, Profile
 from winkickoff.core.render import Renderer
 from winkickoff.core.resources import Resources
 
-from v02_actions import V02
+from v02_actions import V02, reference_profile
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -60,8 +60,8 @@ class ImporterTest(unittest.TestCase):
         self.assertEqual([a.to_dict() for a in restored.accounts], [a.to_dict() for a in expected.accounts])
 
     @unittest.skipUnless(V02.exists(), "v0.2 answer file not found")
-    def test_hand_written_v02_gives_the_office_preset(self) -> None:
-        office, _ = Profile.load(ROOT / "profiles" / "preset-office.json", self.catalog)
+    def test_hand_written_v02_gives_the_reference_profile(self) -> None:
+        office = reference_profile(self.catalog)
         restored, warnings = import_xml(V02.read_text(encoding="utf-8"), self.catalog, self.keyboards)
         self.assertEqual(restored.name, IMPORTED_NAME)
         self.assert_same_settings(restored, office)

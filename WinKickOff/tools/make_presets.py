@@ -30,8 +30,10 @@ STAMP = "2026-09-25T00:00:00"
 def office(catalog: Catalog) -> Profile:
     profile = Profile.from_catalog(catalog, name="Офис")
     profile.comment = (
-        "Соответствует проверенному файлу ответов v0.2: безопасность и обновляемость для рабочих групп без домена. "
-        "Стартовые Admin и User без паролей."
+        "Безопасность и обновляемость для рабочих групп без домена; равен значениям каталога по умолчанию. "
+        "Основа: проверенный файл ответов v0.2 с изменениями 26.09.2026: политики браузеров, OneDrive не "
+        "устанавливается, UAC администратора как в Windows (без запроса для диспетчера задач), без правила ASR "
+        "для USB и без обновлений других продуктов Microsoft. Стартовые Admin и User без паролей."
     )
     return profile
 
@@ -41,14 +43,17 @@ def strict(catalog: Catalog) -> Profile:
     profile.comment = (
         "Офис плюс ограничения, которые могут мешать старым программам: контролируемый доступ к папкам в режиме "
         "блокировки, SmartScreen запрещает запуск программ без репутации, правило ASR по распространённости "
-        "блокирует, NetBIOS выключен, движок VBScript удаляется. Перед массовым внедрением проверить на одном ПК."
+        "блокирует, неподписанные программы с USB не запускаются, UAC всегда спрашивает администратора, "
+        "обновления других продуктов Microsoft включены, NetBIOS выключен, движок VBScript удаляется. "
+        "Перед массовым внедрением проверить на одном ПК."
     )
     resolver = Resolver(catalog)
     profile.set_param("defender.controlled-folder-access", "mode", 1)
     profile.set_param("defender.smartscreen-shell", "level", "Block")
     profile.set_param("asr.prevalence", "mode", 1)
-    resolver.enable(profile, "network.netbios-off")
-    resolver.enable(profile, "scripts.remove-vbscript")
+    for rule_id in ("asr.usb-untrusted", "uac.admin-always-notify", "update.other-microsoft-products",
+                    "network.netbios-off", "scripts.remove-vbscript"):
+        resolver.enable(profile, rule_id)
     return profile
 
 

@@ -631,3 +631,24 @@ effect = "Есть в Windows 10 и 11 до 22H2."
 [[rule.actions]]
 type = "appx"
 names = ["Microsoft.549981C3F5F10"]
+
+[[rule]]
+id = "apps.remove.onedrive"
+group = "apps.remove"
+phase = "default-user"
+title = "OneDrive"
+level = "optional"
+default = true
+tags = ["onedrive", "облако", "синхронизация", "onedrivesetup", "run"]
+doc = "docs/technical/reference/13-services-apps.md#onedrive"
+summary = "OneDrive не устанавливается пользователям: из профиля по умолчанию удаляется автозапуск его установщика."
+effect = "Учётные записи, созданные после установки (Admin, User и следующие), получают профиль без OneDrive: нет значка, папки OneDrive и синхронизации файлов с облаком. Пользователи, уже входившие в систему, свой OneDrive сохраняют."
+risk = "Файлы пользователей не копируются в облако Microsoft; резервное копирование организации настраивается отдельно."
+versions = "Windows 10 и 11. Установщик OneDriveSetup.exe (в Windows 11 24H2+ в System32) остаётся в системе и запускается только вручную."
+verify = 'После первого входа нового пользователя: нет папки %LOCALAPPDATA%\Microsoft\OneDrive и значения OneDrive в HKCU\Software\Microsoft\Windows\CurrentVersion\Run.'
+rollback = 'Для пользователя: запустить %SystemRoot%\System32\OneDriveSetup.exe или установить OneDrive с сайта Microsoft.'
+
+[[rule.actions]]
+type = "reg-remove"
+path = 'DU:\Software\Microsoft\Windows\CurrentVersion\Run'
+name = "OneDriveSetup"

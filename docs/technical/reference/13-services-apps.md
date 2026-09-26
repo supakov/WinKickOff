@@ -98,7 +98,6 @@ A fix is planned in the constructor: bind `MapsBroker` to the Maps removal.
 | Microsoft.ZuneMusic, Microsoft.ZuneVideo | Media player and «Кино и ТВ» (Movies & TV): codecs and video playback |
 | Microsoft.SecHealthUI | The «Безопасность Windows» (Windows Security) interface: without it Defender cannot be configured |
 | Microsoft Edge, EdgeWebView2 | Fallback browser and a component for apps (Outlook, Teams, installers) |
-| OneDrive | Inactive without a Microsoft account; removing it with scripts is excessive |
 | Microsoft.HEIFImageExtension, Microsoft.WebpImageExtension and other codecs | Opening photos from phones |
 | Microsoft.LanguageExperiencePack* | Language packs of the image |
 
@@ -125,3 +124,24 @@ A fix is planned in the constructor: bind `MapsBroker` to the Maps removal.
 - Verification: `Get-WindowsCapability -Online -Name 'App.Support.QuickAssist*'` → NotPresent;
   `Get-AppxPackage -AllUsers MicrosoftCorporationII.QuickAssist` is empty.
 - Rollback: Store → «Быстрая помощь», or `Add-WindowsCapability -Online -Name App.Support.QuickAssist~~~~0.0.1.0`.
+
+## OneDrive
+
+- Rule: `apps.remove.onedrive` (WinKickOff only, not in v0.2), phase default-user, on by default in every preset
+  since 26.09.2026 (customer decision; v0.2 and the review of the original kept OneDrive).
+- What it does: removes the value `OneDriveSetup` from `Software\Microsoft\Windows\CurrentVersion\Run` of the
+  default user profile (`C:\Users\Default\NTUSER.DAT`). Windows puts `OneDriveSetup.exe /thfirstsetup` there; it
+  installs OneDrive into the profile of every new user at the first sign-in.
+- Expected effect: accounts created after installation (Admin, User and later ones) have no OneDrive: no icon in
+  the notification area, no OneDrive folder, no file sync. Profiles that already exist keep their OneDrive.
+- Why this way: OneDrive is not an Appx package but a per-user program, so `Remove-AppxProvisionedPackage` cannot
+  remove it. The installer `OneDriveSetup.exe` (System32 on Windows 11 24H2+, SysWOW64 before) is owned by
+  TrustedInstaller and is left in place: deleting system files with `takeown`, as the original UnattendedWinstall
+  did, fights Windows servicing. Without the Run value the installer never starts by itself.
+- Cross-links: `default-user.no-sync-provider-ads` (card 14) hides OneDrive advertising in File Explorer.
+- Version differences: the Run value exists in Windows 10 and 11; the installer moved to System32 in 24H2.
+- Verification: after the first sign-in of a new user no `%LOCALAPPDATA%\Microsoft\OneDrive` folder and no
+  `OneDrive` value in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
+- Rollback: for one user run `%SystemRoot%\System32\OneDriveSetup.exe`; to restore it for future users add
+  the value back to the default profile. On a running PC (This PC menu) the rule changes the default profile
+  only; OneDrive of an existing user is removed in «Параметры, Приложения» (Settings, Apps).

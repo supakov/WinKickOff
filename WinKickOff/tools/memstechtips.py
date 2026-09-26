@@ -60,14 +60,16 @@ MECHANISMS = (
      "rewriting protocol handlers; `OpenWebSearchRepair.ps1` and its task restore them after updates. Not "
      "transferred: it only makes sense after Edge is removed."),
     ("OneDriveRemoval.ps1", "Removes OneDrive with `takeown` and deletion of files at restart, again at every "
-     "sign-in. Not transferred: without a Microsoft account OneDrive is inactive; the rule "
-     "`default-user.no-sync-provider-ads` hides its ads in Explorer."),
+     "sign-in. The intent is transferred as the rule `apps.remove.onedrive` (new users get no OneDrive); the deletion "
+     "of system files and the repeating task are not."),
     ("BloatRemoval.ps1", "Removes apps, capabilities and optional features. Its lists are mapped above; the "
      "scheduled task that repeats the removal is not transferred: WinKickOff removes apps once, in specialize."),
     ("WinhanceUserCustomizations", "A task running as SYSTEM applies the per-user settings in the session of the "
      "signed-in user and restarts the PC 20 seconds later. Not transferred: WinKickOff writes these settings into "
      "the default user profile, so every user gets them without a restart."),
 )
+# scripts of the original whose intent a catalog rule implements in another way
+MECHANISM_RULES = {"OneDriveRemoval.ps1": "apps.remove.onedrive"}
 
 
 def _unquote(text: str) -> str:
@@ -218,6 +220,10 @@ def build(catalog: Catalog, text: str) -> tuple[Profile, dict[str, Any]]:
                 absent.append(action)
         evidence[rule.id] = (present, absent, conflicts)
         profile.rules[rule.id].enabled = bool(present) and not conflicts
+    # rules whose intent the original implements with a script of its own
+    by_script = [r for name, r in MECHANISM_RULES.items() if name in text and r in catalog.rules and not evidence[r][2]]
+    for rule_id in by_script:
+        profile.rules[rule_id].enabled = True
     # a required rule is switched on unless it contradicts the original; otherwise the rule is switched off
     required: set[str] = set()
     dropped: set[str] = set()
@@ -248,8 +254,9 @@ def build(catalog: Catalog, text: str) -> tuple[Profile, dict[str, Any]]:
     facts = {
         "original": original,
         "covered": covered,
-        "full": [r for r in enabled if r not in required and not evidence[r][1]],
-        "extended": {r: evidence[r] for r in enabled if r not in required and evidence[r][1]},
+        "full": [r for r in enabled if r not in required and r not in by_script and not evidence[r][1]],
+        "extended": {r: evidence[r] for r in enabled if r not in required and r not in by_script and evidence[r][1]},
+        "by_script": {r: name for name, r in MECHANISM_RULES.items() if r in by_script},
         "required": {r: evidence[r] for r in enabled if r in required},
         "conflicts": {r: evidence[r] for r in catalog.order if evidence[r][2]},
         "dropped": sorted(dropped),
@@ -361,6 +368,10 @@ def report(catalog: Catalog, profile: Profile, facts: dict[str, Any]) -> str:
         lines += [f"  - {_describe(a)}" for a in absent]
     if not facts["extended"]:
         lines.append("- none")
+    if facts["by_script"]:
+        lines += ["", "### Implemented by a script of the original", "",
+                  "The original reaches the goal of the rule with a script of its own (see the mechanisms below).", ""]
+        lines += [f"- `{r}`: {title(r)}, as `{name}` does" for r, name in facts["by_script"].items()]
     if facts["required"]:
         lines += ["", "### Required by an enabled rule", ""]
         for rule_id, (present, absent, _) in facts["required"].items():

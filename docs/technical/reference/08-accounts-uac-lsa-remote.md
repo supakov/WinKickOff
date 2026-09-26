@@ -39,6 +39,13 @@ devices (printers, NAS) that look for shares anonymously; in that case use the v
   rights without a click. Level 2 closes the known UAC bypasses. For Admin with a blank password
   the UAC prompt is simply a «Да» (Yes) button: protection against automatic elevation, not against the person at the keyboard.
 - Version differences: the values have been the same since Windows Vista. No changes in 24H2.
+- Side effect at 2: Windows tools whose manifest asks for the highest available rights and that normally
+  elevate silently (Task Manager via Ctrl+Shift+Esc, Registry Editor, Computer Management) show a prompt when
+  an administrator opens them. A standard user (User) gets no prompt: for such an account these tools open
+  without elevation.
+- WinKickOff: rule `uac.admin-always-notify`, off by default since 26.09.2026 at the customer's request (no
+  prompt for Task Manager), so the «Офис» (Office) and «Ноутбук» (Laptop) presets leave Windows at 5; the
+  «Строгий» (Strict) preset turns it on with level 2. v0.2 set 2.
 - Verification: Control Panel → User Accounts → Change User Account Control settings: slider at the top.
 - Rollback: value 5.
 

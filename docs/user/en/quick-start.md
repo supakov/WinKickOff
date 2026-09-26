@@ -4,7 +4,7 @@ The same steps are shown by the "Workflow" node at the top of the program's tree
 
 ## 1. Profile
 
-The "Profile" field on the top bar. "Preset: Office" reproduces the tested v0.2
+The "Profile" field on the top bar. "Preset: Office" is based on the tested v0.2
 answer file: security, updates, printing, the initial Admin and User accounts, and English, Ukrainian and
 "Russian (Ukraine)" input languages. "Preset: Strict" adds restrictions that may get in
 the way of older programs. Presets are never overwritten: a modified profile is saved under its own name.

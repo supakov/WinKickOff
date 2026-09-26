@@ -434,7 +434,7 @@ verify = '''Get-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Pol
 ["uac.admin-always-notify"]
 title = '''UAC for administrators: always notify'''
 summary = '''The administrator sees a prompt for every elevation, including system components; this closes known UAC bypasses through trusted Windows programs.'''
-effect = '''More "Yes/No" prompts for Admin; protection against automatic elevation by malicious code.'''
+effect = '''More "Yes/No" prompts for Admin, including when opening Task Manager (Ctrl+Shift+Esc), the Registry Editor and other Windows tools that otherwise elevate without a prompt; protection against automatic elevation by malicious code. For a standard user (User) these tools open without a prompt in any case.'''
 risk = '''With a blank password, a UAC prompt is just a "Yes" button: it protects against programs, not against the person at the keyboard.'''
 versions = '''The values have been the same since Windows Vista.'''
 verify = '''Control Panel -> User Accounts -> Change User Account Control settings'''
@@ -1302,6 +1302,15 @@ summary = '''Private windows connected to the Tor network are unavailable in Bra
 effect = '''Browser traffic does not go to the Tor network, bypassing the organization's filtering and logs.'''
 versions = '''Brave policies; they take effect if Brave is installed.'''
 
+["apps.remove.onedrive"]
+title = '''OneDrive'''
+summary = '''OneDrive is not installed for users: the autostart of its installer is removed from the default profile.'''
+effect = '''Accounts created after installation (Admin, User and later ones) get a profile without OneDrive: no icon, no OneDrive folder, no file sync with the cloud. Users who have already signed in keep their OneDrive.'''
+risk = '''User files are not copied to the Microsoft cloud; the organisation sets up backups separately.'''
+versions = '''Windows 10 and 11. The installer OneDriveSetup.exe (in System32 on Windows 11 24H2+) stays in the system and runs only when started by hand.'''
+verify = '''After the first sign-in of a new user: no %LOCALAPPDATA%\Microsoft\OneDrive folder and no OneDrive value in HKCU\Software\Microsoft\Windows\CurrentVersion\Run.'''
+rollback = '''For a user: run %SystemRoot%\System32\OneDriveSetup.exe or install OneDrive from the Microsoft website.'''
+
 [_groups."install"]
 title = '''Installation (windowsPE and specialize)'''
 summary = '''Bypassing compatibility checks, a local account without a network connection, .NET Framework 3.5 from the media.'''
@@ -1390,7 +1399,7 @@ summary = '''AutoRun, script files, VBScript.'''
 
 [_groups."browsers"]
 title = '''Browsers'''
-summary = '''Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertising, AI features. All rules except two Edge rules from v0.2 are off by default; policies for a browser that is not installed have no effect.'''
+summary = '''Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertising, AI features. Part of the policies is on by default: telemetry, advertising, AI features, page translation, card autofill, the Brave wallet and VPN; sync, browser sign-in and password managers are off. Policies for a browser that is not installed have no effect.'''
 
 [_groups."browsers.edge"]
 title = '''Microsoft Edge'''
