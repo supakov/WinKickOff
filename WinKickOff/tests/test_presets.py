@@ -70,17 +70,21 @@ class PresetsTest(unittest.TestCase):
         office, _ = Profile.load(ROOT / "profiles" / "preset-office.json", self.catalog)
         self.assertTrue(set(office.enabled_ids()) <= set(strict.enabled_ids()))
 
-    def test_laptop_locks_sooner_and_allows_device_encryption(self) -> None:
+    def test_laptop_locks_sooner(self) -> None:
         laptop, _ = Profile.load(ROOT / "profiles" / "preset-laptop.json", self.catalog)
         self.assertEqual(laptop.param(self.catalog, "accounts.inactivity-lock", "seconds"), 600)
-        self.assertFalse(laptop.is_enabled("encryption.prevent-auto-bitlocker"))
-        issues = validate_profile(laptop, self.catalog, self.keyboards)
-        self.assertFalse(has_errors(issues))
-        warning = [i.message for i in issues if i.target == "encryption.prevent-auto-bitlocker" and i.level == "warning"]
-        self.assertTrue(any("manage-bde" in m for m in warning), warning)
+        self.assertFalse(has_errors(validate_profile(laptop, self.catalog, self.keyboards)))
         office, _ = Profile.load(ROOT / "profiles" / "preset-office.json", self.catalog)
-        self.assertEqual({d.key for d in office.diff(laptop, self.catalog)},
-                         {"encryption.prevent-auto-bitlocker", "accounts.inactivity-lock.seconds"})
+        self.assertEqual({d.key for d in office.diff(laptop, self.catalog)}, {"accounts.inactivity-lock.seconds"})
+
+    def test_device_encryption_is_prevented_in_every_preset(self) -> None:
+        # 28.09.2026: BitLocker stays off everywhere; it comes later together with key escrow and user passwords
+        for file_name in PRESETS:
+            with self.subTest(preset=file_name):
+                profile, _ = Profile.load(ROOT / "profiles" / file_name, self.catalog)
+                self.assertTrue(profile.is_enabled("encryption.prevent-auto-bitlocker"))
+        issues = validate_profile(Profile.from_catalog(self.catalog), self.catalog, self.keyboards)
+        self.assertFalse(any(i.target == "encryption.prevent-auto-bitlocker" for i in issues))
 
     def test_memstechtips_follows_the_original(self) -> None:
         mtt, _ = Profile.load(ROOT / "profiles" / "preset-memstechtips.json", self.catalog)

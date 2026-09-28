@@ -160,6 +160,9 @@ devices (printers, NAS) that look for shares anonymously; in that case use the v
 - Expected effect: the drive is not encrypted. Protection against laptop theft is enabled deliberately (the
   "BitLocker for laptops" constructor parameter, with mandatory saving of the recovery key to USB
   or printing it before the reboot).
+- WinKickOff: rule `encryption.prevent-auto-bitlocker` is on in every preset, «Ноутбук» (Laptop) included, since
+  28.09.2026 (customer decision: BitLocker is off everywhere; disk encryption comes as a separate task together
+  with the escrow of recovery keys and user passwords). The editor warns when the rule is turned off.
 - Cross-links: on PCs without TPM (check bypassed in section 01) device encryption is unavailable even
   without this key. The key does not prevent full BitLocker enabled manually (`manage-bde`, Control Panel).
 - Version differences: the key works since Windows 8.1. Automatic encryption on Pro 24H2 on a clean install

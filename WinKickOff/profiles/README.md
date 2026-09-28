@@ -2,13 +2,14 @@
 
 `*.json` files in this folder are presets and user profiles.
 
-- `preset-office.json`: the «Офис» (Office) preset. It equals the catalog defaults and reproduces the
-  hand-written answer file v0.2 (Appendix B); `tests/test_presets.py` and `tests/test_build.py` verify it.
+- `preset-office.json`: the «Офис» (Office) preset. It equals the catalog defaults: the hand-written answer
+  file v0.2 (Appendix B) with the later changes listed in `V02_DIFFERENCES` of `tests/v02_actions.py`.
 - `preset-strict.json`: the «Строгий» (Strict) preset: Office plus restrictions that may disturb old programs
-  (Controlled Folder Access in block mode, SmartScreen Block, the ASR prevalence rule in block mode, NetBIOS off,
+  (Controlled Folder Access in block mode, SmartScreen Block, the ASR prevalence rule in block mode, unsigned
+  programs from USB blocked, UAC always asks the administrator, Microsoft Update for other products, NetBIOS off,
   VBScript removed).
-- `preset-laptop.json`: the «Ноутбук» (Laptop) preset: Office with the screen locked after 10 minutes and
-  automatic device encryption allowed; the validator reminds to save the BitLocker recovery key.
+- `preset-laptop.json`: the «Ноутбук» (Laptop) preset: Office with the screen locked after 10 minutes. Automatic
+  device encryption is prevented here too, as in every preset (BitLocker comes with key escrow, a separate task).
 - `preset-memstechtips.json`: the original UnattendedWinstall answer file (Appendix A) mapped onto the catalog
   (issue #2) by `tools/memstechtips.py`: rules whose actions are in the original and do not contradict it are on;
   what they add, the contradictions and what cannot be transferred are in `docs/technical/memstechtips-profile.md`.

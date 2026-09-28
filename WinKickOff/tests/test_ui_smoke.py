@@ -259,7 +259,7 @@ class MainWindowSmokeTest(unittest.TestCase):
         window = self.win.show_comparison(ROOT / "profiles" / "preset-laptop.json")
         try:
             rows = window.comparison_rows
-            self.assertEqual({row[0] for row in rows}, {"r:encryption.prevent-auto-bitlocker", "r:accounts.inactivity-lock"})
+            self.assertEqual({row[0] for row in rows}, {"r:accounts.inactivity-lock"})
             param_row = next(row for row in rows if row[1] == "параметр")
             self.assertEqual(param_row[3:], ("900", "600"))
         finally:

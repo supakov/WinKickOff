@@ -60,11 +60,11 @@ def strict(catalog: Catalog) -> Profile:
 def laptop(catalog: Catalog) -> Profile:
     profile = Profile.from_catalog(catalog, name="Ноутбук")
     profile.comment = (
-        "Офис для ноутбуков: экран блокируется через 10 минут бездействия, автоматическое шифрование устройства "
-        "разрешено. Сразу после установки сохраните ключ восстановления BitLocker отдельно от ноутбука."
+        "Офис для ноутбуков: экран блокируется через 10 минут бездействия. Шифрование диска, как и во всех "
+        "пресетах, не включается само: BitLocker включают отдельно вместе с сохранением ключей восстановления "
+        "и паролями пользователей."
     )
     profile.set_param("accounts.inactivity-lock", "seconds", 600)
-    Resolver(catalog).disable(profile, "encryption.prevent-auto-bitlocker")
     return profile
 
 
