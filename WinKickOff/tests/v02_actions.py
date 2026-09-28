@@ -37,17 +37,46 @@ V02_DIFFERENCES: dict[str, bool] = {
         "brave.p3a-off", "brave.news-off", "brave.talk-off", "brave.playlist-off", "brave.speedreader-off",
         "brave.wayback-off", "brave.web-discovery-off", "brave.translate-off", "brave.tor-off",
     )},
+    # 28.09.2026, customer list MoreOptions (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers),
+    # Edge AI policies with browser sign-in and the sidebar off, the Gallery hidden in File Explorer
+    **{rule_id: False for rule_id in (
+        "ai.recall-user-off", "ai.settings-agent-off", "ai.agent-connectors-off",
+        "ai.apps-generative-off", "ai.copilot-microphone-off", "ai.paint-off",
+        "ai.notepad-off", "ai.copilot-pin-screen-off", "ai.typing-insights-off",
+        "telemetry.settings-state", "telemetry.user-policy", "telemetry.change-notification-off",
+        "telemetry.limit-logs-dumps", "telemetry.app-telemetry-off", "telemetry.steps-recorder-off",
+        "telemetry.app-diagnostics-off", "telemetry.feedback-user-off", "ads.lock-screen-spotlight-off",
+        "ads.suggestions-user-policies", "ads.account-notifications-off", "ads.advertising-id-user-off",
+        "search.cloud-off", "search.user-cloud-off", "search.start-track-off",
+        "speech.online-off", "speech.online-user-off", "speech.narrator-online-off",
+        "speech.narrator-extensions-off", "drivers.coinstallers-off", "drivers.metadata-off",
+        "onedrive.kfm-block", "onedrive.no-traffic-before-signin", "onedrive.feedback-off",
+        "edge.sidebar-off", "edge.signin-off", "edge.genai-local-model-off",
+        "edge.builtin-ai-apis-off", "edge.history-ai-search-off", "edge.ai-themes-off",
+        "edge.text-prediction-off", "edge.tab-services-off", "edge.autofill-ml-off",
+        "edge.copilot-address-bar-off", "edge.ntp-copilot-off", "edge.copilot-cowork-off",
+        "edge.browsing-with-copilot-off", "edge.copilot-page-context-off", "edge.entra-copilot-page-context-off",
+        "edge.m365-copilot-icon-off", "edge.compose-inline-off", "edge.copilot-search-history-off",
+        "office.connected-ai-off", "office.optional-connected-off", "office.telemetry-off",
+        "office.feedback-off", "office.copilot-checkbox-off", "nav.gallery-hidden",
+    )},
     # 26.09.2026, customer requests: OneDrive is not installed; no UAC prompt for Task Manager
     "apps.remove.onedrive": False,
     "uac.admin-always-notify": True,
 }
 
 
+# (rule id, parameter) -> value in v0.2, for every parameter whose catalog default differs from v0.2
+V02_PARAMS: dict[tuple[str, str], object] = {}
+
+
 def reference_profile(catalog: Catalog) -> Profile:
-    """The profile that reproduces the hand-written v0.2: catalog defaults with V02_DIFFERENCES applied."""
+    """The profile that reproduces the hand-written v0.2: catalog defaults with V02_DIFFERENCES and V02_PARAMS applied."""
     profile = Profile.from_catalog(catalog, name="v0.2")
     for rule_id, enabled in V02_DIFFERENCES.items():
         profile.rules[rule_id].enabled = enabled
+    for (rule_id, name), value in V02_PARAMS.items():
+        profile.set_param(rule_id, name, value)
     return profile
 
 
@@ -55,6 +84,7 @@ __all__ = [
     "REPO",
     "V02",
     "V02_DIFFERENCES",
+    "V02_PARAMS",
     "reference_profile",
     "Action",
     "catalog_actions",

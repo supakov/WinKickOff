@@ -279,6 +279,96 @@
     "system.long-paths": {
       "enabled": true
     },
+    "ai.recall-user-off": {
+      "enabled": true
+    },
+    "ai.settings-agent-off": {
+      "enabled": true
+    },
+    "ai.agent-connectors-off": {
+      "enabled": true
+    },
+    "ai.apps-generative-off": {
+      "enabled": true
+    },
+    "ai.copilot-microphone-off": {
+      "enabled": true
+    },
+    "ai.paint-off": {
+      "enabled": true
+    },
+    "ai.notepad-off": {
+      "enabled": true
+    },
+    "ai.copilot-pin-screen-off": {
+      "enabled": true
+    },
+    "ai.typing-insights-off": {
+      "enabled": true
+    },
+    "telemetry.settings-state": {
+      "enabled": true
+    },
+    "telemetry.user-policy": {
+      "enabled": true
+    },
+    "telemetry.change-notification-off": {
+      "enabled": true
+    },
+    "telemetry.limit-logs-dumps": {
+      "enabled": true
+    },
+    "telemetry.app-telemetry-off": {
+      "enabled": true
+    },
+    "telemetry.steps-recorder-off": {
+      "enabled": true
+    },
+    "telemetry.app-diagnostics-off": {
+      "enabled": true
+    },
+    "telemetry.feedback-user-off": {
+      "enabled": true
+    },
+    "ads.lock-screen-spotlight-off": {
+      "enabled": true
+    },
+    "ads.suggestions-user-policies": {
+      "enabled": true
+    },
+    "ads.account-notifications-off": {
+      "enabled": true
+    },
+    "ads.advertising-id-user-off": {
+      "enabled": true
+    },
+    "search.cloud-off": {
+      "enabled": true
+    },
+    "search.user-cloud-off": {
+      "enabled": true
+    },
+    "search.start-track-off": {
+      "enabled": true
+    },
+    "speech.online-off": {
+      "enabled": true
+    },
+    "speech.online-user-off": {
+      "enabled": true
+    },
+    "speech.narrator-online-off": {
+      "enabled": true
+    },
+    "speech.narrator-extensions-off": {
+      "enabled": true
+    },
+    "drivers.coinstallers-off": {
+      "enabled": true
+    },
+    "drivers.metadata-off": {
+      "enabled": true
+    },
     "apps.retail-demo-off": {
       "enabled": true
     },
@@ -393,6 +483,21 @@
     "apps.remove.onedrive": {
       "enabled": true
     },
+    "onedrive.kfm-block": {
+      "enabled": true
+    },
+    "onedrive.no-traffic-before-signin": {
+      "enabled": true
+    },
+    "onedrive.feedback-off": {
+      "enabled": true
+    },
+    "onedrive.block": {
+      "enabled": false
+    },
+    "onedrive.personal-sync-off": {
+      "enabled": false
+    },
     "default-user.show-file-extensions": {
       "enabled": true
     },
@@ -442,7 +547,7 @@
       "enabled": true
     },
     "edge.sidebar-off": {
-      "enabled": false
+      "enabled": true
     },
     "edge.shopping-off": {
       "enabled": true
@@ -472,13 +577,67 @@
       "enabled": true
     },
     "edge.signin-off": {
-      "enabled": false
+      "enabled": true
     },
     "edge.password-manager-off": {
       "enabled": false
     },
     "edge.autofill-cards-off": {
       "enabled": true
+    },
+    "edge.genai-local-model-off": {
+      "enabled": true
+    },
+    "edge.builtin-ai-apis-off": {
+      "enabled": true
+    },
+    "edge.history-ai-search-off": {
+      "enabled": true
+    },
+    "edge.ai-themes-off": {
+      "enabled": true
+    },
+    "edge.text-prediction-off": {
+      "enabled": true
+    },
+    "edge.tab-services-off": {
+      "enabled": true
+    },
+    "edge.autofill-ml-off": {
+      "enabled": true
+    },
+    "edge.copilot-address-bar-off": {
+      "enabled": true
+    },
+    "edge.ntp-copilot-off": {
+      "enabled": true
+    },
+    "edge.copilot-cowork-off": {
+      "enabled": true
+    },
+    "edge.browsing-with-copilot-off": {
+      "enabled": true
+    },
+    "edge.copilot-page-context-off": {
+      "enabled": true
+    },
+    "edge.entra-copilot-page-context-off": {
+      "enabled": true
+    },
+    "edge.m365-copilot-icon-off": {
+      "enabled": true
+    },
+    "edge.compose-inline-off": {
+      "enabled": true
+    },
+    "edge.copilot-search-history-off": {
+      "enabled": true
+    },
+    "edge.visual-search-off": {
+      "enabled": false
+    },
+    "edge.search-in-sidebar-off": {
+      "enabled": false
     },
     "chrome.metrics-off": {
       "enabled": true
@@ -572,6 +731,69 @@
     },
     "brave.tor-off": {
       "enabled": true
+    },
+    "office.connected-ai-off": {
+      "enabled": true
+    },
+    "office.optional-connected-off": {
+      "enabled": true
+    },
+    "office.download-content-off": {
+      "enabled": false
+    },
+    "office.telemetry-off": {
+      "enabled": true
+    },
+    "office.feedback-off": {
+      "enabled": true
+    },
+    "office.copilot-checkbox-off": {
+      "enabled": true
+    },
+    "thispc.desktop": {
+      "enabled": false
+    },
+    "thispc.documents": {
+      "enabled": false
+    },
+    "thispc.downloads": {
+      "enabled": false
+    },
+    "thispc.music": {
+      "enabled": false
+    },
+    "thispc.pictures": {
+      "enabled": false
+    },
+    "thispc.videos": {
+      "enabled": false
+    },
+    "thispc.documents-extra": {
+      "enabled": false
+    },
+    "thispc.downloads-extra": {
+      "enabled": false
+    },
+    "thispc.music-extra": {
+      "enabled": false
+    },
+    "thispc.pictures-extra": {
+      "enabled": false
+    },
+    "thispc.videos-extra": {
+      "enabled": false
+    },
+    "thispc.3d-objects": {
+      "enabled": false
+    },
+    "nav.gallery-hidden": {
+      "enabled": true
+    },
+    "nav.home-hidden": {
+      "enabled": false
+    },
+    "nav.launch-to-this-pc": {
+      "enabled": false
     }
   },
   "unknown": {}

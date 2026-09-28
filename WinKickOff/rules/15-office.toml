@@ -1,0 +1,177 @@
+# Microsoft 365 Apps (Office 16.0): AI, connected experiences and telemetry, per user (default profile).
+# 28.09.2026, customer list MoreOptions; card 19, section "Microsoft Office". For the privacy values 2 means Disabled.
+
+[[rule]]
+id = "office.connected-ai-off"
+group = "privacy.office"
+phase = "default-user"
+title = "Office: выключить подключённые возможности, анализирующие содержимое (в том числе Copilot)"
+level = "optional"
+default = true
+tags = ["office", "copilot", "подключённые возможности", "usercontentdisabled", "ии"]
+doc = "docs/technical/reference/19-more-privacy.md#microsoft-office"
+summary = "Политика «Разрешить подключённые возможности Office, которые анализируют содержимое» выключена: Copilot в Word, Excel, PowerPoint, Outlook и OneNote недоступен."
+effect = "Содержимое документов не отправляется в облачные сервисы ИИ Microsoft. Единственный документированный способ убрать Copilot из приложений Office при любой учётной записи."
+risk = "Недоступны также диктовка, переводчик, облачный редактор (простая проверка орфографии остаётся), конструктор слайдов, подсказки текста, расшифровка, типы данных, карты и Python в Excel."
+versions = "Microsoft 365 Apps 1904 и новее, Office 2021 и 2024 (розница и LTSC)."
+verify = 'reg query "HKCU\Software\Policies\Microsoft\office\16.0\common\privacy"'
+rollback = "Удалить значение в профиле пользователя."
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Software\Policies\Microsoft\office\16.0\common\privacy'
+name = "usercontentdisabled"
+kind = "DWord"
+value = 2
+
+[[rule]]
+id = "office.optional-connected-off"
+group = "privacy.office"
+phase = "default-user"
+title = "Office: выключить дополнительные необязательные подключённые возможности"
+level = "optional"
+default = true
+tags = ["office", "bing", "подключённые возможности", "controllerconnectedservicesenabled"]
+doc = "docs/technical/reference/19-more-privacy.md#microsoft-office"
+summary = "Выключены дополнительные функции Office на основе Bing: интеллектуальный поиск, исследователь, изображения и видео из интернета, 3D-карты, а также веб-поиск Copilot."
+effect = "Выделенный текст и запросы из документов не отправляются в Bing."
+risk = "Нет вставки изображений из интернета и поиска сведений прямо из документа."
+versions = "Microsoft 365 Apps 1904 и новее, Office 2021 и 2024."
+verify = 'reg query "HKCU\Software\Policies\Microsoft\office\16.0\common\privacy" /v controllerconnectedservicesenabled'
+rollback = "Удалить значение в профиле пользователя."
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Software\Policies\Microsoft\office\16.0\common\privacy'
+name = "controllerconnectedservicesenabled"
+kind = "DWord"
+value = 2
+
+[[rule]]
+id = "office.download-content-off"
+group = "privacy.office"
+phase = "default-user"
+title = "Office: не загружать содержимое из интернета"
+level = "optional"
+default = false
+tags = ["office", "шаблоны", "downloadcontentdisabled"]
+doc = "docs/technical/reference/19-more-privacy.md#microsoft-office"
+summary = "Office не загружает из интернета шаблоны, значки, изображения, облачные шрифты и справку."
+effect = "Меньше обращений Office к серверам Microsoft. Это не ИИ, поэтому правило выключено по умолчанию."
+risk = "Нет онлайн-шаблонов, значков, стоковых изображений, облачных шрифтов и справки F1."
+versions = "Microsoft 365 Apps 1904 и новее, Office 2021 и 2024."
+verify = 'reg query "HKCU\Software\Policies\Microsoft\office\16.0\common\privacy" /v downloadcontentdisabled'
+rollback = "Удалить значение в профиле пользователя."
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Software\Policies\Microsoft\office\16.0\common\privacy'
+name = "downloadcontentdisabled"
+kind = "DWord"
+value = 2
+
+[[rule]]
+id = "office.telemetry-off"
+group = "privacy.office"
+phase = "default-user"
+title = "Office: не отправлять диагностические данные"
+level = "optional"
+default = true
+tags = ["office", "телеметрия", "sendtelemetry", "диагностика"]
+doc = "docs/technical/reference/19-more-privacy.md#microsoft-office"
+summary = "Уровень диагностических данных Office «Не отправлять»: ни обязательные, ни необязательные данные не уходят в Microsoft."
+effect = "Остаются только служебные данные, без которых Office не работает."
+versions = 'Microsoft 365 Apps 1904 и новее, Office 2021 и 2024. Путь без 16.0: Software\Policies\Microsoft\office\common\clienttelemetry.'
+verify = 'reg query "HKCU\Software\Policies\Microsoft\office\common\clienttelemetry" /v sendtelemetry'
+rollback = "Удалить значение в профиле пользователя."
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Software\Policies\Microsoft\office\common\clienttelemetry'
+name = "sendtelemetry"
+kind = "DWord"
+value = 3
+
+[[rule]]
+id = "office.feedback-off"
+group = "privacy.office"
+phase = "default-user"
+title = "Office: без отзывов и опросов"
+level = "optional"
+default = true
+tags = ["office", "отзывы", "опросы", "feedback"]
+doc = "docs/technical/reference/19-more-privacy.md#microsoft-office"
+summary = "Кнопка отправки отзыва и опросы в приложениях Office выключены."
+effect = "Снимки экрана, журналы и фрагменты содержимого (в том числе запросы к Copilot) не уходят в Microsoft вместе с отзывами."
+versions = "Microsoft 365 Apps, Office 2019 и новее."
+verify = 'reg query "HKCU\Software\Policies\Microsoft\office\16.0\common\feedback"'
+rollback = "Удалить значения в профиле пользователя."
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Software\Policies\Microsoft\office\16.0\common\feedback'
+name = "enabled"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Software\Policies\Microsoft\office\16.0\common\feedback'
+name = "surveyenabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "office.copilot-checkbox-off"
+group = "privacy.office"
+phase = "default-user"
+title = "Office: флажок «Включить Copilot» снят в Word, Excel и OneNote"
+level = "optional"
+default = true
+tags = ["office", "copilot", "enablecopilot", "word", "excel", "onenote"]
+doc = "docs/technical/reference/19-more-privacy.md#microsoft-office"
+summary = "Пользовательские настройки Copilot в Word, Excel и OneNote выключены заранее: значения EnableCopilot из списка заказчика."
+effect = "Флажок «Включить Copilot» в параметрах приложений есть только при входе в Office с личной учётной записью Microsoft. Значения не описаны Microsoft и не заблокированы: пользователь может включить Copilot снова. Надёжно Copilot выключает правило «выключить подключённые возможности, анализирующие содержимое»."
+versions = "Word 2412, Excel 2501, OneNote 2502 и новее."
+verify = 'reg query "HKCU\Software\Microsoft\Office\16.0\Word\Options" /v EnableCopilot'
+rollback = "Файл, Параметры, Copilot, флажок «Включить Copilot»."
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Software\Microsoft\Office\16.0\Word\Options'
+name = "EnableCopilot"
+kind = "DWord"
+value = 0
+default = "absent"
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Software\Microsoft\Office\16.0\Excel\Options'
+name = "EnableCopilot"
+kind = "DWord"
+value = 0
+default = "absent"
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Software\Microsoft\Office\16.0\OneNote\Options\Other'
+name = "EnableCopilot"
+kind = "DWord"
+value = 0
+default = "absent"
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Software\Microsoft\Office\16.0\OneNote\Options\Other'
+name = "EnableCopilotNotebooks"
+kind = "DWord"
+value = 0
+default = "absent"
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Software\Microsoft\Office\16.0\OneNote\Options\Other'
+name = "EnableCopilotSkittle"
+kind = "DWord"
+value = 0
+default = "absent"

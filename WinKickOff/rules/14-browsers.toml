@@ -47,7 +47,7 @@ group = "browsers.edge"
 phase = "specialize"
 title = "Edge: скрыть боковую панель"
 level = "optional"
-default = false
+default = true
 tags = ["edge", "браузер", "политика", "hubssidebarenabled", "боковая панель", "sidebar", "copilot"]
 doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
 summary = "Боковая панель Edge с приложениями и ярлыками не показывается."
@@ -250,12 +250,12 @@ group = "browsers.edge"
 phase = "specialize"
 title = "Edge: запретить вход в браузер"
 level = "optional"
-default = false
+default = true
 tags = ["edge", "браузер", "политика", "browsersignin", "вход", "signin", "учётная запись"]
 doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
 summary = "Вход в Edge с учётной записью Microsoft или рабочей учётной записью запрещён."
-effect = "Профиль браузера остаётся локальным и не связан с облачной учётной записью."
-risk = "Недоступны синхронизация и функции, которым нужен вход. В сценарии из issue #1 строка закомментирована: включайте осознанно."
+effect = "Профиль браузера остаётся локальным и не связан с облачной учётной записью. Большинство политик ИИ Edge не действует на профиль, в который вошли с личной учётной записью Microsoft: запрет входа нужен, чтобы они работали."
+risk = "Недоступны синхронизация и функции, которым нужен вход."
 versions = "Edge 77 и новее."
 
 [[rule.actions]]
@@ -306,6 +306,367 @@ path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
 name = "AutofillCreditCardEnabled"
 kind = "DWord"
 value = 0
+
+[[rule]]
+id = "edge.genai-local-model-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: не загружать локальную модель ИИ"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "genailocalfoundationalmodelsettings", "ии", "genai", "модель"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Edge не скачивает локальную модель генеративного ИИ, а уже скачанную удаляет."
+effect = "Не расходуются гигабайты диска и трафик; функции браузера и сайты не работают с локальной моделью."
+versions = "Edge 132 и новее. Действует и на профиль с личной учётной записью Microsoft."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "GenAILocalFoundationalModelSettings"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "edge.builtin-ai-apis-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: запретить сайтам встроенные функции ИИ"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "builtinaiapisenabled", "ии", "api"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Сайты не могут вызывать встроенные в браузер программные интерфейсы ИИ (LanguageModel, Summarizer, Writer, Rewriter)."
+effect = "Страницы не обрабатывают текст пользователя моделью браузера."
+versions = "Edge 138 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "BuiltInAIAPIsEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.history-ai-search-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: поиск по журналу без ИИ"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "edgehistoryaisearchenabled", "ии", "журнал", "history"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Поиск по журналу посещений работает только по точному совпадению, без синонимов и запросов на естественном языке."
+effect = "Журнал посещений не обрабатывается функциями ИИ."
+versions = "Edge 138 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "EdgeHistoryAISearchEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.ai-themes-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: без тем оформления от ИИ"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "aigenthemesenabled", "ии", "темы", "dall-e"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Создание тем оформления браузера генеративным ИИ (DALL-E) недоступно."
+effect = "Описания тем не отправляются в облачный генератор изображений."
+versions = "Edge 122 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "AIGenThemesEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.text-prediction-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: без облачных подсказок при наборе текста"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "textpredictionenabled", "ии", "подсказки", "набор текста"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Edge не предлагает продолжение фраз в текстовых полях (облачные прогнозы Microsoft)."
+effect = "Набираемый на сайтах текст не отправляется в облачный сервис прогнозов."
+versions = "Edge 104 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "TextPredictionEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.tab-services-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: без облачной группировки вкладок"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "tabservicesenabled", "ии", "вкладки"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Адреса и заголовки вкладок не отправляются в сервис Microsoft для автоматической группировки и названий групп."
+effect = "Список открытых вкладок остаётся в браузере."
+versions = "Edge 113 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "TabServicesEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.autofill-ml-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: автозаполнение без облачного машинного обучения"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "edgeautofillmlenabled", "ии", "автозаполнение", "autofill"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Edge не использует облачное машинное обучение для подсказок при заполнении форм."
+effect = "Содержимое форм не анализируется облачной моделью."
+versions = "Edge 132 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "EdgeAutofillMlEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.copilot-address-bar-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: без подсказок Copilot в адресной строке"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "copilotaddressbarsuggestionsenabled", "copilot", "ии", "адресная строка"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Адресная строка не предлагает продолжить запрос в чате Copilot."
+effect = "Запросы из адресной строки не уходят в Copilot."
+versions = "Edge 149 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "CopilotAddressBarSuggestionsEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.ntp-copilot-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: убрать Copilot со страницы новой вкладки"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "newtabpagebingchatenabled", "copilot", "новая вкладка", "bing"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Со страницы новой вкладки убираются точки входа в чат Copilot (Bing Chat)."
+effect = "Меньше предложений перейти в Copilot. Действие на новую вкладку профиля без входа в учётную запись производитель явно не описывает."
+versions = "Edge 117 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "NewTabPageBingChatEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.copilot-cowork-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: Copilot не действует за пользователя"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "copilotcoworktoolactionsenabled", "copilot", "агент", "cowork"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Функция Cowork не выполняет действия в браузере от имени пользователя, и пользователь не может это изменить."
+effect = "ИИ-агент не нажимает кнопки и не заполняет формы на сайтах."
+versions = "Edge 152 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "CopilotCoworkToolActionsEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.browsing-with-copilot-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: запретить просмотр сайтов вместе с Copilot"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "allowbrowsingwithcopilot", "copilot", "агент"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Режим, в котором Copilot сам открывает и просматривает страницы (агентный просмотр), выключен и заблокирован."
+effect = "ИИ-агент не ходит по сайтам от имени пользователя."
+versions = "Edge 148 и новее; сама функция требует подписки Microsoft 365 Copilot."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "AllowBrowsingWithCopilot"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.copilot-page-context-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: Copilot не читает страницы (профили Entra ID)"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "copilotpagecontext", "copilot", "entra", "содержимое страницы"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Copilot в боковой панели не получает содержимое открытых страниц."
+effect = "Действует только для профилей Microsoft Entra ID; в рабочей группе с локальными учётными записями и запретом входа в браузер ни на что не влияет. Включено по списку заказчика на случай входа через Entra ID."
+versions = "Edge 124 и новее; только профили Microsoft Entra ID."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "CopilotPageContext"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.entra-copilot-page-context-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: Copilot с защитой данных не читает страницы и журнал (профили Entra ID)"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "edgeentracopilotpagecontext", "copilot", "entra", "журнал"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Microsoft 365 Copilot Chat в боковой панели не получает содержимое страниц, журнал и расшифровки видео."
+effect = "Действует только для профилей Microsoft Entra ID; в рабочей группе с локальными учётными записями и запретом входа в браузер ни на что не влияет. Включено по списку заказчика на случай входа через Entra ID."
+versions = "Edge 130 и новее; только профили Microsoft Entra ID."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "EdgeEntraCopilotPageContext"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.m365-copilot-icon-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: скрыть значок Microsoft 365 Copilot Chat (профили Entra ID)"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "microsoft365copilotchaticonenabled", "copilot", "entra", "значок"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Значок Microsoft 365 Copilot Chat не показывается на панели инструментов Edge для бизнеса."
+effect = "Действует только для профилей Microsoft Entra ID; в рабочей группе с локальными учётными записями и запретом входа в браузер ни на что не влияет. Включено по списку заказчика на случай входа через Entra ID."
+versions = "Edge 139 и новее; только профили Microsoft Entra ID."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "Microsoft365CopilotChatIconEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.compose-inline-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: без переписывания текста Copilot (профили Entra ID)"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "composeinlineenabled", "copilot", "entra", "rewrite"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Функция переписывания выделенного текста через контекстное меню (помощник Microsoft 365 Copilot) недоступна."
+effect = "Действует только для профилей Microsoft Entra ID; в рабочей группе с локальными учётными записями и запретом входа в браузер ни на что не влияет. Включено по списку заказчика на случай входа через Entra ID."
+versions = "Edge 115 и новее; только учётные записи Microsoft Entra ID."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "ComposeInlineEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.copilot-search-history-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: не передавать журнал в Microsoft 365 Copilot Search (профили Entra ID)"
+level = "optional"
+default = true
+tags = ["edge", "браузер", "политика", "sharebrowsinghistorywithcopilotsearchallowed", "copilot", "entra", "журнал"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Журнал посещений Edge не передаётся в поиск Microsoft 365 Copilot."
+effect = "Действует только для профилей Microsoft Entra ID; в рабочей группе с локальными учётными записями и запретом входа в браузер ни на что не влияет. Включено по списку заказчика на случай входа через Entra ID."
+versions = "Edge 143 и новее; вход через Microsoft Entra ID и лицензия Microsoft 365 Copilot."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "ShareBrowsingHistoryWithCopilotSearchAllowed"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.visual-search-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: без визуального поиска Bing"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "visualsearchenabled", "поиск", "изображения", "bing"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Поиск по изображению через Bing из меню картинки, контекстного меню и боковой панели недоступен."
+effect = "Изображения со страниц не отправляются в Bing для поиска похожих."
+risk = "Пользователь не сможет найти похожие изображения из браузера."
+versions = "Edge 95 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "VisualSearchEnabled"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "edge.search-in-sidebar-off"
+group = "browsers.edge"
+phase = "specialize"
+title = "Edge: результаты поиска не в боковой панели"
+level = "optional"
+default = false
+tags = ["edge", "браузер", "политика", "searchinsidebarenabled", "поиск", "боковая панель"]
+doc = "docs/technical/reference/18-browsers.md#microsoft-edge"
+summary = "Результаты поиска по выделенному тексту не открываются в боковой панели."
+effect = "Меньше элементов боковой панели; поиск открывается в обычной вкладке."
+versions = "Edge 110 и новее."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+name = "SearchInSidebarEnabled"
+kind = "DWord"
+value = 2
 
 [[rule]]
 id = "chrome.metrics-off"

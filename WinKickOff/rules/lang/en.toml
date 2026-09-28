@@ -671,12 +671,15 @@ risk = '''Crash reports are not sent to Microsoft; local events 1000/1001 in the
 versions = '''AllowTelemetry=0 is treated as 1 on Pro; the Consolidator task may be missing on some 24H2 builds (WARN in the log).'''
 verify = '''Get-Service DiagTrack | Select-Object StartType; schtasks /Query /TN "\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip"'''
 rollback = '''Delete the values; Set-Service DiagTrack -StartupType Automatic; schtasks /Change /Enable'''
+params.level = '''Diagnostic data level'''
+values.level."1" = '''Required: the minimum that Windows 11 Pro always sends'''
+values.level."0" = '''Security: Enterprise and Education only, on Pro it acts as "Required"'''
 
 ["privacy.consumer-content"]
 title = '''No ads, preinstalled apps or automatic Teams installation (machine policies)'''
 summary = '''CloudContent policies (some apply only to Enterprise/Education and are kept because they are harmless), the Teams Chat icon hidden, automatic installation of personal Teams disabled.'''
 effect = '''On Pro the main working mechanism is the values in the default user profile (a separate rule in the profile group); this part enforces the same at the machine level.'''
-versions = '''DisableWindowsConsumerFeatures, DisableSoftLanding, DisableThirdPartySuggestions are Enterprise/Education only; DisableCloudOptimizedContent (10 20H2+) and DisableConsumerAccountStateContent (11 22H2+) work on Pro; Windows Chat applies to 11 21H2-22H2.'''
+versions = '''DisableWindowsConsumerFeatures, DisableSoftLanding, DisableThirdPartySuggestions are Enterprise/Education only; DisableCloudOptimizedContent (10 20H2+) works on Pro, DisableConsumerAccountStateContent (11 22H2+) is not confirmed for Pro by the vendor; Windows Chat applies to 11 21H2-22H2.'''
 verify = '''Get-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'''
 rollback = '''Delete the values.'''
 
@@ -684,7 +687,7 @@ rollback = '''Delete the values.'''
 title = '''Copilot, Recall and Click to Do turned off'''
 summary = '''Copilot and WindowsAI policies: Recall (screen snapshots) is off and cannot be turned on by the user, Click to Do is off; the Recall feature is disabled if present.'''
 effect = '''No AI component takes screen snapshots or sends document contents. The Copilot app is removed by a separate rule in the apps group.'''
-versions = '''TurnOffWindowsCopilot since 23H2 (deprecated in 24H2, the copy in the user profile applies); DisableAIDataAnalysis since 24H2; AllowRecallEnablement and DisableClickToDo since the 2025 updates; the Recall feature only on Copilot+ PCs.'''
+versions = '''TurnOffWindowsCopilot since 23H2 (deprecated in 24H2, the copy in the user profile applies; the machine copy is not documented by Microsoft); DisableAIDataAnalysis since 24H2; AllowRecallEnablement and DisableClickToDo since the 2025 updates; the Recall feature only on Copilot+ PCs.'''
 verify = '''Get-WindowsOptionalFeature -Online -FeatureName Recall'''
 rollback = '''Delete the values.'''
 
@@ -1082,8 +1085,8 @@ versions = '''Edge 77 and later.'''
 ["edge.signin-off"]
 title = '''Edge: block browser sign-in'''
 summary = '''Signing in to Edge with a Microsoft account or a work account is blocked.'''
-effect = '''The browser profile stays local and is not linked to a cloud account.'''
-risk = '''Sync and features that require sign-in are unavailable. In the issue #1 script this line is commented out: enable it deliberately.'''
+effect = '''The browser profile stays local and is not linked to a cloud account. Most Edge AI policies do not apply to a profile signed in with a personal Microsoft account: blocking sign-in is needed for them to work.'''
+risk = '''Sync and features that require sign-in are unavailable.'''
 versions = '''Edge 77 and later.'''
 
 ["edge.password-manager-off"]
@@ -1311,6 +1314,575 @@ versions = '''Windows 10 and 11. The installer OneDriveSetup.exe (in System32 on
 verify = '''After the first sign-in of a new user: no %LOCALAPPDATA%\Microsoft\OneDrive folder and no OneDrive value in HKCU\Software\Microsoft\Windows\CurrentVersion\Run.'''
 rollback = '''For a user: run %SystemRoot%\System32\OneDriveSetup.exe or install OneDrive from the Microsoft website.'''
 
+["ai.recall-user-off"]
+title = '''Recall and Click to Do turned off in the user profile too'''
+summary = '''User copies of the policies: Recall does not save screen snapshots, Click to Do is unavailable.'''
+effect = '''Complements the machine rule "Copilot, Recall and Click to Do turned off": the user cannot turn these features on for themselves.'''
+versions = '''Windows 11 24H2 (26100.3915) and later; the features themselves exist only on Copilot+ PCs, on other PCs the values have no effect.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\Windows\WindowsAI"'''
+rollback = '''Delete the values in the user profile.'''
+
+["ai.settings-agent-off"]
+title = '''No AI agent in Settings search'''
+summary = '''Search in the "Settings" app works without the AI agent: by index and semantic search.'''
+effect = '''Queries in "Settings" are not processed by the AI agent that changes settings on its own.'''
+versions = '''Pre-release policy: present in the Windows 11 25H2 (26200) templates; the vendor does not yet confirm that it works on Pro.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v DisableSettingsAgent'''
+rollback = '''Delete the value.'''
+
+["ai.agent-connectors-off"]
+title = '''Block AI agents from connecting to apps (agent connectors)'''
+summary = '''Agent connectors (MCP servers through which AI agents work with apps and files) are forcibly turned off.'''
+effect = '''Windows AI agents get no access to the user's apps and data through connectors. Replaces the values DisableAgentConnectors, DisableAgentWorkspaces and DisableRemoteAgentConnectors from the list: Windows has no such policies.'''
+versions = '''Pre-release policy: present in the Windows 11 25H2 (26200) templates; the agent workspace is turned on only by an administrator in "Settings", there is no separate policy for it.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v ConfigureAgentConnectors'''
+rollback = '''Delete the value.'''
+
+["ai.apps-generative-off"]
+title = '''Apps are blocked from Windows text and image generation features'''
+summary = '''Apps cannot use the built-in Windows AI models ("Text and image generation" in the privacy settings); the user cannot change this.'''
+effect = '''Notepad, Photos, Snipping Tool, Outlook and other apps do not call the Windows AI models. Replaces the list's internal ConsentStore values generativeAI and systemAIModels and the old policy name LetAppsAccessGenerativeAI.'''
+versions = '''Windows 11 24H2 and later (the policy is in the AppPrivacy template of build 26200).'''
+verify = '''Settings -> Privacy & security -> Text and image generation: the toggle is locked.'''
+rollback = '''Delete the value.'''
+
+["ai.copilot-microphone-off"]
+title = '''Copilot and Microsoft 365 Copilot without microphone access'''
+summary = '''The Copilot and Microsoft 365 (Office Hub) apps get no microphone access, even if they are reinstalled; other apps still ask the user.'''
+effect = '''Voice input in Copilot is unavailable. Replaces the list's internal ConsentStore permissions for these two apps with a documented policy.'''
+versions = '''Windows 10 1607 and later.'''
+verify = '''Settings -> Privacy & security -> Microphone: access for Copilot is denied by the organization.'''
+rollback = '''Delete both values.'''
+
+["ai.paint-off"]
+title = '''Paint without AI features'''
+summary = '''Image Creator, Cocreator, generative fill, generative erase and background removal are hidden in Paint.'''
+effect = '''Drawings and descriptions are not sent to a cloud image generator. The first three policies are documented by Microsoft; DisableGenerativeErase and DisableRemoveBackground come from the customer's list and are not yet documented by Microsoft.'''
+versions = '''Windows 11 22H2 (22621.4870) and 24H2 (26100.3360) and later. Policy path: SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint (the list gives the wrong path SOFTWARE\Policies\Microsoft\Paint).'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint"'''
+rollback = '''Delete the values.'''
+
+["ai.notepad-off"]
+title = '''Notepad without AI features'''
+summary = '''Copilot features in Notepad are turned off: rewrite, summarize and similar.'''
+effect = '''Text from Notepad is not sent to cloud AI models.'''
+versions = '''Windows 11 22H2 and later with Notepad 11.2503.16.0 and later.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\WindowsNotepad" /v DisableAIFeatures'''
+rollback = '''Delete the value.'''
+
+["ai.copilot-pin-screen-off"]
+title = '''No Microsoft 365 Copilot setup screen at sign-in'''
+summary = '''After signing in to Windows, the screen that offers to pin Microsoft 365 Copilot is not shown.'''
+effect = '''Fewer promotional screens after updates. This does not turn off Copilot itself.'''
+versions = '''Pre-release policy: present in the Windows 11 25H2 (26200) templates.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent" /v DisableCopilotPinScreen'''
+rollback = '''Delete the value.'''
+
+["ai.typing-insights-off"]
+title = '''No typing statistics (Typing insights)'''
+summary = '''Windows does not collect statistics on autocorrections and suggestions while typing.'''
+effect = '''No local typing statistics are kept. This is neither telemetry nor generative AI: a rule from the customer's list.'''
+versions = '''Windows 10 1803 and later; the value is not documented by Microsoft as a policy, it matches the "Typing insights" toggle in Settings.'''
+verify = '''reg query "HKCU\Software\Microsoft\Input\Settings" /v InsightsEnabled'''
+rollback = '''Settings -> Time & language -> Typing -> Typing insights.'''
+
+["telemetry.settings-state"]
+title = '''Telemetry: Windows settings state at the "Required" level'''
+summary = '''Values that the "Diagnostics & feedback" page shows: the "Required" level is selected and cannot be raised.'''
+effect = '''The Settings app does not offer to turn on optional diagnostic data. Values from the customer's list; this is not a policy but the state of the settings page, the AllowTelemetry policy plays the main role.'''
+versions = '''All releases of Windows 10 and 11; the values are not documented by Microsoft as a policy.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection"'''
+rollback = '''Delete the values.'''
+
+["telemetry.user-policy"]
+title = '''Telemetry: user copy of the data level policy'''
+summary = '''The diagnostic data level policy is also set in the user profile: "Required".'''
+effect = '''If both the machine and the user policy are set, the stricter one applies. Value from the customer's list.'''
+versions = '''Windows 10 1507 and later.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\Windows\DataCollection" /v AllowTelemetry'''
+rollback = '''Delete the values.'''
+
+["telemetry.change-notification-off"]
+title = '''Telemetry: no notifications about data level changes'''
+summary = '''Windows does not show a notification about diagnostic data settings at first sign-in and after the level changes.'''
+effect = '''The user sees no offers to raise the data level. A documented replacement for the ShowedToastAtLevel value from the list.'''
+versions = '''Windows 10 1803 and later, Pro.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection" /v DisableTelemetryOptInChangeNotification'''
+rollback = '''Delete the values.'''
+
+["telemetry.limit-logs-dumps"]
+title = '''Telemetry: limit logs and memory dumps'''
+summary = '''Windows does not collect additional diagnostic logs, and error reports contain only minimal dumps.'''
+effect = '''Less data about how the PC works goes to Microsoft. At the "Required" level the policies change nothing, but they guard against optional data being turned on by accident.'''
+versions = '''Windows 11 21H2 and later, Pro.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection"'''
+rollback = '''Delete the values.'''
+
+["telemetry.app-telemetry-off"]
+title = '''Application Telemetry turned off'''
+summary = '''The mechanism that tracks how apps use Windows components is turned off.'''
+effect = '''Information about app usage is not collected. Microsoft does not describe any link to the compatibility check before feature updates; the rule does not touch the DisableInventory policy, which does concern that check.'''
+versions = '''Windows 10 and 11, Pro; machine policy only (the user copy from the list does not exist).'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\AppCompat" /v AITEnable'''
+rollback = '''Delete the values.'''
+
+["telemetry.steps-recorder-off"]
+title = '''Steps Recorder turned off'''
+summary = '''Steps Recorder, which takes a screenshot with every click, is unavailable.'''
+effect = '''"Tech support" scammers cannot ask the user to record and send their actions. Microsoft has declared the tool deprecated.'''
+versions = '''Windows 10 and 11, Pro.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\AppCompat" /v DisableUAR'''
+rollback = '''Delete the values.'''
+
+["telemetry.app-diagnostics-off"]
+title = '''Apps are blocked from diagnostic information about other apps'''
+summary = '''Store apps do not get information about how other apps run; the user cannot change this.'''
+effect = '''Replaces the internal ConsentStore appDiagnostics value from the list with a documented policy.'''
+versions = '''Windows 10 1703 and later, Pro.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" /v LetAppsGetDiagnosticInfo'''
+rollback = '''Delete the values.'''
+
+["telemetry.feedback-user-off"]
+title = '''Feedback frequency: never'''
+summary = '''"Never" is selected in the user profile for the Windows feedback frequency.'''
+effect = '''Complements the machine policy DoNotShowFeedbackNotifications; the user copy of this policy from the list does not exist, so a user setting is written instead.'''
+versions = '''All releases of Windows 10 and 11.'''
+verify = '''reg query "HKCU\Software\Microsoft\Siuf\Rules" /v NumberOfSIUFInPeriod'''
+rollback = '''Delete the values.'''
+
+["ads.lock-screen-spotlight-off"]
+title = '''Lock screen without "Windows spotlight" and suggested content'''
+summary = '''Windows Spotlight pictures do not change on the lock screen, general suggested content is turned off.'''
+effect = '''The lock screen shows a regular picture without ads. SubscribedContentEnabled is taken from the customer's list; Microsoft does not describe its exact effect.'''
+versions = '''Windows 10 and 11; user settings, not policies (the Spotlight policy is not supported on Pro).'''
+verify = '''reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"'''
+rollback = '''Delete the values.'''
+
+["ads.suggestions-user-policies"]
+title = '''No tailored tips or third-party app suggestions'''
+summary = '''User policies: diagnostic data is not used for tailored tips, third-party apps are not suggested.'''
+effect = '''Fewer app ads in the Start menu, in tips and on the lock screen.'''
+versions = '''Windows 10 1607 and 1703 and later, Pro.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\Windows\CloudContent"'''
+rollback = '''Delete the values.'''
+
+["ads.account-notifications-off"]
+title = '''No account notifications in Settings'''
+summary = '''The "Settings" app does not show offers to sign in with a Microsoft account and connect its services.'''
+effect = '''Fewer ads for the Microsoft account and subscriptions. The value is not documented by Microsoft as a policy, it matches a toggle in Settings.'''
+versions = '''Windows 11.'''
+verify = '''reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications"'''
+rollback = '''Delete the values.'''
+
+["ads.advertising-id-user-off"]
+title = '''Advertising ID turned off in the new settings store too'''
+summary = '''The advertising ID toggle is turned off in the Windows 11 settings store (CPSS).'''
+effect = '''Complements the DisabledByGroupPolicy policy and the AdvertisingInfo Enabled value. Value from the customer's list, not documented by Microsoft.'''
+versions = '''Windows 11 23H2 and later (not confirmed by the vendor).'''
+verify = '''reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\CPSS\Store\AdvertisingInfo"'''
+rollback = '''Delete the values.'''
+
+["search.cloud-off"]
+title = '''Windows Search without the cloud, search highlights and location'''
+summary = '''Windows Search does not search OneDrive and other clouds, does not show "search highlights" and does not use location.'''
+effect = '''Queries stay on the computer, and the search box shows no promotional pictures of the day.'''
+versions = '''Windows 10 1709 and later; search highlights since Windows 11 22H2. Pro.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search"'''
+rollback = '''Delete the values.'''
+
+["search.user-cloud-off"]
+title = '''Search without cloud content and history (user profile)'''
+summary = '''The user's search toggles are turned off: cloud content from Microsoft and Entra ID accounts, search highlights, search history on this device.'''
+effect = '''Matches the machine search policies and turns off the local query history. Values from the customer's list; they match the toggles in Settings.'''
+versions = '''Windows 11; user settings, not policies.'''
+verify = '''reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\SearchSettings"'''
+rollback = '''Delete the values.'''
+
+["search.start-track-off"]
+title = '''Do not track app launches for the Start menu and search'''
+summary = '''Windows does not remember which apps the user launches for the Start menu lists and search results.'''
+effect = '''No list of most used apps is kept in the Start menu.'''
+versions = '''All releases of Windows 10 and 11.'''
+verify = '''reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v Start_TrackProgs'''
+rollback = '''Delete the values.'''
+
+["speech.online-off"]
+title = '''No cloud speech recognition or handwriting improvement'''
+summary = '''Users cannot turn on cloud speech recognition services, and handwriting and typing data is not sent to improve recognition.'''
+effect = '''Voice and typed text do not go to Microsoft.'''
+risk = '''Cloud voice typing and dictation do not work.'''
+versions = '''Windows 10 1507 and 1607 and later, Pro.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\InputPersonalization" /v AllowInputPersonalization'''
+rollback = '''Delete the values.'''
+
+["speech.online-user-off"]
+title = '''Speech and input personalization turned off in the user profile'''
+summary = '''Cloud speech recognition and the personal dictionary for handwriting and typing are turned off in the user profile.'''
+effect = '''Windows does not collect handwriting samples, typed text and contacts for the dictionary. The user copy of the AllowInputPersonalization policy from the list does not exist, so user settings are written instead.'''
+risk = '''Handwriting recognition does not adapt to the user.'''
+versions = '''All releases of Windows 10 and 11.'''
+verify = '''reg query "HKCU\Software\Microsoft\InputPersonalization"'''
+rollback = '''Delete the values.'''
+
+["speech.narrator-online-off"]
+title = '''Narrator without online services'''
+summary = '''Narrator does not send images and pages to the cloud for image descriptions, page titles and popular links.'''
+effect = '''Screen content does not go to Microsoft while Narrator is running.'''
+risk = '''Blind users lose image descriptions.'''
+versions = '''Windows 11.'''
+verify = '''reg query "HKCU\Software\Microsoft\Narrator\NoRoam" /v OnlineServicesEnabled'''
+rollback = '''Delete the values.'''
+
+["speech.narrator-extensions-off"]
+title = '''Narrator without extensions'''
+summary = '''Narrator extensions (scripts for Excel, Outlook and other programs) are turned off.'''
+effect = '''Value from the customer's list. This is not telemetry: the extensions improve how Narrator works in programs.'''
+risk = '''Narrator works worse in Excel and Outlook: this matters for blind employees.'''
+versions = '''Recent Windows 11 builds.'''
+verify = '''reg query "HKCU\Software\Microsoft\Narrator\NoRoam" /v ScriptingEnabled'''
+rollback = '''Delete the values.'''
+
+["drivers.coinstallers-off"]
+title = '''Do not run companion programs of driver installers (co-installers)'''
+summary = '''When a device is connected, Windows installs the driver but does not run the vendor's companion programs from the driver package.'''
+effect = '''Closes a class of attacks in which a vendor program (the Razer Synapse case, 2021) runs with SYSTEM rights when a device is connected. Drivers from Windows Update keep arriving.'''
+risk = '''Vendor utilities for old printers, scanners and gaming devices will have to be installed manually; check on a test PC with the organization's devices.'''
+versions = '''All releases of Windows 10 and 11; the value is widely used but not documented on Microsoft Learn. Since 2023 Microsoft does not sign packages with co-installers.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Device Installer" /v DisableCoInstallers'''
+rollback = '''Delete the values.'''
+
+["drivers.metadata-off"]
+title = '''Do not download device apps and icons from the internet'''
+summary = '''Windows does not use device metadata to download the vendors' related apps and their icons.'''
+effect = '''No vendor programs without the user's knowledge. Microsoft retired the device metadata service in 2025; the policy guards against leftovers.'''
+versions = '''Windows 10 1809 and later, Pro.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\Device Metadata" /v PreventDeviceMetadataFromNetwork'''
+rollback = '''Delete the values.'''
+
+["onedrive.kfm-block"]
+title = '''OneDrive: block moving user folders to the cloud'''
+summary = '''Users cannot move "Desktop", "Documents" and "Pictures" to OneDrive (neither work nor personal), and folder backup in the OneDrive settings is unavailable.'''
+effect = '''Work files stay on the computer and do not end up in the employee's personal cloud. On domain-joined PCs Microsoft itself blocks moving to a personal OneDrive; in a workgroup this policy is needed.'''
+versions = '''OneDrive sync client (all supported versions). The HKCU value from the customer's list is not documented by Microsoft and is not written.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\OneDrive" /v KFMBlockOptIn'''
+rollback = '''Delete the value.'''
+
+["onedrive.no-traffic-before-signin"]
+title = '''OneDrive: no network access before the user signs in'''
+summary = '''The OneDrive client does not contact Microsoft servers (including for updates) until the user signs in to OneDrive.'''
+effect = '''Without a OneDrive account, the computer sends no OneDrive traffic at all.'''
+risk = '''The value stays in effect even after the policy is removed (as described in the Microsoft documentation).'''
+versions = '''OneDrive sync client.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\OneDrive" /v PreventNetworkTrafficPreUserSignIn'''
+rollback = '''Delete the value.'''
+
+["onedrive.feedback-off"]
+title = '''OneDrive: no feedback, surveys or support requests'''
+summary = '''Sending feedback, surveys and contacting Microsoft support are turned off in the OneDrive app.'''
+effect = '''Logs and screenshots do not go to Microsoft together with feedback.'''
+versions = '''OneDrive sync client.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\OneDrive"'''
+rollback = '''Delete the values.'''
+
+["onedrive.block"]
+title = '''OneDrive: block its use completely'''
+summary = '''OneDrive cannot be used to store files: the app, File Explorer and Store apps do not open OneDrive, sync and photo upload do not work.'''
+effect = '''Even a reinstalled OneDrive does not sync files. Off by default: this is a decision of the organization, not an AI or telemetry setting.'''
+risk = '''Users who need OneDrive for their work lose access to it on this computer.'''
+versions = '''Windows 10 1703 and later, Pro, Enterprise, Education.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive" /v DisableFileSyncNGSC'''
+rollback = '''Delete the value.'''
+
+["onedrive.personal-sync-off"]
+title = '''OneDrive: block personal OneDrive sync'''
+summary = '''The user cannot connect a personal Microsoft account to OneDrive.'''
+effect = '''Work files do not end up in the employee's personal cloud; work OneDrive (Entra ID) remains available.'''
+risk = '''Employees who keep work files in a personal OneDrive lose sync.'''
+versions = '''OneDrive sync client.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\OneDrive" /v DisablePersonalSync'''
+rollback = '''Delete the value in the user profile.'''
+
+["edge.genai-local-model-off"]
+title = '''Edge: do not download the local AI model'''
+summary = '''Edge does not download the local generative AI model and deletes one that has already been downloaded.'''
+effect = '''Gigabytes of disk space and traffic are not spent; browser features and websites do not work with the local model.'''
+versions = '''Edge 132 and later. Also applies to a profile signed in with a personal Microsoft account.'''
+
+["edge.builtin-ai-apis-off"]
+title = '''Edge: block built-in AI features for websites'''
+summary = '''Websites cannot call the AI programming interfaces built into the browser (LanguageModel, Summarizer, Writer, Rewriter).'''
+effect = '''Pages do not process the user's text with the browser's model.'''
+versions = '''Edge 138 and later.'''
+
+["edge.history-ai-search-off"]
+title = '''Edge: history search without AI'''
+summary = '''Browsing history search works by exact match only, without synonyms or natural language queries.'''
+effect = '''Browsing history is not processed by AI features.'''
+versions = '''Edge 138 and later.'''
+
+["edge.ai-themes-off"]
+title = '''Edge: no AI-generated themes'''
+summary = '''Creating browser themes with generative AI (DALL-E) is unavailable.'''
+effect = '''Theme descriptions are not sent to a cloud image generator.'''
+versions = '''Edge 122 and later.'''
+
+["edge.text-prediction-off"]
+title = '''Edge: no cloud suggestions while typing'''
+summary = '''Edge does not suggest phrase completions in text fields (Microsoft cloud predictions).'''
+effect = '''Text typed on websites is not sent to the cloud prediction service.'''
+versions = '''Edge 104 and later.'''
+
+["edge.tab-services-off"]
+title = '''Edge: no cloud tab grouping'''
+summary = '''Tab addresses and titles are not sent to a Microsoft service for automatic grouping and group names.'''
+effect = '''The list of open tabs stays in the browser.'''
+versions = '''Edge 113 and later.'''
+
+["edge.autofill-ml-off"]
+title = '''Edge: autofill without cloud machine learning'''
+summary = '''Edge does not use cloud machine learning for suggestions when filling in forms.'''
+effect = '''Form contents are not analyzed by a cloud model.'''
+versions = '''Edge 132 and later.'''
+
+["edge.copilot-address-bar-off"]
+title = '''Edge: no Copilot suggestions in the address bar'''
+summary = '''The address bar does not offer to continue a query in Copilot chat.'''
+effect = '''Queries from the address bar do not go to Copilot.'''
+versions = '''Edge 149 and later.'''
+
+["edge.ntp-copilot-off"]
+title = '''Edge: remove Copilot from the new tab page'''
+summary = '''Entry points to Copilot chat (Bing Chat) are removed from the new tab page.'''
+effect = '''Fewer offers to switch to Copilot. The vendor does not explicitly describe the effect on the new tab page of a profile that is not signed in to an account.'''
+versions = '''Edge 117 and later.'''
+
+["edge.copilot-cowork-off"]
+title = '''Edge: Copilot does not act for the user'''
+summary = '''The Cowork feature does not perform actions in the browser on behalf of the user, and the user cannot change this.'''
+effect = '''The AI agent does not click buttons or fill in forms on websites.'''
+versions = '''Edge 152 and later.'''
+
+["edge.browsing-with-copilot-off"]
+title = '''Edge: block browsing websites together with Copilot'''
+summary = '''The mode in which Copilot opens and browses pages on its own (agentic browsing) is turned off and locked.'''
+effect = '''The AI agent does not visit websites on behalf of the user.'''
+versions = '''Edge 148 and later; the feature itself requires a Microsoft 365 Copilot subscription.'''
+
+["edge.copilot-page-context-off"]
+title = '''Edge: Copilot does not read pages (Entra ID profiles)'''
+summary = '''Copilot in the sidebar does not get the content of open pages.'''
+effect = '''Applies only to Microsoft Entra ID profiles; in a workgroup with local accounts and browser sign-in blocked it has no effect. On according to the customer's list in case someone signs in through Entra ID.'''
+versions = '''Edge 124 and later; Microsoft Entra ID profiles only.'''
+
+["edge.entra-copilot-page-context-off"]
+title = '''Edge: Copilot with data protection does not read pages and history (Entra ID profiles)'''
+summary = '''Microsoft 365 Copilot Chat in the sidebar does not get page content, history or video transcripts.'''
+effect = '''Applies only to Microsoft Entra ID profiles; in a workgroup with local accounts and browser sign-in blocked it has no effect. On according to the customer's list in case someone signs in through Entra ID.'''
+versions = '''Edge 130 and later; Microsoft Entra ID profiles only.'''
+
+["edge.m365-copilot-icon-off"]
+title = '''Edge: hide the Microsoft 365 Copilot Chat icon (Entra ID profiles)'''
+summary = '''The Microsoft 365 Copilot Chat icon is not shown on the toolbar of Edge for Business.'''
+effect = '''Applies only to Microsoft Entra ID profiles; in a workgroup with local accounts and browser sign-in blocked it has no effect. On according to the customer's list in case someone signs in through Entra ID.'''
+versions = '''Edge 139 and later; Microsoft Entra ID profiles only.'''
+
+["edge.compose-inline-off"]
+title = '''Edge: no Copilot text rewriting (Entra ID profiles)'''
+summary = '''Rewriting selected text through the context menu (the Microsoft 365 Copilot writing assistant) is unavailable.'''
+effect = '''Applies only to Microsoft Entra ID profiles; in a workgroup with local accounts and browser sign-in blocked it has no effect. On according to the customer's list in case someone signs in through Entra ID.'''
+versions = '''Edge 115 and later; Microsoft Entra ID accounts only.'''
+
+["edge.copilot-search-history-off"]
+title = '''Edge: do not share history with Microsoft 365 Copilot Search (Entra ID profiles)'''
+summary = '''Edge browsing history is not shared with Microsoft 365 Copilot search.'''
+effect = '''Applies only to Microsoft Entra ID profiles; in a workgroup with local accounts and browser sign-in blocked it has no effect. On according to the customer's list in case someone signs in through Entra ID.'''
+versions = '''Edge 143 and later; sign-in through Microsoft Entra ID and a Microsoft 365 Copilot license.'''
+
+["edge.visual-search-off"]
+title = '''Edge: no Bing visual search'''
+summary = '''Image search through Bing from the image menu, the context menu and the sidebar is unavailable.'''
+effect = '''Images from pages are not sent to Bing to find similar ones.'''
+risk = '''The user cannot look for similar images from the browser.'''
+versions = '''Edge 95 and later.'''
+
+["edge.search-in-sidebar-off"]
+title = '''Edge: search results not in the sidebar'''
+summary = '''Search results for selected text do not open in the sidebar.'''
+effect = '''Fewer sidebar elements; search opens in a regular tab.'''
+versions = '''Edge 110 and later.'''
+
+["office.connected-ai-off"]
+title = '''Office: turn off connected experiences that analyze content (including Copilot)'''
+summary = '''The policy "Allow the use of connected experiences in Office that analyze content" is turned off: Copilot in Word, Excel, PowerPoint, Outlook and OneNote is unavailable.'''
+effect = '''Document content is not sent to Microsoft cloud AI services. This is the only documented way to remove Copilot from Office apps with any account.'''
+risk = '''Also unavailable: dictation, Translator, the cloud Editor (basic spell checking remains), Designer in PowerPoint, text predictions, transcription, data types, map charts and Python in Excel.'''
+versions = '''Microsoft 365 Apps 1904 and later, Office 2021 and 2024 (retail and LTSC).'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\office\16.0\common\privacy"'''
+rollback = '''Delete the value in the user profile.'''
+
+["office.optional-connected-off"]
+title = '''Office: turn off additional optional connected experiences'''
+summary = '''Additional Bing-based Office features are turned off: Smart Lookup, Researcher, online pictures and videos, 3D Maps, and Copilot web search.'''
+effect = '''Selected text and queries from documents are not sent to Bing.'''
+risk = '''No inserting pictures from the internet and no looking up information right from a document.'''
+versions = '''Microsoft 365 Apps 1904 and later, Office 2021 and 2024.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\office\16.0\common\privacy" /v controllerconnectedservicesenabled'''
+rollback = '''Delete the value in the user profile.'''
+
+["office.download-content-off"]
+title = '''Office: do not download content from the internet'''
+summary = '''Office does not download templates, icons, images, cloud fonts and help from the internet.'''
+effect = '''Fewer Office requests to Microsoft servers. This is not AI, so the rule is off by default.'''
+risk = '''No online templates, icons, stock images, cloud fonts or F1 help.'''
+versions = '''Microsoft 365 Apps 1904 and later, Office 2021 and 2024.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\office\16.0\common\privacy" /v downloadcontentdisabled'''
+rollback = '''Delete the value in the user profile.'''
+
+["office.telemetry-off"]
+title = '''Office: do not send diagnostic data'''
+summary = '''Office diagnostic data level "Neither" (do not send): neither required nor optional data goes to Microsoft.'''
+effect = '''Only the service data that Office cannot work without is still sent.'''
+versions = '''Microsoft 365 Apps 1904 and later, Office 2021 and 2024. The path has no 16.0: Software\Policies\Microsoft\office\common\clienttelemetry.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\office\common\clienttelemetry" /v sendtelemetry'''
+rollback = '''Delete the value in the user profile.'''
+
+["office.feedback-off"]
+title = '''Office: no feedback or surveys'''
+summary = '''The send feedback button and surveys in Office apps are turned off.'''
+effect = '''Screenshots, logs and content fragments (including Copilot prompts) do not go to Microsoft together with feedback.'''
+versions = '''Microsoft 365 Apps, Office 2019 and later.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\office\16.0\common\feedback"'''
+rollback = '''Delete the values in the user profile.'''
+
+["office.copilot-checkbox-off"]
+title = '''Office: the "Enable Copilot" check box cleared in Word, Excel and OneNote'''
+summary = '''The user's Copilot settings in Word, Excel and OneNote are turned off in advance: the EnableCopilot values from the customer's list.'''
+effect = '''The "Enable Copilot" check box in the app options exists only when Office is signed in with a personal Microsoft account. The values are not documented by Microsoft and are not locked: the user can turn Copilot on again. Copilot is reliably turned off by the rule "turn off connected experiences that analyze content".'''
+versions = '''Word 2412, Excel 2501, OneNote 2502 and later.'''
+verify = '''reg query "HKCU\Software\Microsoft\Office\16.0\Word\Options" /v EnableCopilot'''
+rollback = '''File -> Options -> Copilot, the "Enable Copilot" check box.'''
+
+["thispc.desktop"]
+title = '''Show "Desktop" in "This PC"'''
+summary = '''The "Desktop" folder is visible in "This PC" above the drives, as in Windows 10.'''
+effect = '''Starting with version 22H2, Windows 11 hides user folders in "This PC"; the rule brings this entry back. Off by default: the folder stays hidden.'''
+versions = '''Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}" /v HiddenByDefault'''
+rollback = '''Value 1 in both branches (the Windows 11 24H2 and 25H2 default).'''
+
+["thispc.documents"]
+title = '''Show "Documents" in "This PC"'''
+summary = '''The "Documents" folder is visible in "This PC" above the drives, as in Windows 10.'''
+effect = '''Starting with version 22H2, Windows 11 hides user folders in "This PC"; the rule brings this entry back. Off by default: the folder stays hidden.'''
+versions = '''Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{d3162b92-9365-467a-956b-92703aca08af}" /v HiddenByDefault'''
+rollback = '''Value 1 in both branches (the Windows 11 24H2 and 25H2 default).'''
+
+["thispc.downloads"]
+title = '''Show "Downloads" in "This PC"'''
+summary = '''The "Downloads" folder is visible in "This PC" above the drives, as in Windows 10.'''
+effect = '''Starting with version 22H2, Windows 11 hides user folders in "This PC"; the rule brings this entry back. Off by default: the folder stays hidden.'''
+versions = '''Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{088e3905-0323-4b02-9826-5d99428e115f}" /v HiddenByDefault'''
+rollback = '''Value 1 in both branches (the Windows 11 24H2 and 25H2 default).'''
+
+["thispc.music"]
+title = '''Show "Music" in "This PC"'''
+summary = '''The "Music" folder is visible in "This PC" above the drives, as in Windows 10.'''
+effect = '''Starting with version 22H2, Windows 11 hides user folders in "This PC"; the rule brings this entry back. Off by default: the folder stays hidden.'''
+versions = '''Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{3dfdf296-dbec-4fb4-81d1-6a3438bcf4de}" /v HiddenByDefault'''
+rollback = '''Value 1 in both branches (the Windows 11 24H2 and 25H2 default).'''
+
+["thispc.pictures"]
+title = '''Show "Pictures" in "This PC"'''
+summary = '''The "Pictures" folder is visible in "This PC" above the drives, as in Windows 10.'''
+effect = '''Starting with version 22H2, Windows 11 hides user folders in "This PC"; the rule brings this entry back. Off by default: the folder stays hidden.'''
+versions = '''Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{24ad3ad4-a569-4530-98e1-ab02f9417aa8}" /v HiddenByDefault'''
+rollback = '''Value 1 in both branches (the Windows 11 24H2 and 25H2 default).'''
+
+["thispc.videos"]
+title = '''Show "Videos" in "This PC"'''
+summary = '''The "Videos" folder is visible in "This PC" above the drives, as in Windows 10.'''
+effect = '''Starting with version 22H2, Windows 11 hides user folders in "This PC"; the rule brings this entry back. Off by default: the folder stays hidden.'''
+versions = '''Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{f86fa3ab-70d2-4fc7-9c99-fcbf05467f3a}" /v HiddenByDefault'''
+rollback = '''Value 1 in both branches (the Windows 11 24H2 and 25H2 default).'''
+
+["thispc.documents-extra"]
+title = '''Show "Documents" in "This PC" (second entry)'''
+summary = '''The second entry of the "Documents" folder (the redirectable known folder) is visible in "This PC".'''
+effect = '''Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show "Documents" in "This PC": the folder may appear twice.'''
+versions = '''Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{A8CDFF1C-4878-43be-B5FD-F8091C1C60D0}" /v HiddenByDefault'''
+rollback = '''Value 1 in both branches (the Windows 11 24H2 and 25H2 default).'''
+
+["thispc.downloads-extra"]
+title = '''Show "Downloads" in "This PC" (second entry)'''
+summary = '''The second entry of the "Downloads" folder (the redirectable known folder) is visible in "This PC".'''
+effect = '''Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show "Downloads" in "This PC": the folder may appear twice.'''
+versions = '''Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{374DE290-123F-4565-9164-39C4925E467B}" /v HiddenByDefault'''
+rollback = '''Value 1 in both branches (the Windows 11 24H2 and 25H2 default).'''
+
+["thispc.music-extra"]
+title = '''Show "Music" in "This PC" (second entry)'''
+summary = '''The second entry of the "Music" folder (the redirectable known folder) is visible in "This PC".'''
+effect = '''Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show "Music" in "This PC": the folder may appear twice.'''
+versions = '''Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{1CF1260C-4DD0-4ebb-811F-33C572699FDE}" /v HiddenByDefault'''
+rollback = '''Value 1 in both branches (the Windows 11 24H2 and 25H2 default).'''
+
+["thispc.pictures-extra"]
+title = '''Show "Pictures" in "This PC" (second entry)'''
+summary = '''The second entry of the "Pictures" folder (the redirectable known folder) is visible in "This PC".'''
+effect = '''Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show "Pictures" in "This PC": the folder may appear twice.'''
+versions = '''Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{3ADD1653-EB32-4cb0-BBD7-DFA0ABB5ACCA}" /v HiddenByDefault'''
+rollback = '''Value 1 in both branches (the Windows 11 24H2 and 25H2 default).'''
+
+["thispc.videos-extra"]
+title = '''Show "Videos" in "This PC" (second entry)'''
+summary = '''The second entry of the "Videos" folder (the redirectable known folder) is visible in "This PC".'''
+effect = '''Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show "Videos" in "This PC": the folder may appear twice.'''
+versions = '''Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{A0953C92-50DC-43bf-BE83-3742FED03C9C}" /v HiddenByDefault'''
+rollback = '''Value 1 in both branches (the Windows 11 24H2 and 25H2 default).'''
+
+["thispc.3d-objects"]
+title = '''Show "3D Objects" in "This PC"'''
+summary = '''The "3D Objects" folder is visible in "This PC" again, as in Windows 10.'''
+effect = '''Windows 11 removed the entry, but the known folder remains. The rule creates the entry in both branches; the folder appears in the user profile when it is first opened. Off by default.'''
+versions = '''Windows 10 1709-20H2 showed the folder on their own; Windows 11 has no entry. Check the effect on 25H2 on a test PC.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{0DB7E03F-FC29-4DC6-9020-FF41B59E513A}"'''
+rollback = '''Delete the {0DB7E03F-FC29-4DC6-9020-FF41B59E513A} key in both NameSpace branches (the automatic return to defaults does not delete keys).'''
+
+["nav.gallery-hidden"]
+title = '''Hide "Gallery" in the File Explorer navigation pane'''
+summary = '''The "Gallery" item (a view of all photos) is not shown in the left pane of File Explorer for any user.'''
+effect = '''Fewer unnecessary items in File Explorer; the photos themselves and the "Pictures" folder remain available.'''
+versions = '''Windows 11 22H2 (22621.2361) and later.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}" /v HiddenByDefault'''
+rollback = '''Delete the HiddenByDefault value in both branches.'''
+
+["nav.home-hidden"]
+title = '''Hide "Home" in the File Explorer navigation pane'''
+summary = '''The "Home" item (recent files and pinned folders) is not shown in the left pane of File Explorer; File Explorer opens to "This PC".'''
+effect = '''Recent files are not visible when File Explorer opens. Off by default: combined with the folders hidden in "This PC", users lose a quick way to "Documents" and "Desktop"; turn it on together with the rules Show ... in "This PC".'''
+risk = '''According to user reports, the pinned Quick access folders disappear together with "Home".'''
+versions = '''Windows 11 22H2 and later.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{f874310e-b6b7-47dc-bc84-b9e6b38f5903}" /v HiddenByDefault'''
+rollback = '''Delete the HiddenByDefault value in both branches.'''
+
+["nav.launch-to-this-pc"]
+title = '''Open File Explorer to "This PC"'''
+summary = '''File Explorer (Win+E) opens to "This PC", not to "Home".'''
+effect = '''Drives and folders of "This PC" are visible right away. Needed by the rule Hide "Home", otherwise File Explorer has nowhere to open.'''
+versions = '''Windows 10 and 11.'''
+verify = '''reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v LaunchTo'''
+rollback = '''File Explorer Options -> Open File Explorer to: "Home".'''
+
 [_groups."install"]
 title = '''Installation (windowsPE and specialize)'''
 summary = '''Bypassing compatibility checks, a local account without a network connection, .NET Framework 3.5 from the media.'''
@@ -1409,3 +1981,39 @@ title = '''Google Chrome'''
 
 [_groups."browsers.brave"]
 title = '''Brave'''
+
+[_groups."privacy.ai"]
+title = '''Artificial intelligence'''
+summary = '''Copilot, Recall, Click to Do, AI agents, Windows generative features, Paint and Notepad.'''
+
+[_groups."privacy.telemetry"]
+title = '''Telemetry and feedback'''
+summary = '''Windows diagnostic data, reports, feedback requests, Steps Recorder.'''
+
+[_groups."privacy.ads"]
+title = '''Ads and recommendations'''
+summary = '''Advertising ID, tips and suggestions, lock screen, widgets.'''
+
+[_groups."privacy.search"]
+title = '''Search and the Start menu'''
+summary = '''Web results, cloud search, search highlights, tracking of app launches.'''
+
+[_groups."privacy.speech"]
+title = '''Speech and input'''
+summary = '''Cloud speech recognition, handwriting and typing personalization, Narrator online services.'''
+
+[_groups."privacy.office"]
+title = '''Microsoft Office'''
+summary = '''Copilot and connected experiences in Office, diagnostic data and feedback; the settings are written to the default user profile.'''
+
+[_groups."apps.onedrive"]
+title = '''OneDrive'''
+summary = '''OneDrive client policies: moving folders to the cloud, network traffic, feedback, a complete block.'''
+
+[_groups."system.drivers"]
+title = '''Drivers and devices'''
+summary = '''Companion programs of driver installers and device apps from the internet; drivers from Windows Update arrive as usual.'''
+
+[_groups."system.explorer"]
+title = '''File Explorer: "This PC" and the navigation pane'''
+summary = '''User folders in "This PC" (hidden in Windows 11), "3D Objects", "Gallery" and "Home" in the left pane. By default the folders are hidden, as in Windows 11, and "Gallery" is hidden.'''

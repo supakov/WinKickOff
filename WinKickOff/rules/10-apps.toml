@@ -659,3 +659,132 @@ type = "reg-remove"
 path = 'DU:\Software\Microsoft\Windows\CurrentVersion\Run'
 name = "OneDriveSetup"
 default = "unknown"
+
+# --- 28.09.2026, customer list MoreOptions: OneDrive policies (card 19, section "OneDrive policies")
+
+[[rule]]
+id = "onedrive.kfm-block"
+group = "apps.onedrive"
+phase = "specialize"
+title = "OneDrive: запретить перенос папок пользователя в облако"
+level = "optional"
+default = true
+tags = ["onedrive", "известные папки", "kfm", "облако"]
+doc = "docs/technical/reference/19-more-privacy.md#onedrive-policies"
+summary = "Пользователи не могут перенести «Рабочий стол», «Документы» и «Изображения» в OneDrive (ни в рабочий, ни в личный), резервное копирование папок в параметрах OneDrive недоступно."
+effect = "Рабочие файлы остаются на компьютере и не попадают в личное облако сотрудника. На ПК в домене Microsoft запрещает перенос в личный OneDrive сама, в рабочей группе нужна эта политика."
+versions = "Клиент синхронизации OneDrive (все поддерживаемые версии). Значение в HKCU из списка заказчика не описано Microsoft и не пишется."
+verify = 'reg query "HKLM\SOFTWARE\Policies\Microsoft\OneDrive" /v KFMBlockOptIn'
+rollback = "Удалить значение."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\OneDrive'
+name = "KFMBlockOptIn"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "onedrive.no-traffic-before-signin"
+group = "apps.onedrive"
+phase = "specialize"
+title = "OneDrive: не выходить в сеть до входа пользователя"
+level = "optional"
+default = true
+tags = ["onedrive", "сеть", "телеметрия"]
+doc = "docs/technical/reference/19-more-privacy.md#onedrive-policies"
+summary = "Клиент OneDrive не обращается к серверам Microsoft (в том числе за обновлениями), пока пользователь не вошёл в OneDrive."
+effect = "Без учётной записи OneDrive компьютер не шлёт OneDrive никакого трафика."
+risk = "Значение продолжает действовать и после удаления политики (так описано в документации Microsoft)."
+versions = "Клиент синхронизации OneDrive."
+verify = 'reg query "HKLM\SOFTWARE\Policies\Microsoft\OneDrive" /v PreventNetworkTrafficPreUserSignIn'
+rollback = "Удалить значение."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\OneDrive'
+name = "PreventNetworkTrafficPreUserSignIn"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "onedrive.feedback-off"
+group = "apps.onedrive"
+phase = "specialize"
+title = "OneDrive: без отзывов, опросов и обращений в поддержку"
+level = "optional"
+default = true
+tags = ["onedrive", "отзывы", "опросы"]
+doc = "docs/technical/reference/19-more-privacy.md#onedrive-policies"
+summary = "В приложении OneDrive выключены отправка отзывов, опросы и связь со службой поддержки Microsoft."
+effect = "Журналы и снимки экрана не уходят в Microsoft вместе с отзывами."
+versions = "Клиент синхронизации OneDrive."
+verify = 'reg query "HKLM\SOFTWARE\Policies\Microsoft\OneDrive"'
+rollback = "Удалить значения."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\OneDrive'
+name = "EnableSendFeedback"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\OneDrive'
+name = "EnableSurveyCampaigns"
+kind = "DWord"
+value = 0
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\OneDrive'
+name = "EnableContactSupport"
+kind = "DWord"
+value = 0
+
+[[rule]]
+id = "onedrive.block"
+group = "apps.onedrive"
+phase = "specialize"
+title = "OneDrive: запретить использование полностью"
+level = "optional"
+default = false
+tags = ["onedrive", "облако", "disablefilesyncngsc", "утечка данных"]
+doc = "docs/technical/reference/19-more-privacy.md#onedrive-policies"
+summary = "OneDrive нельзя использовать для хранения файлов: приложение, проводник и приложения Store не открывают OneDrive, синхронизация и загрузка фотографий не работают."
+effect = "Даже заново установленный OneDrive не синхронизирует файлы. Выключено по умолчанию: это решение организации, а не настройка ИИ или телеметрии."
+risk = "Пользователи, которым OneDrive нужен для работы, теряют к нему доступ на этом компьютере."
+versions = "Windows 10 1703 и новее, Pro, Enterprise, Education."
+verify = 'reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive" /v DisableFileSyncNGSC'
+rollback = "Удалить значение."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive'
+name = "DisableFileSyncNGSC"
+kind = "DWord"
+value = 1
+
+[[rule]]
+id = "onedrive.personal-sync-off"
+group = "apps.onedrive"
+phase = "default-user"
+title = "OneDrive: запретить синхронизацию личного OneDrive"
+level = "optional"
+default = false
+tags = ["onedrive", "личная учётная запись", "disablepersonalsync"]
+doc = "docs/technical/reference/19-more-privacy.md#onedrive-policies"
+summary = "Пользователь не может подключить к OneDrive личную учётную запись Microsoft."
+effect = "Рабочие файлы не попадают в личное облако сотрудника; рабочий OneDrive (Entra ID) остаётся доступным."
+risk = "Сотрудники, которые хранят рабочие файлы в личном OneDrive, потеряют синхронизацию."
+versions = "Клиент синхронизации OneDrive."
+verify = 'reg query "HKCU\Software\Policies\Microsoft\OneDrive" /v DisablePersonalSync'
+rollback = "Удалить значение в профиле пользователя."
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Software\Policies\Microsoft\OneDrive'
+name = "DisablePersonalSync"
+kind = "DWord"
+value = 1

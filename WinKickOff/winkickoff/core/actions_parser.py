@@ -244,6 +244,9 @@ class _Scanner:
         if m:
             cond = self.condition(m.group(1))
             return None if cond is None else self.value(m.group(2) if cond else m.group(3))
+        m = re.fullmatch(r"@\(((?:'(?:[^']|'')*'\s*,?\s*)*)\)", token)
+        if m:  # MultiString: @('a','b'), compared as the list the catalog holds
+            return [item.replace("''", "'") for item in re.findall(r"'((?:[^']|'')*)'", m.group(1))]
         return self.expr(token)
 
     # ---- lines

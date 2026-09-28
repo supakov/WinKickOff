@@ -1,6 +1,6 @@
 # Rule list
 
-Every rule of the WinKickOff catalog 0.4 by group, 177 in total. This file is generated from the catalog by `python tools/make_rule_docs.py` and is not edited by hand. In the program every rule also shows its technical details, the check after installation and the rollback.
+Every rule of the WinKickOff catalog 0.4 by group, 251 in total. This file is generated from the catalog by `python tools/make_rule_docs.py` and is not edited by hand. In the program every rule also shows its technical details, the check after installation and the rollback.
 
 Levels: baseline (the core of the protection, disabling is not recommended), recommended, optional, risky (may disturb programs, enable deliberately).
 
@@ -328,7 +328,7 @@ Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertisi
 - **Edge: do not collect queries to third-party search engines** (`edge.search-telemetry-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Edge does not collect information about searches on third-party search engines (3P SERP telemetry).
   Effect: Queries to Google and other search engines are not included in Edge telemetry.
-- **Edge: hide the sidebar** (`edge.sidebar-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Edge: hide the sidebar** (`edge.sidebar-off`). Level: optional. "Office": enabled; "Strict": enabled.
   The Edge sidebar with apps and shortcuts is not shown.
   Effect: Fewer distracting elements. Before Edge 141, hiding the sidebar also hides the Copilot button; starting with version 141, the Copilot icon is controlled by a policy that applies only to Entra ID profiles.
 - **Edge: turn off the shopping assistant** (`edge.shopping-off`). Level: optional. "Office": enabled; "Strict": enabled.
@@ -361,10 +361,10 @@ Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertisi
 - **Edge: no feedback submission** (`edge.feedback-off`). Level: optional. "Office": enabled; "Strict": enabled.
   The feedback button and sending feedback to Microsoft are disabled.
   Effect: Screenshots and problem descriptions are not sent from the browser to Microsoft.
-- **Edge: block browser sign-in** (`edge.signin-off`). Level: optional. "Office": disabled; "Strict": disabled.
+- **Edge: block browser sign-in** (`edge.signin-off`). Level: optional. "Office": enabled; "Strict": enabled.
   Signing in to Edge with a Microsoft account or a work account is blocked.
-  Effect: The browser profile stays local and is not linked to a cloud account.
-  Risk: Sync and features that require sign-in are unavailable. In the issue #1 script this line is commented out: enable it deliberately.
+  Effect: The browser profile stays local and is not linked to a cloud account. Most Edge AI policies do not apply to a profile signed in with a personal Microsoft account: blocking sign-in is needed for them to work.
+  Risk: Sync and features that require sign-in are unavailable.
 - **Edge: block password saving** (`edge.password-manager-off`). Level: risky. "Office": disabled; "Strict": disabled.
   The built-in Edge password manager does not offer to save passwords.
   Effect: Passwords are not stored in the browser profile.
@@ -373,6 +373,61 @@ Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertisi
   Edge does not save payment card details or fill them into forms.
   Effect: Card details are not stored in the browser profile.
   Risk: In the issue #1 script this line is commented out: enable it deliberately.
+- **Edge: do not download the local AI model** (`edge.genai-local-model-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Edge does not download the local generative AI model and deletes one that has already been downloaded.
+  Effect: Gigabytes of disk space and traffic are not spent; browser features and websites do not work with the local model.
+- **Edge: block built-in AI features for websites** (`edge.builtin-ai-apis-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Websites cannot call the AI programming interfaces built into the browser (LanguageModel, Summarizer, Writer, Rewriter).
+  Effect: Pages do not process the user's text with the browser's model.
+- **Edge: history search without AI** (`edge.history-ai-search-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Browsing history search works by exact match only, without synonyms or natural language queries.
+  Effect: Browsing history is not processed by AI features.
+- **Edge: no AI-generated themes** (`edge.ai-themes-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Creating browser themes with generative AI (DALL-E) is unavailable.
+  Effect: Theme descriptions are not sent to a cloud image generator.
+- **Edge: no cloud suggestions while typing** (`edge.text-prediction-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Edge does not suggest phrase completions in text fields (Microsoft cloud predictions).
+  Effect: Text typed on websites is not sent to the cloud prediction service.
+- **Edge: no cloud tab grouping** (`edge.tab-services-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Tab addresses and titles are not sent to a Microsoft service for automatic grouping and group names.
+  Effect: The list of open tabs stays in the browser.
+- **Edge: autofill without cloud machine learning** (`edge.autofill-ml-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Edge does not use cloud machine learning for suggestions when filling in forms.
+  Effect: Form contents are not analyzed by a cloud model.
+- **Edge: no Copilot suggestions in the address bar** (`edge.copilot-address-bar-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  The address bar does not offer to continue a query in Copilot chat.
+  Effect: Queries from the address bar do not go to Copilot.
+- **Edge: remove Copilot from the new tab page** (`edge.ntp-copilot-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Entry points to Copilot chat (Bing Chat) are removed from the new tab page.
+  Effect: Fewer offers to switch to Copilot. The vendor does not explicitly describe the effect on the new tab page of a profile that is not signed in to an account.
+- **Edge: Copilot does not act for the user** (`edge.copilot-cowork-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  The Cowork feature does not perform actions in the browser on behalf of the user, and the user cannot change this.
+  Effect: The AI agent does not click buttons or fill in forms on websites.
+- **Edge: block browsing websites together with Copilot** (`edge.browsing-with-copilot-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  The mode in which Copilot opens and browses pages on its own (agentic browsing) is turned off and locked.
+  Effect: The AI agent does not visit websites on behalf of the user.
+- **Edge: Copilot does not read pages (Entra ID profiles)** (`edge.copilot-page-context-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Copilot in the sidebar does not get the content of open pages.
+  Effect: Applies only to Microsoft Entra ID profiles; in a workgroup with local accounts and browser sign-in blocked it has no effect. On according to the customer's list in case someone signs in through Entra ID.
+- **Edge: Copilot with data protection does not read pages and history (Entra ID profiles)** (`edge.entra-copilot-page-context-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Microsoft 365 Copilot Chat in the sidebar does not get page content, history or video transcripts.
+  Effect: Applies only to Microsoft Entra ID profiles; in a workgroup with local accounts and browser sign-in blocked it has no effect. On according to the customer's list in case someone signs in through Entra ID.
+- **Edge: hide the Microsoft 365 Copilot Chat icon (Entra ID profiles)** (`edge.m365-copilot-icon-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  The Microsoft 365 Copilot Chat icon is not shown on the toolbar of Edge for Business.
+  Effect: Applies only to Microsoft Entra ID profiles; in a workgroup with local accounts and browser sign-in blocked it has no effect. On according to the customer's list in case someone signs in through Entra ID.
+- **Edge: no Copilot text rewriting (Entra ID profiles)** (`edge.compose-inline-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Rewriting selected text through the context menu (the Microsoft 365 Copilot writing assistant) is unavailable.
+  Effect: Applies only to Microsoft Entra ID profiles; in a workgroup with local accounts and browser sign-in blocked it has no effect. On according to the customer's list in case someone signs in through Entra ID.
+- **Edge: do not share history with Microsoft 365 Copilot Search (Entra ID profiles)** (`edge.copilot-search-history-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Edge browsing history is not shared with Microsoft 365 Copilot search.
+  Effect: Applies only to Microsoft Entra ID profiles; in a workgroup with local accounts and browser sign-in blocked it has no effect. On according to the customer's list in case someone signs in through Entra ID.
+- **Edge: no Bing visual search** (`edge.visual-search-off`). Level: optional. "Office": disabled; "Strict": disabled.
+  Image search through Bing from the image menu, the context menu and the sidebar is unavailable.
+  Effect: Images from pages are not sent to Bing to find similar ones.
+  Risk: The user cannot look for similar images from the browser.
+- **Edge: search results not in the sidebar** (`edge.search-in-sidebar-off`). Level: optional. "Office": disabled; "Strict": disabled.
+  Search results for selected text do not open in the sidebar.
+  Effect: Fewer sidebar elements; search opens in a regular tab.
 
 ### Google Chrome
 
@@ -506,22 +561,172 @@ Auditing, log sizes, PowerShell logging, disabling PowerShell 2.0.
 
 Minimal data sending, disabling ads and preinstalled apps, Copilot and Recall, widgets, web search.
 
+### Artificial intelligence
+
+Copilot, Recall, Click to Do, AI agents, Windows generative features, Paint and Notepad.
+
+- **Copilot, Recall and Click to Do turned off** (`privacy.copilot-recall-off`). Level: recommended. "Office": enabled; "Strict": enabled.
+  Copilot and WindowsAI policies: Recall (screen snapshots) is off and cannot be turned on by the user, Click to Do is off; the Recall feature is disabled if present.
+  Effect: No AI component takes screen snapshots or sends document contents. The Copilot app is removed by a separate rule in the apps group.
+- **Recall and Click to Do turned off in the user profile too** (`ai.recall-user-off`). Level: recommended. "Office": enabled; "Strict": enabled.
+  User copies of the policies: Recall does not save screen snapshots, Click to Do is unavailable.
+  Effect: Complements the machine rule "Copilot, Recall and Click to Do turned off": the user cannot turn these features on for themselves.
+- **No AI agent in Settings search** (`ai.settings-agent-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Search in the "Settings" app works without the AI agent: by index and semantic search.
+  Effect: Queries in "Settings" are not processed by the AI agent that changes settings on its own.
+- **Block AI agents from connecting to apps (agent connectors)** (`ai.agent-connectors-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Agent connectors (MCP servers through which AI agents work with apps and files) are forcibly turned off.
+  Effect: Windows AI agents get no access to the user's apps and data through connectors. Replaces the values DisableAgentConnectors, DisableAgentWorkspaces and DisableRemoteAgentConnectors from the list: Windows has no such policies.
+- **Apps are blocked from Windows text and image generation features** (`ai.apps-generative-off`). Level: recommended. "Office": enabled; "Strict": enabled.
+  Apps cannot use the built-in Windows AI models ("Text and image generation" in the privacy settings); the user cannot change this.
+  Effect: Notepad, Photos, Snipping Tool, Outlook and other apps do not call the Windows AI models. Replaces the list's internal ConsentStore values generativeAI and systemAIModels and the old policy name LetAppsAccessGenerativeAI.
+- **Copilot and Microsoft 365 Copilot without microphone access** (`ai.copilot-microphone-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  The Copilot and Microsoft 365 (Office Hub) apps get no microphone access, even if they are reinstalled; other apps still ask the user.
+  Effect: Voice input in Copilot is unavailable. Replaces the list's internal ConsentStore permissions for these two apps with a documented policy.
+- **Paint without AI features** (`ai.paint-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Image Creator, Cocreator, generative fill, generative erase and background removal are hidden in Paint.
+  Effect: Drawings and descriptions are not sent to a cloud image generator. The first three policies are documented by Microsoft; DisableGenerativeErase and DisableRemoveBackground come from the customer's list and are not yet documented by Microsoft.
+- **Notepad without AI features** (`ai.notepad-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Copilot features in Notepad are turned off: rewrite, summarize and similar.
+  Effect: Text from Notepad is not sent to cloud AI models.
+- **No Microsoft 365 Copilot setup screen at sign-in** (`ai.copilot-pin-screen-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  After signing in to Windows, the screen that offers to pin Microsoft 365 Copilot is not shown.
+  Effect: Fewer promotional screens after updates. This does not turn off Copilot itself.
+- **No typing statistics (Typing insights)** (`ai.typing-insights-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Windows does not collect statistics on autocorrections and suggestions while typing.
+  Effect: No local typing statistics are kept. This is neither telemetry nor generative AI: a rule from the customer's list.
+- **Copilot turned off in the user profile** (`default-user.copilot-off`). Level: recommended. "Office": enabled; "Strict": enabled.
+  The Copilot button is hidden; the TurnOffWindowsCopilot user policy is written to the profile (the only level where it applies).
+  Effect: Copilot Preview (23H2) does not appear; in 24H2 the app is removed by a separate rule.
+
+### Telemetry and feedback
+
+Windows diagnostic data, reports, feedback requests, Steps Recorder.
+
 - **Minimal telemetry without disabling compatibility assessment** (`privacy.telemetry-minimal`). Level: recommended. "Office": enabled; "Strict": enabled.
   Diagnostic data level "Required" (the minimum for Pro), no feedback requests, no device name in the data, advertising ID off, error reports not sent, activity history not collected, the DiagTrack service set to Manual, the CEIP and Feedback tasks disabled.
   Effect: The minimum data sending available on Pro. DiagTrack is intentionally not disabled: compatibility assessment for feature updates and Defender reporting need it.
   Risk: Crash reports are not sent to Microsoft; local events 1000/1001 in the Application log remain.
+- **Telemetry: Windows settings state at the "Required" level** (`telemetry.settings-state`). Level: optional. "Office": enabled; "Strict": enabled.
+  Values that the "Diagnostics & feedback" page shows: the "Required" level is selected and cannot be raised.
+  Effect: The Settings app does not offer to turn on optional diagnostic data. Values from the customer's list; this is not a policy but the state of the settings page, the AllowTelemetry policy plays the main role.
+- **Telemetry: user copy of the data level policy** (`telemetry.user-policy`). Level: optional. "Office": enabled; "Strict": enabled.
+  The diagnostic data level policy is also set in the user profile: "Required".
+  Effect: If both the machine and the user policy are set, the stricter one applies. Value from the customer's list.
+- **Telemetry: no notifications about data level changes** (`telemetry.change-notification-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Windows does not show a notification about diagnostic data settings at first sign-in and after the level changes.
+  Effect: The user sees no offers to raise the data level. A documented replacement for the ShowedToastAtLevel value from the list.
+- **Telemetry: limit logs and memory dumps** (`telemetry.limit-logs-dumps`). Level: optional. "Office": enabled; "Strict": enabled.
+  Windows does not collect additional diagnostic logs, and error reports contain only minimal dumps.
+  Effect: Less data about how the PC works goes to Microsoft. At the "Required" level the policies change nothing, but they guard against optional data being turned on by accident.
+- **Application Telemetry turned off** (`telemetry.app-telemetry-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  The mechanism that tracks how apps use Windows components is turned off.
+  Effect: Information about app usage is not collected. Microsoft does not describe any link to the compatibility check before feature updates; the rule does not touch the DisableInventory policy, which does concern that check.
+- **Steps Recorder turned off** (`telemetry.steps-recorder-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Steps Recorder, which takes a screenshot with every click, is unavailable.
+  Effect: "Tech support" scammers cannot ask the user to record and send their actions. Microsoft has declared the tool deprecated.
+- **Apps are blocked from diagnostic information about other apps** (`telemetry.app-diagnostics-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Store apps do not get information about how other apps run; the user cannot change this.
+  Effect: Replaces the internal ConsentStore appDiagnostics value from the list with a documented policy.
+- **Feedback frequency: never** (`telemetry.feedback-user-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  "Never" is selected in the user profile for the Windows feedback frequency.
+  Effect: Complements the machine policy DoNotShowFeedbackNotifications; the user copy of this policy from the list does not exist, so a user setting is written instead.
+
+### Ads and recommendations
+
+Advertising ID, tips and suggestions, lock screen, widgets.
+
 - **No ads, preinstalled apps or automatic Teams installation (machine policies)** (`privacy.consumer-content`). Level: recommended. "Office": enabled; "Strict": enabled.
   CloudContent policies (some apply only to Enterprise/Education and are kept because they are harmless), the Teams Chat icon hidden, automatic installation of personal Teams disabled.
   Effect: On Pro the main working mechanism is the values in the default user profile (a separate rule in the profile group); this part enforces the same at the machine level.
-- **Copilot, Recall and Click to Do turned off** (`privacy.copilot-recall-off`). Level: recommended. "Office": enabled; "Strict": enabled.
-  Copilot and WindowsAI policies: Recall (screen snapshots) is off and cannot be turned on by the user, Click to Do is off; the Recall feature is disabled if present.
-  Effect: No AI component takes screen snapshots or sends document contents. The Copilot app is removed by a separate rule in the apps group.
 - **Widgets and news feed turned off** (`privacy.widgets-off`). Level: recommended. "Office": enabled; "Strict": enabled.
   The Windows 11 widgets board and the Windows 10 "News and interests" feed are disabled by policy.
   Effect: No widgets button and no constantly open MSN web page with ads; the Widgets.exe process does not start.
+- **Lock screen without "Windows spotlight" and suggested content** (`ads.lock-screen-spotlight-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Windows Spotlight pictures do not change on the lock screen, general suggested content is turned off.
+  Effect: The lock screen shows a regular picture without ads. SubscribedContentEnabled is taken from the customer's list; Microsoft does not describe its exact effect.
+- **No tailored tips or third-party app suggestions** (`ads.suggestions-user-policies`). Level: optional. "Office": enabled; "Strict": enabled.
+  User policies: diagnostic data is not used for tailored tips, third-party apps are not suggested.
+  Effect: Fewer app ads in the Start menu, in tips and on the lock screen.
+- **No account notifications in Settings** (`ads.account-notifications-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  The "Settings" app does not show offers to sign in with a Microsoft account and connect its services.
+  Effect: Fewer ads for the Microsoft account and subscriptions. The value is not documented by Microsoft as a policy, it matches a toggle in Settings.
+- **Advertising ID turned off in the new settings store too** (`ads.advertising-id-user-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  The advertising ID toggle is turned off in the Windows 11 settings store (CPSS).
+  Effect: Complements the DisabledByGroupPolicy policy and the AdvertisingInfo Enabled value. Value from the customer's list, not documented by Microsoft.
+- **No OneDrive and Microsoft 365 ads in File Explorer** (`default-user.no-sync-provider-ads`). Level: baseline. "Office": enabled; "Strict": enabled.
+  Sync provider notifications in File Explorer are turned off.
+  Effect: File Explorer does not show OneDrive and subscription banners.
+- **No preinstalled apps, ads, tips or "Let's finish setting up" screen** (`default-user.no-consumer-content`). Level: recommended. "Office": enabled; "Strict": enabled.
+  17 ContentDeliveryManager values (the Store does not install apps silently, no tips or "fun facts"), no "Let's finish setting up your device" screen, no recommendations or Microsoft account reminders in Start, advertising ID and tailored experiences turned off.
+  Effect: These values do on Pro what the DisableWindowsConsumerFeatures policy does on Enterprise.
+- **Do not share the user's language list with websites** (`default-user.http-accept-language-optout`). Level: optional. "Office": enabled; "Strict": enabled.
+  Browsers do not send the list of preferred languages to websites (reduces the fingerprint).
+  Effect: Websites determine the language by other means.
+
+### Search and the Start menu
+
+Web results, cloud search, search highlights, tracking of app launches.
+
 - **No Bing web results in Start menu search** (`privacy.web-search-off`). Level: recommended. "Office": enabled; "Strict": enabled.
   Start menu search finds only apps, files and settings; nothing is sent to Bing while typing.
   Effect: Indexing and search in File Explorer and Outlook are not affected (the WSearch service is left untouched).
+- **Windows Search without the cloud, search highlights and location** (`search.cloud-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Windows Search does not search OneDrive and other clouds, does not show "search highlights" and does not use location.
+  Effect: Queries stay on the computer, and the search box shows no promotional pictures of the day.
+- **Search without cloud content and history (user profile)** (`search.user-cloud-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  The user's search toggles are turned off: cloud content from Microsoft and Entra ID accounts, search highlights, search history on this device.
+  Effect: Matches the machine search policies and turns off the local query history. Values from the customer's list; they match the toggles in Settings.
+- **Do not track app launches for the Start menu and search** (`search.start-track-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Windows does not remember which apps the user launches for the Start menu lists and search results.
+  Effect: No list of most used apps is kept in the Start menu.
+
+### Speech and input
+
+Cloud speech recognition, handwriting and typing personalization, Narrator online services.
+
+- **No cloud speech recognition or handwriting improvement** (`speech.online-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Users cannot turn on cloud speech recognition services, and handwriting and typing data is not sent to improve recognition.
+  Effect: Voice and typed text do not go to Microsoft.
+  Risk: Cloud voice typing and dictation do not work.
+- **Speech and input personalization turned off in the user profile** (`speech.online-user-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Cloud speech recognition and the personal dictionary for handwriting and typing are turned off in the user profile.
+  Effect: Windows does not collect handwriting samples, typed text and contacts for the dictionary. The user copy of the AllowInputPersonalization policy from the list does not exist, so user settings are written instead.
+  Risk: Handwriting recognition does not adapt to the user.
+- **Narrator without online services** (`speech.narrator-online-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Narrator does not send images and pages to the cloud for image descriptions, page titles and popular links.
+  Effect: Screen content does not go to Microsoft while Narrator is running.
+  Risk: Blind users lose image descriptions.
+- **Narrator without extensions** (`speech.narrator-extensions-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Narrator extensions (scripts for Excel, Outlook and other programs) are turned off.
+  Effect: Value from the customer's list. This is not telemetry: the extensions improve how Narrator works in programs.
+  Risk: Narrator works worse in Excel and Outlook: this matters for blind employees.
+
+### Microsoft Office
+
+Copilot and connected experiences in Office, diagnostic data and feedback; the settings are written to the default user profile.
+
+- **Office: turn off connected experiences that analyze content (including Copilot)** (`office.connected-ai-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  The policy "Allow the use of connected experiences in Office that analyze content" is turned off: Copilot in Word, Excel, PowerPoint, Outlook and OneNote is unavailable.
+  Effect: Document content is not sent to Microsoft cloud AI services. This is the only documented way to remove Copilot from Office apps with any account.
+  Risk: Also unavailable: dictation, Translator, the cloud Editor (basic spell checking remains), Designer in PowerPoint, text predictions, transcription, data types, map charts and Python in Excel.
+- **Office: turn off additional optional connected experiences** (`office.optional-connected-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Additional Bing-based Office features are turned off: Smart Lookup, Researcher, online pictures and videos, 3D Maps, and Copilot web search.
+  Effect: Selected text and queries from documents are not sent to Bing.
+  Risk: No inserting pictures from the internet and no looking up information right from a document.
+- **Office: do not download content from the internet** (`office.download-content-off`). Level: optional. "Office": disabled; "Strict": disabled.
+  Office does not download templates, icons, images, cloud fonts and help from the internet.
+  Effect: Fewer Office requests to Microsoft servers. This is not AI, so the rule is off by default.
+  Risk: No online templates, icons, stock images, cloud fonts or F1 help.
+- **Office: do not send diagnostic data** (`office.telemetry-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Office diagnostic data level "Neither" (do not send): neither required nor optional data goes to Microsoft.
+  Effect: Only the service data that Office cannot work without is still sent.
+- **Office: no feedback or surveys** (`office.feedback-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  The send feedback button and surveys in Office apps are turned off.
+  Effect: Screenshots, logs and content fragments (including Copilot prompts) do not go to Microsoft together with feedback.
+- **Office: the "Enable Copilot" check box cleared in Word, Excel and OneNote** (`office.copilot-checkbox-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  The user's Copilot settings in Word, Excel and OneNote are turned off in advance: the EnableCopilot values from the customer's list.
+  Effect: The "Enable Copilot" check box in the app options exists only when Office is signed in with a personal Microsoft account. The values are not documented by Microsoft and are not locked: the user can turn Copilot on again. Copilot is reliably turned off by the rule "turn off connected experiences that analyze content".
 
 ## System
 
@@ -530,6 +735,69 @@ Other system settings.
 - **Long path support (more than 260 characters)** (`system.long-paths`). Level: optional. "Office": enabled; "Strict": enabled.
   Programs with the longPathAware manifest (PowerShell 7, Git, modern archivers) work with paths longer than 260 characters.
   Effect: File Explorer and older programs keep the limit; harmless.
+
+### Drivers and devices
+
+Companion programs of driver installers and device apps from the internet; drivers from Windows Update arrive as usual.
+
+- **Do not run companion programs of driver installers (co-installers)** (`drivers.coinstallers-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  When a device is connected, Windows installs the driver but does not run the vendor's companion programs from the driver package.
+  Effect: Closes a class of attacks in which a vendor program (the Razer Synapse case, 2021) runs with SYSTEM rights when a device is connected. Drivers from Windows Update keep arriving.
+  Risk: Vendor utilities for old printers, scanners and gaming devices will have to be installed manually; check on a test PC with the organization's devices.
+- **Do not download device apps and icons from the internet** (`drivers.metadata-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Windows does not use device metadata to download the vendors' related apps and their icons.
+  Effect: No vendor programs without the user's knowledge. Microsoft retired the device metadata service in 2025; the policy guards against leftovers.
+
+### File Explorer: "This PC" and the navigation pane
+
+User folders in "This PC" (hidden in Windows 11), "3D Objects", "Gallery" and "Home" in the left pane. By default the folders are hidden, as in Windows 11, and "Gallery" is hidden.
+
+- **Show "Desktop" in "This PC"** (`thispc.desktop`). Level: optional. "Office": disabled; "Strict": disabled.
+  The "Desktop" folder is visible in "This PC" above the drives, as in Windows 10.
+  Effect: Starting with version 22H2, Windows 11 hides user folders in "This PC"; the rule brings this entry back. Off by default: the folder stays hidden.
+- **Show "Documents" in "This PC"** (`thispc.documents`). Level: optional. "Office": disabled; "Strict": disabled.
+  The "Documents" folder is visible in "This PC" above the drives, as in Windows 10.
+  Effect: Starting with version 22H2, Windows 11 hides user folders in "This PC"; the rule brings this entry back. Off by default: the folder stays hidden.
+- **Show "Downloads" in "This PC"** (`thispc.downloads`). Level: optional. "Office": disabled; "Strict": disabled.
+  The "Downloads" folder is visible in "This PC" above the drives, as in Windows 10.
+  Effect: Starting with version 22H2, Windows 11 hides user folders in "This PC"; the rule brings this entry back. Off by default: the folder stays hidden.
+- **Show "Music" in "This PC"** (`thispc.music`). Level: optional. "Office": disabled; "Strict": disabled.
+  The "Music" folder is visible in "This PC" above the drives, as in Windows 10.
+  Effect: Starting with version 22H2, Windows 11 hides user folders in "This PC"; the rule brings this entry back. Off by default: the folder stays hidden.
+- **Show "Pictures" in "This PC"** (`thispc.pictures`). Level: optional. "Office": disabled; "Strict": disabled.
+  The "Pictures" folder is visible in "This PC" above the drives, as in Windows 10.
+  Effect: Starting with version 22H2, Windows 11 hides user folders in "This PC"; the rule brings this entry back. Off by default: the folder stays hidden.
+- **Show "Videos" in "This PC"** (`thispc.videos`). Level: optional. "Office": disabled; "Strict": disabled.
+  The "Videos" folder is visible in "This PC" above the drives, as in Windows 10.
+  Effect: Starting with version 22H2, Windows 11 hides user folders in "This PC"; the rule brings this entry back. Off by default: the folder stays hidden.
+- **Show "Documents" in "This PC" (second entry)** (`thispc.documents-extra`). Level: optional. "Office": disabled; "Strict": disabled.
+  The second entry of the "Documents" folder (the redirectable known folder) is visible in "This PC".
+  Effect: Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show "Documents" in "This PC": the folder may appear twice.
+- **Show "Downloads" in "This PC" (second entry)** (`thispc.downloads-extra`). Level: optional. "Office": disabled; "Strict": disabled.
+  The second entry of the "Downloads" folder (the redirectable known folder) is visible in "This PC".
+  Effect: Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show "Downloads" in "This PC": the folder may appear twice.
+- **Show "Music" in "This PC" (second entry)** (`thispc.music-extra`). Level: optional. "Office": disabled; "Strict": disabled.
+  The second entry of the "Music" folder (the redirectable known folder) is visible in "This PC".
+  Effect: Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show "Music" in "This PC": the folder may appear twice.
+- **Show "Pictures" in "This PC" (second entry)** (`thispc.pictures-extra`). Level: optional. "Office": disabled; "Strict": disabled.
+  The second entry of the "Pictures" folder (the redirectable known folder) is visible in "This PC".
+  Effect: Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show "Pictures" in "This PC": the folder may appear twice.
+- **Show "Videos" in "This PC" (second entry)** (`thispc.videos-extra`). Level: optional. "Office": disabled; "Strict": disabled.
+  The second entry of the "Videos" folder (the redirectable known folder) is visible in "This PC".
+  Effect: Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show "Videos" in "This PC": the folder may appear twice.
+- **Show "3D Objects" in "This PC"** (`thispc.3d-objects`). Level: optional. "Office": disabled; "Strict": disabled.
+  The "3D Objects" folder is visible in "This PC" again, as in Windows 10.
+  Effect: Windows 11 removed the entry, but the known folder remains. The rule creates the entry in both branches; the folder appears in the user profile when it is first opened. Off by default.
+- **Hide "Gallery" in the File Explorer navigation pane** (`nav.gallery-hidden`). Level: optional. "Office": enabled; "Strict": enabled.
+  The "Gallery" item (a view of all photos) is not shown in the left pane of File Explorer for any user.
+  Effect: Fewer unnecessary items in File Explorer; the photos themselves and the "Pictures" folder remain available.
+- **Hide "Home" in the File Explorer navigation pane** (`nav.home-hidden`). Level: optional. "Office": disabled; "Strict": disabled.
+  The "Home" item (recent files and pinned folders) is not shown in the left pane of File Explorer; File Explorer opens to "This PC".
+  Effect: Recent files are not visible when File Explorer opens. Off by default: combined with the folders hidden in "This PC", users lose a quick way to "Documents" and "Desktop"; turn it on together with the rules Show ... in "This PC".
+  Risk: According to user reports, the pinned Quick access folders disappear together with "Home".
+- **Open File Explorer to "This PC"** (`nav.launch-to-this-pc`). Level: optional. "Office": disabled; "Strict": disabled.
+  File Explorer (Win+E) opens to "This PC", not to "Home".
+  Effect: Drives and folders of "This PC" are visible right away. Needed by the rule Hide "Home", otherwise File Explorer has nowhere to open.
 
 ## Services and apps
 
@@ -656,6 +924,29 @@ Each app is a separate rule: clear the check box to keep the app.
   Effect: Accounts created after installation (Admin, User and later ones) get a profile without OneDrive: no icon, no OneDrive folder, no file sync with the cloud. Users who have already signed in keep their OneDrive.
   Risk: User files are not copied to the Microsoft cloud; the organisation sets up backups separately.
 
+### OneDrive
+
+OneDrive client policies: moving folders to the cloud, network traffic, feedback, a complete block.
+
+- **OneDrive: block moving user folders to the cloud** (`onedrive.kfm-block`). Level: optional. "Office": enabled; "Strict": enabled.
+  Users cannot move "Desktop", "Documents" and "Pictures" to OneDrive (neither work nor personal), and folder backup in the OneDrive settings is unavailable.
+  Effect: Work files stay on the computer and do not end up in the employee's personal cloud. On domain-joined PCs Microsoft itself blocks moving to a personal OneDrive; in a workgroup this policy is needed.
+- **OneDrive: no network access before the user signs in** (`onedrive.no-traffic-before-signin`). Level: optional. "Office": enabled; "Strict": enabled.
+  The OneDrive client does not contact Microsoft servers (including for updates) until the user signs in to OneDrive.
+  Effect: Without a OneDrive account, the computer sends no OneDrive traffic at all.
+  Risk: The value stays in effect even after the policy is removed (as described in the Microsoft documentation).
+- **OneDrive: no feedback, surveys or support requests** (`onedrive.feedback-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Sending feedback, surveys and contacting Microsoft support are turned off in the OneDrive app.
+  Effect: Logs and screenshots do not go to Microsoft together with feedback.
+- **OneDrive: block its use completely** (`onedrive.block`). Level: optional. "Office": disabled; "Strict": disabled.
+  OneDrive cannot be used to store files: the app, File Explorer and Store apps do not open OneDrive, sync and photo upload do not work.
+  Effect: Even a reinstalled OneDrive does not sync files. Off by default: this is a decision of the organization, not an AI or telemetry setting.
+  Risk: Users who need OneDrive for their work lose access to it on this computer.
+- **OneDrive: block personal OneDrive sync** (`onedrive.personal-sync-off`). Level: optional. "Office": disabled; "Strict": disabled.
+  The user cannot connect a personal Microsoft account to OneDrive.
+  Effect: Work files do not end up in the employee's personal cloud; work OneDrive (Entra ID) remains available.
+  Risk: Employees who keep work files in a personal OneDrive lose sync.
+
 ## Default user profile
 
 Values that every new user gets at first sign-in (can be changed in Settings).
@@ -663,27 +954,15 @@ Values that every new user gets at first sign-in (can be changed in Settings).
 - **Show file name extensions** (`default-user.show-file-extensions`). Level: baseline. "Office": enabled; "Strict": enabled.
   File name extensions are visible: "invoice.pdf.exe" cannot pass itself off as a PDF.
   Effect: The most important security setting in this section; by default Windows hides extensions.
-- **No OneDrive and Microsoft 365 ads in File Explorer** (`default-user.no-sync-provider-ads`). Level: baseline. "Office": enabled; "Strict": enabled.
-  Sync provider notifications in File Explorer are turned off.
-  Effect: File Explorer does not show OneDrive and subscription banners.
-- **No preinstalled apps, ads, tips or "Let's finish setting up" screen** (`default-user.no-consumer-content`). Level: recommended. "Office": enabled; "Strict": enabled.
-  17 ContentDeliveryManager values (the Store does not install apps silently, no tips or "fun facts"), no "Let's finish setting up your device" screen, no recommendations or Microsoft account reminders in Start, advertising ID and tailored experiences turned off.
-  Effect: These values do on Pro what the DisableWindowsConsumerFeatures policy does on Enterprise.
 - **Widgets button hidden** (`default-user.widgets-button-off`). Level: recommended. "Office": enabled; "Strict": enabled.
   The widgets button on the taskbar is hidden for every new user (duplicates the Dsh policy).
   Effect: A taskbar without the weather and news button.
-- **Copilot turned off in the user profile** (`default-user.copilot-off`). Level: recommended. "Office": enabled; "Strict": enabled.
-  The Copilot button is hidden; the TurnOffWindowsCopilot user policy is written to the profile (the only level where it applies).
-  Effect: Copilot Preview (23H2) does not appear; in 24H2 the app is removed by a separate rule.
 - **No AutoPlay dialog for media** (`default-user.autoplay-off`). Level: recommended. "Office": enabled; "Strict": enabled.
   The "What do you want to do with this media?" dialog is turned off for every new user.
   Effect: Complements the machine-level AutoRun policy.
 - **User region** (`default-user.region`). Level: baseline. "Office": enabled; "Strict": enabled.
   Country (GeoID) for new users: affects the Store, weather and content offers; does not change the display language or the time zone.
   Effect: Default is Ukraine (241, UA).
-- **Do not share the user's language list with websites** (`default-user.http-accept-language-optout`). Level: optional. "Office": enabled; "Strict": enabled.
-  Browsers do not send the list of preferred languages to websites (reduces the fingerprint).
-  Effect: Websites determine the language by other means.
 
 ## First sign-in of each user
 

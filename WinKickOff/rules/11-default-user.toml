@@ -28,7 +28,7 @@ default = "absent"
 
 [[rule]]
 id = "default-user.no-sync-provider-ads"
-group = "default-user"
+group = "privacy.ads"
 phase = "default-user"
 title = "Без рекламы OneDrive и Microsoft 365 в проводнике"
 level = "baseline"
@@ -49,7 +49,7 @@ default = "absent"
 
 [[rule]]
 id = "default-user.no-consumer-content"
-group = "default-user"
+group = "privacy.ads"
 phase = "default-user"
 title = "Без предустановок, рекламы, советов и экрана «Завершим настройку»"
 level = "recommended"
@@ -263,7 +263,7 @@ default = "absent"
 
 [[rule]]
 id = "default-user.copilot-off"
-group = "default-user"
+group = "privacy.ai"
 phase = "default-user"
 title = "Copilot выключен в профиле пользователя"
 level = "recommended"
@@ -354,7 +354,7 @@ default = "unknown"
 
 [[rule]]
 id = "default-user.http-accept-language-optout"
-group = "default-user"
+group = "privacy.ads"
 phase = "default-user"
 title = "Не сообщать сайтам список языков пользователя"
 level = "optional"

@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 26.09.2026 (repository renamed to WinKickOff; release candidate 1.0.0-rc.1 with CI in GitHub Actions).
+Last update: 28.09.2026 (customer list MoreOptions: AI, telemetry, Office, OneDrive, drivers; This PC folders; BitLocker off everywhere).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -51,7 +51,7 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
 │   ├── README.md                  entry point to the documentation (three languages)
 │   ├── technical/                 TECHNICAL DOCUMENTATION, English
 │   │   ├── memstechtips-profile.md  generated report: the original of Appendix A mapped onto the catalog (issue #2)
-│   │   ├── reference/             reference: a card for every installation parameter (19 files)
+│   │   ├── reference/             reference: a card for every installation parameter (20 files; 18 browsers, 19 more privacy)
 │   │   └── editor/                WinKickOff specification: problem, architecture, data model, testing,
 │   │       │                      plan (days, milestones), review of revision 0.1
 │   │       └── todo/              tasks T01-T17 with status (README.md is the index)
@@ -69,7 +69,7 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
     │                              render, validate, verify, actions_parser, importer, pscheck, settings, i18n, apply),
     │                              ui/ (main_window: tree, search, description, parameters, profiles, build;
     │                              data_forms: install, accounts, languages; checkimages: check box images)
-    ├── rules/                     RULE CATALOG: groups.toml (27 groups), 00-14-*.toml (177 rules), lang/*.toml
+    ├── rules/                     RULE CATALOG: groups.toml (36 groups), 00-16-*.toml (251 rules), lang/*.toml
     ├── templates/                 runtime with slots: autounattend.template.xml, Setup-System, Setup-User, Post-OOBE,
     │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.4
     ├── resources/                 keyboards.json, timezones.json, strings.uk.json, strings.en.json (interface translations)
@@ -197,8 +197,19 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
   Presets are generated: change defaults in the rules or the preset functions of `WinKickOff/tools/make_presets.py`,
   never by hand in `profiles/preset-*.json` (a hand edit is overwritten by the next generation).
 - Return to Windows defaults (context menu, `core/apply.py` `plan_revert`) uses the action field `default`; a
-  value under `SOFTWARE\Policies` needs none. Write a default only when it is certain for Windows 10 and 11,
-  otherwise `"unknown"` (the SMB signing defaults changed in 24H2, for example).
+  value under `SOFTWARE\Policies` needs none. Write a default only when it is certain for the target Windows 11
+  24H2/25H2, otherwise `"unknown"` (the SMB signing defaults changed in 24H2, for example).
+- Customer lists of registry values (issue #1, MoreOptions of 28.09.2026) are checked value by value against
+  Microsoft Learn, the ADMX of 26200 and read-only registry queries before they become rules. Documented values and
+  undocumented values of a Settings switch become rules; values that do not exist, internal state that Windows
+  rewrites, obsolete ones and wrong paths are replaced by the documented equivalent or left out, and each case is
+  listed in the "Corrections" section of the card (18 for browsers, 19 for the rest).
+- Most Edge AI policies do not apply to a profile signed in with a personal Microsoft account, so `edge.signin-off`
+  is on by default. Office settings are per user: WinKickOff writes them into the default profile (DU), so only
+  accounts created after installation get them.
+- This PC folders (`thispc.*`): Windows 11 24H2+ hides all 11 `MyComputer\NameSpace` entries with
+  `HiddenByDefault=1`; the rules show them (0) in the 64-bit and WOW6432Node views and are off by default. Each
+  folder has a Local entry (shown by Windows 10) and a classic one; showing both may duplicate the folder.
 - The memstechtips preset (issue #2) is computed, not hand-made: a rule is on when the original of Appendix A has at
   least one of its actions and none of them contradicts the original; `EQUIVALENT` in `WinKickOff/tools/memstechtips.py` lists
   values with the same effect on Pro (`AllowTelemetry` 0 acts as 1). A catalog change can change the preset and
@@ -244,7 +255,7 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | GitHub repository | Renamed to WinKickOff; the local clone and `origin/main` match; CI in GitHub Actions | 26.09.2026 | https://github.com/supakov/WinKickOff |
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
 | Editor tasks | T01-T12, T14, T16, T17 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 26.09.2026 | `docs/technical/editor/todo/` |
-| Rule catalog | 0.4: 177 rules, 27 groups (130 carry v0.2, 46 browser policies, OneDrive), Windows defaults for return, integrity and v0.2 coverage confirmed by tests | 26.09.2026 | `WinKickOff/rules/` |
+| Rule catalog | 0.4: 251 rules, 36 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer 15), Windows defaults for return, integrity and v0.2 coverage confirmed by tests | 28.09.2026 | `WinKickOff/rules/` |
 | Editor code | 1.0.0-rc.1: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window in Russian, Ukrainian and English with check boxes, parameters, forms, profiles, comparison, recent files and build; 192 tests | 26.09.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 26.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
@@ -252,6 +263,7 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Documentation split | T16 done: technical in English, user documentation in ru, uk, en; complete catalog translations uk and en | 25.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
 | GitHub issues | #1 "Web Browsers debloat" done: section «Браузеры» (Edge, Chrome, Brave), 46 rules off by default, card 18. #2 "memstechtips profile" done: preset of 60 rules computed from Appendix A, report of what is added, contradicted and not transferable. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md`, `WinKickOff/profiles/preset-memstechtips.json`, `docs/technical/memstechtips-profile.md` |
 | Release candidate | 1.0.0-rc.1: tag and GitHub release built by CI | 26.09.2026 | `docs/releases/v1.0.0-rc.1.md` |
+| Customer list MoreOptions | Done: BitLocker off in every preset; 57 rules on by default (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Edge AI and sign-in, Gallery hidden), This PC folders as options off by default; corrections in card 19 | 28.09.2026 | `docs/technical/reference/19-more-privacy.md` |
 | Tuning of preset defaults | Awaited from the customer | | `WinKickOff/tools/make_presets.py`, rule defaults |
 
 Open questions to the customer: `docs/appendices/D-requirements-draft/02-constructor-requirements-draft.md`,

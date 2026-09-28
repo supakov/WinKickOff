@@ -39,6 +39,39 @@ Key: `HKLM\SOFTWARE\Policies\Microsoft\Edge`, all values REG_DWORD.
 
 `BackgroundModeEnabled = 0` and `HideFirstRunExperience = 1` of the script are already set by `edge.baseline`.
 
+### AI policies (customer list of 28.09.2026)
+
+On by default. Most Edge AI policies say "Applies to a profile that is signed in with a Microsoft account: No":
+a profile signed in with a personal Microsoft account escapes them. That is why `edge.signin-off`
+(`BrowserSignin = 0`) and `edge.sidebar-off` are on by default since 28.09.2026 as well.
+
+| Rule | Value | Effect | Edge |
+|---|---|---|---|
+| `edge.genai-local-model-off` | `GenAILocalFoundationalModelSettings = 1` | The local GenAI model is not downloaded, a downloaded one is deleted; applies to personal-account profiles too | 132+ |
+| `edge.builtin-ai-apis-off` | `BuiltInAIAPIsEnabled = 0` | Sites cannot call the LanguageModel, Summarizer, Writer, Rewriter APIs | 138+ |
+| `edge.history-ai-search-off` | `EdgeHistoryAISearchEnabled = 0` | History search by exact match only | 138+ |
+| `edge.ai-themes-off` | `AIGenThemesEnabled = 0` | No DALL-E themes | 122+ |
+| `edge.text-prediction-off` | `TextPredictionEnabled = 0` | No cloud text predictions in text fields (nearby, not on the list) | 104+ |
+| `edge.tab-services-off` | `TabServicesEnabled = 0` | Tab data is not sent for grouping (nearby) | 113+ |
+| `edge.autofill-ml-off` | `EdgeAutofillMlEnabled = 0` | No cloud machine learning for autofill (nearby) | 132+ |
+| `edge.copilot-address-bar-off` | `CopilotAddressBarSuggestionsEnabled = 0` | No Copilot suggestions in the address bar (nearby) | 149+ |
+| `edge.ntp-copilot-off` | `NewTabPageBingChatEnabled = 0` | No Copilot entry points on the new tab page (nearby; effect on unsigned profiles not described) | 117+ |
+| `edge.copilot-cowork-off` | `CopilotCoworkToolActionsEnabled = 0` | Cowork does not act for the user (nearby) | 152+ |
+| `edge.browsing-with-copilot-off` | `AllowBrowsingWithCopilot = 0` | Agentic browsing off (nearby; the feature needs a Microsoft 365 Copilot licence) | 148+ |
+| `edge.copilot-page-context-off` | `CopilotPageContext = 0` | Copilot cannot read pages; Entra ID profiles only | 124+ |
+| `edge.entra-copilot-page-context-off` | `EdgeEntraCopilotPageContext = 0` | Copilot with data protection cannot read pages, history, transcripts; Entra ID profiles only | 130+ |
+| `edge.m365-copilot-icon-off` | `Microsoft365CopilotChatIconEnabled = 0` | No Microsoft 365 Copilot Chat icon; Entra ID profiles only | 139+ |
+| `edge.compose-inline-off` | `ComposeInlineEnabled = 0` | No Copilot rewrite; Entra ID accounts only | 115+ |
+| `edge.copilot-search-history-off` | `ShareBrowsingHistoryWithCopilotSearchAllowed = 0` | History not shared with Microsoft 365 Copilot Search; Entra ID with a licence only | 143+ |
+| `edge.visual-search-off` (off by default) | `VisualSearchEnabled = 0` | No Bing visual search | 95+ |
+| `edge.search-in-sidebar-off` (off by default) | `SearchInSidebarEnabled = 2` | Search results not in the sidebar | 110+ |
+
+The Entra ID policies have no effect with local accounts and browser sign-in blocked; they are generated because
+the customer's list names them. `CopilotCDPPageContext` (obsolete after Edge 132) and `DevToolsGenAiSettings` (a
+Chrome policy, not an Edge one) of the list are not generated. No documented policy exists for the Copilot button
+on unsigned profiles since Edge 141, for Copilot Mode and for "Explain this error" in DevTools: check `edge://policy`
+and the toolbar in a VM.
+
 ## Google Chrome
 
 Key: `HKLM\SOFTWARE\Policies\Google\Chrome`, all values REG_DWORD.

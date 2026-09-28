@@ -41,16 +41,10 @@ REMOVE_RE = re.compile(r"Remove-RegistryValue -Path " + SQ + r" -Name " + SQ + r
 REMOVE_KEY_RE = re.compile(r"Remove-RegistryKey -Path " + SQ + r"(?: -Description " + SQ + ")?")
 REG_ADD_RE = re.compile(r'reg(?:\.exe)? add "([^"]+)" /v (\S+) /t (REG_\w+) /d (\S+)', re.I)
 KIND = {"REG_DWORD": "DWord", "REG_SZ": "String", "REG_QWORD": "QWord", "REG_EXPAND_SZ": "ExpandString"}
-TELEMETRY = "hklm:\\software\\policies\\microsoft\\windows\\datacollection"
 # values of the original that have the same effect as the catalog's value on Windows 11 Pro
-EQUIVALENT = {
-    ("reg", TELEMETRY, "allowtelemetry", "DWord", "0"): (
-        ("reg", TELEMETRY, "allowtelemetry", "DWord", "1"),
-        "`AllowTelemetry = 0` (Security level) exists only in the Enterprise, Education, IoT and Server editions; "
-        "other editions, Pro included, treat 0 as 1 (Required diagnostic data), the value of rule "
-        "`privacy.telemetry-minimal` (reference card 12).",
-    ),
-}
+# (empty since 28.09.2026: the diagnostic data level of privacy.telemetry-minimal became a parameter, so the
+# original's AllowTelemetry = 0 now maps onto the parameter value 0 directly)
+EQUIVALENT: dict[tuple, tuple] = {}
 # mechanisms of the original that are not transferred on purpose (Appendix C, sections 6 and 7)
 MECHANISMS = (
     ("EdgeRemoval.ps1", "Removes Microsoft Edge and repeats the removal at every start by a scheduled task. Not "

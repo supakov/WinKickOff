@@ -164,3 +164,66 @@ id = "post-oobe"
 title = "После первичной настройки"
 order = 150
 summary = "Задача планировщика после завершения OOBE: пароли, встроенные учётные записи, очистка."
+
+[[group]]
+id = "privacy.ai"
+parent = "privacy"
+title = "Искусственный интеллект"
+order = 1
+summary = "Copilot, Recall, Click to Do, ИИ-агенты, генеративные функции Windows, Paint и Блокнота."
+
+[[group]]
+id = "privacy.telemetry"
+parent = "privacy"
+title = "Телеметрия и отзывы"
+order = 2
+summary = "Диагностические данные Windows, отчёты, запросы отзывов, средство записи действий."
+
+[[group]]
+id = "privacy.ads"
+parent = "privacy"
+title = "Реклама и рекомендации"
+order = 3
+summary = "Рекламный идентификатор, советы и предложения, экран блокировки, виджеты."
+
+[[group]]
+id = "privacy.search"
+parent = "privacy"
+title = "Поиск и меню «Пуск»"
+order = 4
+summary = "Веб-результаты, облачный поиск, выделения поиска, отслеживание запуска приложений."
+
+[[group]]
+id = "privacy.speech"
+parent = "privacy"
+title = "Речь и ввод"
+order = 5
+summary = "Облачное распознавание речи, персонализация рукописного и клавиатурного ввода, онлайн-службы экранного диктора."
+
+[[group]]
+id = "privacy.office"
+parent = "privacy"
+title = "Microsoft Office"
+order = 6
+summary = "Copilot и подключённые возможности Office, диагностические данные и отзывы; настройки пишутся в профиль пользователя по умолчанию."
+
+[[group]]
+id = "apps.onedrive"
+parent = "apps"
+title = "OneDrive"
+order = 2
+summary = "Политики клиента OneDrive: перенос папок в облако, сетевой трафик, отзывы, полный запрет."
+
+[[group]]
+id = "system.drivers"
+parent = "system"
+title = "Драйверы и устройства"
+order = 1
+summary = "Сопутствующие программы установщиков драйверов и приложения устройств из интернета; драйверы из Центра обновления приходят как обычно."
+
+[[group]]
+id = "system.explorer"
+parent = "system"
+title = "Проводник: «Этот компьютер» и область навигации"
+order = 2
+summary = "Папки пользователя в «Этот компьютер» (в Windows 11 скрыты), «Объемные объекты», «Галерея» и «Главная» в левой панели. По умолчанию папки скрыты, как в Windows 11, «Галерея» скрыта."

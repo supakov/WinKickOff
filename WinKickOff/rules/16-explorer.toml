@@ -1,0 +1,461 @@
+# Проводник: папки в «Этот компьютер» и область навигации. 28.09.2026, файл заказчика
+# enable_namespaces_in_mypc.reg; значения проверены на Windows 11 25H2 (26200), справочник, карточка 19.
+
+[[rule]]
+id = "thispc.desktop"
+group = "system.explorer"
+phase = "specialize"
+title = "Показывать «Рабочий стол» в «Этот компьютер»"
+level = "optional"
+default = false
+tags = ["этот компьютер", "проводник", "namespace", "рабочий стол"]
+doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
+summary = "Папка «Рабочий стол» видна в «Этот компьютер» над дисками, как в Windows 10."
+effect = "Windows 11 с версии 22H2 скрывает папки пользователя в «Этот компьютер»; правило возвращает эту запись. Выключено по умолчанию: папка остаётся скрытой."
+versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
+verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}" /v HiddenByDefault'
+rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule]]
+id = "thispc.documents"
+group = "system.explorer"
+phase = "specialize"
+title = "Показывать «Документы» в «Этот компьютер»"
+level = "optional"
+default = false
+tags = ["этот компьютер", "проводник", "namespace", "документы"]
+doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
+summary = "Папка «Документы» видна в «Этот компьютер» над дисками, как в Windows 10."
+effect = "Windows 11 с версии 22H2 скрывает папки пользователя в «Этот компьютер»; правило возвращает эту запись. Выключено по умолчанию: папка остаётся скрытой."
+versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
+verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{d3162b92-9365-467a-956b-92703aca08af}" /v HiddenByDefault'
+rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{d3162b92-9365-467a-956b-92703aca08af}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{d3162b92-9365-467a-956b-92703aca08af}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule]]
+id = "thispc.downloads"
+group = "system.explorer"
+phase = "specialize"
+title = "Показывать «Загрузки» в «Этот компьютер»"
+level = "optional"
+default = false
+tags = ["этот компьютер", "проводник", "namespace", "загрузки"]
+doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
+summary = "Папка «Загрузки» видна в «Этот компьютер» над дисками, как в Windows 10."
+effect = "Windows 11 с версии 22H2 скрывает папки пользователя в «Этот компьютер»; правило возвращает эту запись. Выключено по умолчанию: папка остаётся скрытой."
+versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
+verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{088e3905-0323-4b02-9826-5d99428e115f}" /v HiddenByDefault'
+rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{088e3905-0323-4b02-9826-5d99428e115f}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{088e3905-0323-4b02-9826-5d99428e115f}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule]]
+id = "thispc.music"
+group = "system.explorer"
+phase = "specialize"
+title = "Показывать «Музыка» в «Этот компьютер»"
+level = "optional"
+default = false
+tags = ["этот компьютер", "проводник", "namespace", "музыка"]
+doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
+summary = "Папка «Музыка» видна в «Этот компьютер» над дисками, как в Windows 10."
+effect = "Windows 11 с версии 22H2 скрывает папки пользователя в «Этот компьютер»; правило возвращает эту запись. Выключено по умолчанию: папка остаётся скрытой."
+versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
+verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{3dfdf296-dbec-4fb4-81d1-6a3438bcf4de}" /v HiddenByDefault'
+rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{3dfdf296-dbec-4fb4-81d1-6a3438bcf4de}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{3dfdf296-dbec-4fb4-81d1-6a3438bcf4de}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule]]
+id = "thispc.pictures"
+group = "system.explorer"
+phase = "specialize"
+title = "Показывать «Изображения» в «Этот компьютер»"
+level = "optional"
+default = false
+tags = ["этот компьютер", "проводник", "namespace", "изображения"]
+doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
+summary = "Папка «Изображения» видна в «Этот компьютер» над дисками, как в Windows 10."
+effect = "Windows 11 с версии 22H2 скрывает папки пользователя в «Этот компьютер»; правило возвращает эту запись. Выключено по умолчанию: папка остаётся скрытой."
+versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
+verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{24ad3ad4-a569-4530-98e1-ab02f9417aa8}" /v HiddenByDefault'
+rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{24ad3ad4-a569-4530-98e1-ab02f9417aa8}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{24ad3ad4-a569-4530-98e1-ab02f9417aa8}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule]]
+id = "thispc.videos"
+group = "system.explorer"
+phase = "specialize"
+title = "Показывать «Видео» в «Этот компьютер»"
+level = "optional"
+default = false
+tags = ["этот компьютер", "проводник", "namespace", "видео"]
+doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
+summary = "Папка «Видео» видна в «Этот компьютер» над дисками, как в Windows 10."
+effect = "Windows 11 с версии 22H2 скрывает папки пользователя в «Этот компьютер»; правило возвращает эту запись. Выключено по умолчанию: папка остаётся скрытой."
+versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
+verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{f86fa3ab-70d2-4fc7-9c99-fcbf05467f3a}" /v HiddenByDefault'
+rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{f86fa3ab-70d2-4fc7-9c99-fcbf05467f3a}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{f86fa3ab-70d2-4fc7-9c99-fcbf05467f3a}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule]]
+id = "thispc.documents-extra"
+group = "system.explorer"
+phase = "specialize"
+title = "Показывать «Документы» в «Этот компьютер» (вторая запись)"
+level = "optional"
+default = false
+tags = ["этот компьютер", "проводник", "namespace", "документы"]
+doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
+summary = "Вторая запись папки «Документы» (перенаправляемая известная папка) видна в «Этот компьютер»."
+effect = "Обе записи ведут в одну и ту же папку профиля; Windows 10 показывала только первую. Включать вместе с правилом «Показывать «Документы» в «Этот компьютер»» не нужно: папка может показаться дважды."
+versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
+verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{A8CDFF1C-4878-43be-B5FD-F8091C1C60D0}" /v HiddenByDefault'
+rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{A8CDFF1C-4878-43be-B5FD-F8091C1C60D0}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{A8CDFF1C-4878-43be-B5FD-F8091C1C60D0}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule]]
+id = "thispc.downloads-extra"
+group = "system.explorer"
+phase = "specialize"
+title = "Показывать «Загрузки» в «Этот компьютер» (вторая запись)"
+level = "optional"
+default = false
+tags = ["этот компьютер", "проводник", "namespace", "загрузки"]
+doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
+summary = "Вторая запись папки «Загрузки» (перенаправляемая известная папка) видна в «Этот компьютер»."
+effect = "Обе записи ведут в одну и ту же папку профиля; Windows 10 показывала только первую. Включать вместе с правилом «Показывать «Загрузки» в «Этот компьютер»» не нужно: папка может показаться дважды."
+versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
+verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{374DE290-123F-4565-9164-39C4925E467B}" /v HiddenByDefault'
+rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{374DE290-123F-4565-9164-39C4925E467B}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{374DE290-123F-4565-9164-39C4925E467B}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule]]
+id = "thispc.music-extra"
+group = "system.explorer"
+phase = "specialize"
+title = "Показывать «Музыка» в «Этот компьютер» (вторая запись)"
+level = "optional"
+default = false
+tags = ["этот компьютер", "проводник", "namespace", "музыка"]
+doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
+summary = "Вторая запись папки «Музыка» (перенаправляемая известная папка) видна в «Этот компьютер»."
+effect = "Обе записи ведут в одну и ту же папку профиля; Windows 10 показывала только первую. Включать вместе с правилом «Показывать «Музыка» в «Этот компьютер»» не нужно: папка может показаться дважды."
+versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
+verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{1CF1260C-4DD0-4ebb-811F-33C572699FDE}" /v HiddenByDefault'
+rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{1CF1260C-4DD0-4ebb-811F-33C572699FDE}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{1CF1260C-4DD0-4ebb-811F-33C572699FDE}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule]]
+id = "thispc.pictures-extra"
+group = "system.explorer"
+phase = "specialize"
+title = "Показывать «Изображения» в «Этот компьютер» (вторая запись)"
+level = "optional"
+default = false
+tags = ["этот компьютер", "проводник", "namespace", "изображения"]
+doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
+summary = "Вторая запись папки «Изображения» (перенаправляемая известная папка) видна в «Этот компьютер»."
+effect = "Обе записи ведут в одну и ту же папку профиля; Windows 10 показывала только первую. Включать вместе с правилом «Показывать «Изображения» в «Этот компьютер»» не нужно: папка может показаться дважды."
+versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
+verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{3ADD1653-EB32-4cb0-BBD7-DFA0ABB5ACCA}" /v HiddenByDefault'
+rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{3ADD1653-EB32-4cb0-BBD7-DFA0ABB5ACCA}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{3ADD1653-EB32-4cb0-BBD7-DFA0ABB5ACCA}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule]]
+id = "thispc.videos-extra"
+group = "system.explorer"
+phase = "specialize"
+title = "Показывать «Видео» в «Этот компьютер» (вторая запись)"
+level = "optional"
+default = false
+tags = ["этот компьютер", "проводник", "namespace", "видео"]
+doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
+summary = "Вторая запись папки «Видео» (перенаправляемая известная папка) видна в «Этот компьютер»."
+effect = "Обе записи ведут в одну и ту же папку профиля; Windows 10 показывала только первую. Включать вместе с правилом «Показывать «Видео» в «Этот компьютер»» не нужно: папка может показаться дважды."
+versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
+verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{A0953C92-50DC-43bf-BE83-3742FED03C9C}" /v HiddenByDefault'
+rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{A0953C92-50DC-43bf-BE83-3742FED03C9C}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{A0953C92-50DC-43bf-BE83-3742FED03C9C}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = 1
+
+[[rule]]
+id = "thispc.3d-objects"
+group = "system.explorer"
+phase = "specialize"
+title = "Показывать «Объемные объекты» в «Этот компьютер»"
+level = "optional"
+default = false
+tags = ["этот компьютер", "проводник", "namespace", "3d objects", "объемные объекты"]
+doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
+summary = "Папка «Объемные объекты» (3D Objects) снова видна в «Этот компьютер», как в Windows 10."
+effect = "В Windows 11 запись удалена, известная папка осталась. Правило создаёт запись в обеих ветвях; при первом открытии папка появится в профиле пользователя. Выключено по умолчанию."
+versions = "Windows 10 1709-20H2 показывали папку сами; с Windows 11 записи нет. Действие на 25H2 проверить на тестовом ПК."
+verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{0DB7E03F-FC29-4DC6-9020-FF41B59E513A}"'
+rollback = "Удалить раздел {0DB7E03F-FC29-4DC6-9020-FF41B59E513A} в обеих ветвях NameSpace (автоматический возврат не удаляет разделы)."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{0DB7E03F-FC29-4DC6-9020-FF41B59E513A}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = "unknown"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{0DB7E03F-FC29-4DC6-9020-FF41B59E513A}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 0
+default = "unknown"
+
+[[rule]]
+id = "nav.gallery-hidden"
+group = "system.explorer"
+phase = "specialize"
+title = "Скрыть «Галерею» в области навигации проводника"
+level = "optional"
+default = true
+tags = ["галерея", "gallery", "проводник", "область навигации", "namespace"]
+doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
+summary = "Пункт «Галерея» (просмотр всех фотографий) не показывается в левой панели проводника у всех пользователей."
+effect = "Меньше лишних пунктов в проводнике; сами фотографии и папка «Изображения» остаются доступны."
+versions = "Windows 11 22H2 (22621.2361) и новее."
+verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}" /v HiddenByDefault'
+rollback = "Удалить значение HiddenByDefault в обеих ветвях."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 1
+default = "absent"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 1
+default = "absent"
+
+[[rule]]
+id = "nav.home-hidden"
+group = "system.explorer"
+phase = "specialize"
+title = "Скрыть «Главную» в области навигации проводника"
+level = "optional"
+default = false
+requires = ["nav.launch-to-this-pc"]
+tags = ["главная", "home", "быстрый доступ", "проводник", "область навигации", "namespace"]
+doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
+summary = "Пункт «Главная» (недавние файлы и закреплённые папки) не показывается в левой панели проводника; проводник открывается на «Этот компьютер»."
+effect = "Недавние файлы не видны при открытии проводника. Выключено по умолчанию: вместе со скрытыми папками в «Этот компьютер» пользователи теряют быстрый путь к «Документам» и «Рабочему столу»; включать вместе с правилами «Показывать ... в «Этот компьютер»»."
+risk = "По сообщениям пользователей вместе с «Главной» пропадают закреплённые папки быстрого доступа."
+versions = "Windows 11 22H2 и новее."
+verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{f874310e-b6b7-47dc-bc84-b9e6b38f5903}" /v HiddenByDefault'
+rollback = "Удалить значение HiddenByDefault в обеих ветвях."
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{f874310e-b6b7-47dc-bc84-b9e6b38f5903}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 1
+default = "absent"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{f874310e-b6b7-47dc-bc84-b9e6b38f5903}'
+name = "HiddenByDefault"
+kind = "DWord"
+value = 1
+default = "absent"
+
+[[rule]]
+id = "nav.launch-to-this-pc"
+group = "system.explorer"
+phase = "default-user"
+title = "Открывать проводник на «Этот компьютер»"
+level = "optional"
+default = false
+tags = ["проводник", "launchto", "этот компьютер", "главная"]
+doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
+summary = "Проводник (Win+E) открывается на «Этот компьютер», а не на «Главной»."
+effect = "Сразу видны диски и папки «Этот компьютер». Нужно правилу «Скрыть «Главную»», иначе проводнику некуда открываться."
+versions = "Windows 10 и 11."
+verify = 'reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v LaunchTo'
+rollback = "Параметры папок, Открыть проводник для: «Главная»."
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+name = "LaunchTo"
+kind = "DWord"
+value = 1
+default = "absent"

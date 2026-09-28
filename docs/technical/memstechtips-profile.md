@@ -26,14 +26,14 @@ skip the language page and to create an administrator).
 | Item | Count |
 |---|---|
 | Actions found in the original | 357 |
-| Transferred: covered by enabled rules of the preset | 92 |
+| Transferred: covered by enabled rules of the preset | 109 |
 | Held back: belong to rules that contradict the original elsewhere | 1 |
-| Contradict a catalog rule (the catalog sets another value) | 11 |
-| Not transferable: no rule in the catalog | 253 |
+| Contradict a catalog rule (the catalog sets another value) | 17 |
+| Not transferable: no rule in the catalog | 230 |
 | Registry key removals (context menu and viewer tweaks), not transferable | 6 |
-| Rules enabled in the preset | 60 of 177 |
-| Actions enabled rules add beyond the original | 16 |
-| Rules left off because they contradict the original | 7 |
+| Rules enabled in the preset | 70 of 251 |
+| Actions enabled rules add beyond the original | 17 |
+| Rules left off because they contradict the original | 12 |
 
 ## Enabled rules
 
@@ -56,6 +56,13 @@ skip the language page and to create an administrator).
 - `accounts.block-aad-join`: No "Allow my organization to manage my device" prompt
 - `privacy.widgets-off`: Widgets and news feed turned off
 - `system.long-paths`: Long path support (more than 260 characters)
+- `telemetry.app-telemetry-off`: Application Telemetry turned off
+- `ads.lock-screen-spotlight-off`: Lock screen without "Windows spotlight" and suggested content
+- `ads.account-notifications-off`: No account notifications in Settings
+- `ads.advertising-id-user-off`: Advertising ID turned off in the new settings store too
+- `search.user-cloud-off`: Search without cloud content and history (user profile)
+- `speech.narrator-online-off`: Narrator without online services
+- `speech.narrator-extensions-off`: Narrator without extensions
 - `apps.remove-quick-assist`: Remove Quick Assist
 - `apps.remove.bing-search`: Bing Search (for the Start menu)
 - `apps.remove.bing-news`: News (MSN)
@@ -88,10 +95,12 @@ skip the language page and to create an administrator).
 - `apps.remove.copilot`: Copilot (app)
 - `apps.remove.copilot-provider`: Copilot provider
 - `apps.remove.cortana`: Cortana
+- `onedrive.kfm-block`: OneDrive: block moving user folders to the cloud
 - `default-user.show-file-extensions`: Show file name extensions
 - `default-user.no-sync-provider-ads`: No OneDrive and Microsoft 365 ads in File Explorer
 - `default-user.no-consumer-content`: No preinstalled apps, ads, tips or "Let's finish setting up" screen
 - `default-user.http-accept-language-optout`: Do not share the user's language list with websites
+- `nav.launch-to-this-pc`: Open File Explorer to "This PC"
 
 ### Rules that do more than the original
 
@@ -109,6 +118,8 @@ The original has part of the rule; the preset also gets the listed actions.
   - `hklm:\software\policies\microsoft\windows\windowscopilot\turnoffwindowscopilot = 1` (DWord)
 - `privacy.web-search-off`: No Bing web results in Start menu search (2 of 3 actions in the original). Adds:
   - `hklm:\software\policies\microsoft\windows\windows search\disablewebsearch = 1` (DWord)
+- `speech.online-user-off`: Speech and input personalization turned off in the user profile (4 of 5 actions in the original). Adds:
+  - `hkcu:\software\microsoft\inputpersonalization\restrictimplicitinkcollection = 1` (DWord)
 - `default-user.copilot-off`: Copilot turned off in the user profile (1 of 2 actions in the original). Adds:
   - `hkcu:\software\policies\microsoft\windows\windowscopilot\turnoffwindowscopilot = 1` (DWord)
 
@@ -129,10 +140,6 @@ The original reaches the goal of the rule with a script of its own (see the mech
   - `hklm:\software\policies\microsoft\windows\cloudcontent\disablewindowsconsumerfeatures = 1` (DWord)
   - `hklm:\software\policies\microsoft\windows\windows chat\chaticon = 3` (DWord)
 
-## Values treated as equivalent
-
-- `hklm:\software\policies\microsoft\windows\datacollection\allowtelemetry = 0` (DWord): `AllowTelemetry = 0` (Security level) exists only in the Enterprise, Education, IoT and Server editions; other editions, Pro included, treat 0 as 1 (Required diagnostic data), the value of rule `privacy.telemetry-minimal` (reference card 12).
-
 ## Rules left off because they contradict the original
 
 | Rule | The original | The rule | Other actions of the rule found in the original |
@@ -141,6 +148,11 @@ The original reaches the goal of the rule with a script of its own (see the mech
 | `update.unblock`: Remove all Windows Update blocks | `hklm:\software\policies\microsoft\windows\windowsupdate\excludewudriversinqualityupdate = 1` (DWord)<br>`hklm:\software\policies\microsoft\windowsstore\autodownload = 2` (DWord) | `hklm:\software\policies\microsoft\windows\windowsupdate\excludewudriversinqualityupdate` removed<br>`hklm:\software\policies\microsoft\windowsstore\autodownload` removed | 0 |
 | `uac.baseline`: UAC enabled, prompts on the secure desktop, Win+L works | `hklm:\software\microsoft\windows\currentversion\policies\system\promptonsecuredesktop = 0` (DWord)<br>`hklm:\software\microsoft\windows nt\currentversion\winlogon\disablelockworkstation = 1` (DWord) | `hklm:\software\microsoft\windows\currentversion\policies\system\promptonsecuredesktop = 1` (DWord)<br>`hklm:\software\microsoft\windows nt\currentversion\winlogon\disablelockworkstation` removed | 0 |
 | `uac.admin-always-notify`: UAC for administrators: always notify | `hklm:\software\microsoft\windows\currentversion\policies\system\consentpromptbehavioradmin = 0` (DWord) | `hklm:\software\microsoft\windows\currentversion\policies\system\consentpromptbehavioradmin = 2` (DWord) | 0 |
+| `telemetry.settings-state`: Telemetry: Windows settings state at the "Required" level | `hklm:\software\microsoft\windows\currentversion\policies\datacollection\allowtelemetry = 0` (DWord)<br>`hklm:\software\microsoft\windows\currentversion\policies\datacollection\maxtelemetryallowed = 0` (DWord) | `hklm:\software\microsoft\windows\currentversion\policies\datacollection\allowtelemetry = 1` (DWord)<br>`hklm:\software\microsoft\windows\currentversion\policies\datacollection\maxtelemetryallowed = 1` (DWord) | 0 |
+| `telemetry.user-policy`: Telemetry: user copy of the data level policy | `hkcu:\software\policies\microsoft\windows\datacollection\allowtelemetry = 0` (DWord) | `hkcu:\software\policies\microsoft\windows\datacollection\allowtelemetry = 1` (DWord) | 0 |
+| `ads.suggestions-user-policies`: No tailored tips or third-party app suggestions | `hkcu:\software\policies\microsoft\windows\cloudcontent\disabletailoredexperienceswithdiagnosticdata` removed | `hkcu:\software\policies\microsoft\windows\cloudcontent\disabletailoredexperienceswithdiagnosticdata = 1` (DWord) | 0 |
+| `search.start-track-off`: Do not track app launches for the Start menu and search | `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\start_trackprogs = 1` (DWord) | `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\start_trackprogs = 0` (DWord) | 0 |
+| `speech.online-off`: No cloud speech recognition or handwriting improvement | `hklm:\software\policies\microsoft\inputpersonalization\allowinputpersonalization` removed | `hklm:\software\policies\microsoft\inputpersonalization\allowinputpersonalization = 0` (DWord) | 0 |
 | `apps.retail-demo-off`: Retail demo service disabled | service `retaildemo`: start 3 | service `retaildemo`: start 4 | 0 |
 | `apps.xbox-services-off`: Xbox services disabled, game recording (Game DVR) off | service `xblauthmanager`: start 3<br>service `xblgamesave`: start 3<br>service `xboxnetapisvc`: start 3 | service `xblauthmanager`: start 4<br>service `xblgamesave`: start 4<br>service `xboxnetapisvc`: start 4 | 1 |
 | `apps.maps-broker-off`: Offline maps download service disabled | service `mapsbroker`: start 3 | service `mapsbroker`: start 4 | 0 |
@@ -215,8 +227,6 @@ items weaken security and must not be transferred. A needed item becomes a new c
 | `hklm:\software\microsoft\windows\currentversion\explorer\flyoutmenusettings\showhibernateoption = 0` (DWord) | Display the Hibernate option in the Start Menu power button menu |
 | `hklm:\software\microsoft\windows\currentversion\explorer\flyoutmenusettings\showlockoption = 0` (DWord) | Display the Lock option in the Start Menu power button menu |
 | `hklm:\software\microsoft\windows\currentversion\explorer\flyoutmenusettings\showsleepoption = 0` (DWord) | Display the Sleep option in the Start Menu power button menu |
-| `hklm:\software\microsoft\windows\currentversion\policies\datacollection\allowtelemetry = 0` (DWord) | Send diagnostic data to Microsoft to help improve Windows and keep it secure |
-| `hklm:\software\microsoft\windows\currentversion\policies\datacollection\maxtelemetryallowed = 0` (DWord) | Send diagnostic data to Microsoft to help improve Windows and keep it secure |
 | `hklm:\software\microsoft\windows\currentversion\policies\explorer\hidescameetnow = 1` (DWord) | Controls Meet Now button visibility in the system tray |
 | `hklm:\software\microsoft\windows\currentversion\speechonecore\settings\agentactivationenabled = 0` (DWord) | Allow apps to listen and respond to voice commands like "Hey Cortana" |
 | `hklm:\software\microsoft\windows\currentversion\speechonecore\settings\agentactivationlastused = 0` (DWord) | Remember and apply the most recently used voice activation configuration |
@@ -226,8 +236,6 @@ items weaken security and must not be transferred. A needed item becomes a new c
 | `hklm:\software\microsoft\windowsupdate\ux\settings\isexpedited = 0` (DWord) | Restart as soon as possible (even during active hours) to finish updating |
 | `hklm:\software\microsoft\windowsupdate\ux\settings\restartnotificationsallowed2 = 0` (DWord) | Show notification when your device requires a restart to finish updating |
 | `hklm:\software\nvidia corporation\global\fts\enablegr535 = 0` (DWord) | Enable legacy NVIDIA image sharpening filter for enhanced visual clarity. Only works on older NVIDIA drivers; newer drivers should use NVIDIA Control ... |
-| `hklm:\software\policies\microsoft\onedrive\kfmblockoptin = 1` (DWord) | Prevents OneDrive from automatically backing up important folders (Documents, Pictures, Desktop, etc.) |
-| `hklm:\software\policies\microsoft\windows\appcompat\aitenable = 0` (DWord) | Send diagnostic data to Microsoft to help improve Windows and keep it secure |
 | `hklm:\software\policies\microsoft\windows\appprivacy\letappsruninbackground = 0` (DWord) | Allow apps to receive notifications, update data, and perform tasks even when not actively in use |
 | `hklm:\software\policies\microsoft\windows\explorer\hiderecommendedsection = 1` (DWord) | Show or hide the lower section that displays recently opened files and suggested apps. Hiding this section also removes Windows Spotlight from the loc... |
 | `hklm:\software\policies\microsoft\windows\storagesense\allowstoragesenseglobal = 0` (DWord) | Automatically free up disk space by removing temporary files, emptying the recycle bin, and managing downloads |
@@ -260,22 +268,13 @@ items weaken security and must not be transferred. A needed item becomes a new c
 | `hkcu:\software\microsoft\gamebar\showstartuppanel = 0` (DWord) | Show tips and hints about Game Bar features when opening the overlay. Disabling reduces distractions during gameplay |
 | `hkcu:\software\microsoft\gamebar\usenexusforgamebarenabled = 0` (DWord) | Allow your Xbox/compatible controller to open Game Bar by pressing the Xbox button. Disable to prevent accidental Game Bar activation during gaming |
 | `hkcu:\software\microsoft\input\tipc\enabled = 0` (DWord) | Send optional inking and typing diagnostic data to Microsoft |
-| `hkcu:\software\microsoft\inputpersonalization\restrictimplicittextcollection = 1` (DWord) | Uses your typing history and handwriting patterns to create a custom dictionary (turning off will clear all words in your custom dictionary) |
-| `hkcu:\software\microsoft\inputpersonalization\traineddatastore\harvestcontacts = 0` (DWord) | Uses your typing history and handwriting patterns to create a custom dictionary (turning off will clear all words in your custom dictionary) |
 | `hkcu:\software\microsoft\lighting\ambientlightingenabled = 0` (DWord) | Allow Windows Dynamic Lighting to control ambient RGB effects on compatible devices |
 | `hkcu:\software\microsoft\lighting\controlledbyforegroundapp = 0` (DWord) | Allow compatible apps to control device lighting effects |
 | `hkcu:\software\microsoft\multimedia\audio\userduckingpreference = 3` (DWord) | Automatically lower volume of media and apps when Windows detects communication activity |
 | `hkcu:\software\microsoft\narrator\noroam\duckaudio = 0` (DWord) | Allow Narrator to automatically lower the volume of other applications when it speaks |
-| `hkcu:\software\microsoft\narrator\noroam\onlineservicesenabled = 0` (DWord) | Allow Narrator to use Microsoft cloud services for features like intelligent image descriptions and enhanced voice models |
-| `hkcu:\software\microsoft\narrator\noroam\scriptingenabled = 0` (DWord) | Allow Narrator to execute scripts for automation and custom functionality |
 | `hkcu:\software\microsoft\narrator\noroam\winenterlaunchenabled = 0` (DWord) | Enable the Win+Ctrl+Enter keyboard shortcut to quickly launch Windows Narrator screen reader |
-| `hkcu:\software\microsoft\personalization\settings\acceptedprivacypolicy = 0` (DWord) | Uses your typing history and handwriting patterns to create a custom dictionary (turning off will clear all words in your custom dictionary) |
-| `hkcu:\software\microsoft\speech_onecore\settings\onlinespeechprivacy\hasaccepted = 0` (DWord) | Use your voice for apps using Microsoft's online speech recognition technology |
 | `hkcu:\software\microsoft\windows nt\currentversion\windows\legacydefaultprintermode = 1` (DWord) | Prevents Windows from automatically changing your default printer based on location or last used printer |
 | `hkcu:\software\microsoft\windows\currentversion\capabilityaccessmanager\consentstore\location\showglobalprompts = 1` (DWord) | Show notifications when apps attempt to access your location information |
-| `hkcu:\software\microsoft\windows\currentversion\contentdeliverymanager\rotatinglockscreenenabled = 0` (DWord) | Displays rotating Windows Spotlight images on your lock screen instead of a static background. Winhance automatically sets the Start Menu Recommended ... |
-| `hkcu:\software\microsoft\windows\currentversion\contentdeliverymanager\subscribedcontentenabled = 0` (DWord) | Enables promotional content subscriptions from Microsoft and partners throughout Windows |
-| `hkcu:\software\microsoft\windows\currentversion\cpss\store\advertisinginfo\value = 0` (DWord) | Windows generates a unique advertising ID that apps use to track your activity and deliver personalized ads based on your behavior across different ap... |
 | `hkcu:\software\microsoft\windows\currentversion\cpss\store\improveinkingandtyping\value = 0` (DWord) | Send optional inking and typing diagnostic data to Microsoft |
 | `hkcu:\software\microsoft\windows\currentversion\cpss\store\inkingandtypingpersonalization\value = 0` (DWord) | Uses your typing history and handwriting patterns to create a custom dictionary (turning off will clear all words in your custom dictionary) |
 | `hkcu:\software\microsoft\windows\currentversion\diagnostics\diagtrack\showedtoastatlevel = 1` (DWord) | Send diagnostic data to Microsoft to help improve Windows and keep it secure |
@@ -291,7 +290,6 @@ items weaken security and must not be transferred. A needed item becomes a new c
 | `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\hidden = 1` (DWord) | Displays items with the hidden attribute set |
 | `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\hidemergeconflicts = 0` (DWord) | Automatically merges folders with same name without confirmation dialog |
 | `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\iconsonly = 0` (DWord) | Displays generic file icons instead of image/document previews |
-| `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\launchto = 1` (DWord) | Choose what happens when File Explorer is opened |
 | `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\listviewalphaselect = 1` (DWord) | Display a semi-transparent selection box when dragging to select multiple files or items |
 | `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\listviewshadow = 0` (DWord) | Add shadow effects behind desktop icon text to improve readability against backgrounds |
 | `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\multitaskingalttabfilter = 3` (DWord) | Show only traditional open windows in Alt+Tab instead of including Microsoft Edge tabs and other Windows suggestions |
@@ -311,7 +309,6 @@ items weaken security and must not be transferred. A needed item becomes a new c
 | `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\showtypeoverlay = 1` (DWord) | Shows file type icon overlay on bottom-right corner of thumbnail previews |
 | `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\start_layout = 1` (DWord) | Choose whether the Start Menu shows more pinned apps, more recommendations, or a balanced default layout |
 | `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\start_trackdocs = 0` (DWord) | Display your recently opened documents and files in the Start Menu's Recommended section for quick access |
-| `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\start_trackprogs = 1` (DWord) | Display your frequently launched applications at the top of the All Apps list for quick access |
 | `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\taskbaracrylicopacity = 0` (DWord) | Controls the transparency level of the taskbar. Winhance automatically enables Transparency Effects when this setting is applied |
 | `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\taskbaral = 0` (DWord) | Align taskbar icons to the left (classic Windows style) or center (Windows 11 default) |
 | `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\taskbaranimations = 0` (DWord) | Controls taskbar animation effects for opening, closing, and switching windows |
@@ -336,13 +333,8 @@ items weaken security and must not be transferred. A needed item becomes a new c
 | `hkcu:\software\microsoft\windows\currentversion\pushnotifications\lockscreentoastenabled = 0` (DWord) | Display toast notifications on the lock screen when your device is locked |
 | `hkcu:\software\microsoft\windows\currentversion\pushnotifications\toastenabled = 0` (DWord) | Get notifications from apps and other senders in Windows |
 | `hkcu:\software\microsoft\windows\currentversion\search\searchboxtaskbarmode = 0` (DWord) | Choose how the Windows search appears on your taskbar: hidden, icon only, or full search box |
-| `hkcu:\software\microsoft\windows\currentversion\searchsettings\isaadcloudsearchenabled = 0` (DWord) | Allow Windows Search to show results from apps and services that you are signed in to with your work or school account |
-| `hkcu:\software\microsoft\windows\currentversion\searchsettings\isdevicesearchhistoryenabled = 0` (DWord) | Improves search results by allowing Windows Search to store your search history locally on this device (Does not clear existing history) |
-| `hkcu:\software\microsoft\windows\currentversion\searchsettings\isdynamicsearchboxenabled = 0` (DWord) | See content suggestions in search |
-| `hkcu:\software\microsoft\windows\currentversion\searchsettings\ismsacloudsearchenabled = 0` (DWord) | Allow Windows Search to show results from apps and services that you are signed in to with your Microsoft account |
 | `hkcu:\software\microsoft\windows\currentversion\start\showfrequentlist = 0` (DWord) | Display your frequently launched applications at the top of the All Apps list for quick access |
 | `hkcu:\software\microsoft\windows\currentversion\start\showrecentlist = 0` (DWord) | Display a list of recently installed applications at the top of the All Apps list |
-| `hkcu:\software\microsoft\windows\currentversion\systemsettings\accountnotifications\enableaccountnotifications = 0` (DWord) | Shows account notifications in the Settings app, including prompts to reauthenticate, backup your device, and manage subscriptions |
 | `hkcu:\software\microsoft\windows\currentversion\themes\personalize\appsuselighttheme = 0` (DWord) | Choose between Light and Dark mode for Windows and apps |
 | `hkcu:\software\microsoft\windows\currentversion\themes\personalize\enabletransparency = 1` (DWord) | Enable translucent effects for the Start Menu, taskbar, and other Windows interface elements |
 | `hkcu:\software\microsoft\windows\currentversion\themes\personalize\systemuseslighttheme = 0` (DWord) | Choose between Light and Dark mode for Windows and apps |
@@ -355,7 +347,6 @@ items weaken security and must not be transferred. A needed item becomes a new c
 | `hkcu:\software\policies\microsoft\windows\advertisinginfo\disabledbygrouppolicy = 1` (DWord) | Windows generates a unique advertising ID that apps use to track your activity and deliver personalized ads based on your behavior across different ap... |
 | `hkcu:\software\policies\microsoft\windows\appcompat\aitenable = 0` (DWord) | Send diagnostic data to Microsoft to help improve Windows and keep it secure |
 | `hkcu:\software\policies\microsoft\windows\appprivacy\letappsruninbackground = 0` (DWord) | Allow apps to receive notifications, update data, and perform tasks even when not actively in use |
-| `hkcu:\software\policies\microsoft\windows\datacollection\allowtelemetry = 0` (DWord) | Send diagnostic data to Microsoft to help improve Windows and keep it secure |
 | `hkcu:\software\policies\microsoft\windows\datacollection\donotshowfeedbacknotifications = 1` (DWord) | Let Windows ask you to provide feedback on experiences in Windows |
 | `hkcu:\software\policies\microsoft\windows\deliveryoptimization\dodownloadmode = 99` (DWord) | Share downloaded updates with other PCs on your network or the internet to reduce bandwidth usage |
 | `hkcu:\software\policies\microsoft\windows\explorer\disablesearchboxsuggestions = 1` (DWord) | Prevent web results from Bing from appearing when searching in the Start Menu, showing only local files and apps |
@@ -380,7 +371,6 @@ items weaken security and must not be transferred. A needed item becomes a new c
 |---|---|
 | `hkcr:\allfilesystemobjects\shell\windows.showfileextensions\explorercommandhandler` removed | Adds a right-click menu option to quickly toggle file extension visibility in File Explorer (only visible on the Classic Context Menu or Show More Opt... |
 | `hklm:\software\microsoft\windows\currentversion\shell extensions\blocked\{9f156763-7844-4dc4-b2b1-901f640f5155}` removed | Displays the Windows Terminal option when right-clicking folders and backgrounds in File Explorer |
-| `hklm:\software\policies\microsoft\inputpersonalization\allowinputpersonalization` removed | Use your voice for apps using Microsoft's online speech recognition technology |
 | `hklm:\software\policies\microsoft\windows\cloudcontent\disabletailoredexperienceswithdiagnosticdata` removed | Let Microsoft use your diagnostic data to show personalized tips, ads and recommendations |
 | `hklm:\software\policies\microsoft\windows\locationandsensors\disablelocation` removed | Allows Windows and apps to access your device location for location-based features |
 | `hklm:\software\policies\microsoft\windows\windowsupdate\setupdatenotificationlevel` removed | Show or hide notifications about available updates and update progress |
@@ -391,7 +381,6 @@ items weaken security and must not be transferred. A needed item becomes a new c
 | `hkcu:\software\microsoft\windows\currentversion\explorer\advanced\showdrivelettersfirst` removed | Displays drive letters (C:, D:) before drive names in This PC |
 | `hkcu:\software\microsoft\windows\dwm\compositionpolicy` removed | Enable visual effects managed by the Desktop Window Manager. Disabling may provide minor performance gains on older hardware but will break Aero effec... |
 | `hkcu:\software\policies\microsoft\inputpersonalization\allowinputpersonalization` removed | Use your voice for apps using Microsoft's online speech recognition technology |
-| `hkcu:\software\policies\microsoft\windows\cloudcontent\disabletailoredexperienceswithdiagnosticdata` removed | Let Microsoft use your diagnostic data to show personalized tips, ads and recommendations |
 | `hkcu:\software\policies\microsoft\windows\locationandsensors\disablelocation` removed | Allows Windows and apps to access your device location for location-based features |
 | `hkcu:\software\policies\microsoft\windows\windowsupdate\setupdatenotificationlevel` removed | Show or hide notifications about available updates and update progress |
 

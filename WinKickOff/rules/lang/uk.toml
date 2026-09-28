@@ -671,12 +671,15 @@ risk = '''Звіти про збої до Microsoft не надходять; л�
 versions = '''AllowTelemetry=0 у Pro трактується як 1; завдання Consolidator може бути відсутнє на частині збірок 24H2 (WARN у журналі).'''
 verify = '''Get-Service DiagTrack | Select-Object StartType; schtasks /Query /TN "\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip"'''
 rollback = '''Видалити значення; Set-Service DiagTrack -StartupType Automatic; schtasks /Change /Enable'''
+params.level = '''Рівень діагностичних даних'''
+values.level."1" = '''Обов'язкові: мінімум, який Windows 11 Pro надсилає завжди'''
+values.level."0" = '''Безпека: лише Enterprise і Education, у Pro діє як «Обов'язкові»'''
 
 ["privacy.consumer-content"]
 title = '''Без реклами, передвстановлень і автовстановлення Teams (політики комп'ютера)'''
 summary = '''Політики CloudContent (частина діє лише в Enterprise/Education і залишена як нешкідлива), значок чату Teams приховано, автовстановлення особистого Teams вимкнено.'''
 effect = '''Головний робочий механізм у Pro це значення в типовому профілі користувача (окреме правило в групі профілю), ця частина закріплює те саме на рівні комп'ютера.'''
-versions = '''DisableWindowsConsumerFeatures, DisableSoftLanding, DisableThirdPartySuggestions лише Enterprise/Education; DisableCloudOptimizedContent (10 20H2+) і DisableConsumerAccountStateContent (11 22H2+) працюють у Pro; Windows Chat стосується 11 21H2-22H2.'''
+versions = '''DisableWindowsConsumerFeatures, DisableSoftLanding, DisableThirdPartySuggestions лише Enterprise/Education; DisableCloudOptimizedContent (10 20H2+) працює в Pro, DisableConsumerAccountStateContent (11 22H2+) у Pro виробником не підтверджено; Windows Chat стосується 11 21H2-22H2.'''
 verify = '''Get-ItemProperty HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'''
 rollback = '''Видалити значення.'''
 
@@ -684,7 +687,7 @@ rollback = '''Видалити значення.'''
 title = '''Copilot, Recall і Click to Do вимкнено'''
 summary = '''Політики Copilot і WindowsAI: Recall (знімки екрана) вимкнено, і користувач не може його ввімкнути, Click to Do вимкнено; компонент Recall вимикається, якщо він є.'''
 effect = '''Жоден ШІ-компонент не робить знімків екрана й не надсилає вміст документів. Застосунок Copilot видаляється окремим правилом у групі застосунків.'''
-versions = '''TurnOffWindowsCopilot з 23H2 (у 24H2 визнано застарілим, діє копія в профілі користувача); DisableAIDataAnalysis з 24H2; AllowRecallEnablement і DisableClickToDo з оновлень 2025 року; компонент Recall лише на Copilot+ PC.'''
+versions = '''TurnOffWindowsCopilot з 23H2 (у 24H2 визнано застарілим, діє копія в профілі користувача; машинну копію Microsoft не описує); DisableAIDataAnalysis з 24H2; AllowRecallEnablement і DisableClickToDo з оновлень 2025 року; компонент Recall лише на Copilot+ PC.'''
 verify = '''Get-WindowsOptionalFeature -Online -FeatureName Recall'''
 rollback = '''Видалити значення.'''
 
@@ -1082,8 +1085,8 @@ versions = '''Edge 77 і новіші.'''
 ["edge.signin-off"]
 title = '''Edge: заборонити вхід у браузер'''
 summary = '''Вхід до Edge за допомогою облікового запису Microsoft або робочого облікового запису заборонено.'''
-effect = '''Профіль браузера залишається локальним і не пов'язаний із хмарним обліковим записом.'''
-risk = '''Недоступні синхронізація та функції, яким потрібен вхід. У сценарії з issue #1 рядок закоментовано: вмикайте свідомо.'''
+effect = '''Профіль браузера залишається локальним і не пов'язаний із хмарним обліковим записом. Більшість політик ШІ Edge не діє на профіль, у який увійшли з особистим обліковим записом Microsoft: заборона входу потрібна, щоб вони працювали.'''
+risk = '''Недоступні синхронізація та функції, яким потрібен вхід.'''
 versions = '''Edge 77 і новіші.'''
 
 ["edge.password-manager-off"]
@@ -1311,6 +1314,575 @@ versions = '''Windows 10 і 11. Інсталятор OneDriveSetup.exe (у Windo
 verify = '''Після першого входу нового користувача: немає папки %LOCALAPPDATA%\Microsoft\OneDrive і значення OneDrive у HKCU\Software\Microsoft\Windows\CurrentVersion\Run.'''
 rollback = '''Для користувача: запустити %SystemRoot%\System32\OneDriveSetup.exe або встановити OneDrive із сайту Microsoft.'''
 
+["ai.recall-user-off"]
+title = '''Recall і Click to Do вимкнено також у профілі користувача'''
+summary = '''Користувацькі копії політик: Recall не зберігає знімки екрана, Click to Do недоступний.'''
+effect = '''Доповнює машинне правило «Copilot, Recall і Click to Do вимкнено»: користувач не може ввімкнути ці функції для себе.'''
+versions = '''Windows 11 24H2 (26100.3915) і новіші; самі функції є лише на ПК Copilot+, на решті значення ні на що не впливають.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\Windows\WindowsAI"'''
+rollback = '''Видалити значення в профілі користувача.'''
+
+["ai.settings-agent-off"]
+title = '''Без ШІ-агента в пошуку Параметрів'''
+summary = '''Пошук у застосунку «Параметри» працює без ШІ-агента: за індексом і смисловим пошуком.'''
+effect = '''Запити в «Параметрах» не обробляє ШІ-агент, який сам змінює налаштування.'''
+versions = '''Політика попереднього випуску: є в шаблонах Windows 11 25H2 (26200), дію в Pro виробник поки не підтверджує.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v DisableSettingsAgent'''
+rollback = '''Видалити значення.'''
+
+["ai.agent-connectors-off"]
+title = '''Заборонити ШІ-агентам підключатися до застосунків (конектори агентів)'''
+summary = '''Конектори агентів (сервери MCP, через які ШІ-агенти працюють із застосунками та файлами) примусово вимкнено.'''
+effect = '''ШІ-агенти Windows не отримують доступу до застосунків і даних користувача через конектори. Замінює значення DisableAgentConnectors, DisableAgentWorkspaces і DisableRemoteAgentConnectors зі списку: таких політик у Windows немає.'''
+versions = '''Політика попереднього випуску: є в шаблонах Windows 11 25H2 (26200); робочий простір агентів вмикає лише адміністратор у «Параметрах», окремої політики для нього немає.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v ConfigureAgentConnectors'''
+rollback = '''Видалити значення.'''
+
+["ai.apps-generative-off"]
+title = '''Застосункам заборонено функції створення тексту й зображень Windows'''
+summary = '''Застосунки не можуть використовувати вбудовані моделі ШІ Windows («Створення тексту та зображень» у параметрах конфіденційності); користувач не може це змінити.'''
+effect = '''Блокнот, Фотографії, Ножиці, Outlook та інші застосунки не звертаються до моделей ШІ Windows. Замінює зі списку внутрішні значення ConsentStore generativeAI і systemAIModels та стару назву політики LetAppsAccessGenerativeAI.'''
+versions = '''Windows 11 24H2 і новіші (політика є в шаблоні AppPrivacy збірки 26200).'''
+verify = '''Параметри, Конфіденційність і захист, Створення тексту та зображень: перемикач заблоковано.'''
+rollback = '''Видалити значення.'''
+
+["ai.copilot-microphone-off"]
+title = '''Copilot і Microsoft 365 Copilot без доступу до мікрофона'''
+summary = '''Застосунки Copilot і Microsoft 365 (Office Hub) не отримують доступу до мікрофона, навіть якщо їх буде встановлено знову; інші застосунки, як і раніше, запитують дозвіл у користувача.'''
+effect = '''Голосове введення в Copilot недоступне. Замінює зі списку внутрішні дозволи ConsentStore для цих двох застосунків документованою політикою.'''
+versions = '''Windows 10 1607 і новіші.'''
+verify = '''Параметри, Конфіденційність і захист, Мікрофон: для Copilot доступ заборонено організацією.'''
+rollback = '''Видалити обидва значення.'''
+
+["ai.paint-off"]
+title = '''Paint без функцій ШІ'''
+summary = '''У Paint приховано Image Creator, Cocreator, генеративне заповнення, генеративне стирання та видалення фону.'''
+effect = '''Малюнки й описи не надсилаються до хмарного генератора зображень. Перші три політики описано Microsoft; DisableGenerativeErase і DisableRemoveBackground узято зі списку замовника, у документації Microsoft їх поки не описано.'''
+versions = '''Windows 11 22H2 (22621.4870) і 24H2 (26100.3360) та новіші. Шлях політик: SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint (у списку вказано неправильний шлях SOFTWARE\Policies\Microsoft\Paint).'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint"'''
+rollback = '''Видалити значення.'''
+
+["ai.notepad-off"]
+title = '''Блокнот без функцій ШІ'''
+summary = '''У Блокноті вимкнено функції Copilot: переписування, стислий виклад і подібні.'''
+effect = '''Текст із Блокнота не надсилається до хмарних моделей ШІ.'''
+versions = '''Windows 11 22H2 і новіші з Блокнотом 11.2503.16.0 і новішим.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\WindowsNotepad" /v DisableAIFeatures'''
+rollback = '''Видалити значення.'''
+
+["ai.copilot-pin-screen-off"]
+title = '''Без екрана налаштування Microsoft 365 Copilot під час входу'''
+summary = '''Після входу в Windows не показується екран із пропозицією закріпити Microsoft 365 Copilot.'''
+effect = '''Менше рекламних екранів після оновлень. Сам Copilot цим не вимикається.'''
+versions = '''Політика попереднього випуску: є в шаблонах Windows 11 25H2 (26200).'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent" /v DisableCopilotPinScreen'''
+rollback = '''Видалити значення.'''
+
+["ai.typing-insights-off"]
+title = '''Без статистики введення тексту (Typing insights)'''
+summary = '''Windows не збирає статистику автовиправлень і підказок під час введення тексту.'''
+effect = '''Локальна статистика введення не ведеться. Це не телеметрія й не генеративний ШІ: правило зі списку замовника.'''
+versions = '''Windows 10 1803 і новіші; значення не описане Microsoft як політика, відповідає перемикачу «Відомості про введення» в параметрах.'''
+verify = '''reg query "HKCU\Software\Microsoft\Input\Settings" /v InsightsEnabled'''
+rollback = '''Параметри, Час і мова, Введення, Відомості про введення.'''
+
+["telemetry.settings-state"]
+title = '''Телеметрія: стан параметрів Windows на рівні «Обов'язкові»'''
+summary = '''Значення, які показує сторінка «Діагностика та відгуки»: вибрано рівень «Обов'язкові», піднятися вище не можна.'''
+effect = '''Параметри Windows не пропонують увімкнути необов'язкові діагностичні дані. Значення зі списку замовника; це не політика, а стан сторінки параметрів, головну роль відіграє політика AllowTelemetry.'''
+versions = '''Усі випуски Windows 10 і 11; значення не описані Microsoft як політика.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection"'''
+rollback = '''Видалити значення.'''
+
+["telemetry.user-policy"]
+title = '''Телеметрія: користувацька копія політики рівня даних'''
+summary = '''Політику рівня діагностичних даних задано й у профілі користувача: «Обов'язкові».'''
+effect = '''Якщо задано обидві політики, машинну й користувацьку, діє суворіша. Значення зі списку замовника.'''
+versions = '''Windows 10 1507 і новіші.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\Windows\DataCollection" /v AllowTelemetry'''
+rollback = '''Видалити значення.'''
+
+["telemetry.change-notification-off"]
+title = '''Телеметрія: без сповіщень про зміну рівня даних'''
+summary = '''Windows не показує сповіщення про налаштування діагностичних даних під час першого входу й після зміни рівня.'''
+effect = '''Користувач не бачить пропозицій підвищити рівень даних. Документована заміна значення ShowedToastAtLevel зі списку.'''
+versions = '''Windows 10 1803 і новіші, Pro.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection" /v DisableTelemetryOptInChangeNotification'''
+rollback = '''Видалити значення.'''
+
+["telemetry.limit-logs-dumps"]
+title = '''Телеметрія: обмежити журнали й дампи пам'яті'''
+summary = '''Windows не збирає додаткові діагностичні журнали, а звіти про помилки містять лише мінімальні дампи.'''
+effect = '''Менше даних про роботу ПК надходить до Microsoft. На рівні «Обов'язкові» політики нічого не змінюють, але страхують від випадкового ввімкнення необов'язкових даних.'''
+versions = '''Windows 11 21H2 і новіші, Pro.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection"'''
+rollback = '''Видалити значення.'''
+
+["telemetry.app-telemetry-off"]
+title = '''Телеметрію застосунків (Application Telemetry) вимкнено'''
+summary = '''Вимкнено механізм, який відстежує, як застосунки використовують компоненти Windows.'''
+effect = '''Відомості про використання застосунків не збираються. Зв'язку з перевіркою сумісності перед оновленнями функцій Microsoft не описує; політику DisableInventory, яка її стосується, правило не змінює.'''
+versions = '''Windows 10 і 11, Pro; лише машинна політика (користувацької копії зі списку не існує).'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\AppCompat" /v AITEnable'''
+rollback = '''Видалити значення.'''
+
+["telemetry.steps-recorder-off"]
+title = '''Засіб запису дій вимкнено'''
+summary = '''Засіб запису дій (Steps Recorder), який робить знімок екрана після кожного клацання, недоступний.'''
+effect = '''Шахраї «техпідтримки» не можуть попросити користувача записати й надіслати свої дії. Microsoft оголосила засіб застарілим.'''
+versions = '''Windows 10 і 11, Pro.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\AppCompat" /v DisableUAR'''
+rollback = '''Видалити значення.'''
+
+["telemetry.app-diagnostics-off"]
+title = '''Застосункам заборонено діагностичні відомості про інші застосунки'''
+summary = '''Застосунки зі Store не отримують відомостей про роботу інших застосунків; користувач не може це змінити.'''
+effect = '''Замінює внутрішнє значення ConsentStore appDiagnostics зі списку документованою політикою.'''
+versions = '''Windows 10 1703 і новіші, Pro.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" /v LetAppsGetDiagnosticInfo'''
+rollback = '''Видалити значення.'''
+
+["telemetry.feedback-user-off"]
+title = '''Частота запитів відгуків: ніколи'''
+summary = '''У профілі користувача для частоти запитів відгуків Windows вибрано «Ніколи».'''
+effect = '''Доповнює машинну політику DoNotShowFeedbackNotifications; користувацької копії цієї політики зі списку не існує, тому записується користувацьке налаштування.'''
+versions = '''Усі випуски Windows 10 і 11.'''
+verify = '''reg query "HKCU\Software\Microsoft\Siuf\Rules" /v NumberOfSIUFInPeriod'''
+rollback = '''Видалити значення.'''
+
+["ads.lock-screen-spotlight-off"]
+title = '''Екран блокування без «Windows: цікаве» і рекомендованого вмісту'''
+summary = '''На екрані блокування не змінюються зображення Windows Spotlight, загальний рекомендований вміст вимкнено.'''
+effect = '''Екран блокування показує звичайне зображення без реклами. SubscribedContentEnabled узято зі списку замовника, його точної дії Microsoft не описує.'''
+versions = '''Windows 10 і 11; користувацькі налаштування, не політики (політика Spotlight у Pro не підтримується).'''
+verify = '''reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"'''
+rollback = '''Видалити значення.'''
+
+["ads.suggestions-user-policies"]
+title = '''Без персональних порад і пропозицій сторонніх застосунків'''
+summary = '''Користувацькі політики: діагностичні дані не використовуються для персональних порад, сторонні застосунки не пропонуються.'''
+effect = '''Менше реклами застосунків у меню «Пуск», порадах і на екрані блокування.'''
+versions = '''Windows 10 1607 і 1703 та новіші, Pro.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\Windows\CloudContent"'''
+rollback = '''Видалити значення.'''
+
+["ads.account-notifications-off"]
+title = '''Без сповіщень про обліковий запис у Параметрах'''
+summary = '''Застосунок «Параметри» не показує пропозицій увійти в обліковий запис Microsoft і підключити його служби.'''
+effect = '''Менше реклами облікового запису Microsoft і передплат. Значення не описане Microsoft як політика, відповідає перемикачу в параметрах.'''
+versions = '''Windows 11.'''
+verify = '''reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications"'''
+rollback = '''Видалити значення.'''
+
+["ads.advertising-id-user-off"]
+title = '''Рекламний ідентифікатор вимкнено й у новому сховищі параметрів'''
+summary = '''Перемикач рекламного ідентифікатора вимкнено в сховищі параметрів Windows 11 (CPSS).'''
+effect = '''Доповнює політику DisabledByGroupPolicy і значення AdvertisingInfo Enabled. Значення зі списку замовника, Microsoft його не описує.'''
+versions = '''Windows 11 23H2 і новіші (виробником не підтверджено).'''
+verify = '''reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\CPSS\Store\AdvertisingInfo"'''
+rollback = '''Видалити значення.'''
+
+["search.cloud-off"]
+title = '''Пошук Windows без хмари, виділень і розташування'''
+summary = '''Пошук Windows не шукає в OneDrive та інших хмарах, не показує «виділення пошуку» і не використовує розташування.'''
+effect = '''Запити залишаються на комп'ютері, у полі пошуку немає рекламних зображень дня.'''
+versions = '''Windows 10 1709 і новіші; виділення пошуку з Windows 11 22H2. Pro.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search"'''
+rollback = '''Видалити значення.'''
+
+["search.user-cloud-off"]
+title = '''Пошук без хмарного вмісту й журналу (профіль користувача)'''
+summary = '''Користувацькі перемикачі пошуку вимкнено: хмарний вміст облікових записів Microsoft і Entra ID, виділення пошуку, журнал пошуку на пристрої.'''
+effect = '''Збігається з машинними політиками пошуку й вимикає локальний журнал запитів. Значення зі списку замовника, відповідають перемикачам параметрів.'''
+versions = '''Windows 11; користувацькі налаштування, не політики.'''
+verify = '''reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\SearchSettings"'''
+rollback = '''Видалити значення.'''
+
+["search.start-track-off"]
+title = '''Не відстежувати запуск застосунків для меню «Пуск» і пошуку'''
+summary = '''Windows не запам'ятовує, які застосунки запускає користувач, для списків меню «Пуск» і результатів пошуку.'''
+effect = '''Список застосунків, які часто використовуються, у меню «Пуск» не ведеться.'''
+versions = '''Усі випуски Windows 10 і 11.'''
+verify = '''reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v Start_TrackProgs'''
+rollback = '''Видалити значення.'''
+
+["speech.online-off"]
+title = '''Без хмарного розпізнавання мовлення й покращення рукописного введення'''
+summary = '''Користувачі не можуть увімкнути хмарні служби розпізнавання мовлення, дані рукописного введення та введення з клавіатури не надсилаються для покращення розпізнавання.'''
+effect = '''Голос і текст, що вводиться, не надходять до Microsoft.'''
+risk = '''Не працюють голосове введення й диктування через хмару.'''
+versions = '''Windows 10 1507 і 1607 та новіші, Pro.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\InputPersonalization" /v AllowInputPersonalization'''
+rollback = '''Видалити значення.'''
+
+["speech.online-user-off"]
+title = '''Мовлення й персоналізацію введення вимкнено в профілі користувача'''
+summary = '''У профілі користувача вимкнено хмарне розпізнавання мовлення й персональний словник рукописного введення та введення з клавіатури.'''
+effect = '''Windows не збирає зразки почерку, введений текст і контакти для словника. Користувацької копії політики AllowInputPersonalization зі списку не існує, тому записуються користувацькі налаштування.'''
+risk = '''Розпізнавання почерку не підлаштовується під користувача.'''
+versions = '''Усі випуски Windows 10 і 11.'''
+verify = '''reg query "HKCU\Software\Microsoft\InputPersonalization"'''
+rollback = '''Видалити значення.'''
+
+["speech.narrator-online-off"]
+title = '''Екранний диктор без онлайн-служб'''
+summary = '''Екранний диктор не надсилає зображення й сторінки до хмари для описів зображень, заголовків і популярних посилань.'''
+effect = '''Вміст екрана не надходить до Microsoft під час роботи диктора.'''
+risk = '''Незрячі користувачі втрачають описи зображень.'''
+versions = '''Windows 11.'''
+verify = '''reg query "HKCU\Software\Microsoft\Narrator\NoRoam" /v OnlineServicesEnabled'''
+rollback = '''Видалити значення.'''
+
+["speech.narrator-extensions-off"]
+title = '''Екранний диктор без розширень'''
+summary = '''Вимкнено розширення екранного диктора (сценарії для Excel, Outlook та інших програм).'''
+effect = '''Значення зі списку замовника. Це не телеметрія: розширення покращують роботу диктора в програмах.'''
+risk = '''Диктор гірше працює в Excel і Outlook: це важливо для незрячих працівників.'''
+versions = '''Windows 11 останніх збірок.'''
+verify = '''reg query "HKCU\Software\Microsoft\Narrator\NoRoam" /v ScriptingEnabled'''
+rollback = '''Видалити значення.'''
+
+["drivers.coinstallers-off"]
+title = '''Не запускати супутні програми інсталяторів драйверів (co-installers)'''
+summary = '''Під час підключення пристрою Windows встановлює драйвер, але не запускає супутні програми виробника з пакета драйвера.'''
+effect = '''Закриває клас атак, коли програма виробника (випадок Razer Synapse, 2021) запускається з правами SYSTEM під час підключення пристрою. Драйвери з Центру оновлення Windows надходять і далі.'''
+risk = '''Фірмові утиліти старих принтерів, сканерів та ігрових пристроїв доведеться встановлювати вручну; перевірте на тестовому ПК із пристроями організації.'''
+versions = '''Усі випуски Windows 10 і 11; значення широко використовується, але не описане на Microsoft Learn. З 2023 року Microsoft не підписує пакети з co-installers.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Device Installer" /v DisableCoInstallers'''
+rollback = '''Видалити значення.'''
+
+["drivers.metadata-off"]
+title = '''Не завантажувати застосунки й значки пристроїв з інтернету'''
+summary = '''Windows не завантажує за метаданими пристрою пов'язані застосунки виробників та їхні значки.'''
+effect = '''Жодних програм виробника без відома користувача. Службу метаданих пристроїв Microsoft вивела з експлуатації у 2025 році, політика страхує від залишків.'''
+versions = '''Windows 10 1809 і новіші, Pro.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\Device Metadata" /v PreventDeviceMetadataFromNetwork'''
+rollback = '''Видалити значення.'''
+
+["onedrive.kfm-block"]
+title = '''OneDrive: заборонити перенесення папок користувача в хмару'''
+summary = '''Користувачі не можуть перенести «Робочий стіл», «Документи» й «Зображення» в OneDrive (ні в робочий, ні в особистий), резервне копіювання папок у параметрах OneDrive недоступне.'''
+effect = '''Робочі файли залишаються на комп'ютері й не потрапляють до особистої хмари працівника. На ПК у домені Microsoft сама забороняє перенесення в особистий OneDrive, у робочій групі потрібна ця політика.'''
+versions = '''Клієнт синхронізації OneDrive (усі підтримувані версії). Значення в HKCU зі списку замовника не описане Microsoft і не записується.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\OneDrive" /v KFMBlockOptIn'''
+rollback = '''Видалити значення.'''
+
+["onedrive.no-traffic-before-signin"]
+title = '''OneDrive: не виходити в мережу до входу користувача'''
+summary = '''Клієнт OneDrive не звертається до серверів Microsoft (зокрема по оновлення), доки користувач не ввійшов в OneDrive.'''
+effect = '''Без облікового запису OneDrive комп'ютер не надсилає OneDrive жодного трафіку.'''
+risk = '''Значення продовжує діяти й після видалення політики (так описано в документації Microsoft).'''
+versions = '''Клієнт синхронізації OneDrive.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\OneDrive" /v PreventNetworkTrafficPreUserSignIn'''
+rollback = '''Видалити значення.'''
+
+["onedrive.feedback-off"]
+title = '''OneDrive: без відгуків, опитувань і звернень до підтримки'''
+summary = '''У застосунку OneDrive вимкнено надсилання відгуків, опитування й зв'язок зі службою підтримки Microsoft.'''
+effect = '''Журнали й знімки екрана не надходять до Microsoft разом із відгуками.'''
+versions = '''Клієнт синхронізації OneDrive.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\OneDrive"'''
+rollback = '''Видалити значення.'''
+
+["onedrive.block"]
+title = '''OneDrive: заборонити використання повністю'''
+summary = '''OneDrive не можна використовувати для зберігання файлів: застосунок, Провідник і застосунки Store не відкривають OneDrive, синхронізація й завантаження фотографій не працюють.'''
+effect = '''Навіть знову встановлений OneDrive не синхронізує файли. Вимкнено за замовчуванням: це рішення організації, а не налаштування ШІ чи телеметрії.'''
+risk = '''Користувачі, яким OneDrive потрібен для роботи, втрачають до нього доступ на цьому комп'ютері.'''
+versions = '''Windows 10 1703 і новіші, Pro, Enterprise, Education.'''
+verify = '''reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive" /v DisableFileSyncNGSC'''
+rollback = '''Видалити значення.'''
+
+["onedrive.personal-sync-off"]
+title = '''OneDrive: заборонити синхронізацію особистого OneDrive'''
+summary = '''Користувач не може підключити до OneDrive особистий обліковий запис Microsoft.'''
+effect = '''Робочі файли не потрапляють до особистої хмари працівника; робочий OneDrive (Entra ID) залишається доступним.'''
+risk = '''Працівники, які зберігають робочі файли в особистому OneDrive, втратять синхронізацію.'''
+versions = '''Клієнт синхронізації OneDrive.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\OneDrive" /v DisablePersonalSync'''
+rollback = '''Видалити значення в профілі користувача.'''
+
+["edge.genai-local-model-off"]
+title = '''Edge: не завантажувати локальну модель ШІ'''
+summary = '''Edge не завантажує локальну модель генеративного ШІ, а вже завантажену видаляє.'''
+effect = '''Не витрачаються гігабайти диска й трафік; функції браузера та сайти не працюють із локальною моделлю.'''
+versions = '''Edge 132 і новіші. Діє й на профіль з особистим обліковим записом Microsoft.'''
+
+["edge.builtin-ai-apis-off"]
+title = '''Edge: заборонити сайтам вбудовані функції ШІ'''
+summary = '''Сайти не можуть викликати вбудовані в браузер програмні інтерфейси ШІ (LanguageModel, Summarizer, Writer, Rewriter).'''
+effect = '''Сторінки не обробляють текст користувача моделлю браузера.'''
+versions = '''Edge 138 і новіші.'''
+
+["edge.history-ai-search-off"]
+title = '''Edge: пошук у журналі без ШІ'''
+summary = '''Пошук у журналі відвідувань працює лише за точним збігом, без синонімів і запитів природною мовою.'''
+effect = '''Журнал відвідувань не обробляється функціями ШІ.'''
+versions = '''Edge 138 і новіші.'''
+
+["edge.ai-themes-off"]
+title = '''Edge: без тем оформлення від ШІ'''
+summary = '''Створення тем оформлення браузера генеративним ШІ (DALL-E) недоступне.'''
+effect = '''Описи тем не надсилаються до хмарного генератора зображень.'''
+versions = '''Edge 122 і новіші.'''
+
+["edge.text-prediction-off"]
+title = '''Edge: без хмарних підказок під час введення тексту'''
+summary = '''Edge не пропонує продовження фраз у текстових полях (хмарні прогнози Microsoft).'''
+effect = '''Текст, що вводиться на сайтах, не надсилається до хмарної служби прогнозів.'''
+versions = '''Edge 104 і новіші.'''
+
+["edge.tab-services-off"]
+title = '''Edge: без хмарного групування вкладок'''
+summary = '''Адреси й заголовки вкладок не надсилаються до служби Microsoft для автоматичного групування й назв груп.'''
+effect = '''Список відкритих вкладок залишається в браузері.'''
+versions = '''Edge 113 і новіші.'''
+
+["edge.autofill-ml-off"]
+title = '''Edge: автозаповнення без хмарного машинного навчання'''
+summary = '''Edge не використовує хмарне машинне навчання для підказок під час заповнення форм.'''
+effect = '''Вміст форм не аналізується хмарною моделлю.'''
+versions = '''Edge 132 і новіші.'''
+
+["edge.copilot-address-bar-off"]
+title = '''Edge: без підказок Copilot в адресному рядку'''
+summary = '''Адресний рядок не пропонує продовжити запит у чаті Copilot.'''
+effect = '''Запити з адресного рядка не надходять до Copilot.'''
+versions = '''Edge 149 і новіші.'''
+
+["edge.ntp-copilot-off"]
+title = '''Edge: прибрати Copilot зі сторінки нової вкладки'''
+summary = '''Зі сторінки нової вкладки прибираються точки входу в чат Copilot (Bing Chat).'''
+effect = '''Менше пропозицій перейти до Copilot. Дію на нову вкладку профілю без входу в обліковий запис виробник явно не описує.'''
+versions = '''Edge 117 і новіші.'''
+
+["edge.copilot-cowork-off"]
+title = '''Edge: Copilot не діє замість користувача'''
+summary = '''Функція Cowork не виконує дій у браузері від імені користувача, і користувач не може це змінити.'''
+effect = '''ШІ-агент не натискає кнопки й не заповнює форми на сайтах.'''
+versions = '''Edge 152 і новіші.'''
+
+["edge.browsing-with-copilot-off"]
+title = '''Edge: заборонити перегляд сайтів разом із Copilot'''
+summary = '''Режим, у якому Copilot сам відкриває й переглядає сторінки (агентний перегляд), вимкнено й заблоковано.'''
+effect = '''ШІ-агент не переходить сайтами від імені користувача.'''
+versions = '''Edge 148 і новіші; сама функція потребує передплати Microsoft 365 Copilot.'''
+
+["edge.copilot-page-context-off"]
+title = '''Edge: Copilot не читає сторінки (профілі Entra ID)'''
+summary = '''Copilot на бічній панелі не отримує вмісту відкритих сторінок.'''
+effect = '''Діє лише для профілів Microsoft Entra ID; у робочій групі з локальними обліковими записами й забороною входу в браузер ні на що не впливає. Увімкнено за списком замовника на випадок входу через Entra ID.'''
+versions = '''Edge 124 і новіші; лише профілі Microsoft Entra ID.'''
+
+["edge.entra-copilot-page-context-off"]
+title = '''Edge: Copilot із захистом даних не читає сторінки й журнал (профілі Entra ID)'''
+summary = '''Microsoft 365 Copilot Chat на бічній панелі не отримує вмісту сторінок, журналу й розшифровок відео.'''
+effect = '''Діє лише для профілів Microsoft Entra ID; у робочій групі з локальними обліковими записами й забороною входу в браузер ні на що не впливає. Увімкнено за списком замовника на випадок входу через Entra ID.'''
+versions = '''Edge 130 і новіші; лише профілі Microsoft Entra ID.'''
+
+["edge.m365-copilot-icon-off"]
+title = '''Edge: приховати значок Microsoft 365 Copilot Chat (профілі Entra ID)'''
+summary = '''Значок Microsoft 365 Copilot Chat не показується на панелі інструментів Edge для бізнесу.'''
+effect = '''Діє лише для профілів Microsoft Entra ID; у робочій групі з локальними обліковими записами й забороною входу в браузер ні на що не впливає. Увімкнено за списком замовника на випадок входу через Entra ID.'''
+versions = '''Edge 139 і новіші; лише профілі Microsoft Entra ID.'''
+
+["edge.compose-inline-off"]
+title = '''Edge: без переписування тексту Copilot (профілі Entra ID)'''
+summary = '''Функція переписування виділеного тексту через контекстне меню (помічник Microsoft 365 Copilot) недоступна.'''
+effect = '''Діє лише для профілів Microsoft Entra ID; у робочій групі з локальними обліковими записами й забороною входу в браузер ні на що не впливає. Увімкнено за списком замовника на випадок входу через Entra ID.'''
+versions = '''Edge 115 і новіші; лише облікові записи Microsoft Entra ID.'''
+
+["edge.copilot-search-history-off"]
+title = '''Edge: не передавати журнал до Microsoft 365 Copilot Search (профілі Entra ID)'''
+summary = '''Журнал відвідувань Edge не передається до пошуку Microsoft 365 Copilot.'''
+effect = '''Діє лише для профілів Microsoft Entra ID; у робочій групі з локальними обліковими записами й забороною входу в браузер ні на що не впливає. Увімкнено за списком замовника на випадок входу через Entra ID.'''
+versions = '''Edge 143 і новіші; вхід через Microsoft Entra ID і ліцензія Microsoft 365 Copilot.'''
+
+["edge.visual-search-off"]
+title = '''Edge: без візуального пошуку Bing'''
+summary = '''Пошук за зображенням через Bing із меню зображення, контекстного меню й бічної панелі недоступний.'''
+effect = '''Зображення зі сторінок не надсилаються до Bing для пошуку схожих.'''
+risk = '''Користувач не зможе знайти схожі зображення з браузера.'''
+versions = '''Edge 95 і новіші.'''
+
+["edge.search-in-sidebar-off"]
+title = '''Edge: результати пошуку не на бічній панелі'''
+summary = '''Результати пошуку за виділеним текстом не відкриваються на бічній панелі.'''
+effect = '''Менше елементів бічної панелі; пошук відкривається у звичайній вкладці.'''
+versions = '''Edge 110 і новіші.'''
+
+["office.connected-ai-off"]
+title = '''Office: вимкнути підключені можливості, що аналізують вміст (зокрема Copilot)'''
+summary = '''Політику «Дозволити підключені можливості Office, які аналізують вміст» вимкнено: Copilot у Word, Excel, PowerPoint, Outlook і OneNote недоступний.'''
+effect = '''Вміст документів не надсилається до хмарних служб ШІ Microsoft. Єдиний документований спосіб прибрати Copilot із застосунків Office за будь-якого облікового запису.'''
+risk = '''Недоступні також диктування, перекладач, хмарний редактор (проста перевірка орфографії залишається), конструктор слайдів, підказки тексту, транскрибування, типи даних, карти й Python в Excel.'''
+versions = '''Microsoft 365 Apps 1904 і новіші, Office 2021 і 2024 (роздрібні версії та LTSC).'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\office\16.0\common\privacy"'''
+rollback = '''Видалити значення в профілі користувача.'''
+
+["office.optional-connected-off"]
+title = '''Office: вимкнути додаткові необов'язкові підключені можливості'''
+summary = '''Вимкнено додаткові функції Office на основі Bing: інтелектуальний пошук, дослідник, зображення й відео з інтернету, 3D-карти, а також вебпошук Copilot.'''
+effect = '''Виділений текст і запити з документів не надсилаються до Bing.'''
+risk = '''Немає вставлення зображень з інтернету й пошуку відомостей просто з документа.'''
+versions = '''Microsoft 365 Apps 1904 і новіші, Office 2021 і 2024.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\office\16.0\common\privacy" /v controllerconnectedservicesenabled'''
+rollback = '''Видалити значення в профілі користувача.'''
+
+["office.download-content-off"]
+title = '''Office: не завантажувати вміст з інтернету'''
+summary = '''Office не завантажує з інтернету шаблони, значки, зображення, хмарні шрифти й довідку.'''
+effect = '''Менше звернень Office до серверів Microsoft. Це не ШІ, тому правило вимкнено за замовчуванням.'''
+risk = '''Немає онлайн-шаблонів, значків, стокових зображень, хмарних шрифтів і довідки F1.'''
+versions = '''Microsoft 365 Apps 1904 і новіші, Office 2021 і 2024.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\office\16.0\common\privacy" /v downloadcontentdisabled'''
+rollback = '''Видалити значення в профілі користувача.'''
+
+["office.telemetry-off"]
+title = '''Office: не надсилати діагностичні дані'''
+summary = '''Рівень діагностичних даних Office «Не надсилати»: ні обов'язкові, ні необов'язкові дані не надходять до Microsoft.'''
+effect = '''Залишаються лише службові дані, без яких Office не працює.'''
+versions = '''Microsoft 365 Apps 1904 і новіші, Office 2021 і 2024. Шлях без 16.0: Software\Policies\Microsoft\office\common\clienttelemetry.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\office\common\clienttelemetry" /v sendtelemetry'''
+rollback = '''Видалити значення в профілі користувача.'''
+
+["office.feedback-off"]
+title = '''Office: без відгуків і опитувань'''
+summary = '''Кнопку надсилання відгуку й опитування в застосунках Office вимкнено.'''
+effect = '''Знімки екрана, журнали й фрагменти вмісту (зокрема запити до Copilot) не надходять до Microsoft разом із відгуками.'''
+versions = '''Microsoft 365 Apps, Office 2019 і новіші.'''
+verify = '''reg query "HKCU\Software\Policies\Microsoft\office\16.0\common\feedback"'''
+rollback = '''Видалити значення в профілі користувача.'''
+
+["office.copilot-checkbox-off"]
+title = '''Office: прапорець «Увімкнути Copilot» знято у Word, Excel і OneNote'''
+summary = '''Користувацькі налаштування Copilot у Word, Excel і OneNote вимкнено заздалегідь: значення EnableCopilot зі списку замовника.'''
+effect = '''Прапорець «Увімкнути Copilot» у параметрах застосунків є лише під час входу в Office з особистим обліковим записом Microsoft. Значення не описані Microsoft і не заблоковані: користувач може ввімкнути Copilot знову. Надійно Copilot вимикає правило «вимкнути підключені можливості, що аналізують вміст».'''
+versions = '''Word 2412, Excel 2501, OneNote 2502 і новіші.'''
+verify = '''reg query "HKCU\Software\Microsoft\Office\16.0\Word\Options" /v EnableCopilot'''
+rollback = '''Файл, Параметри, Copilot, прапорець «Увімкнути Copilot».'''
+
+["thispc.desktop"]
+title = '''Показувати «Робочий стіл» у «Цей комп'ютер»'''
+summary = '''Папку «Робочий стіл» видно в «Цей комп'ютер» над дисками, як у Windows 10.'''
+effect = '''Windows 11 з версії 22H2 приховує папки користувача в «Цей комп'ютер»; правило повертає цей запис. Вимкнено за замовчуванням: папка залишається прихованою.'''
+versions = '''Windows 11 22H2 і новіші; у 24H2 і 25H2 усі записи є й приховані значенням HiddenByDefault = 1. Записується в 64-бітну й 32-бітну (WOW6432Node) гілки, щоб діалоги 32-бітних програм збігалися з Провідником.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}" /v HiddenByDefault'''
+rollback = '''Значення 1 в обох гілках (за замовчуванням у Windows 11 24H2 і 25H2).'''
+
+["thispc.documents"]
+title = '''Показувати «Документи» в «Цей комп'ютер»'''
+summary = '''Папку «Документи» видно в «Цей комп'ютер» над дисками, як у Windows 10.'''
+effect = '''Windows 11 з версії 22H2 приховує папки користувача в «Цей комп'ютер»; правило повертає цей запис. Вимкнено за замовчуванням: папка залишається прихованою.'''
+versions = '''Windows 11 22H2 і новіші; у 24H2 і 25H2 усі записи є й приховані значенням HiddenByDefault = 1. Записується в 64-бітну й 32-бітну (WOW6432Node) гілки, щоб діалоги 32-бітних програм збігалися з Провідником.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{d3162b92-9365-467a-956b-92703aca08af}" /v HiddenByDefault'''
+rollback = '''Значення 1 в обох гілках (за замовчуванням у Windows 11 24H2 і 25H2).'''
+
+["thispc.downloads"]
+title = '''Показувати «Завантаження» в «Цей комп'ютер»'''
+summary = '''Папку «Завантаження» видно в «Цей комп'ютер» над дисками, як у Windows 10.'''
+effect = '''Windows 11 з версії 22H2 приховує папки користувача в «Цей комп'ютер»; правило повертає цей запис. Вимкнено за замовчуванням: папка залишається прихованою.'''
+versions = '''Windows 11 22H2 і новіші; у 24H2 і 25H2 усі записи є й приховані значенням HiddenByDefault = 1. Записується в 64-бітну й 32-бітну (WOW6432Node) гілки, щоб діалоги 32-бітних програм збігалися з Провідником.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{088e3905-0323-4b02-9826-5d99428e115f}" /v HiddenByDefault'''
+rollback = '''Значення 1 в обох гілках (за замовчуванням у Windows 11 24H2 і 25H2).'''
+
+["thispc.music"]
+title = '''Показувати «Музика» в «Цей комп'ютер»'''
+summary = '''Папку «Музика» видно в «Цей комп'ютер» над дисками, як у Windows 10.'''
+effect = '''Windows 11 з версії 22H2 приховує папки користувача в «Цей комп'ютер»; правило повертає цей запис. Вимкнено за замовчуванням: папка залишається прихованою.'''
+versions = '''Windows 11 22H2 і новіші; у 24H2 і 25H2 усі записи є й приховані значенням HiddenByDefault = 1. Записується в 64-бітну й 32-бітну (WOW6432Node) гілки, щоб діалоги 32-бітних програм збігалися з Провідником.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{3dfdf296-dbec-4fb4-81d1-6a3438bcf4de}" /v HiddenByDefault'''
+rollback = '''Значення 1 в обох гілках (за замовчуванням у Windows 11 24H2 і 25H2).'''
+
+["thispc.pictures"]
+title = '''Показувати «Зображення» в «Цей комп'ютер»'''
+summary = '''Папку «Зображення» видно в «Цей комп'ютер» над дисками, як у Windows 10.'''
+effect = '''Windows 11 з версії 22H2 приховує папки користувача в «Цей комп'ютер»; правило повертає цей запис. Вимкнено за замовчуванням: папка залишається прихованою.'''
+versions = '''Windows 11 22H2 і новіші; у 24H2 і 25H2 усі записи є й приховані значенням HiddenByDefault = 1. Записується в 64-бітну й 32-бітну (WOW6432Node) гілки, щоб діалоги 32-бітних програм збігалися з Провідником.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{24ad3ad4-a569-4530-98e1-ab02f9417aa8}" /v HiddenByDefault'''
+rollback = '''Значення 1 в обох гілках (за замовчуванням у Windows 11 24H2 і 25H2).'''
+
+["thispc.videos"]
+title = '''Показувати «Відео» в «Цей комп'ютер»'''
+summary = '''Папку «Відео» видно в «Цей комп'ютер» над дисками, як у Windows 10.'''
+effect = '''Windows 11 з версії 22H2 приховує папки користувача в «Цей комп'ютер»; правило повертає цей запис. Вимкнено за замовчуванням: папка залишається прихованою.'''
+versions = '''Windows 11 22H2 і новіші; у 24H2 і 25H2 усі записи є й приховані значенням HiddenByDefault = 1. Записується в 64-бітну й 32-бітну (WOW6432Node) гілки, щоб діалоги 32-бітних програм збігалися з Провідником.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{f86fa3ab-70d2-4fc7-9c99-fcbf05467f3a}" /v HiddenByDefault'''
+rollback = '''Значення 1 в обох гілках (за замовчуванням у Windows 11 24H2 і 25H2).'''
+
+["thispc.documents-extra"]
+title = '''Показувати «Документи» в «Цей комп'ютер» (другий запис)'''
+summary = '''Другий запис папки «Документи» (відома папка, яку можна переспрямувати) видно в «Цей комп'ютер».'''
+effect = '''Обидва записи ведуть до однієї й тієї самої папки профілю; Windows 10 показувала лише перший. Вмикати разом із правилом «Показувати «Документи» в «Цей комп'ютер»» не потрібно: папка може з'явитися двічі.'''
+versions = '''Windows 11 22H2 і новіші; у 24H2 і 25H2 усі записи є й приховані значенням HiddenByDefault = 1. Записується в 64-бітну й 32-бітну (WOW6432Node) гілки, щоб діалоги 32-бітних програм збігалися з Провідником.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{A8CDFF1C-4878-43be-B5FD-F8091C1C60D0}" /v HiddenByDefault'''
+rollback = '''Значення 1 в обох гілках (за замовчуванням у Windows 11 24H2 і 25H2).'''
+
+["thispc.downloads-extra"]
+title = '''Показувати «Завантаження» в «Цей комп'ютер» (другий запис)'''
+summary = '''Другий запис папки «Завантаження» (відома папка, яку можна переспрямувати) видно в «Цей комп'ютер».'''
+effect = '''Обидва записи ведуть до однієї й тієї самої папки профілю; Windows 10 показувала лише перший. Вмикати разом із правилом «Показувати «Завантаження» в «Цей комп'ютер»» не потрібно: папка може з'явитися двічі.'''
+versions = '''Windows 11 22H2 і новіші; у 24H2 і 25H2 усі записи є й приховані значенням HiddenByDefault = 1. Записується в 64-бітну й 32-бітну (WOW6432Node) гілки, щоб діалоги 32-бітних програм збігалися з Провідником.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{374DE290-123F-4565-9164-39C4925E467B}" /v HiddenByDefault'''
+rollback = '''Значення 1 в обох гілках (за замовчуванням у Windows 11 24H2 і 25H2).'''
+
+["thispc.music-extra"]
+title = '''Показувати «Музика» в «Цей комп'ютер» (другий запис)'''
+summary = '''Другий запис папки «Музика» (відома папка, яку можна переспрямувати) видно в «Цей комп'ютер».'''
+effect = '''Обидва записи ведуть до однієї й тієї самої папки профілю; Windows 10 показувала лише перший. Вмикати разом із правилом «Показувати «Музика» в «Цей комп'ютер»» не потрібно: папка може з'явитися двічі.'''
+versions = '''Windows 11 22H2 і новіші; у 24H2 і 25H2 усі записи є й приховані значенням HiddenByDefault = 1. Записується в 64-бітну й 32-бітну (WOW6432Node) гілки, щоб діалоги 32-бітних програм збігалися з Провідником.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{1CF1260C-4DD0-4ebb-811F-33C572699FDE}" /v HiddenByDefault'''
+rollback = '''Значення 1 в обох гілках (за замовчуванням у Windows 11 24H2 і 25H2).'''
+
+["thispc.pictures-extra"]
+title = '''Показувати «Зображення» в «Цей комп'ютер» (другий запис)'''
+summary = '''Другий запис папки «Зображення» (відома папка, яку можна переспрямувати) видно в «Цей комп'ютер».'''
+effect = '''Обидва записи ведуть до однієї й тієї самої папки профілю; Windows 10 показувала лише перший. Вмикати разом із правилом «Показувати «Зображення» в «Цей комп'ютер»» не потрібно: папка може з'явитися двічі.'''
+versions = '''Windows 11 22H2 і новіші; у 24H2 і 25H2 усі записи є й приховані значенням HiddenByDefault = 1. Записується в 64-бітну й 32-бітну (WOW6432Node) гілки, щоб діалоги 32-бітних програм збігалися з Провідником.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{3ADD1653-EB32-4cb0-BBD7-DFA0ABB5ACCA}" /v HiddenByDefault'''
+rollback = '''Значення 1 в обох гілках (за замовчуванням у Windows 11 24H2 і 25H2).'''
+
+["thispc.videos-extra"]
+title = '''Показувати «Відео» в «Цей комп'ютер» (другий запис)'''
+summary = '''Другий запис папки «Відео» (відома папка, яку можна переспрямувати) видно в «Цей комп'ютер».'''
+effect = '''Обидва записи ведуть до однієї й тієї самої папки профілю; Windows 10 показувала лише перший. Вмикати разом із правилом «Показувати «Відео» в «Цей комп'ютер»» не потрібно: папка може з'явитися двічі.'''
+versions = '''Windows 11 22H2 і новіші; у 24H2 і 25H2 усі записи є й приховані значенням HiddenByDefault = 1. Записується в 64-бітну й 32-бітну (WOW6432Node) гілки, щоб діалоги 32-бітних програм збігалися з Провідником.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{A0953C92-50DC-43bf-BE83-3742FED03C9C}" /v HiddenByDefault'''
+rollback = '''Значення 1 в обох гілках (за замовчуванням у Windows 11 24H2 і 25H2).'''
+
+["thispc.3d-objects"]
+title = '''Показувати «Об'ємні об'єкти» в «Цей комп'ютер»'''
+summary = '''Папку «Об'ємні об'єкти» (3D Objects) знову видно в «Цей комп'ютер», як у Windows 10.'''
+effect = '''У Windows 11 запис видалено, відома папка залишилася. Правило створює запис в обох гілках; під час першого відкриття папка з'явиться в профілі користувача. Вимкнено за замовчуванням.'''
+versions = '''Windows 10 1709-20H2 показували папку самі; у Windows 11 запису немає. Дію в 25H2 перевірте на тестовому ПК.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{0DB7E03F-FC29-4DC6-9020-FF41B59E513A}"'''
+rollback = '''Видалити розділ {0DB7E03F-FC29-4DC6-9020-FF41B59E513A} в обох гілках NameSpace (автоматичне повернення не видаляє розділи).'''
+
+["nav.gallery-hidden"]
+title = '''Приховати «Галерею» в області переходів Провідника'''
+summary = '''Пункт «Галерея» (перегляд усіх фотографій) не показується на лівій панелі Провідника в усіх користувачів.'''
+effect = '''Менше зайвих пунктів у Провіднику; самі фотографії та папка «Зображення» залишаються доступними.'''
+versions = '''Windows 11 22H2 (22621.2361) і новіші.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}" /v HiddenByDefault'''
+rollback = '''Видалити значення HiddenByDefault в обох гілках.'''
+
+["nav.home-hidden"]
+title = '''Приховати «Головну» в області переходів Провідника'''
+summary = '''Пункт «Головна» (нещодавні файли й закріплені папки) не показується на лівій панелі Провідника; Провідник відкривається на «Цей комп'ютер».'''
+effect = '''Нещодавні файли не видно під час відкриття Провідника. Вимкнено за замовчуванням: разом із прихованими папками в «Цей комп'ютер» користувачі втрачають швидкий шлях до «Документів» і «Робочого столу»; вмикайте разом із правилами «Показувати ... в «Цей комп'ютер»».'''
+risk = '''За повідомленнями користувачів, разом із «Головною» зникають закріплені папки швидкого доступу.'''
+versions = '''Windows 11 22H2 і новіші.'''
+verify = '''reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{f874310e-b6b7-47dc-bc84-b9e6b38f5903}" /v HiddenByDefault'''
+rollback = '''Видалити значення HiddenByDefault в обох гілках.'''
+
+["nav.launch-to-this-pc"]
+title = '''Відкривати Провідник на «Цей комп'ютер»'''
+summary = '''Провідник (Win+E) відкривається на «Цей комп'ютер», а не на «Головній».'''
+effect = '''Одразу видно диски й папки «Цей комп'ютер». Потрібне для правила «Приховати «Головну»», інакше Провіднику нікуди відкриватися.'''
+versions = '''Windows 10 і 11.'''
+verify = '''reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v LaunchTo'''
+rollback = '''Параметри папок, Відкрити Провідник для: «Головна».'''
+
 [_groups."install"]
 title = '''Встановлення (windowsPE і specialize)'''
 summary = '''Обхід перевірок сумісності, локальний обліковий запис без мережі, .NET Framework 3.5 з носія.'''
@@ -1409,3 +1981,39 @@ title = '''Google Chrome'''
 
 [_groups."browsers.brave"]
 title = '''Brave'''
+
+[_groups."privacy.ai"]
+title = '''Штучний інтелект'''
+summary = '''Copilot, Recall, Click to Do, ШІ-агенти, генеративні функції Windows, Paint і Блокнота.'''
+
+[_groups."privacy.telemetry"]
+title = '''Телеметрія та відгуки'''
+summary = '''Діагностичні дані Windows, звіти, запити відгуків, засіб запису дій.'''
+
+[_groups."privacy.ads"]
+title = '''Реклама й рекомендації'''
+summary = '''Рекламний ідентифікатор, поради й пропозиції, екран блокування, віджети.'''
+
+[_groups."privacy.search"]
+title = '''Пошук і меню «Пуск»'''
+summary = '''Вебрезультати, хмарний пошук, виділення пошуку, відстеження запуску застосунків.'''
+
+[_groups."privacy.speech"]
+title = '''Мовлення та введення'''
+summary = '''Хмарне розпізнавання мовлення, персоналізація рукописного введення та введення з клавіатури, онлайн-служби екранного диктора.'''
+
+[_groups."privacy.office"]
+title = '''Microsoft Office'''
+summary = '''Copilot і підключені можливості Office, діагностичні дані й відгуки; налаштування записуються в типовий профіль користувача.'''
+
+[_groups."apps.onedrive"]
+title = '''OneDrive'''
+summary = '''Політики клієнта OneDrive: перенесення папок у хмару, мережевий трафік, відгуки, повна заборона.'''
+
+[_groups."system.drivers"]
+title = '''Драйвери та пристрої'''
+summary = '''Супутні програми інсталяторів драйверів і застосунки пристроїв з інтернету; драйвери з Центру оновлення надходять як зазвичай.'''
+
+[_groups."system.explorer"]
+title = '''Провідник: «Цей комп'ютер» і область переходів'''
+summary = '''Папки користувача в «Цей комп'ютер» (у Windows 11 приховані), «Об'ємні об'єкти», «Галерея» й «Головна» на лівій панелі. За замовчуванням папки приховані, як у Windows 11, «Галерея» прихована.'''
