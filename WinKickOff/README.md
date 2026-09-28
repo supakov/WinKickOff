@@ -10,9 +10,10 @@ User documentation (how to work with the program): [Русский](../docs/user
 [Українська](../docs/user/uk/README.md), [English](../docs/user/en/README.md).
 Specification, architecture, data model and plan: [`../docs/technical/editor/`](../docs/technical/editor/README.md).
 
-State on 26.09.2026: version 1.0.0-rc.1. The catalog 0.4 (177 rules, 27 groups) carries every action of the
-hand-written answer file v0.2, the Edge, Chrome and Brave policies and the OneDrive removal; the generator, the
-checks, four presets, profiles, data forms, import, the build from the window and the This PC menu work.
+State on 28.09.2026: version 1.0.0-rc.2. The catalog 0.4 (251 rules, 36 groups) carries every action of the
+hand-written answer file v0.2, the Edge, Chrome and Brave policies, the AI, telemetry, Office and OneDrive rules of
+the customer's list and the File Explorer folders; the generator, the checks, four presets, profiles, data forms,
+import, the build from the window and the This PC menu work.
 The «Офис» (Office) preset equals the catalog defaults; a build passes `tools/Validate-Unattend.ps1` (36 of
 36), and installation from a built file has been confirmed by the customer on real hardware. Test every new
 answer file in a VM first. Open tasks: `../docs/technical/editor/todo/`.

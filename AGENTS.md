@@ -62,7 +62,7 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
 │       ├── B-autounattend-v0.2/   our hand-written answer file v0.2 (the reference) and its README: history, VM checklist
 │       ├── C-critical-review/     review of the original and the critic's report on v0.2 (docx)
 │       └── D-requirements-draft/  first requirements draft; section 6 holds open questions to the customer
-└── WinKickOff/                    EDITOR 1.0.0-rc.1 AND RULE CATALOG 0.4
+└── WinKickOff/                    EDITOR 1.0.0-rc.2 AND RULE CATALOG 0.4
     ├── README.md                  developer README: run, test, structure; links to user docs
     ├── pyproject.toml             requires-python >= 3.14, no runtime dependencies
     ├── winkickoff/                package: app.py (start), core/ (paths, log, catalog, deps, profile, resources,
@@ -152,8 +152,8 @@ checker and `WinKickOff/tools/build.ps1`, the zip is an artifact of the run. A r
 (`test_docs.py` checks it), push, then push the tag; the job publishes the release (a prerelease for `-rc`):
 
 ```bash
-git tag -a v1.0.0-rc.1 -m "WinKickOff 1.0.0-rc.1"
-git push origin v1.0.0-rc.1
+git tag -a v1.0.0-rc.2 -m "WinKickOff 1.0.0-rc.2"
+git push origin v1.0.0-rc.2
 ```
 
 Run the editor from sources:
@@ -256,13 +256,13 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
 | Editor tasks | T01-T12, T14, T16, T17 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 26.09.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.4: 251 rules, 36 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer 15), Windows defaults for return, integrity and v0.2 coverage confirmed by tests | 28.09.2026 | `WinKickOff/rules/` |
-| Editor code | 1.0.0-rc.1: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window in Russian, Ukrainian and English with check boxes, parameters, forms, profiles, comparison, recent files and build; 192 tests | 26.09.2026 | `WinKickOff/` |
+| Editor code | 1.0.0-rc.2: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window in Russian, Ukrainian and English with check boxes, parameters, forms, profiles, comparison, recent files and build; 193 tests | 28.09.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 26.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |
 | Documentation split | T16 done: technical in English, user documentation in ru, uk, en; complete catalog translations uk and en | 25.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
 | GitHub issues | #1 "Web Browsers debloat" done: section «Браузеры» (Edge, Chrome, Brave), 46 rules off by default, card 18. #2 "memstechtips profile" done: preset of 60 rules computed from Appendix A, report of what is added, contradicted and not transferable. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md`, `WinKickOff/profiles/preset-memstechtips.json`, `docs/technical/memstechtips-profile.md` |
-| Release candidate | 1.0.0-rc.1: tag and GitHub release built by CI | 26.09.2026 | `docs/releases/v1.0.0-rc.1.md` |
+| Release candidate | 1.0.0-rc.2 (after rc.1 of 26.09.2026): tag and GitHub release built by CI | 28.09.2026 | `docs/releases/v1.0.0-rc.2.md` |
 | Customer list MoreOptions | Done: BitLocker off in every preset; 57 rules on by default (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Edge AI and sign-in, Gallery hidden), This PC folders as options off by default; corrections in card 19 | 28.09.2026 | `docs/technical/reference/19-more-privacy.md` |
 | Tuning of preset defaults | Awaited from the customer | | `WinKickOff/tools/make_presets.py`, rule defaults |
 
