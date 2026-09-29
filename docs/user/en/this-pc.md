@@ -17,7 +17,7 @@ Values of the default user profile are checked for the current user.
 
 | File | Purpose |
 |---|---|
-| `Apply.ps1` | Applies the selected rules. Run it as administrator. Before every change of the registry, a service or a component it saves the previous value to `backup-*.json` and writes the log `apply-*.log` next to itself |
+| `Apply.ps1` | Makes the computer match the profile for the selection: rules with a check mark are applied, rules without one return to the Windows defaults. Run it as administrator. Before every change of the registry, a service or a component it saves the previous value to `backup-*.json` and writes the log `apply-*.log` next to itself |
 | `Undo-Apply.ps1` | Restores the previous values from the latest backup |
 | `README.txt` | How to run it, the list of rules, what is not applied and what is not rolled back |
 
@@ -48,7 +48,10 @@ depends on the build (SMB signing, for example). They are listed at the bottom o
 - Rules that take effect only during Windows installation (bypassing checks, OOBE screens).
 - Rules of a user's first sign-in, including the input language list: changing keyboard layouts on a
   running system can break layout switching.
-- Rules disabled in the profile. Rules the selected ones depend on are added automatically.
+- Rules without a check mark whose Windows defaults are unknown (app removal, PowerShell steps): they are listed at
+  the bottom of the window. The other rules without a check mark return to the Windows defaults together with the
+  rules that depend on them; rules the selected ones depend on are added automatically.
+- When there is nothing to apply in the selection, the program says so in a separate window with the reasons.
 
 App and component removal and PowerShell steps are not rolled back automatically: the description of every
 rule has a "Rollback" section. Restart the computer after applying.

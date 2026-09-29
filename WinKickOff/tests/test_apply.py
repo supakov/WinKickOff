@@ -13,6 +13,7 @@ import unittest
 from pathlib import Path
 
 from winkickoff.core.apply import (
+    audit_rules,
     parse_audit_report,
     plan_apply,
     plan_revert,
@@ -61,10 +62,35 @@ class PlanTest(unittest.TestCase):
         self.assertIn("user-logon.input-languages", excluded)
         self.assertIn("install.bypass-tpm", excluded)
 
-    def test_disabled_rules_are_excluded_with_reason(self) -> None:
+    def test_rule_without_check_mark_returns_to_windows_defaults(self) -> None:
+        # 29.09.2026 bug: a rule that is off in the profile was dropped silently; now the PC follows the profile
         plan = self.plan("r:network.netbios-off")
         self.assertEqual(plan.rules, [])
-        self.assertEqual(plan.excluded[0][0].id, "network.netbios-off")
+        self.assertEqual([p.rule.id for p in plan.reverts], ["network.netbios-off"])
+        self.assertIn("Remove-Reg", plan.reverts[0].lines[0])
+        script = render_apply(plan, self.office, self.catalog, TEMPLATES, "test")
+        self.assertIn("# [network.netbios-off] Windows defaults", script)
+        self.assertIn("(rules that are off return to Windows defaults)", script)
+
+    def test_group_applies_the_rules_that_are_on_and_returns_the_rest(self) -> None:
+        profile = self.office.copy()
+        profile.rules["uac.admin-always-notify"].enabled = False  # already off in «Офис»; baseline stays on
+        plan = plan_apply(self.catalog, profile, ["g:security.uac"])
+        self.assertEqual(plan.rule_ids, ["uac.baseline"])
+        self.assertEqual([p.rule.id for p in plan.reverts], ["uac.admin-always-notify"])
+        self.assertIn("-Name 'ConsentPromptBehaviorAdmin' -Type DWord -Value 5", plan.reverts[0].lines[0])
+
+    def test_off_rules_without_known_defaults_are_listed(self) -> None:
+        profile = self.office.copy()
+        profile.rules["apps.remove.solitaire"].enabled = False
+        plan = plan_apply(self.catalog, profile, ["r:apps.remove.solitaire"])
+        self.assertTrue(plan.empty)
+        self.assertIn("выключено в профиле", plan.excluded[0][1])
+
+    def test_audit_takes_every_selected_rule(self) -> None:
+        ids, excluded = audit_rules(self.catalog, ["g:network"])
+        self.assertIn("network.netbios-off", ids)  # off in the profile, still checked
+        self.assertEqual(excluded, [])
 
     def test_flags(self) -> None:
         plan = self.plan("r:apps.remove.solitaire", "r:remote.registry-off")

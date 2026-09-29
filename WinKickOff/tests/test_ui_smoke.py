@@ -327,6 +327,35 @@ class MainWindowSmokeTest(unittest.TestCase):
             self.win.allow_apply_var.set(False)
             self.win.toggle_allow_apply()
 
+    def test_apply_now_explains_when_there_is_nothing_to_do(self) -> None:
+        profile_state = self.win.profile.rules["apps.remove.solitaire"].enabled
+        self.win.profile.rules["apps.remove.solitaire"].enabled = False
+        self.win.select_node("r:apps.remove.solitaire")
+        self.win.settings.allow_apply = True
+        try:
+            with mock.patch("winkickoff.ui.main_window.apply_module.launch_elevated") as launch, \
+                 mock.patch("winkickoff.ui.main_window.messagebox.showinfo") as info:
+                self.assertFalse(self.win.apply_now())
+            launch.assert_not_called()
+            info.assert_called_once()  # not silent any more
+            self.assertIn("нечего применять", info.call_args.args[1])
+        finally:
+            self.win.settings.allow_apply = False
+            self.win.profile.rules["apps.remove.solitaire"].enabled = profile_state
+
+    def test_apply_now_returns_an_unchecked_rule_to_defaults(self) -> None:
+        self.win.profile.rules["network.netbios-off"].enabled = False
+        self.win.select_node("r:network.netbios-off")
+        self.win.settings.allow_apply = True
+        try:
+            with mock.patch("winkickoff.ui.main_window.apply_module.launch_elevated") as launch, \
+                 mock.patch("winkickoff.ui.main_window.messagebox.askyesno", return_value=True):
+                self.assertTrue(self.win.apply_now())
+            text = launch.call_args.args[0].read_text(encoding="utf-8-sig")
+            self.assertIn("# [network.netbios-off] Windows defaults", text)
+        finally:
+            self.win.settings.allow_apply = False
+
     def test_revert_now_returns_windows_defaults(self) -> None:
         self.win.select_node("r:uac.admin-always-notify")
         with mock.patch("winkickoff.ui.main_window.apply_module.launch_elevated") as launch, \

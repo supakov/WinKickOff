@@ -110,3 +110,16 @@ Tests never apply anything; functional verification is done only in a virtual ma
   script is the apply script (same backup), so `Undo-Apply.ps1` in `logs/revert-*` undoes the return.
 - Tests: `RevertTest` in `tests/test_apply.py`, window tests `test_apply_now_asks_for_permission_first` and
   `test_revert_now_returns_windows_defaults`.
+
+### 29.09.2026: applying follows the profile
+
+- Customer report: «Применить выбранное сейчас...» did nothing for a rule without a check mark and, for a group,
+  applied only the rules with one; the saved script behaved the same. Cause: `plan_apply` dropped every rule that
+  is off in the profile with the reason "off in the profile", and the window only wrote a status bar line.
+- Now the apply script makes the PC match the profile for the selection: rules that are on are applied, rules that
+  are off (and the rules that require them) return to the Windows defaults in the same script (`ApplyPlan.reverts`).
+  Rules that are off and have no known defaults are listed; if nothing is left, a message box names the reasons.
+  «Проверить выбранное на этом ПК» (Check) now covers every selected rule, whatever its check mark (`audit_rules`).
+- Tests: `test_rule_without_check_mark_returns_to_windows_defaults`, `test_group_applies_the_rules_that_are_on_and_returns_the_rest`,
+  `test_off_rules_without_known_defaults_are_listed`, `test_audit_takes_every_selected_rule`, and the window tests
+  `test_apply_now_explains_when_there_is_nothing_to_do`, `test_apply_now_returns_an_unchecked_rule_to_defaults`.

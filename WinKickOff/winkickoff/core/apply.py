@@ -9,9 +9,12 @@ The editor itself never changes the computer. It generates PowerShell scripts:
 - the same apply script can instead return rules to the values of a clean Windows (plan_revert): the
   `default` field of an action, or a missing value for anything under SOFTWARE\\Policies.
 
-Rules that act only during installation (windowsPE, XML commands, OOBE) and rules of the first sign-in
-of each user (input languages: on 12.09.2026 a live change of layouts broke keyboard switching on the
-customer's PC) are never applied; they are listed in the plan with the reason.
+Applying makes the PC match the profile for the selection: rules that are on are applied, rules that are
+off (and the rules that require them) return to the values of a clean Windows, so a rule without a check mark
+is never silently skipped. Rules that act only during installation (windowsPE, XML commands, OOBE) and rules of
+the first sign-in of each user (input languages: on 12.09.2026 a live change of layouts broke keyboard switching
+on the customer's PC) are never applied; they are listed in the plan with the reason, like the rules that are
+off and have no known Windows defaults.
 """
 
 from __future__ import annotations
@@ -38,13 +41,17 @@ IRREVERSIBLE_TYPES = {"appx", "capability", "ps", "exe"}
 REBOOT_TYPES = {"feature", "capability", "service"}
 REASON_INSTALL_ONLY = N_("действует только при установке Windows")
 REASON_USER_PHASE = N_("выполняется при первом входе каждого пользователя; на работающей системе не применяется")
-REASON_DISABLED = N_("выключено в профиле")
+REASON_NO_DEFAULTS = N_("значения Windows по умолчанию неизвестны; откат вручную по описанию правила")
+REASON_ALREADY_DEFAULT = N_("правило только удаляет значения, которых нет в чистой Windows: возвращать нечего")
+REASON_DISABLED_NO_DEFAULTS = N_("выключено в профиле, но вернуть к умолчаниям Windows автоматически нельзя: откат вручную по описанию правила")
+REASON_DISABLED_ALREADY = N_("выключено в профиле; в чистой Windows этих значений нет, менять нечего")
 STATUS_TITLES = {
     "applied": N_("действует"),
     "not-applied": N_("не действует"),
     "partial": N_("действует частично"),
     "unknown": N_("не проверяется"),
 }
+GPO_ROOTS = ("HKLM:\\SOFTWARE\\POLICIES\\", "DU:\\SOFTWARE\\POLICIES\\", "HKCU:\\SOFTWARE\\POLICIES\\")
 
 
 @dataclass
@@ -56,9 +63,35 @@ class PlannedRule:
 
 
 @dataclass
+class PlannedRevert:
+    rule: Rule
+    lines: list[str]  # PowerShell calls that restore the Windows defaults
+    skipped: list[Action] = field(default_factory=list)  # actions without a known default
+    dependent: bool = False  # added because it requires a selected rule
+    reboot: bool = False
+
+
+@dataclass
 class ApplyPlan:
+    """Make the PC match the profile for the selection: rules that are on are applied, rules that are off
+    (and the rules that require them) return to the values of a clean Windows."""
     rules: list[PlannedRule] = field(default_factory=list)
+    reverts: list[PlannedRevert] = field(default_factory=list)
     excluded: list[tuple[Rule, str]] = field(default_factory=list)  # (rule, reason as N_ text)
+
+    @property
+    def rule_ids(self) -> list[str]:
+        return [p.rule.id for p in self.rules]
+
+    @property
+    def empty(self) -> bool:
+        return not self.rules and not self.reverts
+
+
+@dataclass
+class RevertPlan:
+    rules: list[PlannedRevert] = field(default_factory=list)
+    excluded: list[tuple[Rule, str]] = field(default_factory=list)
 
     @property
     def rule_ids(self) -> list[str]:
@@ -76,16 +109,62 @@ def selected_rules(catalog: Catalog, items: list[str]) -> list[str]:
     return [rule_id for rule_id in catalog.order if rule_id in chosen]
 
 
+def _running_phase_reason(rule: Rule) -> str | None:
+    """Why a rule cannot act on a running Windows at all, or None."""
+    if rule.phase in INSTALL_ONLY_PHASES:
+        return REASON_INSTALL_ONLY
+    if rule.phase == USER_PHASE:
+        return REASON_USER_PHASE
+    return None
+
+
+def _needs_reboot(rule: Rule) -> bool:
+    return any(a.type in REBOOT_TYPES for a in rule.actions) or any(
+        a.type == "reg" and str(a.fields.get("path", "")).upper().startswith("HKLM:\\SYSTEM\\") for a in rule.actions)
+
+
+def _with_dependents(catalog: Catalog, rule_ids: list[str], keep: Any = None) -> dict[str, bool]:
+    """The rules and, transitively, the rules that require them (value True); keep filters the dependents."""
+    wanted: dict[str, bool] = {rule_id: False for rule_id in rule_ids}
+    stack = list(wanted)
+    while stack:
+        for dependent in catalog.required_by(stack.pop()):
+            if dependent not in wanted and (keep is None or keep(dependent)):
+                wanted[dependent] = True
+                stack.append(dependent)
+    return wanted
+
+
+def _revert_entry(rule: Rule, dependent: bool) -> PlannedRevert | str:
+    """The steps that return one rule to a clean Windows, or the reason (N_ text) why there are none."""
+    reason = _running_phase_reason(rule)
+    if reason:
+        return reason
+    params = {name: param.default for name, param in rule.params.items()}
+    lines: list[str] = []
+    skipped: list[Action] = []
+    for action in rule.actions:
+        step = windows_default(action)
+        if step is None:
+            skipped.append(action)
+            continue
+        line = _revert_line(action, step, params)
+        if line:
+            lines.append(line)
+    if not lines:
+        return REASON_NO_DEFAULTS if skipped else REASON_ALREADY_DEFAULT
+    return PlannedRevert(rule, lines, skipped, dependent, _needs_reboot(rule))
+
+
 def plan_apply(catalog: Catalog, profile: Profile, items: list[str]) -> ApplyPlan:
     plan = ApplyPlan()
+    selected = selected_rules(catalog, items)
     wanted: dict[str, bool] = {}  # rule id -> added as a requirement
     stack = []
-    for rule_id in selected_rules(catalog, items):
+    for rule_id in selected:
         if profile.is_enabled(rule_id):
             wanted[rule_id] = False
             stack.append(rule_id)
-        else:
-            plan.excluded.append((catalog.rules[rule_id], REASON_DISABLED))
     while stack:
         for req in catalog.rules[stack.pop()].requires:
             if req not in wanted and profile.is_enabled(req):
@@ -95,17 +174,40 @@ def plan_apply(catalog: Catalog, profile: Profile, items: list[str]) -> ApplyPla
         if rule_id not in wanted:
             continue
         rule = catalog.rules[rule_id]
-        if rule.phase in INSTALL_ONLY_PHASES:
-            plan.excluded.append((rule, REASON_INSTALL_ONLY))
-        elif rule.phase == USER_PHASE:
-            plan.excluded.append((rule, REASON_USER_PHASE))
+        reason = _running_phase_reason(rule)
+        if reason:
+            plan.excluded.append((rule, reason))
+            continue
+        types = {a.type for a in rule.actions}
+        plan.rules.append(PlannedRule(rule, wanted[rule_id], bool(types & IRREVERSIBLE_TYPES), _needs_reboot(rule)))
+    # rules that are off in the profile: back to the values of a clean Windows, with the rules that require them
+    off = [rule_id for rule_id in selected if not profile.is_enabled(rule_id)]
+    returning = _with_dependents(catalog, off, keep=lambda r: not profile.is_enabled(r))
+    for rule_id in catalog.order:
+        if rule_id not in returning:
+            continue
+        rule = catalog.rules[rule_id]
+        entry = _revert_entry(rule, returning[rule_id])
+        if isinstance(entry, PlannedRevert):
+            plan.reverts.append(entry)
         else:
-            types = {a.type for a in rule.actions}
-            reboot = bool(types & REBOOT_TYPES) or any(
-                a.type == "reg" and str(a.fields.get("path", "")).upper().startswith("HKLM:\\SYSTEM\\") for a in rule.actions
-            )
-            plan.rules.append(PlannedRule(rule, wanted[rule_id], bool(types & IRREVERSIBLE_TYPES), reboot))
+            reason = {REASON_NO_DEFAULTS: REASON_DISABLED_NO_DEFAULTS, REASON_ALREADY_DEFAULT: REASON_DISABLED_ALREADY}.get(entry, entry)
+            plan.excluded.append((rule, reason))
     return plan
+
+
+def audit_rules(catalog: Catalog, items: list[str]) -> tuple[list[str], list[tuple[Rule, str]]]:
+    """Every selected rule that can be checked on a running Windows, whatever its state in the profile."""
+    ids: list[str] = []
+    excluded: list[tuple[Rule, str]] = []
+    for rule_id in selected_rules(catalog, items):
+        rule = catalog.rules[rule_id]
+        reason = _running_phase_reason(rule)
+        if reason:
+            excluded.append((rule, reason))
+        else:
+            ids.append(rule_id)
+    return ids, excluded
 
 
 # --------------------------------------------------------------------------- scripts
@@ -115,11 +217,11 @@ def _label(profile: Profile, app_version: str) -> str:
     return f"# WinKickOff {app_version}, profile: {profile.name}".encode("ascii", "replace").decode("ascii")
 
 
-def render_apply(plan: ApplyPlan, profile: Profile, catalog: Catalog, templates_dir: Path, app_version: str = "0.0.0") -> str:
-    by_phase: dict[str, list[str]] = defaultdict(list)
-    for planned in plan.rules:
-        rule = planned.rule
-        by_phase[rule.phase].append(render_block(rule, profile.params_for(catalog, rule.id)))
+def _revert_block(planned: PlannedRevert) -> str:
+    return "\n".join([f"# [{planned.rule.id}] Windows defaults"] + planned.lines)
+
+
+def _assemble(by_phase: dict[str, list[str]]) -> str:
     blocks: list[str] = []
     blocks += by_phase.get("specialize", [])
     if by_phase.get("default-user"):
@@ -127,10 +229,25 @@ def render_apply(plan: ApplyPlan, profile: Profile, catalog: Catalog, templates_
         blocks.append("if (Mount-DefaultUser) {\n" + "\n".join("    " + line if line else line for line in inner.splitlines())
                       + "\n    Dismount-DefaultUser\n}")
     blocks += by_phase.get("post-oobe", [])
+    return "\n\n".join(blocks)
+
+
+def _fill_apply(templates_dir: Path, profile: Profile, label: str, blocks: str, empty: str) -> str:
     accounts = ",".join(ps_quote(a.name) for a in profile.accounts)
     text = fill((templates_dir / "Apply.runtime.ps1").read_text(encoding="utf-8"),
-                {"build_label": _label(profile, app_version), "accounts": accounts, "blocks": "\n\n".join(blocks) or "# (nothing to apply)"})
+                {"build_label": label, "accounts": accounts, "blocks": blocks or empty})
     return text.replace("\r\n", "\n")
+
+
+def render_apply(plan: ApplyPlan, profile: Profile, catalog: Catalog, templates_dir: Path, app_version: str = "0.0.0") -> str:
+    by_phase: dict[str, list[str]] = defaultdict(list)
+    for planned in plan.rules:
+        rule = planned.rule
+        by_phase[rule.phase].append(render_block(rule, profile.params_for(catalog, rule.id)))
+    for returning in plan.reverts:
+        by_phase[returning.rule.phase].append(_revert_block(returning))
+    label = _label(profile, app_version) + (" (rules that are off return to Windows defaults)" if plan.reverts else "")
+    return _fill_apply(templates_dir, profile, label, _assemble(by_phase), "# (nothing to apply)")
 
 
 def render_undo(templates_dir: Path, profile: Profile, app_version: str = "0.0.0") -> str:
@@ -139,10 +256,6 @@ def render_undo(templates_dir: Path, profile: Profile, app_version: str = "0.0.0
 
 
 # --------------------------------------------------------------------------- return to Windows defaults
-
-GPO_ROOTS = ("HKLM:\\SOFTWARE\\POLICIES\\", "DU:\\SOFTWARE\\POLICIES\\", "HKCU:\\SOFTWARE\\POLICIES\\")
-REASON_NO_DEFAULTS = N_("значения Windows по умолчанию неизвестны; откат вручную по описанию правила")
-REASON_ALREADY_DEFAULT = N_("правило только удаляет значения, которых нет в чистой Windows: возвращать нечего")
 
 
 def windows_default(action: Action) -> tuple[str, Any] | None:
@@ -180,63 +293,19 @@ def _revert_line(action: Action, step: tuple[str, Any], params: dict[str, Any]) 
     return None
 
 
-@dataclass
-class PlannedRevert:
-    rule: Rule
-    lines: list[str]  # PowerShell calls that restore the Windows defaults
-    skipped: list[Action] = field(default_factory=list)  # actions without a known default
-    dependent: bool = False  # added because it requires a selected rule
-    reboot: bool = False
-
-
-@dataclass
-class RevertPlan:
-    rules: list[PlannedRevert] = field(default_factory=list)
-    excluded: list[tuple[Rule, str]] = field(default_factory=list)
-
-    @property
-    def rule_ids(self) -> list[str]:
-        return [p.rule.id for p in self.rules]
-
-
 def plan_revert(catalog: Catalog, items: list[str]) -> RevertPlan:
     """Return the selected rules, and the rules that require them, to the values of a clean Windows.
     The profile does not matter: the rules may have come from an installation or an earlier apply."""
     plan = RevertPlan()
-    wanted: dict[str, bool] = {rule_id: False for rule_id in selected_rules(catalog, items)}  # id -> dependent
-    stack = list(wanted)
-    while stack:
-        for dependent in catalog.required_by(stack.pop()):
-            if dependent not in wanted:
-                wanted[dependent] = True
-                stack.append(dependent)
+    wanted = _with_dependents(catalog, selected_rules(catalog, items))  # id -> dependent
     for rule_id in catalog.order:
         if rule_id not in wanted:
             continue
-        rule = catalog.rules[rule_id]
-        if rule.phase in INSTALL_ONLY_PHASES:
-            plan.excluded.append((rule, REASON_INSTALL_ONLY))
-            continue
-        if rule.phase == USER_PHASE:
-            plan.excluded.append((rule, REASON_USER_PHASE))
-            continue
-        params = {name: param.default for name, param in rule.params.items()}
-        lines: list[str] = []
-        skipped: list[Action] = []
-        for action in rule.actions:
-            step = windows_default(action)
-            if step is None:
-                skipped.append(action)
-                continue
-            line = _revert_line(action, step, params)
-            if line:
-                lines.append(line)
-        if not lines:
-            plan.excluded.append((rule, REASON_NO_DEFAULTS if skipped else REASON_ALREADY_DEFAULT))
-            continue
-        reboot = any(a.type in REBOOT_TYPES for a in rule.actions) or any(
-            a.type == "reg" and str(a.fields.get("path", "")).upper().startswith("HKLM:\\SYSTEM\\") for a in rule.actions)
-        plan.rules.append(PlannedRevert(rule, lines, skipped, wanted[rule_id], reboot))
+        entry = _revert_entry(catalog.rules[rule_id], wanted[rule_id])
+        if isinstance(entry, PlannedRevert):
+            plan.rules.append(entry)
+        else:
+            plan.excluded.append((catalog.rules[rule_id], entry))
     return plan
 
 
@@ -244,19 +313,9 @@ def render_revert(plan: RevertPlan, profile: Profile, templates_dir: Path, app_v
     """The apply script with blocks that restore Windows defaults; its backup works with Undo-Apply.ps1."""
     by_phase: dict[str, list[str]] = defaultdict(list)
     for planned in plan.rules:
-        by_phase[planned.rule.phase].append("\n".join([f"# [{planned.rule.id}] Windows defaults"] + planned.lines))
-    blocks: list[str] = []
-    blocks += by_phase.get("specialize", [])
-    if by_phase.get("default-user"):
-        inner = "\n\n".join(by_phase["default-user"])
-        blocks.append("if (Mount-DefaultUser) {\n" + "\n".join("    " + line if line else line for line in inner.splitlines())
-                      + "\n    Dismount-DefaultUser\n}")
-    blocks += by_phase.get("post-oobe", [])
-    accounts = ",".join(ps_quote(a.name) for a in profile.accounts)
-    text = fill((templates_dir / "Apply.runtime.ps1").read_text(encoding="utf-8"),
-                {"build_label": _label(profile, app_version) + " (return to Windows defaults)", "accounts": accounts,
-                 "blocks": "\n\n".join(blocks) or "# (nothing to return)"})
-    return text.replace("\r\n", "\n")
+        by_phase[planned.rule.phase].append(_revert_block(planned))
+    return _fill_apply(templates_dir, profile, _label(profile, app_version) + " (return to Windows defaults)",
+                       _assemble(by_phase), "# (nothing to return)")
 
 
 def _audit_path(path: str) -> tuple[str, str]:

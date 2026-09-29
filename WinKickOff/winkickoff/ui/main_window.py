@@ -28,6 +28,7 @@ from winkickoff.core.catalog import Action, Catalog, Group, Param, Rule
 from winkickoff.core.apply import (
     ApplyPlan,
     RevertPlan,
+    audit_rules,
     parse_audit_report,
     plan_apply,
     plan_revert,
@@ -1309,7 +1310,25 @@ class MainWindow(tk.Tk):
                 notes.append(tr("нужна перезагрузка"))
             level = "warning" if planned.irreversible else "info"
             issues.append(Issue(level, planned.rule.id, tr("будет применено") + (": " + "; ".join(notes) if notes else "")))
+        for returning in plan.reverts:
+            notes = [tr("выключено в профиле")]
+            if returning.dependent:
+                notes.append(tr("зависит от выбранного правила"))
+            if returning.skipped:
+                notes.append(tr("не возвращается автоматически: {0}", ", ".join(sorted({a.type for a in returning.skipped}))))
+            if returning.reboot:
+                notes.append(tr("нужна перезагрузка"))
+            level = "warning" if returning.skipped else "info"
+            issues.append(Issue(level, returning.rule.id, tr("будет возвращено к умолчаниям Windows") + ": " + "; ".join(notes)))
         return issues
+
+    def _nothing_to_apply(self, plan: ApplyPlan) -> None:
+        """Say plainly why nothing happens, instead of a line in the status bar only."""
+        reasons = [f"{self.rule_title(rule.id)}: {tr(reason)}" for rule, reason in plan.excluded[:8]]
+        more = tr("\n... и ещё {0}", len(plan.excluded) - 8) if len(plan.excluded) > 8 else ""
+        messagebox.showinfo(APP_NAME, tr("Среди выбранного нечего применять к этому компьютеру.") + "\n\n"
+                            + "\n".join(reasons) + more, parent=self)
+        self.set_status(tr("Среди выбранного нет правил, которые можно применить к работающей системе"))
 
     def audit_selected(self) -> None:
         """Read-only check on this PC: which of the selected rules already take effect."""
@@ -1318,13 +1337,13 @@ class MainWindow(tk.Tk):
         items = self._apply_items()
         if not items:
             return
-        plan = plan_apply(self.catalog, self.profile, items)
-        excluded = [Issue("info", rule.id, tr("не проверяется: {0}", tr(reason))) for rule, reason in plan.excluded]
-        if not plan.rules:
+        rule_ids, skipped = audit_rules(self.catalog, items)
+        excluded = [Issue("info", rule.id, tr("не проверяется: {0}", tr(reason))) for rule, reason in skipped]
+        if not rule_ids:
             self.show_issues(excluded)
             self.set_status(tr("Среди выбранного нет правил, которые можно проверить на работающей системе"))
             return
-        script = render_audit(plan.rule_ids, self.profile, self.catalog, self.paths.templates, APP_VERSION)
+        script = render_audit(rule_ids, self.profile, self.catalog, self.paths.templates, APP_VERSION)
         outcome: dict[str, Any] = {}
 
         def work() -> None:
@@ -1379,6 +1398,10 @@ class MainWindow(tk.Tk):
         for planned in plan.rules:
             flags = (tr(" (не откатывается)") if planned.irreversible else "") + (tr(" (нужна перезагрузка)") if planned.reboot else "")
             lines.append(f"- {planned.rule.id}: {self.rule_title(planned.rule.id)}{flags}")
+        if plan.reverts:
+            lines += ["", tr("Выключены в профиле, возвращаются к значениям Windows по умолчанию:")]
+            for returning in plan.reverts:
+                lines.append(f"- {returning.rule.id}: {self.rule_title(returning.rule.id)}" + (tr(" (частично)") if returning.skipped else ""))
         if plan.excluded:
             lines += ["", tr("Не применяются:")]
             lines += [f"- {rule.id}: {tr(reason)}" for rule, reason in plan.excluded]
@@ -1391,8 +1414,8 @@ class MainWindow(tk.Tk):
             return None
         plan = plan_apply(self.catalog, self.profile, items)
         self.show_issues(self._plan_issues(plan))
-        if not plan.rules:
-            self.set_status(tr("Среди выбранного нет правил, которые можно применить к работающей системе"))
+        if plan.empty:
+            self._nothing_to_apply(plan)
             return None
         name = filedialog.askdirectory(parent=self, title=tr("Папка для скриптов применения"), initialdir=str(self.paths.output))
         if not name:
@@ -1403,7 +1426,7 @@ class MainWindow(tk.Tk):
         except OSError as exc:
             messagebox.showerror(APP_NAME, tr("Скрипты не записаны:\n{0}", exc), parent=self)
             return None
-        self.set_status(tr("Скрипты применения сохранены: {0} (правил: {1})", folder, len(plan.rules)))
+        self.set_status(tr("Скрипты применения сохранены: {0} (правил: {1})", folder, len(plan.rules) + len(plan.reverts)))
         return folder
 
     def apply_now(self) -> bool:
@@ -1413,14 +1436,17 @@ class MainWindow(tk.Tk):
             return False
         plan = plan_apply(self.catalog, self.profile, items)
         self.show_issues(self._plan_issues(plan))
-        if not plan.rules:
-            self.set_status(tr("Среди выбранного нет правил, которые можно применить к работающей системе"))
+        if plan.empty:
+            self._nothing_to_apply(plan)
             return False
         irreversible = [self.rule_title(p.rule.id) for p in plan.rules if p.irreversible]
-        text = tr("Применить выбранные правила ({1}) к компьютеру {0}?", os.environ.get("COMPUTERNAME", "?"), len(plan.rules))
+        text = tr("Применить выбранные правила ({1}) к компьютеру {0}?", os.environ.get("COMPUTERNAME", "?"), len(plan.rules) + len(plan.reverts))
+        if plan.reverts:
+            text += "\n\n" + tr("Включены в профиле и будут применены: {0}. Выключены в профиле и вернутся к значениям Windows по умолчанию: {1}.",
+                                len(plan.rules), len(plan.reverts))
         if irreversible:
             text += "\n\n" + tr("Автоматически не откатываются: {0}.", "; ".join(irreversible[:8]) + ("..." if len(irreversible) > 8 else ""))
-        if any(p.reboot for p in plan.rules):
+        if any(p.reboot for p in plan.rules) or any(p.reboot for p in plan.reverts):
             text += "\n\n" + tr("После применения нужна перезагрузка.")
         text += "\n\n" + tr("Windows запросит подтверждение прав администратора. Прежние значения сохраняются для отката (Undo-Apply.ps1).")
         if not messagebox.askyesno(APP_NAME, text, icon=messagebox.WARNING, default=messagebox.NO, parent=self):

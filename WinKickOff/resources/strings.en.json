@@ -388,5 +388,11 @@
  "Возвращаются не полностью (приложения, скрипты, значения с неизвестным умолчанием): {0}.": "Not returned completely (apps, scripts, values with an unknown default): {0}.",
  "Возврат не запущен:\n{0}": "The return was not started:\n{0}",
  "Скрипт возврата к умолчаниям запущен; журнал и резервная копия: {0}": "The return-to-defaults script is running; log and backup: {0}",
- "новых правил каталога: {0}, из них включено по умолчанию {1}: {2}": "new catalog rules: {0}, of them on by default {1}: {2}"
+ "новых правил каталога: {0}, из них включено по умолчанию {1}: {2}": "new catalog rules: {0}, of them on by default {1}: {2}",
+ "выключено в профиле, но вернуть к умолчаниям Windows автоматически нельзя: откат вручную по описанию правила": "off in the profile, but it cannot return to the Windows defaults automatically: roll back by hand as the rule describes",
+ "выключено в профиле; в чистой Windows этих значений нет, менять нечего": "off in the profile; a clean Windows has none of these values, nothing to change",
+ "\n... и ещё {0}": "\n... and {0} more",
+ "Среди выбранного нечего применять к этому компьютеру.": "There is nothing in the selection to apply to this computer.",
+ "Выключены в профиле, возвращаются к значениям Windows по умолчанию:": "Off in the profile, returning to the Windows defaults:",
+ "Включены в профиле и будут применены: {0}. Выключены в профиле и вернутся к значениям Windows по умолчанию: {1}.": "On in the profile and applied: {0}. Off in the profile and returned to the Windows defaults: {1}."
 }
