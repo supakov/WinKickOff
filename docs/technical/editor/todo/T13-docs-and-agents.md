@@ -29,4 +29,4 @@ User instructions in the build, an up-to-date project map, an acceptance install
 profiles, installation and checks with the checklist and log locations, safety with plain-text passwords);
 the SmartScreen note for the unsigned exe is added when the T12 build exists. Step 2 is done; the criterion
 "every path in AGENTS.md exists" is checked by `tests/test_docs.py`. Step 3 waits for a VM: install from a
-«Офис» (Office) build, go through `docs/user/ru/install-and-check.md`, write the report in Russian.
+"Office" build, go through `docs/user/ru/install-and-check.md`, write the report in Russian.

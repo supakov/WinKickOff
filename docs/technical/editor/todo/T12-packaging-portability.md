@@ -24,7 +24,7 @@ A portable build `dist/WinKickOff/` and a portability checklist in a VM.
 ## Acceptance criteria
 
 - The six checklist items are done; startup within 2 seconds; size up to 40 MB.
-- An XML built in the VM from the «Офис» (Office) preset passes `Validate-Unattend.ps1`.
+- An XML built in the VM from the "Office" preset passes `Validate-Unattend.ps1`.
 
 ## Implementer notes
 
@@ -39,7 +39,7 @@ portability checklist, SmartScreen note for the unsigned exe in the user documen
 - `.github/workflows/build.yml` runs on `windows-latest` with Python 3.14: unit tests, the answer file checker on
   Appendix B, `tools/build.ps1 -SkipTests`; the zip is an artifact of every run. A tag `v<APP_VERSION>` also
   runs the release job: `gh release create` with `docs/releases/v<version>.md` (a prerelease for `-rc`).
-- Bug found by the customer: the portable build had only the «Офис» (Office) and «Строгий» (Strict) presets
+- Bug found by the customer: the portable build had only the "Office" and "Strict" presets
   because `build.ps1` listed them by name. It now takes every `profiles/preset-*.json` and fails when the build
   holds fewer presets than the source; `test_presets.py` forbids preset names in the script.
 - The documentation next to the exe now includes `docs/technical/reference` and the memstechtips report, so the

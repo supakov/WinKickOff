@@ -8,7 +8,7 @@ services", Microsoft 365 Apps privacy controls, OneDrive Group Policy), the ADMX
 a value that does not exist or an obsolete one, the catalog uses the documented equivalent or leaves the item
 out; the section "Corrections to the list" names each case.
 
-All rules below are on by default, so they are in the «Офис» (Office), «Строгий» (Strict) and «Ноутбук» (Laptop)
+All rules below are on by default, so they are in the "Office", "Strict" and "Laptop"
 presets; the memstechtips preset takes a rule only when the original file has its actions. Per-user values are
 written into the default user profile (phase default-user), so every account created during and after the
 installation gets them; accounts that already exist on a running PC keep their own values.
@@ -124,7 +124,7 @@ Windows\CurrentVersion\Explorer\MyComputer\NameSpace` and its WOW6432Node twin h
 of the customer unhides the five Local entries and leaves the rest hidden; it touches only the 64-bit view.
 
 Every rule writes both views (32-bit programs use the WOW6432Node view in their Open and Save dialogs). All
-«Показывать ...» (Show ...) rules are off by default, so This PC shows only drives, as Windows 11 does.
+"Show ..." rules are off by default, so This PC shows only drives, as Windows 11 does.
 
 | Rule | Entry (GUID, internal name) | Points to | Remarks |
 |---|---|---|---|
@@ -159,7 +159,7 @@ default, OneDrive is not installed, Linux appears only with WSL, Network is need
 hides is unverified); the `DelegateFolders` of This PC (portable devices and similar data sources).
 
 Verification: open This PC and press F5; after a feature update Windows may restore its defaults, and the
-«Этот ПК» (This PC) menu applies the rules again.
+"This PC" menu applies the rules again.
 
 ## Corrections to the list
 
@@ -193,10 +193,10 @@ that endpoint, it keeps safeguard-hold data current), `DisableInventory` (touche
 ## Verification and rollback
 
 - Verification: `reg query` of the keys above; Settings pages show "Some settings are managed by your
-  organization"; `edge://policy` for Edge; in Office, File, Account, Account Privacy. The «Этот ПК» (This PC) menu
+  organization"; `edge://policy` for Edge; in Office, File, Account, Account Privacy. The "This PC" menu
   of WinKickOff checks every rule on a running PC.
-- Rollback: every rule has a Windows default for «Вернуть выбранное к умолчаниям Windows» (Return the selection to
-  Windows defaults): policies are removed, per-user values return to «нет значения».
+- Rollback: every rule has a Windows default for "Return the selection to Windows defaults now...":
+  policies are removed, per-user values return to "no value".
 
 ## Sources
 

@@ -184,7 +184,7 @@ rebuilt on a change, like for the language.
 {
   "format_version": 2,
   "catalog_version": "0.4",
-  "name": "Офис",
+  "name": "Office",
   "author": "",
   "created": "2026-09-25T10:00:00",
   "modified": "2026-09-25T10:00:00",

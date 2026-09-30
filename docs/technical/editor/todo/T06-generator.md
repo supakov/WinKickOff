@@ -19,7 +19,7 @@ Implement `core/render.py`: a deterministic build of the XML and the three scrip
    accounts; key and `WillShowUI` by mode; time zone; header with versions and profile name;
    embedded profile in `Extensions/Profile`.
 5. `build(profile) -> BuildResult(xml, scripts, rule_ids, warnings)`; CRLF, no BOM.
-6. `tests/test_render.py` per `04-testing.md`; the build of the «Офис» (Office) preset passes `Validate-Unattend.ps1`
+6. `tests/test_render.py` per `04-testing.md`; the build of the "Office" preset passes `Validate-Unattend.ps1`
    (external test).
 
 ## Acceptance criteria

@@ -2,7 +2,8 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 30.09.2026 (T18: English source language, languages and colour themes as files).
+Last update: 30.09.2026 (T18: English source language, languages and colour themes as files; English UI names
+in the technical documentation).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -250,6 +251,9 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
   `Settings(language="en", theme="light")` explicitly and reset the language in `tearDown`.
 - Code, comments, rule texts and tool tables are English (`test_sources.py` fails on Cyrillic);
   `WinKickOff/tools/make_rule_docs.py` keeps the words of the three user documentation languages as data.
+  The technical documentation quotes editor elements by their English text in double quotes ("Office", "This PC",
+  "Check rule catalog"), as in `tr()` and the rule titles; guillemets with Russian or Ukrainian text are kept only
+  for Windows' own labels and other data (`test_docs.py` allows Cyrillic only there and in code).
 - Colour themes (T18): `WinKickOff/resources/themes/<id>.json` with `base` (`native` or `clam`), `dark`, `font` and
   `colors` (keys of `LIGHT_COLORS` in `core/themes.py`); a new file adds a theme. The setting `theme` `""`
   follows the Windows light or dark mode: `core/themes.py` is the only module allowed to read the registry

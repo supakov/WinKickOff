@@ -44,8 +44,8 @@ devices (printers, NAS) that look for shares anonymously; in that case use the v
   an administrator opens them. A standard user (User) gets no prompt: for such an account these tools open
   without elevation.
 - WinKickOff: rule `uac.admin-always-notify`, off by default since 26.09.2026 at the customer's request (no
-  prompt for Task Manager), so the «Офис» (Office) and «Ноутбук» (Laptop) presets leave Windows at 5; the
-  «Строгий» (Strict) preset turns it on with level 2. v0.2 set 2.
+  prompt for Task Manager), so the "Office" and "Laptop" presets leave Windows at 5; the
+  "Strict" preset turns it on with level 2. v0.2 set 2.
 - Verification: Control Panel → User Accounts → Change User Account Control settings: slider at the top.
 - Rollback: value 5.
 
@@ -160,7 +160,7 @@ devices (printers, NAS) that look for shares anonymously; in that case use the v
 - Expected effect: the drive is not encrypted. Protection against laptop theft is enabled deliberately (the
   "BitLocker for laptops" constructor parameter, with mandatory saving of the recovery key to USB
   or printing it before the reboot).
-- WinKickOff: rule `encryption.prevent-auto-bitlocker` is on in every preset, «Ноутбук» (Laptop) included, since
+- WinKickOff: rule `encryption.prevent-auto-bitlocker` is on in every preset, "Laptop" included, since
   28.09.2026 (customer decision: BitLocker is off everywhere; disk encryption comes as a separate task together
   with the escrow of recovery keys and user passwords). The editor warns when the rule is turned off.
 - Cross-links: on PCs without TPM (check bypassed in section 01) device encryption is unavailable even

@@ -9,7 +9,7 @@ state of the machine: tests read project files and write only to the test's temp
 | Level | What it verifies | Where it runs |
 |---|---|---|
 | Catalog | Integrity of `rules/*.toml`: unique ids, existing groups and dependencies, no cycles, valid action types and required fields, filled-in descriptions, links to existing reference files | Everywhere |
-| Semantic golden | Each action of the v0.2 file is present in the catalog under the «Офис» (Office) preset with the same value | Everywhere |
+| Semantic golden | Each action of the v0.2 file is present in the catalog under the "Office" preset with the same value | Everywhere |
 | Resolver | Disable and enable cascade, conflicts, group operations, application order | Everywhere |
 | Profile | Loading, saving, completeness, migration, `unknown`, comparison | Everywhere |
 | Generator | Determinism; only enabled rules in the output; correct order; parameter substitution; escaping; 259 limit; well-formed XML | Everywhere |
@@ -26,7 +26,7 @@ state of the machine: tests read project files and write only to the test's temp
    `Invoke-Exe` and reduces them to tuples `("reg", path, name, kind, value)`, `("reg-remove", path, name)`,
    `("service", name, start)`, `("exe", file, args)`. The values of `$Config.X` and `$du` are substituted
    with the known v0.2 defaults.
-2. The catalog with the «Офис» preset is expanded into the same kind of tuple set (default parameters,
+2. The catalog with the "Office" preset is expanded into the same kind of tuple set (default parameters,
    `DU:` is replaced the same way).
 3. Assertion: the v0.2 set is a subset of the catalog set; each missing item is reported
    together with the expected rule. Actions of type `ps` are compared by normalized text
@@ -56,7 +56,7 @@ state of the machine: tests read project files and write only to the test's temp
 
 ### core/profile.py
 
-- A profile from the catalog equals the «Офис» preset (file `profiles/preset-office.json`).
+- A profile from the catalog equals the "Office" preset (file `profiles/preset-office.json`).
 - A save/load cycle yields an equal object; the `rules` keys are in catalog order.
 - A profile missing some rules is completed with defaults, with warnings; unknown rules go to `unknown`.
 - Migration of a format 1 profile (via the `config → rules` table) yields the expected states.
@@ -70,7 +70,7 @@ state of the machine: tests read project files and write only to the test's temp
 - A phase without rules: the phase infrastructure is absent (no Active Setup, no Post-OOBE task).
 - Parameters are substituted; a string with a single quote is escaped.
 - Every `Path` in the XML is no longer than 259; the XML is parsed by `xml.etree`; the profile is embedded and reads back.
-- The build of the «Офис» preset contains all rules of the preset, by the identifiers in the comments.
+- The build of the "Office" preset contains all rules of the preset, by the identifiers in the comments.
 
 ### core/validate.py
 
@@ -81,7 +81,7 @@ a warning with the risk text.
 ### core/importer.py
 
 - Importing XML with an embedded profile returns an equal profile.
-- Importing a v0.2 file without an embedded profile yields a profile equal to the «Офис» preset in its rules
+- Importing a v0.2 file without an embedded profile yields a profile equal to the "Office" preset in its rules
   (via action matching); unmatched actions are listed.
 
 ### core/pscheck.py
@@ -98,7 +98,7 @@ a warning with the risk text.
 
 Unchanged from revision 0.1 (sections 4 and 5 of the old document): a clean VM, launch from
 a flash drive, snapshots of the registry and `%APPDATA%` before and after, moving the folder, removal without traces; an acceptance
-installation of Windows 11 with a file from the «Офис» preset according to the README checklist.
+installation of Windows 11 with a file from the "Office" preset according to the README checklist.
 
 ## 5. Organization
 

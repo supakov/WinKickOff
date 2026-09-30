@@ -3,7 +3,7 @@
 Browser policies from issue #1 of the repository ("Web Browsers debloat"). The issue attached three .cmd
 scripts (`DebloatEdge.cmd`, `DebloatChrome.cmd`, `DebloatBrave.cmd`); every policy name and value was checked
 on 25.09.2026 against the vendors' definitions (see Sources). WinKickOff turns each working policy into a
-separate rule of the «Браузеры» (Browsers) section, so any of them can be disabled. The rules are generated
+separate rule of the "Browsers" section, so any of them can be disabled. The rules are generated
 by `WinKickOff/tools/make_browser_rules.py`.
 
 All rules write machine policies (`HKLM`) in the specialize pass, apply to every user and cannot be changed
@@ -151,7 +151,7 @@ Lines of the scripts that are not turned into rules, or are turned into rules wi
 
 - Verification: `edge://policy`, `chrome://policy` or `brave://policy` lists every applied policy with its
   source "Platform" and status; in the registry, `reg query` of the key above. WinKickOff shows the exact
-  command for each rule and can check the selection on a running PC («Этот ПК» (This PC)).
+  command for each rule and can check the selection on a running PC (menu "This PC").
 - Rollback: delete the value from the policy key; the browser returns to its default behaviour and the
   setting becomes editable again after a restart of the browser.
 

@@ -19,7 +19,7 @@ Split the documentation into two branches with different readers:
 | `docs/technical/editor/todo/` (tasks) | technical | English; open tasks are translated, closed ones as they are touched |
 | `AGENTS.md`, `WinKickOff/templates/README.md`, `WinKickOff/profiles/README.md` | technical | English |
 | `WinKickOff/README.md` | both | a short technical README in English plus links to the user documentation |
-| The «Порядок работы» (Workflow) node in the window, `README.md` (how to apply, VM verification checklist) | user | `docs/user/{uk,en,ru}/` |
+| The "Workflow" node in the window, `README.md` (how to apply, VM verification checklist) | user | `docs/user/{uk,en,ru}/` |
 | `docs/appendices/C-critical-review/` (review of the original, critic report), reports at the customer's request | customer | stay in Russian in the appendices (moved in T17) |
 
 Code comments and log messages are already in English. Rule texts in the catalog (`summary`,
@@ -30,8 +30,8 @@ is added with the file `rules/lang/en.toml` (related to T14).
 
 1. `README.md`: what WinKickOff is, who it is for, what the output is.
 2. `quick-start.md`: from launching the program to a USB stick with `autounattend.xml` in 7 steps (the text of the
-   «Порядок работы» node).
-3. `profiles.md`: the «Офис» (Office) and «Строгий» (Strict) presets, custom profiles, where they are stored, how to move them to another PC,
+   "Workflow" node).
+3. `profiles.md`: the "Office" and "Strict" presets, custom profiles, where they are stored, how to move them to another PC,
    how to restore a profile from a built file.
 4. `install-and-check.md`: installing from a USB stick, what the installer will ask, verification after installation
    (the checklist from `README.md`), where the logs are, what to do on an error.
@@ -54,8 +54,8 @@ is added with the file `rules/lang/en.toml` (related to T14).
 5. `tools/make_rule_docs.py`: `rules.md` in three languages from the catalog and the `rules/lang/*.toml` files.
 6. Synchronization test: the three languages have the same set of files and the same number of second-level
    headings; `rules.md` matches what the tool generates.
-7. Window: «Справка, Документация» (Help, Documentation) opens the user documentation in the display language;
-   «Подробнее» (More details) on a rule leads to the technical reference.
+7. Window: "Help, User documentation" opens the user documentation in the display language;
+   "More details" on a rule leads to the technical reference.
 8. `AGENTS.md`, rule 4, changes: communication with the customer in Russian; technical documentation in
    English; user documentation in Ukrainian, English and Russian; reports at the customer's request in
    Russian in Markdown.
@@ -89,6 +89,6 @@ is added with the file `rules/lang/en.toml` (related to T14).
 - `tests/test_docs.py`: no dashes, technical docs in English (Cyrillic only in «UI names» and code), the
   same structure in the three languages, generated rule lists up to date, complete translations, every
   relative link and anchor resolves. The loader-level anchor check is a warning of `validate_catalog`.
-- The editor: «Справка, Документация пользователя» (Help, User documentation) opens `docs/user/ru/README.md`;
+- The editor: "Help, User documentation" opens `docs/user/ru/README.md`;
   the rule description links to the technical reference card.
 - The appendices stay Russian (customer materials). Commit messages stay Russian.

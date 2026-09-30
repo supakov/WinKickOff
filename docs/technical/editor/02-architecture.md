@@ -200,13 +200,13 @@ on the unpacked text.
 ## 8. Interface
 
 - A horizontal `ttk.PanedWindow`: on the left a `Frame` with the search field and a `ttk.Treeview` (a single column
-  `#0` with the text «☐ Название» (☐ Title) or «☑ Название» (☑ Title), «◪» for a partially enabled group); on the right
+  `#0` with a check box image before the title, `ui/checkimages.py`: on, off, partial for a group); on the right
   a `Frame` with a scrollable `Text` (description) and a parameter panel; at the bottom a `ttk.Treeview` of messages.
-- A click on a node within its first characters, or Space: toggling through the resolver; the changed nodes
+- A click on the check box image, or Space: toggling through the resolver; the changed nodes
   are redrawn; the status bar shows the number of cascade changes, a click expands the list.
 - Search: on input (with a 150 ms delay) the tree is rebuilt from the filtered list;
   an empty query restores the full tree, preserving the expansion state.
-- The description is built from the rule data and the action table; the «Подробнее» (More details) link opens
+- The description is built from the rule data and the action table; the "Reference entry" link under "More details" opens
   the reference card (`os.startfile`) if the file is in the build.
 - Parameters: widgets by type (Spinbox, Combobox, Entry) below the description; a change goes straight into the profile.
 - Data nodes: "Installation: edition, key, time zone", "Accounts", "Languages and region" open forms in the right panel.
@@ -215,4 +215,4 @@ on the unpacked text.
 ## 9. Build
 
 PyInstaller onedir, `--noconsole`, data `rules`, `templates`, `resources`, `profiles`, and
-`docs/technical/reference` and `docs/user` from the repository root for the «Подробнее» links. Output: `dist/WinKickOff/`.
+`docs/technical/reference` and `docs/user` from the repository root for the "More details" links. Output: `dist/WinKickOff/`.

@@ -116,12 +116,12 @@ the registry; it does not block enabling additional layers.
 | 3b576869-a4ec-4529-8536-b80a7769e899 | Office creates executable content | 1 | Macros that write .exe/.dll/.vbs to disk | Low | Win10 1709 |
 | 75668c1f-73b5-4cf0-bb93-3ecf5cb7cc84 | Office injects code into processes | 1 | Injections from Word/Excel/PowerPoint/OneNote | Low; incompatible with BeyondTrust, Heimdal | Win10 1709 |
 | 26190899-1602-49e8-8b27-eb1d0a1ce869 | Outlook: child processes | 1 | Exploits of Outlook rules and forms | Low | Win10 1709 |
-| b2b3f03d-6a65-4f7b-a9c7-1c7ef74a9ba4 | Untrusted processes from USB | 1 | Running unsigned .exe files directly from a USB drive or SD card | Medium: unsigned portable utilities. In WinKickOff (`asr.usb-untrusted`) off by default since 26.09.2026 (commit d33fc41), on in «Строгий» (Strict) | Win10 1709 |
+| b2b3f03d-6a65-4f7b-a9c7-1c7ef74a9ba4 | Untrusted processes from USB | 1 | Running unsigned .exe files directly from a USB drive or SD card | Medium: unsigned portable utilities. In WinKickOff (`asr.usb-untrusted`) off by default since 26.09.2026 (commit d33fc41), on in "Strict" | Win10 1709 |
 | 92e97fa1-2edf-4476-bdd6-9dd0b4dddc7b | Win32 API from Office macros | 1 | Shellcode from VBA | Low | Win10 1709 |
 | c1db55ab-c21a-4637-bb3f-a12568109d35 | Advanced ransomware protection | 1 | Files that look like ransomware according to cloud heuristics | Medium: rare in-house programs until they build up reputation | Win10 1803, requires cloud protection |
 | 33ddedf1-c6e0-47cb-833e-de6133960387 | Reboot into Safe Mode | 1 | `bcdedit /set safeboot` from malicious code (antivirus bypass) | Low; Safe Mode is available from the recovery environment | Win10 1709 |
 | c0033c00-d16d-4114-a5a0-dc9b3a7d2ceb | Copied or impersonated system utilities | 6 (warn) | Copies of system32 utilities from other folders | Elevated: heuristic; hence the warn mode | Win10 1709 |
-| 01443614-cd74-433a-b99e-2ecdc07bfc25 | Executable files without reputation (prevalence, age) | 2 (audit) | Running rare or new .exe files | High: would block internal programs; enable in the «строгом» (strict) profile | Win10 1803, requires cloud protection |
+| 01443614-cd74-433a-b99e-2ecdc07bfc25 | Executable files without reputation (prevalence, age) | 2 (audit) | Running rare or new .exe files | High: would block internal programs; enable in the "Strict" preset | Win10 1803, requires cloud protection |
 | d1e49aac-8f56-4280-b9ba-993a6d77406c | Processes from PsExec and WMI | 2 (audit) | Remote execution via PsExec/WMI (lateral movement) | High for remote administration by your own admin | Win10 1803 |
 
 Not enabled: `9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2` "Credential theft from LSASS". It duplicates

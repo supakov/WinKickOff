@@ -20,7 +20,7 @@ Possible, but not for all rules and not as a default action. Review by catalog p
 | `default-user` (default profile hive) | Yes, for new users | Mounting `C:\Users\Default\NTUSER.DAT`; for the current user, optionally, the same values in `HKCU` |
 | `user-first-logon` (input languages and other per-user settings) | Only for the current user and only with a separate confirmation | Input language rules change keyboard layouts: on 12.09.2026 exactly such a change broke layout switching. Excluded by default |
 | `post-oobe` (accounts, built-in accounts, answer file copies) | Yes | The same actions as in `Post-OOBE.ps1` |
-| `windowspe`, `specialize-xml`, `oobe-xml` | No | Effective only during installation; marked «только при установке» (installation only) in the window |
+| `windowspe`, `specialize-xml`, `oobe-xml` | No | Effective only during installation; marked "takes effect only during Windows installation" in the window |
 
 Rollback: for `reg`, `reg-remove` and `service` actions, the script saves the previous
 value before the change and can restore it. For `feature` and `capability`, rollback is done with the reverse command.
@@ -41,7 +41,7 @@ Tests never apply anything; functional verification is done only in a virtual ma
 2. Read-only verification mode (audit): the `Audit-*.ps1` script compares the current values of the
    registry, services, features and apps with the rule values and writes a JSON report: for each
    rule "in effect", "not in effect", "partial", "not verified" (for `ps` and `exe`). Administrator
-   rights are not required. In the window: «Проверить на этом ПК» (Check on this PC) for a rule or a branch, the result shown in the tree
+   rights are not required. In the window: "Check the selection on this PC" for a rule or a branch, the result shown in the tree
    as icons and in the list at the bottom.
 3. Apply script `Apply-*.ps1`: the `Setup-System.runtime.ps1` runtime in apply mode
    (`Set-Reg`, `Remove-Reg`, `Set-ServiceStart` write the previous value to `backup-<время>.json`
@@ -49,15 +49,15 @@ Tests never apply anything; functional verification is done only in a virtual ma
 4. Rollback script `Undo-Apply.ps1`: restoring from a `backup-*.json` file; a fixed runtime
    in `templates/`, without rule logic.
 5. Window: three actions in the context menu of a rule and of a group, and on the description panel:
-   «Проверить на этом ПК» (read-only), «Сохранить скрипт применения...» (Save apply script...; puts Apply, Undo, README into
-   the chosen folder to run on another PC), «Применить сейчас...» (Apply now...). The last one is disabled by
+   "Check the selection on this PC" (read-only), "Save an apply script for the selection..." (puts Apply, Undo,
+   README into the chosen folder to run on another PC), "Apply the selection now...". The last one is disabled by
    default and is enabled in the program settings; before launch a dialog shows the computer name,
    the list of changes, the irreversible items and the reboot requirement; launch through UAC
    (`Start-Process powershell -Verb RunAs`), the result is read from the log and the report.
 6. Tests: classification of the plan by phases and exclusion reasons; dependencies get into the plan; the
    Audit, Apply, Undo scripts are parsed by Windows PowerShell 5.1 (`pscheck`); launching the apply is forbidden in tests
    (the launch function is substituted with one that fails when called).
-7. Acceptance in a VM: a clean installation from the «Офис» (Office) preset with the Defender branch turned off; the audit shows "not
+7. Acceptance in a VM: a clean installation from the "Office" preset with the Defender branch turned off; the audit shows "not
    in effect"; applying the branch; the audit shows "in effect"; rollback; the audit shows "not in effect" again; reboot
    without errors; a log without ERROR.
 
@@ -71,7 +71,7 @@ Tests never apply anything; functional verification is done only in a virtual ma
 ## Risks
 
 - Applying on a work PC without verification in a VM can disrupt its operation (example of 12.09.2026). That is why
-  «Применить сейчас» is disabled by default, and the documentation requires an audit and a VM first.
+  "Apply the selection now..." is disabled by default, and the documentation requires an audit and a VM first.
 - Some policies take effect only after a reboot or `gpupdate`; an audit right after applying
   may show "in effect" while programs still behave the old way.
 - App removal and disabling of features cannot be rolled back instantly.
@@ -88,10 +88,10 @@ Tests never apply anything; functional verification is done only in a virtual ma
   are "unknown"; default user values are checked in HKCU), `Apply.runtime.ps1` (administrator check,
   `Save-RegState` before every registry change, feature states, removed apps and capabilities listed;
   `backup-*.json` and `apply-*.log` next to the script), `Undo.runtime.ps1`.
-- Window: menu «Этот ПК» (This PC) and the tree context menu: «Проверить выбранное на этом ПК» (Check the
-  selection on this PC), «Сохранить скрипт применения выбранного...» (Save an apply script: `Apply.ps1`,
-  `Undo-Apply.ps1`, `README.txt`), «Применить выбранное сейчас...» (Apply now: off by default, enabled by
-  «Разрешить применение на этом ПК» (Allow applying on this PC) with a warning, stored as `allow_apply` in
+- Window: menu "This PC" and the tree context menu: "Check the selection on this PC",
+  "Save an apply script for the selection..." (`Apply.ps1`,
+  `Undo-Apply.ps1`, `README.txt`), "Apply the selection now..." (off by default, enabled by
+  "Allow applying on this PC" with a warning, stored as `allow_apply` in
   `settings.json`; confirmation with the computer name, irreversible rules and restart; scripts in `logs/`).
 - Tests: `tests/test_apply.py` (plan, flags, scripts parse in PowerShell 5.1, the audit contains no mutating
   command, report statuses, the runner with a harmless script in a temporary folder) and window tests with
@@ -100,10 +100,10 @@ Tests never apply anything; functional verification is done only in a virtual ma
 
 ### 26.09.2026: return to Windows defaults, apply without a hidden switch
 
-- Customer report: «Применить выбранное сейчас...» looked always disabled; its switch sat in another menu. Now
+- Customer report: "Apply the selection now..." looked always disabled; its switch sat in another menu. Now
   the items are always available; the first apply or return asks the permission question of
-  «Разрешить применение на этом ПК» (Allow applying on this PC) and remembers the answer.
-- New item «Вернуть выбранное к умолчаниям Windows сейчас...» (Return the selection to Windows defaults now):
+  "Allow applying on this PC" and remembers the answer.
+- New item "Return the selection to Windows defaults now...":
   `plan_revert` / `render_revert` in `core/apply.py` return the selected rules and the rules that require them to
   the values of a clean Windows, whatever the profile says. Data: the optional action field `default`
   (78 values in catalog 0.4); a missing policy is the default; unknown defaults are listed and left alone. The
@@ -113,13 +113,13 @@ Tests never apply anything; functional verification is done only in a virtual ma
 
 ### 29.09.2026: applying follows the profile
 
-- Customer report: «Применить выбранное сейчас...» did nothing for a rule without a check mark and, for a group,
+- Customer report: "Apply the selection now..." did nothing for a rule without a check mark and, for a group,
   applied only the rules with one; the saved script behaved the same. Cause: `plan_apply` dropped every rule that
   is off in the profile with the reason "off in the profile", and the window only wrote a status bar line.
 - Now the apply script makes the PC match the profile for the selection: rules that are on are applied, rules that
   are off (and the rules that require them) return to the Windows defaults in the same script (`ApplyPlan.reverts`).
   Rules that are off and have no known defaults are listed; if nothing is left, a message box names the reasons.
-  «Проверить выбранное на этом ПК» (Check) now covers every selected rule, whatever its check mark (`audit_rules`).
+  "Check the selection on this PC" now covers every selected rule, whatever its check mark (`audit_rules`).
 - Tests: `test_rule_without_check_mark_returns_to_windows_defaults`, `test_group_applies_the_rules_that_are_on_and_returns_the_rest`,
   `test_off_rules_without_known_defaults_are_listed`, `test_audit_takes_every_selected_rule`, and the window tests
   `test_apply_now_explains_when_there_is_nothing_to_do`, `test_apply_now_returns_an_unchecked_rule_to_defaults`.

@@ -24,7 +24,7 @@ hand-written v0.2 file move into the appendices section of the documentation as 
 │       ├── A-unattendedwinstall/     autounattend.xml of the original, LICENSE, SOURCE.md (from original/)
 │       ├── B-autounattend-v0.2/      our v0.2 file, README with version history v0.1-v0.2 and the VM checklist
 │       ├── C-critical-review/        01-critical-review.md, 03-critic-report-v0.2.docx
-│       └── D-winkickoff-office/      example: autounattend.xml built by WinKickOff from the «Офис» (Office) preset
+│       └── D-winkickoff-office/      example: autounattend.xml built by WinKickOff from the "Office" preset
 └── docs/technical/editor/             specification (moves to docs/technical/editor/ in T16)
 ```
 

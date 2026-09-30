@@ -73,7 +73,7 @@ documents), but without app advertising.
 
 Theme (dark/light), wallpaper, taskbar alignment, the classic context menu, showing
 hidden files, disabling animations: all of this is a matter of the user's taste, not of the base image.
-If needed, it is added as a separate constructor profile «косметика» (cosmetics).
+If needed, it is added as a separate profile "Cosmetics".
 
 ## Verification and rollback
 

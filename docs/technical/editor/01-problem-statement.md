@@ -16,19 +16,19 @@ Give the administrator of a small organization a tool that:
 6. runs from a flash drive on any Windows PC without installation and without administrator rights.
 
 Outcome: changing the organization's policy means editing a profile in the tree, not editing PowerShell code;
-the v0.2 file becomes one of the profiles («Офис» (Office)) rather than the only template.
+the v0.2 file becomes one of the profiles ("Office") rather than the only template.
 
 ## 2. Users and scenarios
 
 | Role | Who | Scenario |
 |---|---|---|
-| Organization administrator | An employee with basic Windows skills, no PowerShell | Opens the «Офис» profile, disables «Подпись SMB обязательна» (SMB signing required) because of an old multifunction printer, sees that nothing dependent was disabled, builds the XML, copies it to a flash drive |
+| Organization administrator | An employee with basic Windows skills, no PowerShell | Opens the "Office" profile, disables "SMB signing required (server and client)" because of an old multifunction printer, sees that nothing dependent was disabled, builds the XML, copies it to a flash drive |
 | Technical specialist | Serves several organizations | Maintains profiles per site, searches for the word "NetBIOS", compares profiles, updates the rule catalog when a new version is released |
 | Catalog author (this project) | Maintains the rules and the runtime | Adds a rule to a TOML file; tests confirm catalog integrity and v0.2 coverage |
 
 Scenarios:
 
-1. New profile from the «Офис» preset (equal to v0.2) or from «Строгий» (Strict).
+1. New profile from the "Office" preset (equal to v0.2) or from "Strict".
 2. Find a rule by any word (title, tag, registry key), disable it with one click, see
    in the status bar what was disabled along with it.
 3. Change a rule parameter (for example, minutes until lock) in the description panel.
@@ -54,8 +54,8 @@ Scenarios:
 - Phases: windowspe, specialize-xml, specialize, default-user, user-first-logon, post-oobe, oobe-xml.
 - The catalog is consistent: identifiers are unique, `requires` and `conflicts` point to existing
   rules, there are no cycles, groups exist, each action has a valid type and the required fields,
-  each rule has a summary, an effect and a reference link. This is verified by a test and by the «Проверить каталог» (Check catalog) command.
-- Coverage: with the «Офис» preset, the set of catalog actions includes every action of the v0.2 file
+  each rule has a summary, an effect and a reference link. This is verified by a test and by the "Check rule catalog" command.
+- Coverage: with the "Office" preset, the set of catalog actions includes every action of the v0.2 file
   with the same values (semantic golden).
 
 ### 3.2 Dependencies
@@ -102,7 +102,7 @@ Scenarios:
 | Parameter out of range | profile | Error |
 | A rule of the "risky" level is enabled | profile | Warning with the risk text |
 | A password is set | profile | Warning (plain text in the XML) |
-| `UILanguage` does not match the ISO language | profile | Not checked: the editor does not see the ISO. The «Языки и регион» (Languages and region) form explains that the value equals the ISO language (decision of 25.09.2026) |
+| `UILanguage` does not match the ISO language | profile | Not checked: the editor does not see the ISO. The "Languages and region" form explains that the value equals the ISO language (decision of 25.09.2026) |
 | A rule of the "baseline" level is disabled | profile | Warning |
 | Syntax of the built scripts under PowerShell 5.1 | XML | Error (via `powershell.exe` if available; otherwise skipped with a note) |
 
@@ -117,7 +117,8 @@ Scenarios:
 - Description panel: title, state, level, phase, summary, action table (built automatically
   from the data), effect, risk, Windows versions, dependencies (requires, required by, conflicts with),
   verification, rollback, reference link; the rule's parameters are edited right here.
-- Status bar: the result of the last operation («Выключено также: 3 правила» (Also disabled: 3 rules), a click shows the list).
+- Status bar: the result of the last operation ("Disabled rules: 1; 3 more changed automatically outside the
+  selection (list below)"); the list of messages gives the reasons.
 - Menus: File (new from preset, open, save, save as, import from XML, recent),
   Profile (compare, reset group to preset), Build (check, build, open folder),
   Help (about, reference, check catalog).
@@ -158,16 +159,16 @@ Scenarios:
 ## 6. Acceptance criteria
 
 1. The rule catalog passes the integrity verification; semantic golden: each v0.2 action
-   is present in the catalog with the same value under the «Офис» preset.
+   is present in the catalog with the same value under the "Office" preset.
 2. Disabling any rule in the interface disables all dependent rules; enabling one enables the required ones;
    tests on the resolver and a UI smoke test.
-3. A file built from the «Офис» preset passes `tools/Validate-Unattend.ps1` and contains exactly
+3. A file built from the "Office" preset passes `tools/Validate-Unattend.ps1` and contains exactly
    the enabled rules (by the identifiers in the block comments).
 4. A file built from a profile with half of the rules disabled contains none of their actions.
 5. Search finds a rule by registry key and by tag; the path "find, disable, build" takes
    no more than 4 user actions.
 6. The application starts from a flash drive on a clean Windows 11 without Python and writes nothing outside its folder.
-7. An acceptance installation in a VM with a file from the «Офис» preset completes without questions, except for disk selection.
+7. An acceptance installation in a VM with a file from the "Office" preset completes without questions, except for disk selection.
 
 ## 7. Risks
 

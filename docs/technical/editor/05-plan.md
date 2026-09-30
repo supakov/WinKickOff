@@ -8,11 +8,11 @@ Revision 0.2 of 25.09.2026.
 |---|---|---|---|
 | 0. Skeleton | `WinKickOff/` structure, paths, log, entry point, test infrastructure on `unittest` | Skeleton in the repository, tests run | T01 |
 | 1. Catalog | Rule format, groups, full transfer of v0.2 actions into `rules/*.toml`, loader and integrity verification, semantic golden | Catalog 0.2 passes integrity and v0.2 coverage | T02 |
-| 2. Logic | Dependency resolver, profile and presets, runtime templates, generator | The «Офис» (Office) preset builds into XML that passes the validator | T03, T04, T05, T06 |
-| 3. Verification | Validator, import (embedded profile and v0.2), PowerShell verification | All bad profiles are caught; importing v0.2 yields «Офис» | T07, T08 |
+| 2. Logic | Dependency resolver, profile and presets, runtime templates, generator | The "Office" preset builds into XML that passes the validator | T03, T04, T05, T06 |
+| 3. Verification | Validator, import (embedded profile and v0.2), PowerShell verification | All bad profiles are caught; importing v0.2 yields "Office" | T07, T08 |
 | 4. Interface | Tree with check boxes and search, description and parameters panel, data forms, build from the window | The "find, disable, build" path in 4 actions | T09, T10, T11 |
 | 5. Release | Root as a toolkit and XML appendices; documentation split (technical in English, user documentation in three languages); build, portability, acceptance in a VM | zip, documentation, acceptance report | T17, T16, T12, T13 |
-| 6. Additional | uk localization, profile comparison, «Ноутбук» (Laptop) preset; applying a rule or branch to a running Windows | As needed | T14, T15 |
+| 6. Additional | uk localization, profile comparison, "Laptop" preset; applying a rule or branch to a running Windows | As needed | T14, T15 |
 
 ## 2. Order and dependencies
 
@@ -46,7 +46,7 @@ T01 ──> T02 ──┬──> T03 ──┬──> T06 ──┬──> T07 �
 | T11 Build from the window, verification, export, recent files, settings | 2 |
 | T12 PyInstaller build and portability | 1.5 |
 | T13 Documentation and AGENTS.md, acceptance | 1.5 |
-| T14 Localization, profile comparison, «Ноутбук» preset | 2 |
+| T14 Localization, profile comparison, "Laptop" preset | 2 |
 | T15 Applying to a running Windows: audit, application, rollback | 4 |
 | T16 Documentation split, translation of the technical documentation into English, user documentation in three languages | 6 |
 | T17 Root as a toolkit, XML in documentation appendices | 1 |
@@ -68,7 +68,7 @@ Reserve 20 %. About 10 weeks at half-time workload.
 | Milestone | Criterion | Target |
 |---|---|---|
 | M1 "Catalog" | T01, T02: catalog 0.2 passes integrity and v0.2 coverage | week 2 |
-| M2 "Generator" | T03-T06: the «Офис» preset builds and passes `Validate-Unattend.ps1` | week 3 |
+| M2 "Generator" | T03-T06: the "Office" preset builds and passes `Validate-Unattend.ps1` | week 3 |
 | M3 "Verification" | T07, T08 | week 4 |
 | M4 "Interface" | T09-T11: full cycle through the window | week 6 |
 | M5 "Release 1.0" | T12, T13: zip, checklists, acceptance in a VM | week 7 |

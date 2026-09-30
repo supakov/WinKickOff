@@ -1,7 +1,7 @@
 # T03. Dependency resolver and application order
 
 Status: done (25.09.2026: resolver with cascade, groups and application order; the test
-`test_apply_order_follows_v02` confirms the v0.2 section order on the «Офис» (Office) preset). Stage 2. Dependencies: T02.
+`test_apply_order_follows_v02` confirms the v0.2 section order on the "Office" preset). Stage 2. Dependencies: T02.
 
 ## Goal
 
@@ -24,9 +24,9 @@ rule application order.
 ## Acceptance criteria
 
 - All resolver tests are green; a repeated operation returns an empty list of changes.
-- `apply_order` on the «Офис» preset reproduces the v0.2 section order.
+- `apply_order` on the "Office" preset reproduces the v0.2 section order.
 
 ## Implementer notes
 
 25.09.2026: implemented `disable`, `enable`, `set_group`, `apply_order` and tests for chains, conflicts,
-idempotency. Not verified: the order on the «Офис» preset against v0.2 (depends on T06).
+idempotency. Not verified: the order on the "Office" preset against v0.2 (depends on T06).

@@ -28,7 +28,7 @@ client; you cannot disable one Edge policy out of nine.
 
 Decision: the unit of configuration is the rule, not a `$Config` key. Each rule has its own list of
 actions and can be disabled. Everything that was unconditional in v0.2 becomes rules of the "baseline"
-level, enabled by default. In this model the v0.2 file is one of the profiles (the «Офис» (Office)
+level, enabled by default. In this model the v0.2 file is one of the profiles (the "Office"
 preset), not a code template.
 
 ## 2. Dependencies: 0.1 has only visibility, no cascade
@@ -42,7 +42,7 @@ from v0.2 where such links exist but are not recorded anywhere:
 - deferring feature updates requires that DiagTrack is not disabled;
 - the first sign-in script requires Active Setup registration; rules of the post-oobe phase require the scheduled task;
 - `PasswordNeverExpires` requires the starter accounts to exist;
-- «Удалить Quick Assist» (Remove Quick Assist) and «Выключить удалённого помощника» (Turn off Remote Assistance) are logically paired but independent.
+- "Remove Quick Assist" and "Remote Assistance turned off" are logically paired but independent.
 
 Decision: a rule has the fields `requires` (hard dependencies) and `conflicts` (mutually exclusive).
 Resolver: disabling a rule cascades to disable every rule that requires it (transitively); enabling
@@ -74,8 +74,9 @@ nodes (group → rule), toggled with one click or the space bar; a group check b
 Above the tree, a search field: filtering by identifier, title, tags, description text and even by registry keys
 ("PUAProtection" finds the rule); results are expanded, the rest is hidden. On the right, the
 description panel of the selected node, which is also where the rule parameters are edited (number, list, string).
-At the bottom, a status bar with the last cascade («Выключено также: ...» (Also disabled: ...)). Data that
-are not rules (accounts, languages, key, time zone) are nodes of the same tree with a form in the right panel.
+At the bottom, a status bar with the last cascade ("Disabled rules: 1; 3 more changed automatically outside the
+selection (list below)"). Data that are not rules (accounts, languages, key, time zone) are nodes of the same tree
+with a form in the right panel.
 Zero modal dialogs in the main loop.
 
 ## 5. Descriptions: a one-sentence hint is not enough
@@ -106,7 +107,7 @@ The keyboard layout and time zone reference data are in JSON, as planned.
 A byte-for-byte match with v0.2 would lock in the script structure we are abandoning.
 
 Decision: a semantic golden. The set of actions is extracted from the v0.2 file by parsing `Set-Reg`, `Remove-Reg`, `Set-ServiceStart`,
-`Invoke-Exe`; the test requires that the rule catalog with the «Офис» profile
+`Invoke-Exe`; the test requires that the rule catalog with the "Office" profile
 yields a superset of these actions (every v0.2 action is present, with the same value). Second
 level: the built file passes `tools/Validate-Unattend.ps1` and PowerShell 5.1 parsing. Third:
 an acceptance installation in a VM. Bytes are compared only inside the generator (determinism:

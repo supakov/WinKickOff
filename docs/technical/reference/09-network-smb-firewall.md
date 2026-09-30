@@ -78,7 +78,7 @@ while keeping sharing functional.
   in File Explorer may not be found without NetBIOS, and users and shortcuts to shared folders are used to that form.
   In addition, interfaces added after installation (a new Wi-Fi adapter, VPN) will get the default.
 - Cross-links: a workaround is the `hosts` file or DNS records on the router. The parameter is intended
-  for the «строгого» (strict) profile of the constructor after verification in the specific network.
+  for the "Strict" preset after verification in the specific network.
 - Version differences: the values have been the same since Windows 2000. In 24H2 NetBIOS is still enabled by default.
 - Verification: `Get-CimInstance Win32_NetworkAdapterConfiguration | Select Description, TcpipNetbiosOptions`.
 - Rollback: `NetbiosOptions = 0` (via DHCP) for the interfaces, delete `NodeType`.

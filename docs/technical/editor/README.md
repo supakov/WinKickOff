@@ -20,4 +20,4 @@ Technologies fixed by the customer: Python 3.14, tkinter from the standard libra
 only, a portable application without installation and without ties to system paths.
 
 Related documents: parameter reference `../reference/` (source of rule descriptions and
-of «Подробнее» (More details) links), first draft `../../appendices/D-requirements-draft/02-constructor-requirements-draft.md` (historical).
+of "More details" links), first draft `../../appendices/D-requirements-draft/02-constructor-requirements-draft.md` (historical).

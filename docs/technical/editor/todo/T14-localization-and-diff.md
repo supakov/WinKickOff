@@ -1,4 +1,4 @@
-# T14. uk localization, profile comparison, «Ноутбук» (Laptop) preset
+# T14. uk localization, profile comparison, "Laptop" preset
 
 Status: done (25.09.2026). Stage 6 (additional). Dependencies: T13 (only formally; done before the VM acceptance).
 
@@ -12,7 +12,7 @@ Ukrainian UI and rule translations, a profile comparison dialog, a third preset.
    `rules/lang/uk.toml` keyed by identifier; switching via the menu.
 2. Translation of UI strings and rule fields (`title`, `summary`, `effect`, `risk`, `versions`,
    `rollback`, parameter names); a test for completeness and for the absence of dashes.
-3. The «Сравнить с профилем» (Compare with profile) dialog: a table of `Profile.diff()`.
+3. The "Compare with profile" dialog: a table of `Profile.diff()`.
 4. `profiles/preset-laptop.json`: lock after 10 minutes, `PreventAutoDeviceEncryption`
    turned off with a validator warning about the recovery key.
 
@@ -29,7 +29,7 @@ of 25.09.2026.
 25.09.2026 (from T16): the rule texts are translated completely into Ukrainian and English
 (`rules/lang/uk.toml`, `rules/lang/en.toml`, loaded by `core/i18n.py`; completeness is tested by
 `tests/test_docs.py`). Remaining for T14: interface strings, the language switch in the window, the
-comparison dialog and the «Ноутбук» (Laptop) preset.
+comparison dialog and the "Laptop" preset.
 
 25.09.2026, T14 done:
 - Interface in Russian, Ukrainian and English. The Russian text is the key (gettext style): every user-facing
@@ -37,10 +37,10 @@ comparison dialog and the «Ноутбук» (Laptop) preset.
   level; `resources/strings.uk.json` and `strings.en.json` hold 324 translations. Validation messages,
   derived verification and rollback steps, import warnings and dialogs are translated too; rule, group,
   parameter and option names come from `rules/lang/*.toml` through `core/i18n.catalog_texts()`.
-- Menu «Язык» (Language) with the native names «Русский», «Українська», English; the choice is stored in `settings.json`; the window is
+- Menu "Language" with the native names «Русский», «Українська», English; the choice is stored in `settings.json`; the window is
   rebuilt (`app.run` loop) with the open profile, its unsaved changes and the selected node. Search also finds
   translated rule titles and summaries. Time zone titles have uk and en variants in `resources/timezones.json`.
-- «Файл, Сравнить с профилем...» (File, Compare with profile): a table of differences by effective values
+- "File, Compare with profile...": a table of differences by effective values
   (`Profile.diff(other, catalog)`); a double click leads to the rule or data node.
 - `profiles/preset-laptop.json`: Office, lock after 600 seconds, automatic device encryption allowed; the
   validator warns to save the BitLocker recovery key (`manage-bde -protectors -get C:`).
