@@ -1,6 +1,6 @@
 # T20. Back and Forward; rename, update and shared policies of imported templates
 
-Status: done (30.09.2026), after release 1.1.0-rc.2, not released yet. Stage 7. Dependencies: T19.
+Status: done (30.09.2026), version 1.1.0-rc.3. Stage 7. Dependencies: T19.
 
 ## Goal
 

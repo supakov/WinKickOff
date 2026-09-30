@@ -27,7 +27,7 @@ Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in t
 | [T17](T17-repo-toolkit-and-appendices.md) | Repository root as a toolkit, with WinKickOff as the first one; XML of the original and of v0.2 in documentation appendices | 5 | none | done (root as a toolkit, XML and reviews in `docs/appendices/`) |
 | [T18](T18-english-source-languages-themes.md) | English source language; languages and colour themes as files | 6 | T14 | done (English code and catalog, ru and uk files, Light, Dark, Latte, Matrix, as in Windows) |
 | [T19](T19-admx-import.md) | Import of policy templates (ADMX, ADML) as a subtree of selectable rules | 7 | T18 | done (1.1.0-rc.1: menu ADMX, store admx/, rules, links to built-in rules; 1.1.0-rc.2: list and multiText elements) |
-| [T20](T20-navigation-and-shared-imports.md) | Back and Forward; rename, update and shared policies of imported templates | 7 | T19 | done (after 1.1.0-rc.2, not released yet) |
+| [T20](T20-navigation-and-shared-imports.md) | Back and Forward; rename, update and shared policies of imported templates | 7 | T19 | done (1.1.0-rc.3) |
 
 Rules for the implementer of any task:
 

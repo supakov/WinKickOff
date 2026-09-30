@@ -10,8 +10,8 @@ User documentation (how to work with the program): [Русский](../docs/user
 [Українська](../docs/user/uk/README.md), [English](../docs/user/en/README.md).
 Specification, architecture, data model and plan: [`../docs/technical/editor/`](../docs/technical/editor/README.md).
 
-State on 30.09.2026: version 1.1.0-rc.2 (import of ADMX templates, including policies with lists of values and
-multi-line text). The catalog 0.5 (251 rules, 36 groups) carries every action of the
+State on 30.09.2026: version 1.1.0-rc.3 (import of ADMX templates, including policies with lists of values and
+multi-line text; Back and Forward). The catalog 0.5 (251 rules, 36 groups) carries every action of the
 hand-written answer file v0.2, the Edge, Chrome and Brave policies, the AI, telemetry, Office and OneDrive rules of
 the customer's list and the File Explorer folders; the generator, the checks, four presets, profiles, data forms,
 import, the build from the window and the This PC menu work. The source language is English; languages and
