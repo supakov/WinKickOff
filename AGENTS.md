@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 29.09.2026 (release 1.0.0-rc.3: applying to this PC follows the profile).
+Last update: 30.09.2026 (T18: English source language, languages and colour themes as files).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -54,7 +54,7 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
 │   │   ├── reference/             reference: a card for every installation parameter (20 files; 18 browsers, 19 more privacy)
 │   │   └── editor/                WinKickOff specification: problem, architecture, data model, testing,
 │   │       │                      plan (days, milestones), review of revision 0.1
-│   │       └── todo/              tasks T01-T17 with status (README.md is the index)
+│   │       └── todo/              tasks T01-T18 with status (README.md is the index)
 │   ├── user/                      USER DOCUMENTATION: ru (source), uk, en; the same files in each language
 │   ├── releases/                  release notes v<version>.md (ru, uk, en), used by the release job
 │   └── appendices/                APPENDICES, frozen, Russian: README describes them
@@ -66,16 +66,20 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
     ├── README.md                  developer README: run, test, structure; links to user docs
     ├── pyproject.toml             requires-python >= 3.14, no runtime dependencies
     ├── winkickoff/                package: app.py (start), core/ (paths, log, catalog, deps, profile, resources,
-    │                              render, validate, verify, actions_parser, importer, pscheck, settings, i18n, apply),
+    │                              render, validate, verify, actions_parser, importer, pscheck, settings, i18n, themes,
+    │                              apply),
     │                              ui/ (main_window: tree, search, description, parameters, profiles, build;
     │                              data_forms: install, accounts, languages; checkimages: check box images)
-    ├── rules/                     RULE CATALOG: groups.toml (36 groups), 00-16-*.toml (251 rules), lang/*.toml
+    ├── rules/                     RULE CATALOG in English: groups.toml (36 groups), 00-16-*.toml (251 rules),
+    │                              lang/ru.toml and lang/uk.toml (translations; a new file adds a language)
     ├── templates/                 runtime with slots: autounattend.template.xml, Setup-System, Setup-User, Post-OOBE,
     │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.4
-    ├── resources/                 keyboards.json, timezones.json, strings.uk.json, strings.en.json (interface translations)
-    ├── profiles/                  presets «Офис» (= catalog defaults), «Строгий» (Strict), «Ноутбук» (Laptop), memstechtips, README
+    ├── resources/                 keyboards.json, timezones.json, strings.ru.json and strings.uk.json (interface
+    │                              translations), themes/ (light, dark, matrix colour themes)
+    ├── profiles/                  presets Office (= catalog defaults), Strict, Laptop, memstechtips, README
     ├── tests/                     unittest: catalog, resolver, profile, render, build against v0.2, validation,
-    │                              import, presets, PowerShell, settings, portability, window smoke test, docs;
+    │                              import, presets, PowerShell, settings, portability, window smoke test, docs,
+    │                              translations, themes;
     │                              v02_actions.py holds the v0.2 reference profile (V02_DIFFERENCES)
     └── tools/                     make_presets.py, make_rule_docs.py, run-tests.ps1, build.ps1 (portable zip),
                                    make_browser_rules.py (generates rules/14-browsers.toml),
@@ -98,10 +102,12 @@ user profiles (all but `preset-*.json`) are not versioned.
    (08:00-20:00, T01-T06). Checks: `WinKickOff/tests/test_sources.py` and `test_docs.py`, and the command in section 5.
 3. Reports requested by the customer are written as Russian Markdown files in `docs/`; Word only when
    explicitly asked ("в Ворд").
-4. Languages: communication with the customer and customer reports in Russian. Technical documentation
-   (`docs/technical/`, this file, READMEs of code folders, code comments) in English. User documentation in
-   `docs/user/` in Russian (the source), Ukrainian and English with the same files and structure. The editor's
-   interface and rule texts are Russian with translations in `WinKickOff/rules/lang/` (task T14).
+4. Languages: communication with the customer and customer reports in Russian. Instructions and technical
+   documentation (`docs/technical/`, this file, READMEs of code folders, code, comments) in English. User
+   documentation in `docs/user/` in Russian (the source), Ukrainian and English with the same files and
+   structure. The editor's source language is English (interface strings, rule catalog, preset names); Russian
+   and Ukrainian are translation files (`WinKickOff/resources/strings.<code>.json`,
+   `WinKickOff/rules/lang/<code>.toml`, task T18); other translations only on the customer's demand.
    Identifiers, parameter names and registry keys stay in English everywhere.
 5. The starter accounts Admin and User without passwords are a deliberate decision of the customer:
    passwords and groups are assigned by a separate project after installation. Do not propose to "fix" it.
@@ -190,7 +196,7 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
   not `rules/14-browsers.toml`. Every policy name was checked against the vendors' definitions; several lines
   of the issue's scripts were invalid or obsolete (`docs/technical/reference/18-browsers.md`, corrections).
   `DEFAULT_ON` in the tool holds the browser rules that are on by default (commit d33fc41).
-- Since 26.09.2026 the catalog defaults, and so the «Офис» (Office) preset, differ from v0.2: browser policies,
+- Since 26.09.2026 the catalog defaults, and so the Office preset, differ from v0.2: browser policies,
   `apps.remove.onedrive` on; `update.other-microsoft-products`, `asr.usb-untrusted`, `uac.admin-always-notify`
   off (Task Manager opened by Admin must not ask for UAC). Tests that compare with v0.2 use `reference_profile()`
   of `WinKickOff/tests/v02_actions.py`; a new rule that is on by default goes into `V02_DIFFERENCES` as off.
@@ -226,17 +232,29 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
   `Setup-System.ps1`, the pass commands, International-Core, OOBE, accounts and the time zone.
   `tools/Validate-Unattend.ps1` accepts both styles (the `$Config` block of v0.2 or `# [rule.id]` markers).
 - Everything the generator writes (header, markers, embedded profile) is ASCII; the profile is embedded in
-  `Extensions/Profile` as JSON with escaped national characters, so «Открыть профиль из autounattend.xml»
-  (Open profile from autounattend.xml) restores the settings from a built file. A file without a profile
+  `Extensions/Profile` as JSON with escaped national characters, so "Open profile from autounattend.xml"
+  restores the settings from a built file. A file without a profile
   (v0.2) is imported by its actions: `core/actions_parser.py` reads `$Config` from the file itself and
   evaluates the conditions; importing v0.2 gives exactly the v0.2 reference profile (`test_importer.py`).
 - tkinter's Treeview does not lay out rows in a hidden window; the window smoke test shows it fully
   transparent outside the screen. Tree check boxes are images (`identify_element` returns `image`), the "+"
   is `Treeitem.indicator`: a click on "+" only expands the branch. Text tag bindings in a Text widget follow
   the "current" mark, so a synthetic click needs a preceding `<Motion>` event.
-- Interface translations: the Russian source text is the key; wrap every user-facing string in `tr()` (or
-  `N_()` at module level) and add its uk and en translation to `WinKickOff/resources/strings.<lang>.json`,
-  otherwise `tests/test_i18n.py` fails. Rule texts are translated in `WinKickOff/rules/lang/<lang>.toml`.
+- Interface translations (T18, 30.09.2026): the English source text is the key; wrap every user-facing string
+  in `tr()` (or `N_()` at module level) and add its ru and uk translation to
+  `WinKickOff/resources/strings.<code>.json`, otherwise `tests/test_i18n.py` fails. Rule texts, extra search tags
+  and group titles are translated in `WinKickOff/rules/lang/<code>.toml`. A language exists when one of its files
+  exists (the native name is the field `_language`); there is no `strings.en.json` or `lang/en.toml`, and every
+  gap falls back to English. The setting `language` `""` follows the Windows interface language. The Russian
+  UI of this PC used to hide missing translations: window tests set `i18n.set_language("en", ...)` and
+  `Settings(language="en", theme="light")` explicitly and reset the language in `tearDown`.
+- Code, comments, rule texts and tool tables are English (`test_sources.py` fails on Cyrillic);
+  `WinKickOff/tools/make_rule_docs.py` keeps the words of the three user documentation languages as data.
+- Colour themes (T18): `WinKickOff/resources/themes/<id>.json` with `base` (`native` or `clam`), `dark`, `font` and
+  `colors` (keys of `LIGHT_COLORS` in `core/themes.py`); a new file adds a theme. The setting `theme` `""`
+  follows the Windows light or dark mode: `core/themes.py` is the only module allowed to read the registry
+  (`AppsUseLightTheme`, read only), no module may write it. A language or theme change rebuilds the window
+  with the open profile.
 - T15 scripts: tests only generate and parse Apply, Undo and Audit scripts; `run_audit` is exercised with a harmless
   script and `launch_elevated` is always mocked. Never run an apply or an audit on the customer's PC from an agent.
 - Catalog 0.3: the country moved into the parameters of rule `default-user.region` (string `"241"`), the field
@@ -254,14 +272,14 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Answer file checker | Done, 36 checks, 0 errors on v0.2 | 25.09.2026 | `tools/Validate-Unattend.ps1` |
 | GitHub repository | Renamed to WinKickOff; the local clone and `origin/main` match; CI in GitHub Actions | 26.09.2026 | https://github.com/supakov/WinKickOff |
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
-| Editor tasks | T01-T12, T14, T16, T17 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 26.09.2026 | `docs/technical/editor/todo/` |
+| Editor tasks | T01-T12, T14, T16-T18 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 30.09.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.4: 251 rules, 36 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer 15), Windows defaults for return, integrity and v0.2 coverage confirmed by tests | 28.09.2026 | `WinKickOff/rules/` |
-| Editor code | 1.0.0-rc.3: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window in Russian, Ukrainian and English with check boxes, parameters, forms, profiles, comparison, recent files and build; 198 tests | 29.09.2026 | `WinKickOff/` |
+| Editor code | 1.0.0-rc.3: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Matrix, as in Windows) found from files; 206 tests | 30.09.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply (rules on are applied, rules off return to Windows defaults) and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 29.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |
-| Documentation split | T16 done: technical in English, user documentation in ru, uk, en; complete catalog translations uk and en | 25.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
-| GitHub issues | #1 "Web Browsers debloat" done: section «Браузеры» (Edge, Chrome, Brave), 46 rules off by default, card 18. #2 "memstechtips profile" done: preset of 60 rules computed from Appendix A, report of what is added, contradicted and not transferable. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md`, `WinKickOff/profiles/preset-memstechtips.json`, `docs/technical/memstechtips-profile.md` |
+| Documentation split | T16 done: technical in English, user documentation in ru, uk, en; since T18 the catalog is English with complete ru and uk translations | 30.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
+| GitHub issues | #1 "Web Browsers debloat" done: section "Browsers" (Edge, Chrome, Brave), 46 rules off by default, card 18. #2 "memstechtips profile" done: preset of 60 rules computed from Appendix A, report of what is added, contradicted and not transferable. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md`, `WinKickOff/profiles/preset-memstechtips.json`, `docs/technical/memstechtips-profile.md` |
 | Release candidate | 1.0.0-rc.3 (after rc.1 of 26.09.2026 and rc.2 of 28.09.2026): tag and GitHub release built by CI | 29.09.2026 | `docs/releases/v1.0.0-rc.3.md` |
 | Customer list MoreOptions | Done: BitLocker off in every preset; 57 rules on by default (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Edge AI and sign-in, Gallery hidden), This PC folders as options off by default; corrections in card 19 | 28.09.2026 | `docs/technical/reference/19-more-privacy.md` |
 | Tuning of preset defaults | Awaited from the customer | | `WinKickOff/tools/make_presets.py`, rule defaults |

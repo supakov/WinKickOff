@@ -1,22 +1,22 @@
-# После первичной настройки: скрипт Post-OOBE.ps1, задача планировщика от SYSTEM при загрузке.
-# Инфраструктура (задача, ожидание IMAGE_STATE_COMPLETE, чтение профиля в $cfg и $accounts, удаление задачи)
-# добавляется генератором, если включено хотя бы одно правило фазы. Рантайм предоставляет Write-Log, $cfg, $accounts.
+# After OOBE: script Post-OOBE.ps1, a scheduled task running as SYSTEM at startup.
+# The infrastructure (task, wait for IMAGE_STATE_COMPLETE, profile read into $cfg and $accounts, task removal)
+# is added by the generator when at least one rule of the phase is on. The runtime provides Write-Log, $cfg, $accounts.
 
 [[rule]]
 id = "post-oobe.password-never-expires"
 group = "post-oobe"
 phase = "post-oobe"
-title = "Флаг «срок действия пароля не ограничен» на стартовых учётных записях"
+title = "\"Password never expires\" flag on the initial accounts"
 level = "recommended"
 default = true
 requires = ["accounts.password-never-expires"]
-tags = ["пароль", "срок действия", "set-localuser", "стартовые учётные записи"]
+tags = ["password", "expiration", "set-localuser", "starter accounts"]
 doc = "docs/technical/reference/16-post-oobe.md"
-summary = "Для каждой учётной записи из профиля устанавливается PasswordNeverExpires. Дублирует машинную настройку net accounts на случай, если её изменят."
-effect = "Стартовые учётные записи без пароля не получат требование сменить пароль."
-versions = "Set-LocalUser с Windows 10 1607."
-verify = 'Get-LocalUser -Name Admin, User | Select-Object Name, PasswordExpires: поле PasswordExpires пустое.'
-rollback = 'Set-LocalUser -Name <имя> -PasswordNeverExpires $false от имени администратора; делать вместе с назначением паролей.'
+summary = "PasswordNeverExpires is set for every account in the profile. Duplicates the machine-wide net accounts setting in case it is changed."
+effect = "The initial accounts without a password will not be required to change the password."
+versions = "Set-LocalUser since Windows 10 1607."
+verify = "Get-LocalUser -Name Admin, User | Select-Object Name, PasswordExpires: the PasswordExpires field is empty."
+rollback = "Set-LocalUser -Name <name> -PasswordNeverExpires $false as administrator; do this together with assigning passwords."
 
 [[rule.actions]]
 type = "ps"
@@ -34,16 +34,16 @@ foreach ($name in $accounts) {
 id = "post-oobe.disable-builtin-accounts"
 group = "post-oobe"
 phase = "post-oobe"
-title = "Встроенные Администратор и Гость остаются отключёнными"
+title = "Built-in Administrator and Guest stay disabled"
 level = "baseline"
 default = true
-tags = ["administrator", "guest", "rid 500", "встроенные учётные записи"]
+tags = ["administrator", "guest", "rid 500", "built-in accounts"]
 doc = "docs/technical/reference/16-post-oobe.md"
-summary = "Учётные записи с RID 500 и 501 находятся по SID (имена локализованы на украинском образе) и отключаются, если включены."
-effect = "Известные всем имена не могут использоваться для входа."
-versions = "Get-LocalUser с Windows 10 1607."
-verify = "Get-LocalUser | Where-Object { $_.SID.Value -match '-50[01]$' } | Select-Object Name, Enabled: у обеих записей Enabled = False."
-rollback = 'Enable-LocalUser -SID <SID> от имени администратора. Включать встроенного Администратора не рекомендуется: его имя известно всем.'
+summary = "The accounts with RID 500 and 501 are found by SID (the names are localized on the Ukrainian image) and disabled if they are enabled."
+effect = "The well-known names cannot be used to sign in."
+versions = "Get-LocalUser since Windows 10 1607."
+verify = "Get-LocalUser | Where-Object { $_.SID.Value -match '-50[01]$' } | Select-Object Name, Enabled: both accounts have Enabled = False."
+rollback = "Enable-LocalUser -SID <SID> as administrator. Enabling the built-in Administrator is not recommended: its name is known to everyone."
 
 [[rule.actions]]
 type = "ps"
@@ -59,15 +59,15 @@ try {
 id = "post-oobe.collect-specialize-errors"
 group = "post-oobe"
 phase = "post-oobe"
-title = "Перенести ошибки прохода specialize в лог"
+title = "Move specialize pass errors to the log"
 level = "baseline"
 default = true
-tags = ["лог", "ua.err", "specialize", "диагностика"]
+tags = ["log", "ua.err", "specialize", "diagnostics"]
 doc = "docs/technical/reference/16-post-oobe.md"
-summary = "Если обёртки команд specialize записали ошибку (скрипт не извлёкся или упал), её текст попадает в Post-OOBE.log с пометкой SPECIALIZE ERROR."
-effect = "Единственный способ узнать, что скрипт машины не выполнился."
-verify = 'C:\ProgramData\Unattend\Logs\Post-OOBE.log: строк SPECIALIZE ERROR нет; файла C:\Windows\Temp\ua.err нет.'
-rollback = 'Не требуется: правило только переносит текст ошибок в лог и удаляет временный файл.'
+summary = "If the specialize command wrappers recorded an error (the script was not extracted or failed), its text goes to Post-OOBE.log marked SPECIALIZE ERROR."
+effect = "The only way to find out that the machine script did not run."
+verify = "C:\\ProgramData\\Unattend\\Logs\\Post-OOBE.log: no SPECIALIZE ERROR lines; no C:\\Windows\\Temp\\ua.err file."
+rollback = "Not required: the rule only moves the error text to the log and deletes the temporary file."
 
 [[rule.actions]]
 type = "ps"
@@ -81,16 +81,16 @@ if (Test-Path 'C:\Windows\Temp\ua.err') {
 id = "post-oobe.delete-answer-file-copies"
 group = "post-oobe"
 phase = "post-oobe"
-title = "Удалить копии файла ответов из системы"
+title = "Delete answer file copies from the system"
 level = "baseline"
 default = true
-tags = ["panther", "unattend.xml", "пароли", "очистка"]
+tags = ["panther", "unattend.xml", "passwords", "cleanup"]
 doc = "docs/technical/reference/16-post-oobe.md"
-summary = "Windows 11 24H2 оставляет копии файла ответов (с именами учётных записей и паролями, если они были) в C:\\Windows\\Panther; они удаляются."
-effect = "На диске не остаётся описания учётных записей."
-versions = "На Windows 10 сохранялась одна копия, на 24H2 две."
-verify = 'Test-Path C:\Windows\Panther\unattend.xml и Test-Path C:\Windows\Panther\unattend-original.xml возвращают False.'
-rollback = 'Не откатывается и не нужно: работающей системе копии не нужны, исходный файл остаётся на установочном носителе.'
+summary = "Windows 11 24H2 leaves copies of the answer file (with account names and passwords, if there were any) in C:\\Windows\\Panther; they are deleted."
+effect = "No description of the accounts remains on the disk."
+versions = "Windows 10 kept one copy, 24H2 keeps two."
+verify = "Test-Path C:\\Windows\\Panther\\unattend.xml and Test-Path C:\\Windows\\Panther\\unattend-original.xml return False."
+rollback = "Cannot be rolled back and is not needed: the running system does not need the copies, and the original file remains on the installation media."
 
 [[rule.actions]]
 type = "ps"

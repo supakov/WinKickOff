@@ -49,7 +49,7 @@ EQUIVALENT: dict[tuple, tuple] = {}
 MECHANISMS = (
     ("EdgeRemoval.ps1", "Removes Microsoft Edge and repeats the removal at every start by a scheduled task. Not "
      "transferred: the PC is left without a browser, and updates bring Edge back. WinKickOff keeps Edge and restricts "
-     "it with the policies of the «Браузеры» (Browsers) section."),
+     "it with the policies of the \"Browsers\" section."),
     ("OpenWebSearch.cmd", "Sends `microsoft-edge:` links and web results of Windows search to another browser by "
      "rewriting protocol handlers; `OpenWebSearchRepair.ps1` and its task restore them after updates. Not "
      "transferred: it only makes sense after Edge is removed."),
@@ -409,8 +409,7 @@ def report(catalog: Catalog, profile: Profile, facts: dict[str, Any]) -> str:
         lines += ["## Baseline rules of WinKickOff that are off in the preset", "",
                   "The preset follows the original: these rules contradict it (see the table above) or are absent from",
                   "it, so they are off and the editor warns about each of them. Turning them on is recommended;",
-                  "«Файл, Сравнить с профилем...» (File, Compare with profile) shows every difference from the «Офис»",
-                  "(Office) preset.", ""]
+                  "\"File, Compare with profile...\" shows every difference from the \"Office\" preset.", ""]
         lines += [f"- `{r}`: {title(r)}" for r in baseline_off]
         lines.append("")
     text = "\n".join(lines).rstrip() + "\n"

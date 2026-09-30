@@ -1,19 +1,19 @@
-# Проход windowsPE и команды specialize, которые выполняются до скрипта машины.
+# windowsPE pass and specialize commands that run before the machine script.
 
 [[rule]]
 id = "install.bypass-tpm"
 group = "install"
 phase = "windowspe"
-title = "Обход проверки TPM 2.0"
+title = "Bypass the TPM 2.0 check"
 level = "optional"
 default = true
-tags = ["tpm", "labconfig", "старое железо", "совместимость"]
+tags = ["tpm", "labconfig", "old hardware", "compatibility"]
 doc = "docs/technical/reference/01-windows-pe.md"
-summary = "Установщик не требует TPM 2.0. На ПК с TPM модуль остаётся включённым и используется."
-effect = "Установка проходит на ПК без TPM или с TPM 1.2 без сообщения о несовместимости."
-risk = "Без TPM недоступны автоматическое шифрование устройства и BitLocker без пароля при загрузке. Microsoft не гарантирует обновления неподдерживаемым ПК."
-versions = "Ключи LabConfig действуют только в установщике Windows 11 (21H2 и новее); Windows 10 их игнорирует."
-rollback = "Удалить правило; на установленную систему не влияет."
+summary = "Setup does not require TPM 2.0. On PCs that have a TPM, the module stays enabled and in use."
+effect = "Installation proceeds on PCs without a TPM or with TPM 1.2, with no incompatibility message."
+risk = "Without a TPM, automatic device encryption and BitLocker without a startup password are unavailable. Microsoft does not guarantee updates for unsupported PCs."
+versions = "LabConfig keys work only in Windows 11 Setup (21H2 and later); Windows 10 ignores them."
+rollback = "Remove the rule; it does not affect the installed system."
 
 [[rule.actions]]
 type = "xml-pe-command"
@@ -24,15 +24,15 @@ description = "Bypass TPM check"
 id = "install.bypass-secureboot"
 group = "install"
 phase = "windowspe"
-title = "Обход проверки Secure Boot"
+title = "Bypass the Secure Boot check"
 level = "optional"
 default = true
-tags = ["secure boot", "uefi", "labconfig", "старое железо"]
+tags = ["secure boot", "uefi", "labconfig", "old hardware"]
 doc = "docs/technical/reference/01-windows-pe.md"
-summary = "Установщик не требует включённой Secure Boot."
-effect = "Установка проходит на ПК с BIOS/CSM или с выключенной Secure Boot."
-risk = "Без Secure Boot не работают Credential Guard и часть защит ядра; защита LSA в этом файле выбрана без привязки к UEFI именно ради таких ПК."
-versions = "Только установщик Windows 11."
+summary = "Setup does not require Secure Boot to be enabled."
+effect = "Installation proceeds on PCs with BIOS/CSM or with Secure Boot turned off."
+risk = "Without Secure Boot, Credential Guard and some kernel protections do not work; LSA protection in this file is configured without a UEFI lock precisely for such PCs."
+versions = "Windows 11 Setup only."
 
 [[rule.actions]]
 type = "xml-pe-command"
@@ -43,15 +43,15 @@ description = "Bypass Secure Boot check"
 id = "install.bypass-cpu"
 group = "install"
 phase = "windowspe"
-title = "Обход проверки процессора"
+title = "Bypass the processor check"
 level = "optional"
 default = true
-tags = ["cpu", "процессор", "labconfig", "старое железо"]
+tags = ["cpu", "labconfig", "old hardware"]
 doc = "docs/technical/reference/01-windows-pe.md"
-summary = "Установщик не сверяет процессор со списком поддерживаемых."
-effect = "Установка проходит на процессорах старше 8-го поколения Intel и Ryzen 2000."
-risk = "В 24H2 требование инструкций POPCNT и SSE4.2 не обходится: на очень старых процессорах установка невозможна."
-versions = "Только установщик Windows 11."
+summary = "Setup does not check the processor against the list of supported models."
+effect = "Installation proceeds on processors older than 8th generation Intel and Ryzen 2000."
+risk = "In 24H2 the POPCNT and SSE4.2 instruction requirement cannot be bypassed: installation is impossible on very old processors."
+versions = "Windows 11 Setup only."
 
 [[rule.actions]]
 type = "xml-pe-command"
@@ -62,14 +62,14 @@ description = "Bypass CPU check"
 id = "install.bypass-ram"
 group = "install"
 phase = "windowspe"
-title = "Обход проверки объёма памяти"
+title = "Bypass the memory check"
 level = "optional"
 default = true
-tags = ["ram", "память", "labconfig"]
+tags = ["ram", "memory", "labconfig"]
 doc = "docs/technical/reference/01-windows-pe.md"
-summary = "Установщик не требует 4 ГБ памяти."
-effect = "Установка проходит на ПК с меньшим объёмом памяти; работа будет медленной."
-versions = "Только установщик Windows 11."
+summary = "Setup does not require 4 GB of memory."
+effect = "Installation proceeds on PCs with less memory; the system will run slowly."
+versions = "Windows 11 Setup only."
 
 [[rule.actions]]
 type = "xml-pe-command"
@@ -80,14 +80,14 @@ description = "Bypass RAM check"
 id = "install.bypass-storage"
 group = "install"
 phase = "windowspe"
-title = "Обход проверки размера диска"
+title = "Bypass the disk size check"
 level = "optional"
 default = true
-tags = ["диск", "storage", "labconfig"]
+tags = ["disk", "storage", "labconfig"]
 doc = "docs/technical/reference/01-windows-pe.md"
-summary = "Установщик не требует 64 ГБ на диске."
-effect = "Установка проходит на маленькие диски; место под обновления нужно контролировать."
-versions = "Только установщик Windows 11."
+summary = "Setup does not require 64 GB of disk space."
+effect = "Installation proceeds on small disks; free space for updates must be monitored."
+versions = "Windows 11 Setup only."
 
 [[rule.actions]]
 type = "xml-pe-command"
@@ -98,16 +98,16 @@ description = "Bypass storage check"
 id = "install.bypass-nro"
 group = "install"
 phase = "specialize-xml"
-title = "Разрешить завершение OOBE без интернета и учётной записи Microsoft"
+title = "Allow completing OOBE without internet access and a Microsoft account"
 level = "baseline"
 default = true
-tags = ["oobe", "bypassnro", "локальная учётная запись", "сеть"]
+tags = ["oobe", "bypassnro", "local account", "network"]
 doc = "docs/technical/reference/02-specialize-xml.md"
-summary = "Ключ BypassNRO: первичная настройка не требует подключения к сети и аккаунта Microsoft."
-effect = "Страховка: учётные записи создаются из файла, но при изменении поведения OOBE ключ не даст установке застрять на экране сети."
-versions = "Windows 11 21H2 и новее. Microsoft объявила об удалении обходов в сборках Insider 2025 года; на выпущенных 24H2 и 25H2 ключ действует."
+summary = "BypassNRO key: the out-of-box experience does not require a network connection or a Microsoft account."
+effect = "A safeguard: accounts are created from the file, but if OOBE behavior changes, the key keeps setup from getting stuck on the network screen."
+versions = "Windows 11 21H2 and later. Microsoft announced the removal of the bypasses in 2025 Insider builds; the key works on released 24H2 and 25H2."
 verify = "reg query HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OOBE /v BypassNRO"
-rollback = "Удалить значение; на установленную систему не влияет."
+rollback = "Delete the value; it does not affect the installed system."
 
 [[rule.actions]]
 type = "xml-specialize-command"
@@ -118,15 +118,15 @@ description = "Allow OOBE to finish without a Microsoft account or network"
 id = "install.netfx3"
 group = "install"
 phase = "specialize"
-title = ".NET Framework 3.5 с установочного носителя"
+title = ".NET Framework 3.5 from the installation media"
 level = "optional"
 default = true
-tags = ["netfx3", ".net", "dism", "старые программы", "1с"]
+tags = ["netfx3", ".net", "dism", "legacy software", "1c"]
 doc = "docs/technical/reference/04-users-and-media.md"
-summary = "Ищет папку sources\\sxs на подключённых дисках и включает .NET Framework 3.5 (включая 2.0 и 3.0) без интернета."
-effect = "Старые программы учёта, клиент-банки и драйверы ключей ЭЦП работают сразу после установки."
-risk = "Носитель должен оставаться подключённым во время первой перезагрузки; иначе компонент не установится и в лог попадёт WARN. Позже его можно добавить через Параметры при наличии интернета."
-versions = "Папка sources\\sxs есть во всех официальных ISO Windows 10 и 11; в урезанных образах может отсутствовать."
+summary = "Searches connected drives for the sources\\sxs folder and enables .NET Framework 3.5 (including 2.0 and 3.0) without internet access."
+effect = "Legacy accounting software, client-bank apps and drivers for digital signature keys work right after installation."
+risk = "The media must stay connected during the first restart; otherwise the component is not installed and a WARN entry is written to the log. It can be added later through Settings when internet access is available."
+versions = "The sources\\sxs folder is present in all official Windows 10 and 11 ISOs; it may be missing from stripped-down images."
 verify = "Get-WindowsOptionalFeature -Online -FeatureName NetFx3"
 rollback = "Disable-WindowsOptionalFeature -Online -FeatureName NetFx3"
 

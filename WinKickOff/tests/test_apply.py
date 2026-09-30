@@ -74,7 +74,7 @@ class PlanTest(unittest.TestCase):
 
     def test_group_applies_the_rules_that_are_on_and_returns_the_rest(self) -> None:
         profile = self.office.copy()
-        profile.rules["uac.admin-always-notify"].enabled = False  # already off in «Офис»; baseline stays on
+        profile.rules["uac.admin-always-notify"].enabled = False  # already off in the "Office" preset; baseline stays on
         plan = plan_apply(self.catalog, profile, ["g:security.uac"])
         self.assertEqual(plan.rule_ids, ["uac.baseline"])
         self.assertEqual([p.rule.id for p in plan.reverts], ["uac.admin-always-notify"])
@@ -85,7 +85,7 @@ class PlanTest(unittest.TestCase):
         profile.rules["apps.remove.solitaire"].enabled = False
         plan = plan_apply(self.catalog, profile, ["r:apps.remove.solitaire"])
         self.assertTrue(plan.empty)
-        self.assertIn("выключено в профиле", plan.excluded[0][1])
+        self.assertIn("off in the profile", plan.excluded[0][1])
 
     def test_audit_takes_every_selected_rule(self) -> None:
         ids, excluded = audit_rules(self.catalog, ["g:network"])
@@ -146,7 +146,7 @@ class ScriptsTest(unittest.TestCase):
 
 
 class RevertTest(unittest.TestCase):
-    """Return to the values of a clean Windows (context menu «Вернуть выбранное к умолчаниям Windows»)."""
+    """Return to the values of a clean Windows (context menu "Return the selection to Windows defaults now...")."""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -176,10 +176,10 @@ class RevertTest(unittest.TestCase):
         plan = self.plan("r:apps.remove.solitaire", "r:update.unblock", "r:install.bypass-tpm", "r:apps.remove.onedrive")
         self.assertTrue(all(p.dependent for p in plan.rules))  # only rules that require update.unblock
         reasons = {rule.id: reason for rule, reason in plan.excluded}
-        self.assertIn("неизвестны", reasons["apps.remove.solitaire"])
+        self.assertIn("unknown", reasons["apps.remove.solitaire"])
         self.assertIn("update.unblock", reasons)  # removals of blocks are the default already; its script step is not undone
-        self.assertIn("при установке", reasons["install.bypass-tpm"])
-        self.assertIn("неизвестны", reasons["apps.remove.onedrive"])
+        self.assertIn("during Windows installation", reasons["install.bypass-tpm"])
+        self.assertIn("unknown", reasons["apps.remove.onedrive"])
 
     def test_services_and_unknown_values(self) -> None:
         by_id = {p.rule.id: p for p in self.plan("r:privacy.telemetry-minimal", "r:network.smb-signing").rules}

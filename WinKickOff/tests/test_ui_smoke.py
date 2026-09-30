@@ -22,10 +22,12 @@ try:
 except Exception:  # noqa: BLE001 - no display or no Tk: the test is skipped
     TK_OK = False
 
+from winkickoff.core import i18n
 from winkickoff.core.catalog import load_catalog
 from winkickoff.core.paths import AppPaths
 from winkickoff.core.profile import Profile
 from winkickoff.core.resources import Resources
+from winkickoff.core.settings import Settings
 
 from v02_actions import V02, reference_profile
 
@@ -47,7 +49,9 @@ class MainWindowSmokeTest(unittest.TestCase):
         cls.catalog = load_catalog(cls.paths.rules, docs_root=cls.paths.docs_root)
         cls.office_path = ROOT / "profiles" / "preset-office.json"
         profile, _ = Profile.load(cls.office_path, cls.catalog)
-        cls.win = MainWindow(cls.paths, cls.catalog, profile, Resources.load(cls.paths.resources))
+        i18n.set_language("en", cls.paths.resources, cls.paths.rules)  # the tests read the English texts
+        cls.win = MainWindow(cls.paths, cls.catalog, profile, Resources.load(cls.paths.resources),
+                             Settings(language="en", theme="light"))
         cls.win.attributes("-alpha", 0.0)
         cls.win.geometry("1200x800+-4000+-4000")
         cls.win.update()
@@ -120,7 +124,7 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.assertTrue(dependents)
         rows = [self.win.messages.item(i, "values") for i in self.win.messages.get_children()]
         self.assertEqual(len(rows), len(dependents))
-        self.assertIn("автоматически", self.win.status_var.get())
+        self.assertIn("automatically", self.win.status_var.get())
 
     def test_save_as_and_reopen(self) -> None:
         self.win.toggle_item("r:network.netbios-off")
@@ -169,7 +173,7 @@ class MainWindowSmokeTest(unittest.TestCase):
         mark = self.win._param_marks[param.name]
         self.assertEqual(str(mark.cget("text")), "")
         self.win._param_vars[list(rule.params).index(param.name)].set(str(param.default + 1))
-        self.assertEqual(str(mark.cget("text")), "изменено")
+        self.assertEqual(str(mark.cget("text")), "changed")
         self.assertIn("changed", self.win.tree.item("r:" + rule.id, "tags"))
 
     def detail_links(self) -> dict[str, str]:
@@ -212,22 +216,22 @@ class MainWindowSmokeTest(unittest.TestCase):
         rule = next(r for r in self.catalog.rules.values() if not r.verify and r.actions[0].type == "reg")
         self.win.show_item("r:" + rule.id)
         text = self.win.detail.get("1.0", "end")
-        self.assertIn("Сформировано по действиям правила", text)
+        self.assertIn("Generated from the rule's actions", text)
         self.assertIn("reg query", text)
 
     def test_check_catalog(self) -> None:
         issues = self.win.check_catalog()
         self.assertEqual([i.level for i in issues], ["info"])
-        self.assertIn("ошибок 0", self.win.status_var.get())
+        self.assertIn("0 errors", self.win.status_var.get())
 
     @unittest.skipUnless(V02.exists(), "v0.2 answer file not found")
     def test_import_hand_written_v02(self) -> None:
         self.assertTrue(self.win.import_file(V02))
-        self.assertEqual(self.win.profile.name, "Импорт autounattend")
+        self.assertEqual(self.win.profile.name, "Import autounattend")
         self.assertTrue(self.win.dirty)
         self.assertEqual(self.win.profile.enabled_ids(), reference_profile(self.catalog).enabled_ids())
         rows = [self.win.messages.item(i, "values")[2] for i in self.win.messages.get_children()]
-        self.assertTrue(any("по действиям" in r for r in rows), rows)
+        self.assertTrue(any("file's actions" in r for r in rows), rows)
 
     def test_recent_files(self) -> None:
         target = self.paths.profiles / "Недавний.json"
@@ -253,14 +257,14 @@ class MainWindowSmokeTest(unittest.TestCase):
         dialog.assert_not_called()
         self.assertFalse(self.win._busy)
         levels = [self.win.messages.item(i, "values")[0] for i in self.win.messages.get_children()]
-        self.assertIn("ошибка", levels)
+        self.assertIn("error", levels)
 
     def test_comparison_with_the_laptop_preset(self) -> None:
         window = self.win.show_comparison(ROOT / "profiles" / "preset-laptop.json")
         try:
             rows = window.comparison_rows
             self.assertEqual({row[0] for row in rows}, {"r:accounts.inactivity-lock"})
-            param_row = next(row for row in rows if row[1] == "параметр")
+            param_row = next(row for row in rows if row[1] == "parameter")
             self.assertEqual(param_row[3:], ("900", "600"))
         finally:
             window.destroy()
@@ -292,8 +296,8 @@ class MainWindowSmokeTest(unittest.TestCase):
         script = run.call_args.args[0]
         self.assertIn("Test-Reg -Rule 'defender.pua'", script)
         rows = [self.win.messages.item(i, "values") for i in self.win.messages.get_children()]
-        self.assertTrue(any("не действует" in r[2] and "PUAProtection" in r[2] for r in rows), rows)
-        self.assertIn("не действует 1", self.win.status_var.get())
+        self.assertTrue(any("not in effect" in r[2] and "PUAProtection" in r[2] for r in rows), rows)
+        self.assertIn("not in effect 1", self.win.status_var.get())
 
     def test_save_apply_scripts(self) -> None:
         self.win.select_node("g:" + self.catalog.rules["defender.pua"].group)
@@ -338,7 +342,7 @@ class MainWindowSmokeTest(unittest.TestCase):
                 self.assertFalse(self.win.apply_now())
             launch.assert_not_called()
             info.assert_called_once()  # not silent any more
-            self.assertIn("нечего применять", info.call_args.args[1])
+            self.assertIn("nothing in the selection to apply", info.call_args.args[1])
         finally:
             self.win.settings.allow_apply = False
             self.win.profile.rules["apps.remove.solitaire"].enabled = profile_state
@@ -381,7 +385,7 @@ class MainWindowSmokeTest(unittest.TestCase):
         form.name.set("Administrator")
         form._apply()
         self.assertEqual(self.win.profile.accounts[1].name, "User")
-        self.assertIn("зарезервированное", form.error.get())
+        self.assertIn("reserved Windows name", form.error.get())
         form.name.set("Kasa")
         form._apply()
         self.assertEqual(self.win.profile.accounts[1].name, "Kasa")

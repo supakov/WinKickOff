@@ -1,17 +1,17 @@
-# UAC, учётные записи, защита учётных данных, удалённый доступ, шифрование. Раздел 4 скрипта машины v0.2.
+# UAC, accounts, credential protection, remote access, encryption. Section 4 of the v0.2 machine script.
 
 [[rule]]
 id = "uac.baseline"
 group = "security.uac"
 phase = "specialize"
-title = "UAC включён, запросы на защищённом рабочем столе, Win+L работает"
+title = "UAC enabled, prompts on the secure desktop, Win+L works"
 level = "baseline"
 default = true
-tags = ["uac", "enablelua", "secure desktop", "win+l", "блокировка"]
+tags = ["uac", "enablelua", "secure desktop", "win+l", "lock"]
 doc = "docs/technical/reference/08-accounts-uac-lsa-remote.md"
-summary = "Базовые значения UAC: включён, запрос на защищённом рабочем столе, стандартный пользователь вводит учётные данные администратора, установщики требуют повышения, встроенный Administrator в режиме одобрения, сетевой вход локальных администраторов с фильтрованным токеном. Запрет блокировки экрана удалён."
-effect = "Оригинальный файл UnattendedWinstall запрещал блокировку Win+L и убирал запросы UAC; здесь всё наоборот."
-versions = "Значения одинаковы с Windows Vista."
+summary = "Baseline UAC values: enabled, prompts on the secure desktop, standard users enter administrator credentials, installers require elevation, the built-in Administrator runs in Admin Approval Mode, and network logons of local administrators get a filtered token. The ban on locking the screen is removed."
+effect = "The original UnattendedWinstall file blocked Win+L locking and removed UAC prompts; here it is the opposite."
+versions = "The values have been the same since Windows Vista."
 verify = "Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
 
 [[rule.actions]]
@@ -79,24 +79,24 @@ name = "DisableLockWorkstation"
 id = "uac.admin-always-notify"
 group = "security.uac"
 phase = "specialize"
-title = "UAC для администраторов: уведомлять всегда"
+title = "UAC for administrators: always notify"
 level = "recommended"
 default = false
 requires = ["uac.baseline"]
-tags = ["uac", "consentpromptbehavioradmin", "обход uac", "fodhelper"]
+tags = ["uac", "consentpromptbehavioradmin", "uac bypass", "fodhelper"]
 doc = "docs/technical/reference/08-accounts-uac-lsa-remote.md#uacalwaysnotify"
-summary = "Администратор видит запрос при любом повышении, включая системные компоненты; закрывает известные обходы UAC через доверенные программы Windows."
-effect = "Больше запросов «Да/Нет» у Admin, в том числе при открытии диспетчера задач (Ctrl+Shift+Esc), редактора реестра и других средств Windows, которые иначе повышаются без запроса; защита от автоматического повышения вредоносным кодом. У обычного пользователя (User) эти средства открываются без запроса в любом случае."
-risk = "С пустым паролем запрос UAC это только кнопка «Да»: защита от программ, а не от человека за клавиатурой."
-versions = "Значения одинаковы с Windows Vista."
-verify = "Панель управления -> Учётные записи -> Изменить параметры UAC"
-rollback = "Значение 5 (умолчание Windows)."
+summary = "The administrator sees a prompt for every elevation, including system components; this closes known UAC bypasses through trusted Windows programs."
+effect = "More \"Yes/No\" prompts for Admin, including when opening Task Manager (Ctrl+Shift+Esc), the Registry Editor and other Windows tools that otherwise elevate without a prompt; protection against automatic elevation by malicious code. For a standard user (User) these tools open without a prompt in any case."
+risk = "With a blank password, a UAC prompt is just a \"Yes\" button: it protects against programs, not against the person at the keyboard."
+versions = "The values have been the same since Windows Vista."
+verify = "Control Panel -> User Accounts -> Change User Account Control settings"
+rollback = "Value 5 (Windows default)."
 
 [rule.params.level]
 type = "enum"
-title = "Уровень"
+title = "Level"
 default = 2
-values = [ { value = 2, title = "Уведомлять всегда" }, { value = 5, title = "Только для сторонних программ (умолчание Windows)" } ]
+values = [ { value = 2, title = "Always notify" }, { value = 5, title = "Only for third-party programs (Windows default)" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -111,20 +111,20 @@ default = 5
 id = "accounts.inactivity-lock"
 group = "security.accounts"
 phase = "specialize"
-title = "Блокировка экрана после простоя"
+title = "Lock the screen after inactivity"
 level = "recommended"
 default = true
-tags = ["блокировка", "простой", "inactivitytimeoutsecs", "экран"]
+tags = ["lock", "idle", "inactivitytimeoutsecs", "screen"]
 doc = "docs/technical/reference/08-accounts-uac-lsa-remote.md#inactivitylockseconds"
-summary = "Через заданное число секунд без ввода экран блокируется независимо от заставки и питания."
-effect = "Рабочее место не остаётся открытым; с пустым паролем разблокировка это Enter, смысл появится после назначения паролей."
-versions = "Политика с Windows 8; максимум 599940 секунд."
+summary = "After the specified number of seconds without input, the screen locks regardless of screen saver and power settings."
+effect = "The workstation is not left open; with a blank password, unlocking is just pressing Enter, so the rule becomes meaningful once passwords are assigned."
+versions = "Policy since Windows 8; maximum 599940 seconds."
 verify = "Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System -Name InactivityTimeoutSecs"
-rollback = "Удалить значение."
+rollback = "Delete the value."
 
 [rule.params.seconds]
 type = "int"
-title = "Секунд простоя до блокировки"
+title = "Seconds of inactivity before locking"
 default = 900
 min = 60
 max = 599940
@@ -142,15 +142,15 @@ default = "absent"
 id = "lsa.baseline"
 group = "security.lsa"
 phase = "specialize"
-title = "Базовая защита учётных данных: без LM-хэшей, без анонимного доступа, без WDigest, SEHOP"
+title = "Basic credential protection: no LM hashes, no anonymous access, no WDigest, SEHOP"
 level = "baseline"
 default = true
-tags = ["lsa", "nolmhash", "restrictanonymous", "wdigest", "sehop", "mimikatz", "пустой пароль"]
+tags = ["lsa", "nolmhash", "restrictanonymous", "wdigest", "sehop", "mimikatz", "blank password"]
 doc = "docs/technical/reference/08-accounts-uac-lsa-remote.md"
-summary = "LM-хэши не хранятся; учётные записи с пустым паролем только для консольного входа; анонимное перечисление ресурсов и учётных записей запрещено; пароли не хранятся в памяти открытым текстом (WDigest); включена защита от перезаписи цепочки обработчиков исключений (SEHOP)."
-effect = "Украденный хэш или дамп памяти становятся малополезными."
-risk = "Очень старые устройства (принтеры, NAS), ищущие общие ресурсы анонимно, могут их не увидеть."
-versions = "Большинство значений совпадает с умолчаниями Windows 10/11 и закрепляется явно; RestrictAnonymous=1 строже умолчания клиентских Windows."
+summary = "LM hashes are not stored; accounts with blank passwords are limited to console logon; anonymous enumeration of shares and accounts is not allowed; passwords are not kept in memory in plain text (WDigest); Structured Exception Handler Overwrite Protection (SEHOP) is enabled."
+effect = "A stolen hash or memory dump becomes of little use."
+risk = "Very old devices (printers, NAS) that browse shares anonymously may not see them."
+versions = "Most values match the Windows 10/11 defaults and are set explicitly; RestrictAnonymous=1 is stricter than the client Windows default."
 verify = "Get-ItemProperty HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa"
 
 [[rule.actions]]
@@ -216,23 +216,23 @@ default = "absent"
 id = "lsa.protection"
 group = "security.lsa"
 phase = "specialize"
-title = "Защита LSA (RunAsPPL): LSASS как защищённый процесс"
+title = "LSA protection (RunAsPPL): LSASS as a protected process"
 level = "recommended"
 default = true
-tags = ["lsa", "runasppl", "lsass", "mimikatz", "credential dumping", "эцп", "смарт-карты"]
+tags = ["lsa", "runasppl", "lsass", "mimikatz", "credential dumping", "digital signature", "smart cards"]
 doc = "docs/technical/reference/08-accounts-uac-lsa-remote.md#lsaprotection"
-summary = "Память LSASS недоступна другим процессам даже с правами администратора; извлечь хэши и пароли нельзя."
-effect = "Mimikatz и дампы через Диспетчер задач не работают. Значение 2 без привязки к UEFI: откат возможен через реестр."
-risk = "Плагины, загружаемые в LSA (драйверы токенов ЭЦП, сторонние поставщики входа), должны быть подписаны Microsoft; неподписанные не загрузятся (события 3033/3063). Проверить ключи ЭЦП организации до массового внедрения."
-versions = "Значение 2 понимает Windows 11 22H2 и новее; Windows 10 трактует любое ненулевое как 1 (с блокировкой UEFI)."
-verify = "Журнал System, событие 12 от WinInit; Get-ItemProperty HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa -Name RunAsPPL"
-rollback = "Удалить значение или 0, перезагрузка."
+summary = "LSASS memory is inaccessible to other processes, even with administrator rights; hashes and passwords cannot be extracted."
+effect = "Mimikatz and dumps through Task Manager do not work. Value 2 has no UEFI lock, so it can be rolled back through the registry."
+risk = "Plug-ins loaded into LSA (digital signature token drivers, third-party sign-in providers) must be signed by Microsoft; unsigned ones will not load (events 3033/3063). Test the organization's digital signature keys before a broad rollout."
+versions = "Value 2 is recognized by Windows 11 22H2 and later; Windows 10 treats any non-zero value as 1 (with a UEFI lock)."
+verify = "System log, event 12 from WinInit; Get-ItemProperty HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa -Name RunAsPPL"
+rollback = "Delete the value or set it to 0, then restart."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 2
-values = [ { value = 2, title = "Включено без блокировки UEFI (обратимо)" }, { value = 1, title = "Включено с блокировкой UEFI (необратимо без доступа к прошивке)" } ]
+values = [ { value = 2, title = "Enabled without a UEFI lock (reversible)" }, { value = 1, title = "Enabled with a UEFI lock (irreversible without firmware access)" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -247,17 +247,17 @@ default = "absent"
 id = "lsa.ntlmv2-only"
 group = "security.lsa"
 phase = "specialize"
-title = "Только NTLMv2 (отказ от LM и NTLMv1)"
+title = "NTLMv2 only (refuse LM and NTLMv1)"
 level = "recommended"
 default = true
-tags = ["ntlm", "ntlmv2", "lmcompatibilitylevel", "nas", "мфу"]
+tags = ["ntlm", "ntlmv2", "lmcompatibilitylevel", "nas", "mfp"]
 doc = "docs/technical/reference/08-accounts-uac-lsa-remote.md#ntlmv2only"
-summary = "Клиент и сервер используют только NTLMv2 и отвергают LM и NTLMv1."
-effect = "Перехваченные хэши нельзя использовать в старых атаках на NTLMv1; современные ПК и NAS этого не замечают."
-risk = "Очень старые NAS, принтеры со сканированием в папку и встраиваемые устройства с NTLMv1 перестанут подключаться. Ослаблять вместе с правилами SMB после инвентаризации."
-versions = "Умолчание Windows 10/11 без ключа равно 3; в 24H2 Microsoft начала поэтапный отказ от NTLM."
+summary = "The client and server use only NTLMv2 and refuse LM and NTLMv1."
+effect = "Intercepted hashes cannot be used in old NTLMv1 attacks; modern PCs and NAS devices are not affected."
+risk = "Very old NAS devices, printers with scan to folder, and embedded devices that use NTLMv1 will stop connecting. Relax it together with the SMB rules after an inventory."
+versions = "Without the key, the Windows 10/11 default is 3; in 24H2 Microsoft started phasing out NTLM."
 verify = "Get-ItemProperty HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa -Name LmCompatibilityLevel"
-rollback = "Значение 3 или удалить."
+rollback = "Value 3, or delete it."
 
 [[rule.actions]]
 type = "reg"
@@ -272,34 +272,34 @@ default = "absent"
 id = "accounts.lockout"
 group = "security.accounts"
 phase = "specialize"
-title = "Блокировка учётной записи после неверных паролей"
+title = "Lock out accounts after wrong passwords"
 level = "recommended"
 default = true
-tags = ["блокировка", "перебор паролей", "lockout", "net accounts"]
+tags = ["lock", "brute force", "lockout", "net accounts"]
 doc = "docs/technical/reference/08-accounts-uac-lsa-remote.md#accountlockout"
-summary = "После заданного числа неверных паролей подряд учётная запись блокируется на заданное время."
-effect = "Перебор паролей по сети (SMB, RDP) бесполезен. С пустыми паролями неактуально; после назначения паролей первая линия защиты."
-versions = "Windows 11 22H2+ на чистой установке уже задаёт 10/10/10; Windows 10 и обновлённые системы «никогда»."
+summary = "After the specified number of consecutive wrong passwords, the account is locked for the specified time."
+effect = "Password guessing over the network (SMB, RDP) becomes useless. Not relevant while passwords are blank; once passwords are assigned, it is the first line of defense."
+versions = "Windows 11 22H2+ already sets 10/10/10 on a clean install; Windows 10 and upgraded systems use \"never\"."
 verify = "net accounts"
 rollback = "net accounts /lockoutthreshold:0"
 
 [rule.params.threshold]
 type = "int"
-title = "Неверных попыток до блокировки"
+title = "Failed attempts before lockout"
 default = 10
 min = 1
 max = 999
 
 [rule.params.duration]
 type = "int"
-title = "Длительность блокировки, минут"
+title = "Lockout duration, minutes"
 default = 15
 min = 1
 max = 99999
 
 [rule.params.window]
 type = "int"
-title = "Окно сброса счётчика, минут"
+title = "Lockout counter reset window, minutes"
 default = 15
 min = 1
 max = 99999
@@ -313,14 +313,14 @@ args = ["accounts", "/lockoutthreshold:{threshold}", "/lockoutduration:{duration
 id = "accounts.password-never-expires"
 group = "security.accounts"
 phase = "specialize"
-title = "Срок действия паролей не ограничен (стартовые учётные записи)"
+title = "Passwords never expire (initial accounts)"
 level = "recommended"
 default = true
-tags = ["пароль", "срок действия", "maxpwage", "42 дня", "стартовые учётные записи"]
+tags = ["password", "expiration", "maxpwage", "42 days", "starter accounts"]
 doc = "docs/technical/reference/04-users-and-media.md#passwordneverexpires"
-summary = "Максимальный срок действия пароля снимается для всех локальных учётных записей (по умолчанию 42 дня)."
-effect = "Windows никогда не покажет «Ваш пароль истёк» для стартовых учётных записей с пустым паролем. Проект управления пользователями может вернуть срок действия при назначении паролей."
-versions = "Без изменений."
+summary = "The maximum password age is removed for all local accounts (the default is 42 days)."
+effect = "Windows will never show \"Your password has expired\" for the initial accounts with blank passwords. The user management project can restore password expiration when it assigns passwords."
+versions = "No changes."
 verify = "net accounts"
 rollback = "net accounts /maxpwage:42"
 
@@ -333,15 +333,15 @@ args = ["accounts", "/maxpwage:unlimited"]
 id = "remote.assistance-off"
 group = "security.remote"
 phase = "specialize"
-title = "Удалённый помощник выключен"
+title = "Remote Assistance turned off"
 level = "recommended"
 default = true
-tags = ["удалённый помощник", "msra", "remote assistance", "мошенники"]
+tags = ["remote assistance", "msra", "scammers"]
 doc = "docs/technical/reference/08-accounts-uac-lsa-remote.md#disableremoteassistance"
-summary = "Приглашения удалённого помощника (msra.exe) и полный удалённый контроль запрещены."
-effect = "Один из встроенных каналов удалённого управления закрыт; для поддержки своим администратором нужен выбранный организацией инструмент."
-versions = "Без изменений."
-verify = "Свойства системы -> Удалённый доступ"
+summary = "Remote Assistance invitations (msra.exe) and full remote control are not allowed."
+effect = "One of the built-in remote control channels is closed; support from your own administrator requires a tool chosen by the organization."
+versions = "No changes."
+verify = "System Properties -> Remote"
 rollback = "fAllowToGetHelp = 1"
 
 [[rule.actions]]
@@ -364,16 +364,16 @@ default = 1
 id = "remote.rdp-inbound-off"
 group = "security.remote"
 phase = "specialize"
-title = "Входящий удалённый рабочий стол выключен"
+title = "Inbound Remote Desktop turned off"
 level = "recommended"
 default = true
-tags = ["rdp", "удалённый рабочий стол", "fdenytsconnections"]
+tags = ["rdp", "remote desktop", "fdenytsconnections"]
 doc = "docs/technical/reference/08-accounts-uac-lsa-remote.md#disableremotedesktopinbound"
-summary = "Входящие подключения RDP запрещены (умолчание Windows, закреплено явно); исходящие подключения к другим ПК работают."
-effect = "Один из главных векторов атак на малые сети закрыт."
-versions = "Без изменений."
-verify = "Параметры -> Система -> Удалённый рабочий стол"
-rollback = "fDenyTSConnections = 0 и правило брандмауэра «Удалённый рабочий стол»."
+summary = "Inbound RDP connections are not allowed (the Windows default, set explicitly); outbound connections to other PCs work."
+effect = "One of the main attack vectors against small networks is closed."
+versions = "No changes."
+verify = "Settings -> System -> Remote Desktop"
+rollback = "fDenyTSConnections = 0 and the \"Remote Desktop\" firewall rule."
 
 [[rule.actions]]
 type = "reg"
@@ -387,14 +387,14 @@ default = 1
 id = "remote.rdp-nla"
 group = "security.remote"
 phase = "specialize"
-title = "Проверка подлинности на уровне сети (NLA) для RDP"
+title = "Network Level Authentication (NLA) for RDP"
 level = "baseline"
 default = true
 tags = ["rdp", "nla", "userauthentication"]
 doc = "docs/technical/reference/08-accounts-uac-lsa-remote.md"
-summary = "Если RDP когда-нибудь включат, подключение потребует проверку подлинности до показа экрана входа."
-effect = "Защита от атак на экран входа RDP (BlueKeep и подобные)."
-versions = "Умолчание Windows 10/11, закреплено явно."
+summary = "If RDP is ever enabled, connections will require authentication before the sign-in screen is shown."
+effect = "Protects against attacks on the RDP sign-in screen (BlueKeep and similar)."
+versions = "Windows 10/11 default, set explicitly."
 
 [[rule.actions]]
 type = "reg"
@@ -409,14 +409,14 @@ default = 1
 id = "remote.registry-off"
 group = "security.remote"
 phase = "specialize"
-title = "Служба удалённого реестра отключена"
+title = "Remote Registry service disabled"
 level = "recommended"
 default = true
-tags = ["remoteregistry", "удалённый реестр", "служба"]
+tags = ["remoteregistry", "remote registry", "service"]
 doc = "docs/technical/reference/08-accounts-uac-lsa-remote.md#disableremoteregistry"
-summary = "Удалённое чтение и запись реестра невозможны."
-effect = "На клиентских Windows служба и так отключена; закрепляется явно. Старые агенты инвентаризации могут требовать её включения."
-versions = "На Windows 7/8 служба была в ручном режиме."
+summary = "Remote reading and writing of the registry is not possible."
+effect = "On client Windows the service is already disabled; the rule sets this explicitly. Old inventory agents may require it to be enabled."
+versions = "On Windows 7/8 the service was set to manual."
 verify = "Get-Service RemoteRegistry | Select-Object StartType"
 rollback = "Set-Service RemoteRegistry -StartupType Manual"
 
@@ -430,17 +430,17 @@ default = 4
 id = "encryption.prevent-auto-bitlocker"
 group = "security.encryption"
 phase = "specialize"
-title = "Запретить автоматическое шифрование устройства (BitLocker без ключа)"
+title = "Prevent automatic device encryption (BitLocker without a saved key)"
 level = "recommended"
 default = true
-tags = ["bitlocker", "шифрование устройства", "ключ восстановления", "24h2", "tpm"]
+tags = ["bitlocker", "device encryption", "recovery key", "24h2", "tpm"]
 doc = "docs/technical/reference/08-accounts-uac-lsa-remote.md#preventautodeviceencryption"
-summary = "Windows не шифрует системный диск автоматически. Без домена и учётной записи Microsoft ключ восстановления некуда сохранить."
-effect = "Клонирование и восстановление диска работают; при сбое TPM данные не теряются. Защита ноутбука от кражи включается осознанно с сохранением ключа."
-risk = "Данные на украденном ноутбуке не защищены шифрованием, пока BitLocker не включён вручную."
-versions = "Windows 11 24H2 на чистой установке шифрует диск на любом ПК с TPM; на 23H2 и старше только на устройствах с Modern Standby. Ключ действует с Windows 8.1."
+summary = "Windows does not encrypt the system drive automatically. Without a domain or a Microsoft account, there is nowhere to store the recovery key."
+effect = "Disk cloning and restore work; data is not lost if the TPM fails. Protection of laptops against theft is turned on deliberately, with the key saved."
+risk = "Data on a stolen laptop is not protected by encryption until BitLocker is turned on manually."
+versions = "On a clean install, Windows 11 24H2 encrypts the drive on any PC with a TPM; 23H2 and earlier do so only on Modern Standby devices. The registry key has been supported since Windows 8.1."
 verify = "Get-BitLockerVolume C: | Select-Object ProtectionStatus, VolumeStatus"
-rollback = "Удалить значение, затем Параметры -> Конфиденциальность и защита -> Шифрование устройства."
+rollback = "Delete the value, then Settings -> Privacy & security -> Device encryption."
 
 [[rule.actions]]
 type = "reg"
@@ -455,14 +455,14 @@ default = "absent"
 id = "accounts.block-aad-join"
 group = "security.accounts"
 phase = "specialize"
-title = "Без запроса «Разрешить организации управлять устройством»"
+title = "No \"Allow my organization to manage my device\" prompt"
 level = "baseline"
 default = true
 tags = ["azure ad", "entra", "workplace join", "office", "m365"]
 doc = "docs/technical/reference/08-accounts-uac-lsa-remote.md"
-summary = "При входе в Office или Teams с рабочей учётной записью Windows не предлагает присоединить устройство к Entra ID."
-effect = "Непрофессиональный пользователь не подключит ПК к чужому облачному управлению одним кликом."
-versions = "Без изменений."
+summary = "When a user signs in to Office or Teams with a work account, Windows does not offer to join the device to Entra ID."
+effect = "A non-professional user cannot put the PC under someone else's cloud management with a single click."
+versions = "No changes."
 
 [[rule.actions]]
 type = "reg"

@@ -1,20 +1,20 @@
-# Съёмные носители, скриптовые файлы, Microsoft Edge. Раздел 6 скрипта машины v0.2.
-# Правила Edge относятся к группе browsers.edge (раздел «Браузеры»).
+# Removable media, script files, Microsoft Edge. Section 6 of the v0.2 machine script.
+# The Edge rules belong to the group browsers.edge (the "Browsers" section).
 
 [[rule]]
 id = "removable.autorun-off"
 group = "removable"
 phase = "specialize"
-title = "Автозапуск и автовоспроизведение выключены для всех носителей"
+title = "AutoRun and AutoPlay disabled for all media"
 level = "recommended"
 default = true
-tags = ["autorun", "autoplay", "флешка", "usb", "cd", "телефон"]
+tags = ["autorun", "autoplay", "usb flash drive", "usb", "cd", "phone"]
 doc = "docs/technical/reference/10-removable-scripts-browser.md#disableautorun"
-summary = "Автозапуск отключён для всех типов дисков, файлы autorun.inf игнорируются даже на CD, автовоспроизведение выключено для устройств без буквы диска (телефоны, камеры)."
-effect = "Подключение флешки, диска или телефона ничего не запускает и ничего не спрашивает. Запуск файла вручную покрывает правило ASR для USB."
-versions = "С Windows 7 autorun.inf на USB игнорируется всегда; для CD ещё работает, поэтому NoAutorun нужен."
+summary = "AutoRun is disabled for all drive types, autorun.inf files are ignored even on CDs, and AutoPlay is turned off for devices without a drive letter (phones, cameras)."
+effect = "Connecting a USB flash drive, disk or phone launches nothing and asks nothing. Running a file manually is covered by the ASR rule for USB."
+versions = "Since Windows 7, autorun.inf on USB drives is always ignored; on CDs it still works, so NoAutorun is needed."
 verify = "Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer"
-rollback = "Удалить три значения."
+rollback = "Delete the three values."
 
 [[rule.actions]]
 type = "reg"
@@ -44,17 +44,17 @@ value = 1
 id = "scripts.open-in-notepad"
 group = "removable.scripts"
 phase = "specialize"
-title = "Скриптовые файлы (.js .vbs .hta и другие) открываются в Блокноте"
+title = "Script files (.js .vbs .hta and others) open in Notepad"
 level = "recommended"
 default = true
-tags = ["js", "vbs", "hta", "wsf", "фишинг", "блокнот", "ассоциации"]
+tags = ["js", "vbs", "hta", "wsf", "phishing", "notepad", "file associations"]
 doc = "docs/technical/reference/10-removable-scripts-browser.md#scriptfilesopeninnotepad"
-summary = "Двойной щелчок по .js, .jse, .vbs, .vbe, .wsf, .wsh, .hta показывает текст в Блокноте, а не выполняет его."
-effect = "Классический фишинг «архив со скриптом внутри» (счёт.pdf.js) не срабатывает. cscript, wscript и mshta из командной строки и из программ работают."
-risk = "Установщики, запускающие .vbs через оболочку (редко), откроют Блокнот. Ассоциация в профиле пользователя (Открыть с помощью) перекрывает эту."
-versions = "ProgId одинаковы с Windows XP."
-verify = "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Classes\\VBSFile\\Shell\\Open\\Command').'(default)'"
-rollback = "Восстановить значения по умолчанию, например для VBS: \"%SystemRoot%\\System32\\WScript.exe\" \"%1\" %*"
+summary = "Double-clicking a .js, .jse, .vbs, .vbe, .wsf, .wsh or .hta file shows its text in Notepad instead of running it."
+effect = "The classic \"archive with a script inside\" phishing (invoice.pdf.js) does not work. cscript, wscript and mshta still work from the command line and from programs."
+risk = "Installers that run .vbs files through the shell (rare) will open Notepad. A file association in the user profile (Open with) overrides this one."
+versions = "The ProgIds have been the same since Windows XP."
+verify = "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Classes\\VBSFile\\Shell\\Open\\Command').'(default)' "
+rollback = "Restore the default values, for example for VBS: \"%SystemRoot%\\System32\\WScript.exe\" \"%1\" %*"
 
 [[rule.actions]]
 type = "reg"
@@ -116,17 +116,17 @@ why = "double-click opens in Notepad, cscript/wscript still work from a command 
 id = "scripts.remove-vbscript"
 group = "removable.scripts"
 phase = "specialize"
-title = "Удалить движок VBScript"
+title = "Remove the VBScript engine"
 level = "risky"
 default = false
-tags = ["vbscript", "capability", "старые установщики"]
+tags = ["vbscript", "capability", "legacy installers"]
 doc = "docs/technical/reference/10-removable-scripts-browser.md#removevbscript"
-summary = "Интерпретатор VBScript удаляется как необязательный компонент."
-effect = "Ни .vbs, ни макросы на VBScript в старых программах, ни компонент MSScriptControl не работают."
-risk = "Установщики программ 2000-х, часть драйверов принтеров и старые корпоративные приложения используют VBScript. Ассоциация на Блокнот даёт большую часть защиты без поломок."
-versions = "Компонент существует только в Windows 11 24H2 и новее; на 23H2 и Windows 10 движок неотделим (WARN в логе)."
-verify = "Get-WindowsCapability -Online -Name 'VBSCRIPT*'"
-rollback = "Add-WindowsCapability -Online -Name VBSCRIPT~~~~ (нужен интернет или источник)."
+summary = "The VBScript interpreter is removed as an optional feature."
+effect = "Neither .vbs files, nor VBScript macros in old programs, nor the MSScriptControl component work."
+risk = "Program installers from the 2000s, some printer drivers and old business applications use VBScript. The Notepad association provides most of the protection without breaking anything."
+versions = "The feature exists only in Windows 11 24H2 and later; on 23H2 and Windows 10 the engine cannot be removed separately (WARN in the log)."
+verify = "Get-WindowsCapability -Online -Name 'VBSCRIPT*' "
+rollback = "Add-WindowsCapability -Online -Name VBSCRIPT~~~~ (requires an internet connection or a source)."
 
 [[rule.actions]]
 type = "capability"
@@ -136,16 +136,16 @@ pattern = "VBSCRIPT*"
 id = "edge.smartscreen-locked"
 group = "browsers.edge"
 phase = "specialize"
-title = "SmartScreen в Edge включён, обход запрещён"
+title = "SmartScreen in Edge on, bypass not allowed"
 level = "recommended"
 default = true
-tags = ["edge", "smartscreen", "фишинг", "загрузки", "pua"]
+tags = ["edge", "smartscreen", "phishing", "downloads", "pua"]
 doc = "docs/technical/reference/10-removable-scripts-browser.md#edgesmartscreenlocked-and-unconditional-edge-policies"
-summary = "Проверка сайтов и загрузок по репутации, блокировка нежелательных загрузок; пользователь не может «перейти на сайт» или «сохранить всё равно» после предупреждения."
-effect = "Edge защищает от фишинга и вредоносных загрузок без возможности обойти предупреждение одним кликом."
-versions = "Политики Edge 79 и новее, обновляются с браузером независимо от версии Windows."
+summary = "Reputation checks for sites and downloads, blocking of potentially unwanted downloads; after a warning the user cannot \"continue to the site\" or \"keep anyway\"."
+effect = "Edge protects against phishing and malicious downloads, and the warning cannot be bypassed with a single click."
+versions = "Edge 79 and later policies; they are updated with the browser regardless of the Windows version."
 verify = "edge://policy"
-rollback = "Удалить значения из ключа политик Edge."
+rollback = "Delete the values from the Edge policy key."
 
 [[rule.actions]]
 type = "reg"
@@ -179,14 +179,14 @@ value = 1
 id = "edge.baseline"
 group = "browsers.edge"
 phase = "specialize"
-title = "Edge без мастера первого запуска, рекламы и фоновых процессов"
+title = "Edge without first-run experience, ads and background processes"
 level = "baseline"
 default = true
-tags = ["edge", "первый запуск", "реклама", "startup boost", "фон"]
+tags = ["edge", "first run", "ads", "startup boost", "background"]
 doc = "docs/technical/reference/10-removable-scripts-browser.md#edgesmartscreenlocked-and-unconditional-edge-policies"
-summary = "Скрыт мастер первого запуска, выключены рекомендации, отчёты для персонализации, ускоренный запуск и фоновый режим."
-effect = "Edge остаётся аварийным браузером: без него нельзя скачать другой браузер. Не показывает рекламу и не занимает память в фоне."
-versions = "Политики Edge 77 и новее."
+summary = "The first-run experience is hidden; recommendations, reporting for personalization, startup boost and background mode are turned off."
+effect = "Edge remains the emergency browser: without it you cannot download another browser. It shows no ads and uses no memory in the background."
+versions = "Edge 77 and later policies."
 
 [[rule.actions]]
 type = "reg"

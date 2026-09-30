@@ -22,10 +22,10 @@ if TYPE_CHECKING:
 WRAP = 600
 LOCALE_CHOICES = ("uk-UA", "ru-RU", "en-US", "en-GB", "pl-PL", "de-DE")
 KEY_MODES = (
-    ("generic", N_("Универсальный ключ выбранной редакции: окон ввода ключа и выбора редакции не будет, "
-     "Windows активируется сама по цифровой лицензии этого ПК")),
-    ("custom", N_("Свой ключ продукта (например, из наклейки или договора)")),
-    ("ask", N_("Спросить ключ и редакцию во время установки")),
+    ("generic", N_("Generic key for the selected edition: no product key or edition selection screens, "
+                   "Windows activates on its own using this PC's digital license")),
+    ("custom", N_("Your own product key (for example, from a sticker or contract)")),
+    ("ask", N_("Ask for the key and edition during installation")),
 )
 
 
@@ -56,20 +56,20 @@ class InstallForm(_Form):
         super().__init__(
             master,
             window,
-            tr("Установка"),
-            tr("Редакция Windows, ключ продукта и часовой пояс. Язык интерфейса и языки ввода задаются в узле «Языки и регион»."),
+            tr("Installation"),
+            tr("Windows edition, product key and time zone. The display language and input languages are set in the \"Languages and region\" node."),
         )
         self.edition = tk.StringVar()
         self.mode = tk.StringVar()
         self.key = tk.StringVar()
         self.zone = tk.StringVar()
-        ttk.Label(self, text=tr("Редакция Windows")).grid(row=2, column=0, sticky="w", padx=(0, 12))
+        ttk.Label(self, text=tr("Windows edition")).grid(row=2, column=0, sticky="w", padx=(0, 12))
         edition_box = ttk.Combobox(self, textvariable=self.edition, values=list(EDITION_KEYS), state="readonly", width=18)
         edition_box.grid(row=2, column=1, sticky="w")
         edition_box.bind("<<ComboboxSelected>>", lambda _e: self._save())
-        self.note(3, tr("Pro: основная редакция проекта. Enterprise и Education только при наличии соответствующих лицензий; Home не поддерживается (не работают политики)."))
+        self.note(3, tr("Pro: the main edition of the project. Enterprise and Education only with the corresponding licenses; Home is not supported (policies do not work)."))
 
-        ttk.Label(self, text=tr("Ключ продукта")).grid(row=4, column=0, sticky="nw", padx=(0, 12))
+        ttk.Label(self, text=tr("Product key")).grid(row=4, column=0, sticky="nw", padx=(0, 12))
         box = ttk.Frame(self)
         box.grid(row=4, column=1, sticky="w")
         for value, text in KEY_MODES:
@@ -78,11 +78,11 @@ class InstallForm(_Form):
         self.key_entry.pack(anchor="w", padx=(22, 0), pady=(2, 0))
         self.key.trace_add("write", lambda *_: self._save())
 
-        ttk.Label(self, text=tr("Часовой пояс")).grid(row=5, column=0, sticky="w", padx=(0, 12), pady=(12, 0))
+        ttk.Label(self, text=tr("Time zone")).grid(row=5, column=0, sticky="w", padx=(0, 12), pady=(12, 0))
         self.zone_box = ttk.Combobox(self, textvariable=self.zone, state="readonly", width=48)
         self.zone_box.grid(row=5, column=1, sticky="w", pady=(12, 0))
         self.zone_box.bind("<<ComboboxSelected>>", lambda _e: self._save())
-        self.note(6, tr("Правильный часовой пояс важен для журналов: события при расследовании сопоставляются по времени."))
+        self.note(6, tr("The correct time zone matters for logs: during an investigation, events are matched by time."))
         self._zones: list[tuple[str, str]] = []
 
     def refresh(self) -> None:
@@ -122,15 +122,16 @@ class LanguagesForm(_Form):
         super().__init__(
             master,
             window,
-            tr("Языки и регион"),
-            tr("Язык интерфейса Windows берётся из установочного ISO и не меняется. Его всё равно нужно указать: "
-            "иначе установщик покажет экран выбора языка. Остальные поля задают форматы и языки ввода."),
+            tr("Languages and region"),
+            tr("The Windows display language comes from the installation ISO and does not change. It "
+               "still has to be specified; otherwise Windows Setup shows the language selection screen. "
+               "The other fields set formats and input languages."),
         )
         self.vars: dict[str, tk.StringVar] = {}
         rows = (
-            ("ui_language", tr("Язык интерфейса (= язык ISO)")),
-            ("user_locale", tr("Формат дат, чисел, валюты")),
-            ("system_locale", tr("Язык программ без Юникода")),
+            ("ui_language", tr("Display language (= ISO language)")),
+            ("user_locale", tr("Date, number and currency format")),
+            ("system_locale", tr("Language for non-Unicode programs")),
         )
         for index, (key, title) in enumerate(rows, start=2):
             ttk.Label(self, text=title).grid(row=index, column=0, sticky="w", padx=(0, 12), pady=2)
@@ -138,32 +139,33 @@ class LanguagesForm(_Form):
             ttk.Combobox(self, textvariable=var, values=LOCALE_CHOICES, width=14).grid(row=index, column=1, sticky="w", pady=2)
             var.trace_add("write", lambda *_a, k=key, v=var: self._save_locale(k, v))
             self.vars[key] = var
-        self.note(5, tr("Для украинского ISO: uk-UA. «Язык программ без Юникода» uk-UA даёт кодовую страницу 1251 для старых программ (общая для украинского и русского)."))
+        self.note(5, tr("For a Ukrainian ISO: uk-UA. Setting \"Language for non-Unicode programs\" to uk-UA gives legacy programs code page 1251 (shared by Ukrainian and Russian)."))
 
-        ttk.Label(self, text=tr("Языки ввода (порядок переключения)")).grid(row=6, column=0, sticky="nw", padx=(0, 12), pady=(8, 0))
+        ttk.Label(self, text=tr("Input languages (switching order)")).grid(row=6, column=0, sticky="nw", padx=(0, 12), pady=(8, 0))
         box = ttk.Frame(self)
         box.grid(row=6, column=1, sticky="w", pady=(8, 0))
         self.input_list = tk.Listbox(box, height=6, width=56, activestyle="none", exportselection=False)
         self.input_list.grid(row=0, column=0, rowspan=4, sticky="w")
-        for r, (text, cmd) in enumerate(((tr("Вверх"), self._up), (tr("Вниз"), self._down), (tr("Удалить"), self._remove))):
+        for r, (text, cmd) in enumerate(((tr("Move up"), self._up), (tr("Move down"), self._down), (tr("Remove"), self._remove))):
             ttk.Button(box, text=text, command=cmd, width=10).grid(row=r, column=1, sticky="w", padx=(6, 0), pady=1)
         add_row = ttk.Frame(box)
         add_row.grid(row=4, column=0, columnspan=2, sticky="w", pady=(6, 0))
         self.add_var = tk.StringVar()
         self.add_box = ttk.Combobox(add_row, textvariable=self.add_var, state="readonly", width=48)
         self.add_box.pack(side="left")
-        ttk.Button(add_row, text=tr("Добавить"), command=self._add).pack(side="left", padx=(6, 0))
+        ttk.Button(add_row, text=tr("Add"), command=self._add).pack(side="left", padx=(6, 0))
         self.note(
             7,
-            tr("Первый язык в списке основной. Языки с пометкой «при первом входе» (например, «Русский (Украина)») не имеют "
-            "числового кода: на экране входа вместо них стоит базовый язык, а у каждого пользователя они появляются "
-            "при первом входе (правило «Список языков ввода пользователя»)."),
+            tr("The first language in the list is the default. Languages marked \"at first sign-in\" (for "
+               "example, \"Russian (Ukraine)\") have no numeric code: the sign-in screen shows the base "
+               "language instead, and each user gets them at first sign-in (rule \"User input language "
+               "list\")."),
         )
-        ttk.Label(self, text=tr("Страна (регион)")).grid(row=8, column=0, sticky="w", padx=(0, 12))
+        ttk.Label(self, text=tr("Country or region")).grid(row=8, column=0, sticky="w", padx=(0, 12))
         region = ttk.Frame(self)
         region.grid(row=8, column=1, sticky="w")
-        ttk.Label(region, text=tr("задаётся параметрами правила «Регион пользователя»")).pack(side="left")
-        ttk.Button(region, text=tr("Перейти к правилу"), command=lambda: window.select_node("r:default-user.region")).pack(side="left", padx=(8, 0))
+        ttk.Label(region, text=tr("set by the parameters of the \"User region\" rule")).pack(side="left")
+        ttk.Button(region, text=tr("Go to rule"), command=lambda: window.select_node("r:default-user.region")).pack(side="left", padx=(8, 0))
 
     def _entries(self) -> list[dict[str, Any]]:
         return self.window.resources.keyboards
@@ -171,8 +173,8 @@ class LanguagesForm(_Form):
     def _display(self, item: str) -> str:
         entry = find_keyboard(self._entries(), item)
         if entry is None:
-            return tr("{0} (неизвестный язык)", item)
-        suffix = tr("  [при первом входе]") if entry.get("transient") else ""
+            return tr("{0} (unknown language)", item)
+        suffix = tr("  [at first sign-in]") if entry.get("transient") else ""
         return f"{entry.get('title', item)}  ({item}){suffix}"
 
     def refresh(self) -> None:
@@ -243,25 +245,26 @@ class AccountsForm(_Form):
         super().__init__(
             master,
             window,
-            tr("Учётные записи"),
-            tr("Локальные учётные записи, которые установщик создаёт до первого входа. Стартовые Admin и User по умолчанию "
-            "без паролей: пароли и группы назначает отдельный проект после установки. Пароль, если его задать здесь, "
-            "попадёт в файл ответов открытым текстом."),
+            tr("Accounts"),
+            tr("Local accounts that Windows Setup creates before the first sign-in. The initial Admin and "
+               "User accounts have no passwords by default: passwords and groups are assigned by a "
+               "separate project after installation. A password set here is written to the answer file in "
+               "plain text."),
         )
         table = ttk.Frame(self)
         table.grid(row=2, column=0, columnspan=3, sticky="we")
         self.tree = ttk.Treeview(table, columns=("name", "display", "group", "password"), show="headings", height=6, selectmode="browse")
-        for column, title, width in (("name", tr("Имя"), 140), ("display", tr("Отображаемое имя"), 180), ("group", tr("Группа"), 130), ("password", tr("Пароль"), 90)):
+        for column, title, width in (("name", tr("Name"), 140), ("display", tr("Display name"), 180), ("group", tr("Group"), 130), ("password", tr("Password"), 90)):
             self.tree.heading(column, text=title)
             self.tree.column(column, width=width, stretch=column == "display")
         self.tree.pack(side="left", fill="x", expand=True)
         self.tree.bind("<<TreeviewSelect>>", lambda _e: self._load_selected())
         buttons = ttk.Frame(table)
         buttons.pack(side="left", padx=(6, 0), anchor="n")
-        for text, cmd in ((tr("Добавить"), self._add), (tr("Удалить"), self._remove), (tr("Вверх"), lambda: self._move(-1)), (tr("Вниз"), lambda: self._move(1))):
+        for text, cmd in ((tr("Add"), self._add), (tr("Remove"), self._remove), (tr("Move up"), lambda: self._move(-1)), (tr("Move down"), lambda: self._move(1))):
             ttk.Button(buttons, text=text, command=cmd, width=10).pack(pady=1)
 
-        edit = ttk.LabelFrame(self, text=tr("Выбранная учётная запись"), padding=(10, 6))
+        edit = ttk.LabelFrame(self, text=tr("Selected account"), padding=(10, 6))
         edit.grid(row=3, column=0, columnspan=3, sticky="we", pady=(10, 0))
         self.name = tk.StringVar()
         self.display = tk.StringVar()
@@ -269,16 +272,16 @@ class AccountsForm(_Form):
         self.description = tk.StringVar()
         self.password = tk.StringVar()
         fields = (
-            (tr("Имя (для входа)"), ttk.Entry(edit, textvariable=self.name, width=24)),
-            (tr("Отображаемое имя"), ttk.Entry(edit, textvariable=self.display, width=32)),
-            (tr("Группа"), ttk.Combobox(edit, textvariable=self.group, values=("Administrators", "Users"), state="readonly", width=16)),
-            (tr("Описание"), ttk.Entry(edit, textvariable=self.description, width=48)),
-            (tr("Пароль (необязательно)"), ttk.Entry(edit, textvariable=self.password, width=24, show="*")),
+            (tr("Name (for sign-in)"), ttk.Entry(edit, textvariable=self.name, width=24)),
+            (tr("Display name"), ttk.Entry(edit, textvariable=self.display, width=32)),
+            (tr("Group"), ttk.Combobox(edit, textvariable=self.group, values=("Administrators", "Users"), state="readonly", width=16)),
+            (tr("Description"), ttk.Entry(edit, textvariable=self.description, width=48)),
+            (tr("Password (optional)"), ttk.Entry(edit, textvariable=self.password, width=24, show="*")),
         )
         for row, (title, widget) in enumerate(fields):
             ttk.Label(edit, text=title).grid(row=row, column=0, sticky="w", padx=(0, 10), pady=2)
             widget.grid(row=row, column=1, sticky="w", pady=2)
-        ttk.Button(edit, text=tr("Применить"), command=self._apply).grid(row=len(fields), column=1, sticky="w", pady=(6, 0))
+        ttk.Button(edit, text=tr("Apply"), command=self._apply).grid(row=len(fields), column=1, sticky="w", pady=(6, 0))
         self.error = tk.StringVar()
         ttk.Label(edit, textvariable=self.error, style="Error.TLabel", wraplength=WRAP).grid(row=len(fields) + 1, column=0, columnspan=2, sticky="w")
 
@@ -289,7 +292,7 @@ class AccountsForm(_Form):
     def refresh(self, select: int | None = 0) -> None:
         self.tree.delete(*self.tree.get_children())
         for index, account in enumerate(self.accounts):
-            self.tree.insert("", "end", iid=str(index), values=(account.name, account.display_name, account.group, tr("задан") if account.password else tr("не задан")))
+            self.tree.insert("", "end", iid=str(index), values=(account.name, account.display_name, account.group, tr("set") if account.password else tr("not set")))
         if select is not None and self.accounts:
             select = max(0, min(select, len(self.accounts) - 1))
             self.tree.selection_set(str(select))
@@ -323,9 +326,9 @@ class AccountsForm(_Form):
         name = self.name.get().strip()
         reason = check_account_name(name)
         if reason is None and any(i != index and a.name.lower() == name.lower() for i, a in enumerate(self.accounts)):
-            reason = tr("такое имя уже есть")
+            reason = tr("this name already exists")
         if reason:
-            self.error.set(tr("Не применено: {0}.", reason))
+            self.error.set(tr("Not applied: {0}.", reason))
             return
         account = self.accounts[index]
         account.name = name
@@ -333,9 +336,9 @@ class AccountsForm(_Form):
         account.group = self.group.get() or "Users"
         account.description = self.description.get().strip()
         account.password = self.password.get()
-        self.error.set(tr("Пароль будет записан в файл ответов открытым текстом.") if account.password else "")
+        self.error.set(tr("The password will be written to the answer file in plain text.") if account.password else "")
         if not any(a.group == "Administrators" for a in self.accounts):
-            self.error.set(tr("Внимание: не осталось ни одной учётной записи в группе Administrators."))
+            self.error.set(tr("Warning: no accounts are left in the Administrators group."))
         self.refresh(index)
         self.changed()
 
@@ -351,7 +354,7 @@ class AccountsForm(_Form):
     def _remove(self) -> None:
         index = self._index()
         if index is None or len(self.accounts) <= 1:
-            self.error.set(tr("Нужна хотя бы одна учётная запись."))
+            self.error.set(tr("At least one account is required."))
             return
         del self.accounts[index]
         self.refresh(index)

@@ -17,7 +17,7 @@ from pathlib import Path
 
 from winkickoff import APP_VERSION
 from winkickoff.core.catalog import heading_anchors, load_catalog
-from winkickoff.core.i18n import LANGUAGES, CatalogTexts
+from winkickoff.core.i18n import CatalogTexts
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT.parent
@@ -25,6 +25,7 @@ USER = REPO / "docs" / "user"
 CYRILLIC = re.compile("[" + chr(0x0400) + "-" + chr(0x04FF) + "]")
 RUSSIAN_ONLY = re.compile(r"[ыЫэЭъЪёЁ]")
 DASHES = (chr(0x2013), chr(0x2014))
+LANGUAGES = ("ru", "uk", "en")  # the languages of docs/user
 SKIP_PARTS = {".git", "__pycache__", "A-unattendedwinstall", "output", "logs"}
 
 
@@ -118,13 +119,12 @@ class DocsTest(unittest.TestCase):
                 self.assertEqual(on_disk, module.expected(self.catalog, lang), "run python tools/make_rule_docs.py")
 
     def test_catalog_translations_are_complete(self) -> None:
-        for lang in ("uk", "en"):
+        for lang in ("ru", "uk"):  # the catalog source is English
             with self.subTest(language=lang):
                 texts = CatalogTexts.load(ROOT / "rules", lang)
                 self.assertEqual(texts.missing(self.catalog), [])
                 self.assertEqual(texts.unknown(self.catalog), [])
-        english = (ROOT / "rules" / "lang" / "en.toml").read_text(encoding="utf-8")
-        self.assertEqual([l for l in english.splitlines() if not l.startswith("#") and CYRILLIC.search(l)], [])
+        self.assertFalse((ROOT / "rules" / "lang" / "en.toml").exists(), "English is the source, not a translation")
         ukrainian = (ROOT / "rules" / "lang" / "uk.toml").read_text(encoding="utf-8")
         self.assertEqual([l for l in ukrainian.splitlines() if RUSSIAN_ONLY.search(l)], [])
 

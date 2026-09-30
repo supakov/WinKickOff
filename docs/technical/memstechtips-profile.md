@@ -448,7 +448,7 @@ items weaken security and must not be transferred. A needed item becomes a new c
 
 | Script or task | What it does and why |
 |---|---|
-| `EdgeRemoval.ps1` | Removes Microsoft Edge and repeats the removal at every start by a scheduled task. Not transferred: the PC is left without a browser, and updates bring Edge back. WinKickOff keeps Edge and restricts it with the policies of the «Браузеры» (Browsers) section. |
+| `EdgeRemoval.ps1` | Removes Microsoft Edge and repeats the removal at every start by a scheduled task. Not transferred: the PC is left without a browser, and updates bring Edge back. WinKickOff keeps Edge and restricts it with the policies of the "Browsers" section. |
 | `OpenWebSearch.cmd` | Sends `microsoft-edge:` links and web results of Windows search to another browser by rewriting protocol handlers; `OpenWebSearchRepair.ps1` and its task restore them after updates. Not transferred: it only makes sense after Edge is removed. |
 | `OneDriveRemoval.ps1` | Removes OneDrive with `takeown` and deletion of files at restart, again at every sign-in. The intent is transferred as the rule `apps.remove.onedrive` (new users get no OneDrive); the deletion of system files and the repeating task are not. |
 | `BloatRemoval.ps1` | Removes apps, capabilities and optional features. Its lists are mapped above; the scheduled task that repeats the removal is not transferred: WinKickOff removes apps once, in specialize. |
@@ -458,8 +458,7 @@ items weaken security and must not be transferred. A needed item becomes a new c
 
 The preset follows the original: these rules contradict it (see the table above) or are absent from
 it, so they are off and the editor warns about each of them. Turning them on is recommended;
-«Файл, Сравнить с профилем...» (File, Compare with profile) shows every difference from the «Офис»
-(Office) preset.
+"File, Compare with profile..." shows every difference from the "Office" preset.
 
 - `printing.spooler-automatic`: Print Spooler starts automatically
 - `update.unblock`: Remove all Windows Update blocks

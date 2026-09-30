@@ -5,7 +5,7 @@
   "author": "",
   "created": "2026-09-25T00:00:00",
   "modified": "2026-09-25T00:00:00",
-  "comment": "Перенос оригинального файла ответов UnattendedWinstall (memstechtips, приложение A): включены правила, действия которых есть в оригинале и не противоречат ему. Ключ продукта спрашивается при установке. Базовые правила WinKickOff, которых нет в оригинале или которые ему противоречат, выключены: проверьте предупреждения перед применением. Что добавлено сверх оригинала, что не перенесено и почему: docs/technical/memstechtips-profile.md.",
+  "comment": "The original UnattendedWinstall answer file (memstechtips, Appendix A) carried over: the rules whose actions are in the original and do not contradict it are on. The product key is asked during installation. Baseline rules of WinKickOff that the original lacks or contradicts are off: read the warnings before use. What is added beyond the original, what is not carried over and why: docs/technical/memstechtips-profile.md.",
   "install": {
     "edition": "Pro",
     "product_key_mode": "ask",

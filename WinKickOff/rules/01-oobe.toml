@@ -1,16 +1,16 @@
-# Элементы <OOBE> в проходе oobeSystem.
+# <OOBE> elements of the oobeSystem pass.
 
 [[rule]]
 id = "oobe.hide-eula"
 group = "oobe"
 phase = "oobe-xml"
-title = "Скрыть экран лицензионного соглашения"
+title = "Hide the license agreement screen"
 level = "baseline"
 default = true
-tags = ["oobe", "eula", "лицензия"]
+tags = ["oobe", "eula", "license"]
 doc = "docs/technical/reference/03-oobe-accounts-languages.md"
-summary = "Лицензия принята в установщике (AcceptEula), экран в OOBE не показывается."
-effect = "Одним экраном меньше; ответственность за принятие условий несёт организация."
+summary = "The license is accepted in Setup (AcceptEula), so the screen is not shown in OOBE."
+effect = "One screen fewer; the organization is responsible for accepting the terms."
 
 [[rule.actions]]
 type = "xml-oobe"
@@ -21,13 +21,13 @@ value = "true"
 id = "oobe.hide-oem-registration"
 group = "oobe"
 phase = "oobe-xml"
-title = "Скрыть экран регистрации у производителя"
+title = "Hide the manufacturer registration screen"
 level = "baseline"
 default = true
 tags = ["oobe", "oem"]
 doc = "docs/technical/reference/03-oobe-accounts-languages.md"
-summary = "Экран регистрации OEM не показывается (появляется только на образах производителей)."
-effect = "Безвредно на образах Microsoft; экономит экран на OEM-образах."
+summary = "The OEM registration screen is not shown (it appears only on manufacturer images)."
+effect = "Harmless on Microsoft images; saves a screen on OEM images."
 
 [[rule.actions]]
 type = "xml-oobe"
@@ -38,14 +38,14 @@ value = "true"
 id = "oobe.hide-online-account"
 group = "oobe"
 phase = "oobe-xml"
-title = "Скрыть экраны учётной записи Microsoft"
+title = "Hide the Microsoft account screens"
 level = "baseline"
 default = true
-tags = ["oobe", "учётная запись microsoft", "локальная учётная запись"]
+tags = ["oobe", "microsoft account", "local account"]
 doc = "docs/technical/reference/03-oobe-accounts-languages.md"
-summary = "Экраны входа в аккаунт Microsoft и создания локальной учётной записи не показываются: учётные записи заданы в файле."
-effect = "После подготовки система сразу показывает экран входа со стартовыми учётными записями."
-risk = "Работает только вместе с учётными записями в разделе «Учётные записи»; без них OOBE потребует создать учётную запись."
+summary = "The screens for signing in with a Microsoft account and creating a local account are not shown: accounts are defined in the file."
+effect = "After setup, the system goes straight to the sign-in screen with the initial accounts."
+risk = "Works only together with the accounts in the \"Accounts\" section; without them, OOBE will require creating an account."
 
 [[rule.actions]]
 type = "xml-oobe"
@@ -56,13 +56,13 @@ value = "true"
 id = "oobe.hide-wireless"
 group = "oobe"
 phase = "oobe-xml"
-title = "Скрыть экран подключения к сети"
+title = "Hide the network connection screen"
 level = "recommended"
 default = true
-tags = ["oobe", "wi-fi", "сеть"]
+tags = ["oobe", "wi-fi", "network"]
 doc = "docs/technical/reference/03-oobe-accounts-languages.md"
-summary = "Экран «Подключитесь к сети» скрыт всегда, а не только при проводном подключении."
-effect = "Установка не останавливается на ноутбуках без кабеля; Wi-Fi настраивается после входа."
+summary = "The \"Let's connect you to a network\" screen is always hidden, not only on a wired connection."
+effect = "Setup does not stop on laptops without a network cable; Wi-Fi is configured after sign-in."
 
 [[rule.actions]]
 type = "xml-oobe"
@@ -73,20 +73,20 @@ value = "true"
 id = "oobe.protect-your-pc"
 group = "oobe"
 phase = "oobe-xml"
-title = "Экран параметров конфиденциальности: отключить экспресс-параметры"
+title = "Privacy settings screen: turn off express settings"
 level = "recommended"
 default = true
-tags = ["oobe", "конфиденциальность", "телеметрия", "protectyourpc"]
+tags = ["oobe", "privacy", "telemetry", "protectyourpc"]
 doc = "docs/technical/reference/03-oobe-accounts-languages.md"
-summary = "Экран конфиденциальности не показывается; отправка данных, реклама и определение местоположения по умолчанию выключены."
-effect = "SmartScreen и Defender не затрагиваются: они включаются отдельными правилами."
-versions = "Значение 3 работает на Windows 10 и 11, включая 24H2."
+summary = "The privacy screen is not shown; diagnostic data sending, advertising and location are turned off by default."
+effect = "SmartScreen and Defender are not affected: they are enabled by separate rules."
+versions = "Value 3 works on Windows 10 and 11, including 24H2."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 3
-values = [ { value = 3, title = "Отключить все экспресс-параметры" }, { value = 1, title = "Включить экспресс-параметры (отправка данных)" } ]
+values = [ { value = 3, title = "Turn off all express settings" }, { value = 1, title = "Turn on express settings (data sending)" } ]
 
 [[rule.actions]]
 type = "xml-oobe"

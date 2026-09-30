@@ -28,24 +28,23 @@ STAMP = "2026-09-25T00:00:00"
 
 
 def office(catalog: Catalog) -> Profile:
-    profile = Profile.from_catalog(catalog, name="Офис")
+    profile = Profile.from_catalog(catalog, name="Office")
     profile.comment = (
-        "Безопасность и обновляемость для рабочих групп без домена; равен значениям каталога по умолчанию. "
-        "Основа: проверенный файл ответов v0.2 с изменениями 26.09.2026: политики браузеров, OneDrive не "
-        "устанавливается, UAC администратора как в Windows (без запроса для диспетчера задач), без правила ASR "
-        "для USB и без обновлений других продуктов Microsoft. Стартовые Admin и User без паролей."
+        "Security and updatability for workgroups without a domain; equals the catalog defaults. Based on the "
+        "tested answer file v0.2 with the later changes: browser policies, AI and telemetry off, OneDrive not "
+        "installed, administrator UAC as in Windows (no prompt for Task Manager), no ASR rule for USB, no updates "
+        "of other Microsoft products, drives not encrypted. Starter accounts Admin and User without passwords."
     )
     return profile
 
 
 def strict(catalog: Catalog) -> Profile:
-    profile = Profile.from_catalog(catalog, name="Строгий")
+    profile = Profile.from_catalog(catalog, name="Strict")
     profile.comment = (
-        "Офис плюс ограничения, которые могут мешать старым программам: контролируемый доступ к папкам в режиме "
-        "блокировки, SmartScreen запрещает запуск программ без репутации, правило ASR по распространённости "
-        "блокирует, неподписанные программы с USB не запускаются, UAC всегда спрашивает администратора, "
-        "обновления других продуктов Microsoft включены, NetBIOS выключен, движок VBScript удаляется. "
-        "Перед массовым внедрением проверить на одном ПК."
+        "Office plus restrictions that may disturb old programs: Controlled Folder Access in block mode, SmartScreen "
+        "blocks programs without a reputation, the ASR prevalence rule blocks, unsigned programs from USB do not run, "
+        "UAC always asks the administrator, updates of other Microsoft products are on, NetBIOS is off, the VBScript "
+        "engine is removed. Test on one PC before a wide rollout."
     )
     resolver = Resolver(catalog)
     profile.set_param("defender.controlled-folder-access", "mode", 1)
@@ -58,11 +57,11 @@ def strict(catalog: Catalog) -> Profile:
 
 
 def laptop(catalog: Catalog) -> Profile:
-    profile = Profile.from_catalog(catalog, name="Ноутбук")
+    profile = Profile.from_catalog(catalog, name="Laptop")
     profile.comment = (
-        "Офис для ноутбуков: экран блокируется через 10 минут бездействия. Шифрование диска, как и во всех "
-        "пресетах, не включается само: BitLocker включают отдельно вместе с сохранением ключей восстановления "
-        "и паролями пользователей."
+        "Office for laptops: the screen locks after 10 minutes of inactivity. As in every preset, the drive is not "
+        "encrypted by itself: BitLocker is turned on separately, together with the escrow of recovery keys and "
+        "user passwords."
     )
     profile.set_param("accounts.inactivity-lock", "seconds", 600)
     return profile
@@ -71,11 +70,10 @@ def laptop(catalog: Catalog) -> Profile:
 def memstechtips(catalog: Catalog) -> Profile:
     profile, _ = memstechtips_map.load(catalog)
     profile.comment = (
-        "Перенос оригинального файла ответов UnattendedWinstall (memstechtips, приложение A): включены правила, "
-        "действия которых есть в оригинале и не противоречат ему. Ключ продукта спрашивается при установке. "
-        "Базовые правила WinKickOff, которых нет в оригинале или которые ему противоречат, выключены: проверьте "
-        "предупреждения перед применением. Что добавлено сверх оригинала, что не перенесено и почему: "
-        "docs/technical/memstechtips-profile.md."
+        "The original UnattendedWinstall answer file (memstechtips, Appendix A) carried over: the rules whose actions "
+        "are in the original and do not contradict it are on. The product key is asked during installation. "
+        "Baseline rules of WinKickOff that the original lacks or contradicts are off: read the warnings before use. "
+        "What is added beyond the original, what is not carried over and why: docs/technical/memstechtips-profile.md."
     )
     return profile
 

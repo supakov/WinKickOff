@@ -1,20 +1,20 @@
-# Проводник: папки в «Этот компьютер» и область навигации. 28.09.2026, файл заказчика
-# enable_namespaces_in_mypc.reg; значения проверены на Windows 11 25H2 (26200), справочник, карточка 19.
+# File Explorer: folders in "This PC" and the navigation pane. 28.09.2026, customer file
+# enable_namespaces_in_mypc.reg; values checked on Windows 11 25H2 (26200), reference card 19.
 
 [[rule]]
 id = "thispc.desktop"
 group = "system.explorer"
 phase = "specialize"
-title = "Показывать «Рабочий стол» в «Этот компьютер»"
+title = "Show \"Desktop\" in \"This PC\""
 level = "optional"
 default = false
-tags = ["этот компьютер", "проводник", "namespace", "рабочий стол"]
+tags = ["this pc", "file explorer", "namespace", "desktop"]
 doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
-summary = "Папка «Рабочий стол» видна в «Этот компьютер» над дисками, как в Windows 10."
-effect = "Windows 11 с версии 22H2 скрывает папки пользователя в «Этот компьютер»; правило возвращает эту запись. Выключено по умолчанию: папка остаётся скрытой."
-versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
-verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}" /v HiddenByDefault'
-rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+summary = "The \"Desktop\" folder is visible in \"This PC\" above the drives, as in Windows 10."
+effect = "Starting with version 22H2, Windows 11 hides user folders in \"This PC\"; the rule brings this entry back. Off by default: the folder stays hidden."
+versions = "Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer."
+verify = "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}\" /v HiddenByDefault"
+rollback = "Value 1 in both branches (the Windows 11 24H2 and 25H2 default)."
 
 [[rule.actions]]
 type = "reg"
@@ -36,16 +36,16 @@ default = 1
 id = "thispc.documents"
 group = "system.explorer"
 phase = "specialize"
-title = "Показывать «Документы» в «Этот компьютер»"
+title = "Show \"Documents\" in \"This PC\""
 level = "optional"
 default = false
-tags = ["этот компьютер", "проводник", "namespace", "документы"]
+tags = ["this pc", "file explorer", "namespace", "documents"]
 doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
-summary = "Папка «Документы» видна в «Этот компьютер» над дисками, как в Windows 10."
-effect = "Windows 11 с версии 22H2 скрывает папки пользователя в «Этот компьютер»; правило возвращает эту запись. Выключено по умолчанию: папка остаётся скрытой."
-versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
-verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{d3162b92-9365-467a-956b-92703aca08af}" /v HiddenByDefault'
-rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+summary = "The \"Documents\" folder is visible in \"This PC\" above the drives, as in Windows 10."
+effect = "Starting with version 22H2, Windows 11 hides user folders in \"This PC\"; the rule brings this entry back. Off by default: the folder stays hidden."
+versions = "Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer."
+verify = "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\{d3162b92-9365-467a-956b-92703aca08af}\" /v HiddenByDefault"
+rollback = "Value 1 in both branches (the Windows 11 24H2 and 25H2 default)."
 
 [[rule.actions]]
 type = "reg"
@@ -67,16 +67,16 @@ default = 1
 id = "thispc.downloads"
 group = "system.explorer"
 phase = "specialize"
-title = "Показывать «Загрузки» в «Этот компьютер»"
+title = "Show \"Downloads\" in \"This PC\""
 level = "optional"
 default = false
-tags = ["этот компьютер", "проводник", "namespace", "загрузки"]
+tags = ["this pc", "file explorer", "namespace", "downloads"]
 doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
-summary = "Папка «Загрузки» видна в «Этот компьютер» над дисками, как в Windows 10."
-effect = "Windows 11 с версии 22H2 скрывает папки пользователя в «Этот компьютер»; правило возвращает эту запись. Выключено по умолчанию: папка остаётся скрытой."
-versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
-verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{088e3905-0323-4b02-9826-5d99428e115f}" /v HiddenByDefault'
-rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+summary = "The \"Downloads\" folder is visible in \"This PC\" above the drives, as in Windows 10."
+effect = "Starting with version 22H2, Windows 11 hides user folders in \"This PC\"; the rule brings this entry back. Off by default: the folder stays hidden."
+versions = "Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer."
+verify = "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\{088e3905-0323-4b02-9826-5d99428e115f}\" /v HiddenByDefault"
+rollback = "Value 1 in both branches (the Windows 11 24H2 and 25H2 default)."
 
 [[rule.actions]]
 type = "reg"
@@ -98,16 +98,16 @@ default = 1
 id = "thispc.music"
 group = "system.explorer"
 phase = "specialize"
-title = "Показывать «Музыка» в «Этот компьютер»"
+title = "Show \"Music\" in \"This PC\""
 level = "optional"
 default = false
-tags = ["этот компьютер", "проводник", "namespace", "музыка"]
+tags = ["this pc", "file explorer", "namespace", "music"]
 doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
-summary = "Папка «Музыка» видна в «Этот компьютер» над дисками, как в Windows 10."
-effect = "Windows 11 с версии 22H2 скрывает папки пользователя в «Этот компьютер»; правило возвращает эту запись. Выключено по умолчанию: папка остаётся скрытой."
-versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
-verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{3dfdf296-dbec-4fb4-81d1-6a3438bcf4de}" /v HiddenByDefault'
-rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+summary = "The \"Music\" folder is visible in \"This PC\" above the drives, as in Windows 10."
+effect = "Starting with version 22H2, Windows 11 hides user folders in \"This PC\"; the rule brings this entry back. Off by default: the folder stays hidden."
+versions = "Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer."
+verify = "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\{3dfdf296-dbec-4fb4-81d1-6a3438bcf4de}\" /v HiddenByDefault"
+rollback = "Value 1 in both branches (the Windows 11 24H2 and 25H2 default)."
 
 [[rule.actions]]
 type = "reg"
@@ -129,16 +129,16 @@ default = 1
 id = "thispc.pictures"
 group = "system.explorer"
 phase = "specialize"
-title = "Показывать «Изображения» в «Этот компьютер»"
+title = "Show \"Pictures\" in \"This PC\""
 level = "optional"
 default = false
-tags = ["этот компьютер", "проводник", "namespace", "изображения"]
+tags = ["this pc", "file explorer", "namespace", "images"]
 doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
-summary = "Папка «Изображения» видна в «Этот компьютер» над дисками, как в Windows 10."
-effect = "Windows 11 с версии 22H2 скрывает папки пользователя в «Этот компьютер»; правило возвращает эту запись. Выключено по умолчанию: папка остаётся скрытой."
-versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
-verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{24ad3ad4-a569-4530-98e1-ab02f9417aa8}" /v HiddenByDefault'
-rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+summary = "The \"Pictures\" folder is visible in \"This PC\" above the drives, as in Windows 10."
+effect = "Starting with version 22H2, Windows 11 hides user folders in \"This PC\"; the rule brings this entry back. Off by default: the folder stays hidden."
+versions = "Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer."
+verify = "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\{24ad3ad4-a569-4530-98e1-ab02f9417aa8}\" /v HiddenByDefault"
+rollback = "Value 1 in both branches (the Windows 11 24H2 and 25H2 default)."
 
 [[rule.actions]]
 type = "reg"
@@ -160,16 +160,16 @@ default = 1
 id = "thispc.videos"
 group = "system.explorer"
 phase = "specialize"
-title = "Показывать «Видео» в «Этот компьютер»"
+title = "Show \"Videos\" in \"This PC\""
 level = "optional"
 default = false
-tags = ["этот компьютер", "проводник", "namespace", "видео"]
+tags = ["this pc", "file explorer", "namespace", "video"]
 doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
-summary = "Папка «Видео» видна в «Этот компьютер» над дисками, как в Windows 10."
-effect = "Windows 11 с версии 22H2 скрывает папки пользователя в «Этот компьютер»; правило возвращает эту запись. Выключено по умолчанию: папка остаётся скрытой."
-versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
-verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{f86fa3ab-70d2-4fc7-9c99-fcbf05467f3a}" /v HiddenByDefault'
-rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+summary = "The \"Videos\" folder is visible in \"This PC\" above the drives, as in Windows 10."
+effect = "Starting with version 22H2, Windows 11 hides user folders in \"This PC\"; the rule brings this entry back. Off by default: the folder stays hidden."
+versions = "Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer."
+verify = "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\{f86fa3ab-70d2-4fc7-9c99-fcbf05467f3a}\" /v HiddenByDefault"
+rollback = "Value 1 in both branches (the Windows 11 24H2 and 25H2 default)."
 
 [[rule.actions]]
 type = "reg"
@@ -191,16 +191,16 @@ default = 1
 id = "thispc.documents-extra"
 group = "system.explorer"
 phase = "specialize"
-title = "Показывать «Документы» в «Этот компьютер» (вторая запись)"
+title = "Show \"Documents\" in \"This PC\" (second entry)"
 level = "optional"
 default = false
-tags = ["этот компьютер", "проводник", "namespace", "документы"]
+tags = ["this pc", "file explorer", "namespace", "documents"]
 doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
-summary = "Вторая запись папки «Документы» (перенаправляемая известная папка) видна в «Этот компьютер»."
-effect = "Обе записи ведут в одну и ту же папку профиля; Windows 10 показывала только первую. Включать вместе с правилом «Показывать «Документы» в «Этот компьютер»» не нужно: папка может показаться дважды."
-versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
-verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{A8CDFF1C-4878-43be-B5FD-F8091C1C60D0}" /v HiddenByDefault'
-rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+summary = "The second entry of the \"Documents\" folder (the redirectable known folder) is visible in \"This PC\"."
+effect = "Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show \"Documents\" in \"This PC\": the folder may appear twice."
+versions = "Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer."
+verify = "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\{A8CDFF1C-4878-43be-B5FD-F8091C1C60D0}\" /v HiddenByDefault"
+rollback = "Value 1 in both branches (the Windows 11 24H2 and 25H2 default)."
 
 [[rule.actions]]
 type = "reg"
@@ -222,16 +222,16 @@ default = 1
 id = "thispc.downloads-extra"
 group = "system.explorer"
 phase = "specialize"
-title = "Показывать «Загрузки» в «Этот компьютер» (вторая запись)"
+title = "Show \"Downloads\" in \"This PC\" (second entry)"
 level = "optional"
 default = false
-tags = ["этот компьютер", "проводник", "namespace", "загрузки"]
+tags = ["this pc", "file explorer", "namespace", "downloads"]
 doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
-summary = "Вторая запись папки «Загрузки» (перенаправляемая известная папка) видна в «Этот компьютер»."
-effect = "Обе записи ведут в одну и ту же папку профиля; Windows 10 показывала только первую. Включать вместе с правилом «Показывать «Загрузки» в «Этот компьютер»» не нужно: папка может показаться дважды."
-versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
-verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{374DE290-123F-4565-9164-39C4925E467B}" /v HiddenByDefault'
-rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+summary = "The second entry of the \"Downloads\" folder (the redirectable known folder) is visible in \"This PC\"."
+effect = "Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show \"Downloads\" in \"This PC\": the folder may appear twice."
+versions = "Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer."
+verify = "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\{374DE290-123F-4565-9164-39C4925E467B}\" /v HiddenByDefault"
+rollback = "Value 1 in both branches (the Windows 11 24H2 and 25H2 default)."
 
 [[rule.actions]]
 type = "reg"
@@ -253,16 +253,16 @@ default = 1
 id = "thispc.music-extra"
 group = "system.explorer"
 phase = "specialize"
-title = "Показывать «Музыка» в «Этот компьютер» (вторая запись)"
+title = "Show \"Music\" in \"This PC\" (second entry)"
 level = "optional"
 default = false
-tags = ["этот компьютер", "проводник", "namespace", "музыка"]
+tags = ["this pc", "file explorer", "namespace", "music"]
 doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
-summary = "Вторая запись папки «Музыка» (перенаправляемая известная папка) видна в «Этот компьютер»."
-effect = "Обе записи ведут в одну и ту же папку профиля; Windows 10 показывала только первую. Включать вместе с правилом «Показывать «Музыка» в «Этот компьютер»» не нужно: папка может показаться дважды."
-versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
-verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{1CF1260C-4DD0-4ebb-811F-33C572699FDE}" /v HiddenByDefault'
-rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+summary = "The second entry of the \"Music\" folder (the redirectable known folder) is visible in \"This PC\"."
+effect = "Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show \"Music\" in \"This PC\": the folder may appear twice."
+versions = "Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer."
+verify = "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\{1CF1260C-4DD0-4ebb-811F-33C572699FDE}\" /v HiddenByDefault"
+rollback = "Value 1 in both branches (the Windows 11 24H2 and 25H2 default)."
 
 [[rule.actions]]
 type = "reg"
@@ -284,16 +284,16 @@ default = 1
 id = "thispc.pictures-extra"
 group = "system.explorer"
 phase = "specialize"
-title = "Показывать «Изображения» в «Этот компьютер» (вторая запись)"
+title = "Show \"Pictures\" in \"This PC\" (second entry)"
 level = "optional"
 default = false
-tags = ["этот компьютер", "проводник", "namespace", "изображения"]
+tags = ["this pc", "file explorer", "namespace", "images"]
 doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
-summary = "Вторая запись папки «Изображения» (перенаправляемая известная папка) видна в «Этот компьютер»."
-effect = "Обе записи ведут в одну и ту же папку профиля; Windows 10 показывала только первую. Включать вместе с правилом «Показывать «Изображения» в «Этот компьютер»» не нужно: папка может показаться дважды."
-versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
-verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{3ADD1653-EB32-4cb0-BBD7-DFA0ABB5ACCA}" /v HiddenByDefault'
-rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+summary = "The second entry of the \"Pictures\" folder (the redirectable known folder) is visible in \"This PC\"."
+effect = "Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show \"Pictures\" in \"This PC\": the folder may appear twice."
+versions = "Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer."
+verify = "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\{3ADD1653-EB32-4cb0-BBD7-DFA0ABB5ACCA}\" /v HiddenByDefault"
+rollback = "Value 1 in both branches (the Windows 11 24H2 and 25H2 default)."
 
 [[rule.actions]]
 type = "reg"
@@ -315,16 +315,16 @@ default = 1
 id = "thispc.videos-extra"
 group = "system.explorer"
 phase = "specialize"
-title = "Показывать «Видео» в «Этот компьютер» (вторая запись)"
+title = "Show \"Videos\" in \"This PC\" (second entry)"
 level = "optional"
 default = false
-tags = ["этот компьютер", "проводник", "namespace", "видео"]
+tags = ["this pc", "file explorer", "namespace", "video"]
 doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
-summary = "Вторая запись папки «Видео» (перенаправляемая известная папка) видна в «Этот компьютер»."
-effect = "Обе записи ведут в одну и ту же папку профиля; Windows 10 показывала только первую. Включать вместе с правилом «Показывать «Видео» в «Этот компьютер»» не нужно: папка может показаться дважды."
-versions = "Windows 11 22H2 и новее; в 24H2 и 25H2 все записи есть и скрыты значением HiddenByDefault = 1. Пишется в 64-битную и 32-битную (WOW6432Node) ветви, чтобы диалоги 32-битных программ совпадали с проводником."
-verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{A0953C92-50DC-43bf-BE83-3742FED03C9C}" /v HiddenByDefault'
-rollback = "Значение 1 в обеих ветвях (умолчание Windows 11 24H2 и 25H2)."
+summary = "The second entry of the \"Videos\" folder (the redirectable known folder) is visible in \"This PC\"."
+effect = "Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show \"Videos\" in \"This PC\": the folder may appear twice."
+versions = "Windows 11 22H2 and later; in 24H2 and 25H2 all entries exist and are hidden by the value HiddenByDefault = 1. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer."
+verify = "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\{A0953C92-50DC-43bf-BE83-3742FED03C9C}\" /v HiddenByDefault"
+rollback = "Value 1 in both branches (the Windows 11 24H2 and 25H2 default)."
 
 [[rule.actions]]
 type = "reg"
@@ -346,16 +346,16 @@ default = 1
 id = "thispc.3d-objects"
 group = "system.explorer"
 phase = "specialize"
-title = "Показывать «Объемные объекты» в «Этот компьютер»"
+title = "Show \"3D Objects\" in \"This PC\""
 level = "optional"
 default = false
-tags = ["этот компьютер", "проводник", "namespace", "3d objects", "объемные объекты"]
+tags = ["this pc", "file explorer", "namespace", "3d objects"]
 doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
-summary = "Папка «Объемные объекты» (3D Objects) снова видна в «Этот компьютер», как в Windows 10."
-effect = "В Windows 11 запись удалена, известная папка осталась. Правило создаёт запись в обеих ветвях; при первом открытии папка появится в профиле пользователя. Выключено по умолчанию."
-versions = "Windows 10 1709-20H2 показывали папку сами; с Windows 11 записи нет. Действие на 25H2 проверить на тестовом ПК."
-verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{0DB7E03F-FC29-4DC6-9020-FF41B59E513A}"'
-rollback = "Удалить раздел {0DB7E03F-FC29-4DC6-9020-FF41B59E513A} в обеих ветвях NameSpace (автоматический возврат не удаляет разделы)."
+summary = "The \"3D Objects\" folder is visible in \"This PC\" again, as in Windows 10."
+effect = "Windows 11 removed the entry, but the known folder remains. The rule creates the entry in both branches; the folder appears in the user profile when it is first opened. Off by default."
+versions = "Windows 10 1709-20H2 showed the folder on their own; Windows 11 has no entry. Check the effect on 25H2 on a test PC."
+verify = "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\{0DB7E03F-FC29-4DC6-9020-FF41B59E513A}\""
+rollback = "Delete the {0DB7E03F-FC29-4DC6-9020-FF41B59E513A} key in both NameSpace branches (the automatic return to defaults does not delete keys)."
 
 [[rule.actions]]
 type = "reg"
@@ -377,16 +377,16 @@ default = "unknown"
 id = "nav.gallery-hidden"
 group = "system.explorer"
 phase = "specialize"
-title = "Скрыть «Галерею» в области навигации проводника"
+title = "Hide \"Gallery\" in the File Explorer navigation pane"
 level = "optional"
 default = true
-tags = ["галерея", "gallery", "проводник", "область навигации", "namespace"]
+tags = ["gallery", "file explorer", "navigation pane", "namespace"]
 doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
-summary = "Пункт «Галерея» (просмотр всех фотографий) не показывается в левой панели проводника у всех пользователей."
-effect = "Меньше лишних пунктов в проводнике; сами фотографии и папка «Изображения» остаются доступны."
-versions = "Windows 11 22H2 (22621.2361) и новее."
-verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}" /v HiddenByDefault'
-rollback = "Удалить значение HiddenByDefault в обеих ветвях."
+summary = "The \"Gallery\" item (a view of all photos) is not shown in the left pane of File Explorer for any user."
+effect = "Fewer unnecessary items in File Explorer; the photos themselves and the \"Pictures\" folder remain available."
+versions = "Windows 11 22H2 (22621.2361) and later."
+verify = "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Desktop\\NameSpace\\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}\" /v HiddenByDefault"
+rollback = "Delete the HiddenByDefault value in both branches."
 
 [[rule.actions]]
 type = "reg"
@@ -408,18 +408,18 @@ default = "absent"
 id = "nav.home-hidden"
 group = "system.explorer"
 phase = "specialize"
-title = "Скрыть «Главную» в области навигации проводника"
+title = "Hide \"Home\" in the File Explorer navigation pane"
 level = "optional"
 default = false
 requires = ["nav.launch-to-this-pc"]
-tags = ["главная", "home", "быстрый доступ", "проводник", "область навигации", "namespace"]
+tags = ["home", "quick access", "file explorer", "navigation pane", "namespace"]
 doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
-summary = "Пункт «Главная» (недавние файлы и закреплённые папки) не показывается в левой панели проводника; проводник открывается на «Этот компьютер»."
-effect = "Недавние файлы не видны при открытии проводника. Выключено по умолчанию: вместе со скрытыми папками в «Этот компьютер» пользователи теряют быстрый путь к «Документам» и «Рабочему столу»; включать вместе с правилами «Показывать ... в «Этот компьютер»»."
-risk = "По сообщениям пользователей вместе с «Главной» пропадают закреплённые папки быстрого доступа."
-versions = "Windows 11 22H2 и новее."
-verify = 'reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{f874310e-b6b7-47dc-bc84-b9e6b38f5903}" /v HiddenByDefault'
-rollback = "Удалить значение HiddenByDefault в обеих ветвях."
+summary = "The \"Home\" item (recent files and pinned folders) is not shown in the left pane of File Explorer; File Explorer opens to \"This PC\"."
+effect = "Recent files are not visible when File Explorer opens. Off by default: combined with the folders hidden in \"This PC\", users lose a quick way to \"Documents\" and \"Desktop\"; turn it on together with the rules Show ... in \"This PC\"."
+risk = "According to user reports, the pinned Quick access folders disappear together with \"Home\"."
+versions = "Windows 11 22H2 and later."
+verify = "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Desktop\\NameSpace\\{f874310e-b6b7-47dc-bc84-b9e6b38f5903}\" /v HiddenByDefault"
+rollback = "Delete the HiddenByDefault value in both branches."
 
 [[rule.actions]]
 type = "reg"
@@ -441,16 +441,16 @@ default = "absent"
 id = "nav.launch-to-this-pc"
 group = "system.explorer"
 phase = "default-user"
-title = "Открывать проводник на «Этот компьютер»"
+title = "Open File Explorer to \"This PC\""
 level = "optional"
 default = false
-tags = ["проводник", "launchto", "этот компьютер", "главная"]
+tags = ["file explorer", "launchto", "this pc", "home"]
 doc = "docs/technical/reference/19-more-privacy.md#this-pc-folders"
-summary = "Проводник (Win+E) открывается на «Этот компьютер», а не на «Главной»."
-effect = "Сразу видны диски и папки «Этот компьютер». Нужно правилу «Скрыть «Главную»», иначе проводнику некуда открываться."
-versions = "Windows 10 и 11."
-verify = 'reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v LaunchTo'
-rollback = "Параметры папок, Открыть проводник для: «Главная»."
+summary = "File Explorer (Win+E) opens to \"This PC\", not to \"Home\"."
+effect = "Drives and folders of \"This PC\" are visible right away. Needed by the rule Hide \"Home\", otherwise File Explorer has nowhere to open."
+versions = "Windows 10 and 11."
+verify = "reg query \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\" /v LaunchTo"
+rollback = "File Explorer Options -> Open File Explorer to: \"Home\"."
 
 [[rule.actions]]
 type = "reg"

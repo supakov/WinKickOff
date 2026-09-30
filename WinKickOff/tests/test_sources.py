@@ -1,4 +1,5 @@
-"""Project rules enforced on the sources: no cwd/APPDATA/registry access, no dashes, only stdlib."""
+"""Project rules enforced on the sources: no cwd/APPDATA access, no registry writes, no dashes, only stdlib,
+English code comments."""
 
 from __future__ import annotations
 
@@ -12,9 +13,13 @@ PACKAGE = ROOT / "winkickoff"
 FORBIDDEN = (
     re.compile(r"os\.getcwd\("),
     re.compile(r"APPDATA|PROGRAMDATA|LOCALAPPDATA"),
-    re.compile(r"\bwinreg\b"),
+    re.compile(r"\bwinreg\.(SetValue|SetValueEx|CreateKey|CreateKeyEx|DeleteKey|DeleteKeyEx|DeleteValue|SaveKey|LoadKey)\b"),
     re.compile(r"\bimport (requests|urllib|http\.client|socket)\b"),
 )
+# the only module that may read the registry: themes.py reads the Windows light or dark mode, nothing else
+REGISTRY_READERS = {"themes.py"}
+WINREG = re.compile(r"\bwinreg\b")
+CYRILLIC = re.compile("[" + chr(0x0400) + "-" + chr(0x04FF) + "]")
 DASHES = re.compile("[" + chr(0x2013) + chr(0x2014) + "]")  # built from code points: the source must not contain them
 
 
@@ -31,6 +36,24 @@ class SourceRulesTest(unittest.TestCase):
             text = path.read_text(encoding="utf-8")
             for pattern in FORBIDDEN:
                 self.assertIsNone(pattern.search(text), f"{path.name}: forbidden pattern {pattern.pattern}")
+            if path.name not in REGISTRY_READERS:
+                self.assertIsNone(WINREG.search(text), f"{path.name}: registry access outside {REGISTRY_READERS}")
+
+    def test_code_and_comments_are_english(self) -> None:
+        # 30.09.2026: English is the source language; Russian and Ukrainian live in the translation files
+        import io
+        import tokenize
+
+        for path in list(PACKAGE.rglob("*.py")) + list((ROOT / "tools").glob("*.py")):
+            if path.name == "make_rule_docs.py":  # holds the words of the generated user documentation per language
+                continue
+            source = path.read_text(encoding="utf-8")
+            for token in tokenize.generate_tokens(io.StringIO(source).readline):
+                if token.type in (tokenize.COMMENT, tokenize.STRING):
+                    self.assertIsNone(CYRILLIC.search(token.string), f"{path.name}:{token.start[0]}: {token.string[:60]}")
+        for path in sorted((ROOT / "rules").glob("*.toml")):
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                self.assertFalse(CYRILLIC.search(line), f"{path.name}:{number}: the catalog source is English")
 
     def test_no_dashes_anywhere(self) -> None:
         offenders = [str(p.relative_to(ROOT)) for p in _text_files() if DASHES.search(p.read_text(encoding="utf-8", errors="replace"))]

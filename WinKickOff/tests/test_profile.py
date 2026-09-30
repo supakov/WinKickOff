@@ -72,7 +72,7 @@ class ProfileTest(unittest.TestCase):
             del data["rules"][rule_id]
         loaded, warnings = Profile.from_dict(data, self.catalog)
         self.assertTrue(loaded.is_enabled("uac.admin-always-notify"))  # a saved state wins over a new default
-        about_new = [w for w in warnings if "новых правил" in w]
+        about_new = [w for w in warnings if "new catalog rules" in w]
         self.assertEqual(len(about_new), 1, warnings)
         self.assertIn(str(len(new)), about_new[0])
         for rule_id in new:

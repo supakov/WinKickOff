@@ -45,7 +45,7 @@ def load_catalog_or_die(paths: AppPaths) -> Catalog:
         return load_catalog(paths.rules, docs_root=paths.docs_root)
     except CatalogError as exc:
         log.error("catalog error: %s", exc)
-        _fatal(tr("Каталог правил не загружен.\n\n{0}", exc))
+        _fatal(tr("The rule catalog was not loaded.\n\n{0}", exc))
         raise  # unreachable, keeps type checkers calm
 
 
@@ -70,7 +70,7 @@ def initial_profile(paths: AppPaths, catalog: Catalog, settings: Settings | None
             return profile
         except (OSError, ValueError) as exc:
             log.error("%s not loaded: %s", DEFAULT_PRESET, exc)
-    return Profile.from_catalog(catalog, name=tr("Офис"))
+    return Profile.from_catalog(catalog, name=tr("Office"))
 
 
 def create_app(*, withdraw: bool = False, state: dict[str, object] | None = None) -> tk.Tk:
@@ -84,7 +84,7 @@ def create_app(*, withdraw: bool = False, state: dict[str, object] | None = None
     try:
         resources = Resources.load(paths.resources)
     except (OSError, ValueError) as exc:
-        _fatal(tr("Справочники не загружены.\n\n{0}", exc))
+        _fatal(tr("Reference data was not loaded.\n\n{0}", exc))
         raise
     settings = Settings.load(paths.settings_file)
     set_language(settings.language, paths.resources, paths.rules)

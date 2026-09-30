@@ -39,17 +39,17 @@ INSTALL_ONLY_PHASES = {"windowspe", "specialize-xml", "oobe-xml"}
 USER_PHASE = "user-first-logon"
 IRREVERSIBLE_TYPES = {"appx", "capability", "ps", "exe"}
 REBOOT_TYPES = {"feature", "capability", "service"}
-REASON_INSTALL_ONLY = N_("действует только при установке Windows")
-REASON_USER_PHASE = N_("выполняется при первом входе каждого пользователя; на работающей системе не применяется")
-REASON_NO_DEFAULTS = N_("значения Windows по умолчанию неизвестны; откат вручную по описанию правила")
-REASON_ALREADY_DEFAULT = N_("правило только удаляет значения, которых нет в чистой Windows: возвращать нечего")
-REASON_DISABLED_NO_DEFAULTS = N_("выключено в профиле, но вернуть к умолчаниям Windows автоматически нельзя: откат вручную по описанию правила")
-REASON_DISABLED_ALREADY = N_("выключено в профиле; в чистой Windows этих значений нет, менять нечего")
+REASON_INSTALL_ONLY = N_("takes effect only during Windows installation")
+REASON_USER_PHASE = N_("runs at the first sign-in of each user; not applied to a running system")
+REASON_NO_DEFAULTS = N_("the Windows defaults are unknown; roll back by hand as the rule describes")
+REASON_ALREADY_DEFAULT = N_("the rule only removes values a clean Windows does not have: nothing to return")
+REASON_DISABLED_NO_DEFAULTS = N_("off in the profile, but it cannot return to the Windows defaults automatically: roll back by hand as the rule describes")
+REASON_DISABLED_ALREADY = N_("off in the profile; a clean Windows has none of these values, nothing to change")
 STATUS_TITLES = {
-    "applied": N_("действует"),
-    "not-applied": N_("не действует"),
-    "partial": N_("действует частично"),
-    "unknown": N_("не проверяется"),
+    "applied": N_("in effect"),
+    "not-applied": N_("not in effect"),
+    "partial": N_("partly in effect"),
+    "unknown": N_("not checked"),
 }
 GPO_ROOTS = ("HKLM:\\SOFTWARE\\POLICIES\\", "DU:\\SOFTWARE\\POLICIES\\", "HKCU:\\SOFTWARE\\POLICIES\\")
 
@@ -410,7 +410,7 @@ def run_audit(script: str, work_dir: Path, timeout: int = 300) -> str:
                     "-File", str(script_path), "-Report", str(report)],
                    capture_output=True, text=True, timeout=timeout, creationflags=flags, check=False)
     if not report.exists():
-        raise RuntimeError(tr("Проверка не дала отчёта: {0}", script_path))
+        raise RuntimeError(tr("The check produced no report: {0}", script_path))
     return report.read_text(encoding="utf-8-sig")
 
 
@@ -421,4 +421,4 @@ def launch_elevated(script_path: Path) -> None:
     arguments = f'-NoProfile -ExecutionPolicy Bypass -File "{script_path}"'
     result = ctypes.windll.shell32.ShellExecuteW(None, "runas", "powershell.exe", arguments, str(script_path.parent), 1)
     if result <= 32:
-        raise RuntimeError(tr("Запуск отменён или не удался (код {0})", result))
+        raise RuntimeError(tr("The launch was cancelled or failed (code {0})", result))

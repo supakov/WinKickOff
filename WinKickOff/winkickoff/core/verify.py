@@ -71,10 +71,10 @@ def verify_steps(rule: Rule, params: dict[str, Any]) -> list[str]:
         t = action.type
         if t == "reg":
             du_note |= str(f["path"]).startswith("DU:\\")
-            steps.append(tr("reg query \"{0}\" {1}: ожидается {2} {3}", reg_cli_path(str(f["path"])), _value_arg(str(f["name"])), f["kind"], _value_text(str(f["kind"]), f["value"])))
+            steps.append(tr("reg query \"{0}\" {1}: expected {2} {3}", reg_cli_path(str(f["path"])), _value_arg(str(f["name"])), f["kind"], _value_text(str(f["kind"]), f["value"])))
         elif t == "reg-remove":
             du_note |= str(f["path"]).startswith("DU:\\")
-            steps.append(tr("reg query \"{0}\" {1}: значения быть не должно", reg_cli_path(str(f["path"])), _value_arg(str(f["name"]))))
+            steps.append(tr("reg query \"{0}\" {1}: the value must not exist", reg_cli_path(str(f["path"])), _value_arg(str(f["name"]))))
         elif t == "service":
             start = int(f["start"])
             steps.append(f"sc qc {f['name']}: START_TYPE {start} {SERVICE_START.get(start, '')}".rstrip())
@@ -84,15 +84,15 @@ def verify_steps(rule: Rule, params: dict[str, Any]) -> list[str]:
             steps.append(f'Get-WindowsCapability -Online -Name "{f["pattern"]}": State NotPresent')
         elif t == "appx":
             for name in f["names"]:
-                steps.append(tr("Get-AppxPackage -AllUsers -Name {0}: пустой результат", name))
+                steps.append(tr("Get-AppxPackage -AllUsers -Name {0}: empty result", name))
         elif t == "xml-oobe":
-            steps.append(tr("Во время установки не появляется соответствующий экран OOBE ({0} = {1})", f['element'], f['value']))
+            steps.append(tr("The corresponding OOBE screen does not appear during installation ({0} = {1})", f['element'], f['value']))
         elif t in ("xml-pe-command", "xml-specialize-command"):
-            steps.append(tr("{0}: команда «{1}» выполнена без ошибки", SETUP_LOG, f['description']))
+            steps.append(tr("{0}: command \"{1}\" completed without errors", SETUP_LOG, f['description']))
         elif t == "exe":
-            steps.append(tr("{0}: строка о запуске {1} без ERROR", PHASE_LOGS.get(rule.phase, SYSTEM_LOG), f['file']))
+            steps.append(tr("{0}: a line about running {1} with no ERROR", PHASE_LOGS.get(rule.phase, SYSTEM_LOG), f['file']))
     if du_note:
-        steps.append(tr("Значения HKCU проверяются под учётной записью, созданной при установке или позже."))
+        steps.append(tr("Check HKCU values while signed in with an account created during or after installation."))
     return steps if any(a.type not in ("exe", "ps") for a in rule.actions) else []
 
 
@@ -106,23 +106,23 @@ def rollback_steps(rule: Rule, params: dict[str, Any]) -> list[str]:
         if t == "reg":
             path, value = reg_cli_path(str(f["path"])), _value_arg(str(f["name"]))
             if _is_policy(str(f["path"])):
-                steps.append(tr("reg delete \"{0}\" {1} /f: политика снимается, Windows вернётся к поведению по умолчанию", path, value))
+                steps.append(tr("reg delete \"{0}\" {1} /f: removes the policy, Windows returns to its default behavior", path, value))
             else:
                 steps.append(
-                    tr("reg add \"{0}\" {1} /t {2} /d <прежнее значение> /f: значение вне ветки Policies возвращают, а не удаляют", path, value, REG_TYPES.get(str(f["kind"]), f["kind"]))
+                    tr("reg add \"{0}\" {1} /t {2} /d <previous value> /f: a value outside the Policies key is restored, not deleted", path, value, REG_TYPES.get(str(f["kind"]), f["kind"]))
                 )
         elif t == "reg-remove":
-            steps.append(tr("Значение {0} в \"{1}\" удалялось: вернуть его можно, если известно прежнее значение", f["name"], reg_cli_path(str(f["path"]))))
+            steps.append(tr("Value {0} in \"{1}\" was deleted: it can be restored if the previous value is known", f["name"], reg_cli_path(str(f["path"]))))
         elif t == "service":
-            steps.append(tr("sc config {0} start= demand (или тип запуска, который был до установки)", f['name']))
+            steps.append(tr("sc config {0} start= demand (or the startup type it had before installation)", f['name']))
         elif t == "feature":
             state = str(f["state"])
             command = "Enable-WindowsOptionalFeature" if state == "Disabled" else "Disable-WindowsOptionalFeature"
-            steps.append(tr("{0} -Online -FeatureName {1} (от администратора, затем перезагрузка)", command, f['name']))
+            steps.append(tr("{0} -Online -FeatureName {1} (as administrator, then restart)", command, f['name']))
         elif t == "capability":
-            steps.append(tr("Add-WindowsCapability -Online -Name \"<полное имя по шаблону {0}>\" (нужен доступ к Windows Update)", f["pattern"]))
+            steps.append(tr("Add-WindowsCapability -Online -Name \"<full name matching pattern {0}>\" (requires access to Windows Update)", f["pattern"]))
         elif t == "appx":
-            steps.append(tr("Удалённые приложения устанавливаются заново из Microsoft Store: ") + ", ".join(str(n) for n in f["names"]))
+            steps.append(tr("Reinstall the removed apps from Microsoft Store: ") + ", ".join(str(n) for n in f["names"]))
         elif t in ("xml-oobe", "xml-pe-command", "xml-specialize-command"):
-            steps.append(tr("Действует только при установке: выключить правило и собрать файл ответов заново"))
+            steps.append(tr("Applies only during installation: disable the rule and build the answer file again"))
     return steps if any(a.type not in ("exe", "ps") for a in rule.actions) else []

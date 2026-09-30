@@ -1,11 +1,11 @@
 {
   "format_version": 2,
   "catalog_version": "0.4",
-  "name": "Офис",
+  "name": "Office",
   "author": "",
   "created": "2026-09-25T00:00:00",
   "modified": "2026-09-25T00:00:00",
-  "comment": "Безопасность и обновляемость для рабочих групп без домена; равен значениям каталога по умолчанию. Основа: проверенный файл ответов v0.2 с изменениями 26.09.2026: политики браузеров, OneDrive не устанавливается, UAC администратора как в Windows (без запроса для диспетчера задач), без правила ASR для USB и без обновлений других продуктов Microsoft. Стартовые Admin и User без паролей.",
+  "comment": "Security and updatability for workgroups without a domain; equals the catalog defaults. Based on the tested answer file v0.2 with the later changes: browser policies, AI and telemetry off, OneDrive not installed, administrator UAC as in Windows (no prompt for Task Manager), no ASR rule for USB, no updates of other Microsoft products, drives not encrypted. Starter accounts Admin and User without passwords.",
   "install": {
     "edition": "Pro",
     "product_key_mode": "generic",

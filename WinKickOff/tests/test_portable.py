@@ -42,6 +42,11 @@ def snapshot(folder: Path) -> dict[str, tuple[int, int]]:
 
 @unittest.skipUnless(TK_OK, "Tk is not available")
 class PortableSessionTest(unittest.TestCase):
+    def tearDown(self) -> None:
+        from winkickoff.core import i18n
+
+        i18n.set_language("en")  # create_app switched to the Windows language; later tests read English
+
     def test_full_session_writes_only_into_the_program_folder(self) -> None:
         before = snapshot(REPO)
         with tempfile.TemporaryDirectory() as tmp:

@@ -25,6 +25,7 @@ Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in t
 | [T15](T15-apply-to-running-system.md) | Applying the selected rule or branch to a running Windows: audit, application, rollback, return to Windows defaults | 6 | T06, T08, T11 | blocked (implemented and tested; acceptance needs a VM) |
 | [T16](T16-docs-split-technical-user.md) | Documentation split: technical in English, user documentation in Ukrainian, English, Russian | 5 | T17 | done (technical docs in English, user docs in ru, uk, en, generated rule lists) |
 | [T17](T17-repo-toolkit-and-appendices.md) | Repository root as a toolkit, with WinKickOff as the first one; XML of the original and of v0.2 in documentation appendices | 5 | none | done (root as a toolkit, XML and reviews in `docs/appendices/`) |
+| [T18](T18-english-source-languages-themes.md) | English source language; languages and colour themes as files | 6 | T14 | done (English code and catalog, ru and uk files, Light, Dark, Matrix, as in Windows) |
 
 Rules for the implementer of any task:
 

@@ -1,5 +1,5 @@
 """Program settings in settings.json next to the executable: window geometry, last profile,
-recently used files. A missing or damaged file gives the defaults; nothing is written elsewhere."""
+recently used files, language and colour theme. A missing or damaged file gives the defaults; nothing is written elsewhere."""
 
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ from winkickoff.core.paths import display_path
 
 log = logging.getLogger(__name__)
 MAX_RECENT = 8
+_CHOICE_RE = re.compile(r"^[A-Za-z0-9_.-]{0,32}$")  # a language code or a theme id; "" follows Windows
 _GEOMETRY_RE = re.compile(r"^\d{3,5}x\d{3,5}[+-]-?\d{1,5}[+-]-?\d{1,5}$|^\d{3,5}x\d{3,5}$")
 
 
@@ -23,8 +24,9 @@ class Settings:
     geometry: str = ""
     last_profile: str = ""  # relative to the program folder when inside it
     recent: list[str] = field(default_factory=list)  # profiles (.json) and answer files (.xml), newest first
-    language: str = "ru"  # interface language: ru, uk or en
-    allow_apply: bool = False  # «Применить сейчас» on this PC; off until the user turns it on
+    language: str = ""  # interface language code (en, ru, uk or any added file); "" follows Windows
+    theme: str = ""  # colour theme id from resources/themes; "" follows the Windows light or dark mode
+    allow_apply: bool = False  # "Apply the selection now" on this PC; off until the user allows it
 
     @classmethod
     def load(cls, path: Path) -> Settings:
@@ -44,7 +46,8 @@ class Settings:
         return cls(
             geometry=geometry if _GEOMETRY_RE.match(geometry) else "",
             last_profile=str(data.get("last_profile", "")),
-            language=str(data.get("language", "ru")) if data.get("language") in ("ru", "uk", "en") else "ru",
+            language=_choice(data.get("language")),
+            theme=_choice(data.get("theme")),
             allow_apply=data.get("allow_apply") is True,
             recent=[str(item) for item in recent][:MAX_RECENT] if isinstance(recent, list) else [],
         )
@@ -52,7 +55,7 @@ class Settings:
     def save(self, path: Path) -> None:
         """Write through a temporary file in the same folder, so a crash never leaves half a file."""
         data: dict[str, Any] = {"geometry": self.geometry, "last_profile": self.last_profile, "recent": self.recent,
-                                "language": self.language, "allow_apply": self.allow_apply}
+                                "language": self.language, "theme": self.theme, "allow_apply": self.allow_apply}
         tmp = path.with_name(path.name + ".tmp")
         try:
             tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -73,3 +76,8 @@ class Settings:
     def resolve(item: str, root: Path) -> Path:
         path = Path(item)
         return path if path.is_absolute() else root / path
+
+
+def _choice(value: object) -> str:
+    text = str(value) if isinstance(value, str) else ""
+    return text if _CHOICE_RE.match(text) else ""

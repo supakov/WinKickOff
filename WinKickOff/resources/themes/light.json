@@ -1,0 +1,19 @@
+{
+  "name": "Light",
+  "base": "native",
+  "dark": false,
+  "font": "",
+  "colors": {
+    "disabled": "#7a7a7a",
+    "muted": "#666666",
+    "link": "#1a5fb4",
+    "changed": "#1f4e79",
+    "error": "#b00020",
+    "warning": "#8a5a00",
+    "risky": "#a33333",
+    "check_border": "#5b5b5b",
+    "check_on": "#2463c7",
+    "check_off": "#ffffff",
+    "check_mark": "#ffffff"
+  }
+}

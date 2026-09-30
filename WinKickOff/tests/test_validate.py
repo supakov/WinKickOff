@@ -152,11 +152,11 @@ class XmlValidationTest(unittest.TestCase):
         self.assert_rejected(self.xml[:-40], "XML")
 
     def test_comment_inside_component(self) -> None:
-        self.assert_rejected(self.xml.replace("<RunSynchronous>", "<RunSynchronous><!-- note -->", 1), "Комментарий")
+        self.assert_rejected(self.xml.replace("<RunSynchronous>", "<RunSynchronous><!-- note -->", 1), "Comment inside component")
 
     def test_command_longer_than_259(self) -> None:
         text = re.sub(r"<Path>[^<]*</Path>", "<Path>cmd.exe /c " + "x" * 260 + "</Path>", self.xml, count=1)
-        self.assert_rejected(text, "длиннее")
+        self.assert_rejected(text, "longer than")
 
     def test_duplicate_order(self) -> None:
         text = self.xml.replace("<Order>2</Order>", "<Order>1</Order>", 1)

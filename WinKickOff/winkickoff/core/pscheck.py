@@ -63,16 +63,16 @@ def check_scripts(scripts: dict[str, str], work_dir: Path, timeout: int = 90) ->
                 creationflags=flags,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
-            return PsCheckResult(skipped=False, failure=tr("powershell.exe не отработал: {0}", exc))
+            return PsCheckResult(skipped=False, failure=tr("powershell.exe failed: {0}", exc))
         out = proc.stdout.decode("utf-8", errors="replace").replace(chr(0xFEFF), "")
         if DONE_MARK not in out:
             err = proc.stderr.decode("utf-8", errors="replace").strip()
-            return PsCheckResult(skipped=False, failure=tr("проверка не завершилась: {0}", err[:300]))
+            return PsCheckResult(skipped=False, failure=tr("the check did not complete: {0}", err[:300]))
         errors = []
         for line in out.splitlines():
             parts = line.split("|", 2)
             if len(parts) == 3 and parts[0].endswith(".ps1"):
-                errors.append(tr("{0}, строка {1}: {2}", parts[0], parts[1], parts[2]))
+                errors.append(tr("{0}, line {1}: {2}", parts[0], parts[1], parts[2]))
         return PsCheckResult(skipped=False, errors=tuple(errors))
     finally:
         shutil.rmtree(folder, ignore_errors=True)

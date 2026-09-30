@@ -65,7 +65,7 @@ class ImporterTest(unittest.TestCase):
         restored, warnings = import_xml(V02.read_text(encoding="utf-8"), self.catalog, self.keyboards)
         self.assertEqual(restored.name, IMPORTED_NAME)
         self.assert_same_settings(restored, office)
-        self.assertIn("по действиям", warnings[0])
+        self.assertIn("file's actions", warnings[0])
 
     def test_build_without_embedded_profile_is_imported_by_actions(self) -> None:
         for preset in ("preset-office.json", "preset-strict.json"):

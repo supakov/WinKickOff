@@ -1,102 +1,102 @@
-# Дерево групп интерфейса. Идентификаторы с точкой вложены в родителя (parent обязателен).
-# order задаёт порядок узлов среди соседей. Правила ссылаются на группу полем group.
+# Group tree of the interface. Ids with a dot are nested in their parent (parent is required).
+# order sets the position among siblings. Rules refer to a group with the field group.
 
 [[group]]
 id = "install"
-title = "Установка (windowsPE и specialize)"
+title = "Installation (windowsPE and specialize)"
 order = 10
-summary = "Обход проверок совместимости, локальная учётная запись без сети, .NET Framework 3.5 с носителя."
+summary = "Bypassing compatibility checks, a local account without a network connection, .NET Framework 3.5 from the media."
 
 [[group]]
 id = "oobe"
-title = "Первичная настройка (OOBE)"
+title = "Out-of-box experience (OOBE)"
 order = 20
-summary = "Какие экраны первичной настройки скрываются и как задаются параметры конфиденциальности."
+summary = "Which OOBE screens are hidden and how the privacy settings are set."
 
 [[group]]
 id = "printing"
-title = "Печать"
+title = "Printing"
 order = 30
-summary = "Диспетчер печати и защита установки драйверов принтеров."
+summary = "Print Spooler and protection of printer driver installation."
 
 [[group]]
 id = "update"
-title = "Обновления Windows"
+title = "Windows Update"
 order = 40
-summary = "Автоматические обновления, другие продукты Microsoft, отсрочка обновлений функций, Delivery Optimization."
+summary = "Automatic updates, other Microsoft products, feature update deferral, Delivery Optimization."
 
 [[group]]
 id = "defender"
-title = "Microsoft Defender и SmartScreen"
+title = "Microsoft Defender and SmartScreen"
 order = 50
-summary = "Защита в реальном времени, облачная защита, PUA, сетевая защита, правила ASR, SmartScreen."
+summary = "Real-time protection, cloud-delivered protection, PUA, network protection, ASR rules, SmartScreen."
 
 [[group]]
 id = "defender.asr"
 parent = "defender"
-title = "Правила сокращения поверхности атаки (ASR)"
+title = "Attack surface reduction (ASR) rules"
 order = 1
-summary = "Каждое правило блокирует одну технику атаки через Office, почту, скрипты, USB или драйверы. Режим: блокировать, аудит, предупреждать."
+summary = "Each rule blocks one attack technique through Office, email, scripts, USB or drivers. Mode: block, audit, warn."
 
 [[group]]
 id = "security"
-title = "Безопасность"
+title = "Security"
 order = 60
-summary = "UAC, учётные записи, защита учётных данных, удалённый доступ, шифрование."
+summary = "UAC, accounts, credential protection, remote access, encryption."
 
 [[group]]
 id = "security.uac"
 parent = "security"
-title = "Контроль учётных записей (UAC)"
+title = "User Account Control (UAC)"
 order = 1
 
 [[group]]
 id = "security.accounts"
 parent = "security"
-title = "Учётные записи и вход"
+title = "Accounts and sign-in"
 order = 2
 
 [[group]]
 id = "security.lsa"
 parent = "security"
-title = "Защита учётных данных (LSA, NTLM)"
+title = "Credential protection (LSA, NTLM)"
 order = 3
 
 [[group]]
 id = "security.remote"
 parent = "security"
-title = "Удалённый доступ"
+title = "Remote access"
 order = 4
 
 [[group]]
 id = "security.encryption"
 parent = "security"
-title = "Шифрование диска"
+title = "Drive encryption"
 order = 5
 
 [[group]]
 id = "network"
-title = "Сеть и общий доступ"
+title = "Network and sharing"
 order = 70
-summary = "SMB, подпись, разрешение имён, брандмауэр."
+summary = "SMB, signing, name resolution, firewall."
 
 [[group]]
 id = "removable"
-title = "Носители и скрипты"
+title = "Removable media and scripts"
 order = 80
-summary = "Автозапуск, скриптовые файлы, VBScript."
+summary = "AutoRun, script files, VBScript."
 
 [[group]]
 id = "removable.scripts"
 parent = "removable"
-title = "Скриптовые файлы"
+title = "Script files"
 order = 1
 
 [[group]]
 id = "browsers"
-title = "Браузеры"
+title = "Browsers"
 order = 85
-summary = "Политики Microsoft Edge, Google Chrome и Brave: защита, телеметрия, реклама, ИИ-функции. По умолчанию включена часть политик: телеметрия, реклама, ИИ-функции, перевод страниц, автозаполнение карт, кошелёк и VPN Brave; синхронизация, вход в браузер и менеджеры паролей выключены. Политики неустановленного браузера ни на что не влияют."
+summary = "Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertising, AI features. Part of the policies is on by default: telemetry, advertising, AI features, page translation, card autofill, the Brave wallet and VPN; sync, browser sign-in and password managers are off. Policies for a browser that is not installed have no effect."
 
 [[group]]
 id = "browsers.edge"
@@ -118,112 +118,112 @@ order = 3
 
 [[group]]
 id = "logging"
-title = "Журналирование для расследований"
+title = "Logging for investigations"
 order = 90
-summary = "Аудит, размеры журналов, журналирование PowerShell, отключение PowerShell 2.0."
+summary = "Auditing, log sizes, PowerShell logging, disabling PowerShell 2.0."
 
 [[group]]
 id = "privacy"
-title = "Телеметрия, реклама, ИИ"
+title = "Telemetry, ads, AI"
 order = 100
-summary = "Минимальная отправка данных, отключение рекламы и предустановок, Copilot и Recall, виджеты, веб-поиск."
+summary = "Minimal data sending, disabling ads and preinstalled apps, Copilot and Recall, widgets, web search."
 
 [[group]]
 id = "system"
-title = "Система"
+title = "System"
 order = 110
-summary = "Прочие системные настройки."
+summary = "Other system settings."
 
 [[group]]
 id = "apps"
-title = "Службы и приложения"
+title = "Services and apps"
 order = 120
-summary = "Отключение ненужных служб и удаление приложений."
+summary = "Disabling unnecessary services and removing apps."
 
 [[group]]
 id = "apps.remove"
 parent = "apps"
-title = "Удаляемые приложения"
+title = "Apps to remove"
 order = 1
-summary = "Каждое приложение отдельным правилом: снимите флажок, чтобы оставить приложение."
+summary = "Each app is a separate rule: clear the check box to keep the app."
 
 [[group]]
 id = "default-user"
-title = "Профиль пользователя по умолчанию"
+title = "Default user profile"
 order = 130
-summary = "Значения, которые получает каждый новый пользователь при первом входе (можно изменить в Параметрах)."
+summary = "Values that every new user gets at first sign-in (can be changed in Settings)."
 
 [[group]]
 id = "user-logon"
-title = "Первый вход каждого пользователя"
+title = "First sign-in of each user"
 order = 140
-summary = "Скрипт Active Setup: язык интерфейса и список языков ввода."
+summary = "Active Setup script: display language and input language list."
 
 [[group]]
 id = "post-oobe"
-title = "После первичной настройки"
+title = "After OOBE"
 order = 150
-summary = "Задача планировщика после завершения OOBE: пароли, встроенные учётные записи, очистка."
+summary = "Scheduled task after OOBE completes: passwords, built-in accounts, cleanup."
 
 [[group]]
 id = "privacy.ai"
 parent = "privacy"
-title = "Искусственный интеллект"
+title = "Artificial intelligence"
 order = 1
-summary = "Copilot, Recall, Click to Do, ИИ-агенты, генеративные функции Windows, Paint и Блокнота."
+summary = "Copilot, Recall, Click to Do, AI agents, Windows generative features, Paint and Notepad."
 
 [[group]]
 id = "privacy.telemetry"
 parent = "privacy"
-title = "Телеметрия и отзывы"
+title = "Telemetry and feedback"
 order = 2
-summary = "Диагностические данные Windows, отчёты, запросы отзывов, средство записи действий."
+summary = "Windows diagnostic data, reports, feedback requests, Steps Recorder."
 
 [[group]]
 id = "privacy.ads"
 parent = "privacy"
-title = "Реклама и рекомендации"
+title = "Ads and recommendations"
 order = 3
-summary = "Рекламный идентификатор, советы и предложения, экран блокировки, виджеты."
+summary = "Advertising ID, tips and suggestions, lock screen, widgets."
 
 [[group]]
 id = "privacy.search"
 parent = "privacy"
-title = "Поиск и меню «Пуск»"
+title = "Search and the Start menu"
 order = 4
-summary = "Веб-результаты, облачный поиск, выделения поиска, отслеживание запуска приложений."
+summary = "Web results, cloud search, search highlights, tracking of app launches."
 
 [[group]]
 id = "privacy.speech"
 parent = "privacy"
-title = "Речь и ввод"
+title = "Speech and input"
 order = 5
-summary = "Облачное распознавание речи, персонализация рукописного и клавиатурного ввода, онлайн-службы экранного диктора."
+summary = "Cloud speech recognition, handwriting and typing personalization, Narrator online services."
 
 [[group]]
 id = "privacy.office"
 parent = "privacy"
 title = "Microsoft Office"
 order = 6
-summary = "Copilot и подключённые возможности Office, диагностические данные и отзывы; настройки пишутся в профиль пользователя по умолчанию."
+summary = "Copilot and connected experiences in Office, diagnostic data and feedback; the settings are written to the default user profile."
 
 [[group]]
 id = "apps.onedrive"
 parent = "apps"
 title = "OneDrive"
 order = 2
-summary = "Политики клиента OneDrive: перенос папок в облако, сетевой трафик, отзывы, полный запрет."
+summary = "OneDrive client policies: moving folders to the cloud, network traffic, feedback, a complete block."
 
 [[group]]
 id = "system.drivers"
 parent = "system"
-title = "Драйверы и устройства"
+title = "Drivers and devices"
 order = 1
-summary = "Сопутствующие программы установщиков драйверов и приложения устройств из интернета; драйверы из Центра обновления приходят как обычно."
+summary = "Companion programs of driver installers and device apps from the internet; drivers from Windows Update arrive as usual."
 
 [[group]]
 id = "system.explorer"
 parent = "system"
-title = "Проводник: «Этот компьютер» и область навигации"
+title = "File Explorer: \"This PC\" and the navigation pane"
 order = 2
-summary = "Папки пользователя в «Этот компьютер» (в Windows 11 скрыты), «Объемные объекты», «Галерея» и «Главная» в левой панели. По умолчанию папки скрыты, как в Windows 11, «Галерея» скрыта."
+summary = "User folders in \"This PC\" (hidden in Windows 11), \"3D Objects\", \"Gallery\" and \"Home\" in the left pane. By default the folders are hidden, as in Windows 11, and \"Gallery\" is hidden."

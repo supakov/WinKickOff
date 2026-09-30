@@ -1,19 +1,19 @@
-# Microsoft Defender, правила ASR, SmartScreen. Раздел 3 скрипта машины v0.2.
-# Все настройки записываются как политики (HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender):
-# Defender читает их без запущенной службы, а соответствующие переключатели в интерфейсе становятся серыми.
+# Microsoft Defender, ASR rules, SmartScreen. Section 3 of the v0.2 machine script.
+# Every setting is written as a policy (HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender):
+# Defender reads them without its service running, and the matching switches in the interface turn grey.
 
 [[rule]]
 id = "defender.realtime"
 group = "defender"
 phase = "specialize"
-title = "Защита в реальном времени включена и закреплена"
+title = "Real-time protection enabled and enforced"
 level = "baseline"
 default = true
-tags = ["defender", "антивирус", "реальное время", "amsi", "поведенческий анализ"]
+tags = ["defender", "antivirus", "real-time", "amsi", "behavior monitoring"]
 doc = "docs/technical/reference/07-defender.md"
-summary = "Удаляет значения, которыми сторонние скрипты отключают Defender, и закрепляет защиту в реальном времени, поведенческий анализ, проверку загрузок и скриптов."
-effect = "Антивирус нельзя выключить через реестр; переключатели в Безопасности Windows управляются политикой."
-versions = "Без изменений; защита от подделки (Tamper Protection) дополнительно не даёт ослабить защиту."
+summary = "Removes the values that third-party scripts use to disable Defender, and enforces real-time protection, behavior monitoring, and scanning of downloads and scripts."
+effect = "The antivirus cannot be turned off through the registry; the toggles in Windows Security are managed by policy."
+versions = "No changes; Tamper Protection additionally prevents the protection from being weakened."
 verify = "Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled, BehaviorMonitorEnabled"
 
 [[rule.actions]]
@@ -63,28 +63,28 @@ value = 0
 id = "defender.cloud"
 group = "defender"
 phase = "specialize"
-title = "Облачная защита: MAPS, отправка образцов, уровень блокировки"
+title = "Cloud protection: MAPS, sample submission, block level"
 level = "recommended"
 default = true
 requires = ["defender.realtime"]
-tags = ["defender", "облако", "maps", "spynet", "cloud block level", "образцы"]
+tags = ["defender", "cloud", "maps", "spynet", "cloud block level", "samples"]
 doc = "docs/technical/reference/07-defender.md#defendercloudprotection"
-summary = "Участие в MAPS уровня «Расширенный», автоматическая отправка безопасных образцов, уровень облачной блокировки «Высокий», ожидание вердикта до 50 секунд."
-effect = "Новые вредоносные файлы без сигнатур блокируются по облачной репутации за секунды; подозрительный файл задерживается до минуты перед первым запуском."
-risk = "Уровень «Высокий» повышает долю ложных срабатываний на редких самописных программах; решение: исключение для файла или уровень 0. Требует интернета."
-versions = "Windows 10 1607 (уровень блокировки) и 1703 (тайм-аут); 24H2 без изменений."
+summary = "MAPS membership at the \"Advanced\" level, automatic submission of safe samples, \"High\" cloud block level, and waiting up to 50 seconds for a verdict."
+effect = "New malicious files without signatures are blocked by cloud reputation within seconds; a suspicious file is held for up to a minute before its first run."
+risk = "The \"High\" level increases false positives on rare in-house programs; the fix is a file exclusion or level 0. Requires internet access."
+versions = "Windows 10 1607 (block level) and 1703 (timeout); no changes in 24H2."
 verify = "Get-MpPreference | Select-Object MAPSReporting, SubmitSamplesConsent, CloudBlockLevel, CloudExtendedTimeout"
-rollback = "Удалить четыре значения; Defender вернётся к умолчаниям."
+rollback = "Delete the four values; Defender returns to its defaults."
 
 [rule.params.block_level]
 type = "enum"
-title = "Уровень облачной блокировки"
+title = "Cloud block level"
 default = 2
-values = [ { value = 2, title = "Высокий" }, { value = 0, title = "По умолчанию" }, { value = 4, title = "Высокий плюс (больше ложных срабатываний)" }, { value = 6, title = "Нулевая терпимость (блокирует всё неизвестное)" } ]
+values = [ { value = 2, title = "High" }, { value = 0, title = "Default" }, { value = 4, title = "High plus (more false positives)" }, { value = 6, title = "Zero tolerance (blocks everything unknown)" } ]
 
 [rule.params.timeout]
 type = "int"
-title = "Дополнительное ожидание вердикта облака, секунд"
+title = "Extended wait for the cloud verdict, seconds"
 default = 50
 min = 0
 max = 50
@@ -124,18 +124,18 @@ value = "{timeout}"
 id = "defender.pua"
 group = "defender"
 phase = "specialize"
-title = "Блокировать потенциально нежелательные программы (PUA)"
+title = "Block potentially unwanted apps (PUA)"
 level = "recommended"
 default = true
 requires = ["defender.realtime"]
-tags = ["defender", "pua", "adware", "бандлы", "майнеры"]
+tags = ["defender", "pua", "adware", "bundleware", "miners"]
 doc = "docs/technical/reference/07-defender.md#defenderpuaprotection"
-summary = "Defender блокирует adware, установщики-бандлы, майнеры и «оптимизаторы» при скачивании и запуске."
-effect = "Закрывает самый частый канал заражения непрофессионалов: «бесплатная программа с сайта с кнопкой Скачать»."
-risk = "Легитимные утилиты, помеченные как PUA (некоторые средства удалённого доступа), требуют исключения."
-versions = "Политика с Windows 10 1607; переключатель в Параметрах с 2004."
+summary = "Defender blocks adware, bundling installers, miners and \"optimizers\" on download and launch."
+effect = "Closes the most common infection channel for non-professional users: \"a free program from a website with a Download button\"."
+risk = "Legitimate utilities flagged as PUA (some remote access tools) require an exclusion."
+versions = "Policy since Windows 10 1607; toggle in Settings since 2004."
 verify = "Get-MpPreference | Select-Object PUAProtection"
-rollback = "Удалить значение PUAProtection."
+rollback = "Delete the PUAProtection value."
 
 [[rule.actions]]
 type = "reg"
@@ -149,23 +149,23 @@ why = "block potentially unwanted apps"
 id = "defender.network-protection"
 group = "defender"
 phase = "specialize"
-title = "Сетевая защита: блокировать подключения к опасным адресам"
+title = "Network protection: block connections to dangerous addresses"
 level = "recommended"
 default = true
 requires = ["defender.realtime"]
-tags = ["defender", "network protection", "фишинг", "командные серверы"]
+tags = ["defender", "network protection", "phishing", "command and control"]
 doc = "docs/technical/reference/07-defender.md#defendernetworkprotection"
-summary = "Любое приложение, не только Edge, не может подключиться к доменам с плохой репутацией по данным SmartScreen."
-effect = "Фишинговые сайты и командные серверы блокируются с уведомлением «Подключение заблокировано»."
-risk = "Работает только когда Defender основной антивирус; может конфликтовать с VPN-клиентами с собственными фильтрами (тогда режим аудита)."
+summary = "No app, not just Edge, can connect to domains that have a poor reputation according to SmartScreen."
+effect = "Phishing sites and command-and-control servers are blocked with a \"Connection blocked\" notification."
+risk = "Works only when Defender is the primary antivirus; may conflict with VPN clients that have their own filters (use audit mode in that case)."
 versions = "Windows 10 1709+."
 verify = "Get-MpPreference | Select-Object EnableNetworkProtection"
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит (только журнал)" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit (log only)" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -178,15 +178,15 @@ value = "{mode}"
 id = "defender.asr"
 group = "defender"
 phase = "specialize"
-title = "Механизм правил сокращения поверхности атаки (ASR) включён"
+title = "Attack surface reduction (ASR) rules engine enabled"
 level = "recommended"
 default = true
 requires = ["defender.realtime"]
 tags = ["defender", "asr", "attack surface reduction", "exploit guard"]
 doc = "docs/technical/reference/07-defender.md#defenderasrrules"
-summary = "Включает механизм ASR; сами правила перечислены в подгруппе и настраиваются по одному."
-effect = "Без этого правила ни одно правило ASR не действует."
-versions = "Доступно на всех редакциях с Defender (включая Home), управляется только политиками или PowerShell."
+summary = "Enables the ASR engine; the rules themselves are listed in a subgroup and configured one by one."
+effect = "Without this rule, no ASR rule takes effect."
+versions = "Available in all editions with Defender (including Home); managed only through policies or PowerShell."
 verify = "Get-MpPreference | Select-Object AttackSurfaceReductionRules_Ids"
 
 [[rule.actions]]
@@ -202,22 +202,22 @@ value = 1
 id = "asr.vulnerable-drivers"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: блокировать злоупотребление уязвимыми подписанными драйверами"
+title = "ASR: block abuse of exploited vulnerable signed drivers"
 level = "recommended"
 default = true
 requires = ["defender.asr"]
-tags = ["asr", "драйверы", "byovd", "56a863a9"]
+tags = ["asr", "drivers", "byovd", "56a863a9"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Запрещает записывать на диск драйверы из списка Microsoft уязвимых (техника BYOVD для отключения антивируса)."
-effect = "Уже установленные драйверы не затрагиваются."
-risk = "Низкий: старые утилиты RGB-подсветки и разгона."
+summary = "Prevents drivers from the Microsoft vulnerable driver list from being written to disk (the BYOVD technique used to disable antivirus)."
+effect = "Drivers that are already installed are not affected."
+risk = "Low: old RGB lighting and overclocking utilities."
 versions = "Windows 10 1709+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" }, { value = 6, title = "Warn" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -231,22 +231,22 @@ why = "ASR rule"
 id = "asr.wmi-persistence"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: блокировать закрепление через подписки WMI"
+title = "ASR: block persistence through WMI event subscriptions"
 level = "recommended"
 default = true
 requires = ["defender.asr"]
-tags = ["asr", "wmi", "persistence", "безфайловые", "e6db77e5"]
+tags = ["asr", "wmi", "persistence", "fileless", "e6db77e5"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Безфайловое вредоносное ПО не может закрепиться в репозитории WMI."
-effect = "Закрывает технику скрытого автозапуска."
-risk = "Низкий; мешает клиенту SCCM, которого в рабочей группе нет."
+summary = "Fileless malware cannot establish persistence in the WMI repository."
+effect = "Closes a hidden autostart technique."
+risk = "Low; interferes with the SCCM client, which is not present in a workgroup."
 versions = "Windows 10 1903+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" }, { value = 6, title = "Warn" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -260,22 +260,22 @@ why = "ASR rule"
 id = "asr.adobe-reader-child"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: Adobe Reader не запускает дочерние процессы"
+title = "ASR: Adobe Reader cannot create child processes"
 level = "recommended"
 default = true
 requires = ["defender.asr"]
 tags = ["asr", "adobe", "pdf", "7674ba52"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Эксплойт в PDF не сможет запустить ничего из Adobe Reader."
-effect = "Открытие PDF работает как прежде."
-risk = "Низкий."
+summary = "An exploit in a PDF cannot launch anything from Adobe Reader."
+effect = "Opening PDF files works as before."
+risk = "Low."
 versions = "Windows 10 1809+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" }, { value = 6, title = "Warn" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -289,22 +289,22 @@ why = "ASR rule"
 id = "asr.office-child"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: приложения Office не запускают дочерние процессы"
+title = "ASR: Office apps cannot create child processes"
 level = "recommended"
 default = true
 requires = ["defender.asr"]
-tags = ["asr", "office", "макросы", "word", "excel", "d4f940ab"]
+tags = ["asr", "office", "macros", "word", "excel", "d4f940ab"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Макрос в Word или Excel не сможет запустить cmd, PowerShell или установщик."
-effect = "Действует только если Office установлен в Program Files."
-risk = "Средний: надстройки, запускающие внешние программы."
+summary = "A macro in Word or Excel cannot launch cmd, PowerShell or an installer."
+effect = "Applies only if Office is installed in Program Files."
+risk = "Medium: add-ins that launch external programs."
 versions = "Windows 10 1709+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" }, { value = 6, title = "Warn" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -318,22 +318,22 @@ why = "ASR rule"
 id = "asr.email-executable"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: блокировать исполняемое содержимое из почты и веб-почты"
+title = "ASR: block executable content from email client and webmail"
 level = "recommended"
 default = true
 requires = ["defender.asr"]
-tags = ["asr", "почта", "outlook", "вложения", "be9ba2d9"]
+tags = ["asr", "mail", "outlook", "attachments", "be9ba2d9"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Файлы .exe, .js, .zip, сохранённые из Outlook и веб-почты, не запускаются."
-effect = "Закрывает вложения-загрузчики."
-risk = "Низкий."
+summary = ".exe, .js and .zip files saved from Outlook and webmail do not run."
+effect = "Stops attachments that act as downloaders."
+risk = "Low."
 versions = "Windows 10 1709+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" }, { value = 6, title = "Warn" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -347,22 +347,22 @@ why = "ASR rule"
 id = "asr.obfuscated-scripts"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: блокировать запуск обфусцированных скриптов"
+title = "ASR: block execution of obfuscated scripts"
 level = "recommended"
 default = true
 requires = ["defender.asr", "defender.cloud"]
-tags = ["asr", "powershell", "обфускация", "скрипты", "5beb7efe"]
+tags = ["asr", "powershell", "obfuscation", "scripts", "5beb7efe"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "PowerShell, JS и VBS с признаками обфускации не выполняются. Требует облачной защиты."
-effect = "Останавливает загрузчики, которые прячут код от антивируса."
-risk = "Средний: установщики некоторых программ используют обфускацию."
+summary = "PowerShell, JS and VBS scripts that show signs of obfuscation do not run. Requires cloud protection."
+effect = "Stops downloaders that hide their code from antivirus."
+risk = "Medium: some program installers use obfuscation."
 versions = "Windows 10 1709+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" }, { value = 6, title = "Warn" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -376,22 +376,22 @@ why = "ASR rule"
 id = "asr.script-download"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: JavaScript и VBScript не запускают скачанное"
+title = "ASR: JavaScript and VBScript cannot launch downloaded content"
 level = "recommended"
 default = true
 requires = ["defender.asr"]
-tags = ["asr", "javascript", "vbscript", "загрузчик", "d3e037e1"]
+tags = ["asr", "javascript", "vbscript", "downloader", "d3e037e1"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Скрипт-загрузчик не сможет запустить только что скачанный файл."
-effect = "Типовая схема «архив со скриптом внутри» перестаёт работать."
-risk = "Низкий."
+summary = "A downloader script cannot launch a file it has just downloaded."
+effect = "The typical \"archive with a script inside\" scheme stops working."
+risk = "Low."
 versions = "Windows 10 1709+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" }, { value = 6, title = "Warn" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -405,22 +405,22 @@ why = "ASR rule"
 id = "asr.office-executable"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: Office не создаёт исполняемые файлы"
+title = "ASR: Office cannot create executable files"
 level = "recommended"
 default = true
 requires = ["defender.asr"]
-tags = ["asr", "office", "макросы", "3b576869"]
+tags = ["asr", "office", "macros", "3b576869"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Макросы не могут записать на диск .exe, .dll или .vbs."
-effect = "Закрывает закрепление через документы."
-risk = "Низкий."
+summary = "Macros cannot write .exe, .dll or .vbs files to disk."
+effect = "Closes persistence through documents."
+risk = "Low."
 versions = "Windows 10 1709+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" }, { value = 6, title = "Warn" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -434,22 +434,22 @@ why = "ASR rule"
 id = "asr.office-injection"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: Office не внедряет код в другие процессы"
+title = "ASR: Office cannot inject code into other processes"
 level = "recommended"
 default = true
 requires = ["defender.asr"]
-tags = ["asr", "office", "инъекция", "75668c1f"]
+tags = ["asr", "office", "injection", "75668c1f"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Word, Excel, PowerPoint и OneNote не могут внедрять код в чужие процессы."
-effect = "Легитимных причин для такой инъекции нет."
-risk = "Низкий; несовместимо с BeyondTrust Privilege Guard и Heimdal. Режим предупреждения не поддерживается."
+summary = "Word, Excel, PowerPoint and OneNote cannot inject code into other processes."
+effect = "There is no legitimate reason for such injection."
+risk = "Low; incompatible with BeyondTrust Privilege Guard and Heimdal. Warn mode is not supported."
 versions = "Windows 10 1709+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -463,22 +463,22 @@ why = "ASR rule"
 id = "asr.office-comm-child"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: Outlook не запускает дочерние процессы"
+title = "ASR: Outlook cannot create child processes"
 level = "recommended"
 default = true
 requires = ["defender.asr"]
-tags = ["asr", "outlook", "правила и формы", "26190899"]
+tags = ["asr", "outlook", "rules and forms", "26190899"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Защищает от эксплойтов правил и форм Outlook при украденных учётных данных."
-effect = "Обычные функции Outlook работают."
-risk = "Низкий."
+summary = "Protects against exploits of Outlook rules and forms when credentials have been stolen."
+effect = "Regular Outlook features keep working."
+risk = "Low."
 versions = "Windows 10 1709+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" }, { value = 6, title = "Warn" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -492,22 +492,22 @@ why = "ASR rule"
 id = "asr.usb-untrusted"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: блокировать недоверенные и неподписанные программы с USB"
+title = "ASR: block untrusted and unsigned programs from USB"
 level = "recommended"
 default = false
 requires = ["defender.asr"]
-tags = ["asr", "usb", "флешка", "неподписанные", "b2b3f03d"]
+tags = ["asr", "usb", "usb flash drive", "unsigned", "b2b3f03d"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Неподписанные .exe, .dll и .scr не запускаются прямо с флешек и SD-карт."
-effect = "Копирование файлов с флешки не блокируется, только запуск."
-risk = "Средний: портативные утилиты без подписи."
+summary = "Unsigned .exe, .dll and .scr files do not run directly from USB flash drives and SD cards."
+effect = "Copying files from a USB flash drive is not blocked, only running them."
+risk = "Medium: unsigned portable utilities."
 versions = "Windows 10 1709+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" }, { value = 6, title = "Warn" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -521,22 +521,22 @@ why = "ASR rule"
 id = "asr.office-win32-api"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: блокировать вызовы Win32 API из макросов Office"
+title = "ASR: block Win32 API calls from Office macros"
 level = "recommended"
 default = true
 requires = ["defender.asr"]
-tags = ["asr", "office", "vba", "макросы", "92e97fa1"]
+tags = ["asr", "office", "vba", "macros", "92e97fa1"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "VBA-макросы не могут вызывать Win32 API (шелл-код без записи на диск)."
-effect = "Обычным макросам такие вызовы не нужны."
-risk = "Низкий."
+summary = "VBA macros cannot call the Win32 API (shellcode that is never written to disk)."
+effect = "Regular macros do not need such calls."
+risk = "Low."
 versions = "Windows 10 1709+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" }, { value = 6, title = "Warn" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -550,22 +550,22 @@ why = "ASR rule"
 id = "asr.ransomware"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: расширенная защита от программ-вымогателей"
+title = "ASR: use advanced protection against ransomware"
 level = "recommended"
 default = true
 requires = ["defender.asr", "defender.cloud"]
-tags = ["asr", "ransomware", "шифровальщик", "вымогатель", "c1db55ab"]
+tags = ["asr", "ransomware", "crypto ransomware", "c1db55ab"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Файлы, похожие на шифровальщики по облачной эвристике и без положительной репутации, блокируются. Требует облачной защиты."
-effect = "Дополнительный слой к сигнатурам и поведенческому анализу."
-risk = "Средний: редкие самописные программы блокируются, пока не наберут репутацию."
+summary = "Files that resemble ransomware according to cloud heuristics and have no positive reputation are blocked. Requires cloud protection."
+effect = "An additional layer on top of signatures and behavior monitoring."
+risk = "Medium: rare in-house programs are blocked until they build a reputation."
 versions = "Windows 10 1803+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" }, { value = 6, title = "Warn" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -579,22 +579,22 @@ why = "ASR rule"
 id = "asr.safe-mode-reboot"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: блокировать перезагрузку в безопасный режим из программ"
+title = "ASR: block programs from restarting the PC in safe mode"
 level = "recommended"
 default = true
 requires = ["defender.asr"]
 tags = ["asr", "safe mode", "bcdedit", "33ddedf1"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Вредоносный код не может перевести ПК в безопасный режим, где антивирус не работает."
-effect = "Безопасный режим по-прежнему доступен из среды восстановления."
-risk = "Низкий."
+summary = "Malicious code cannot put the PC into safe mode, where the antivirus does not run."
+effect = "Safe mode is still available from the recovery environment."
+risk = "Low."
 versions = "Windows 10 1709+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" }, { value = 6, title = "Warn" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -608,22 +608,22 @@ why = "ASR rule"
 id = "asr.copied-system-tools"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: предупреждать о скопированных или поддельных системных утилитах"
+title = "ASR: warn about copied or impersonated system tools"
 level = "recommended"
 default = true
 requires = ["defender.asr"]
 tags = ["asr", "system32", "lolbin", "c0033c00"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Копии утилит из system32, запущенные из других папок, блокируются с возможностью разрешить."
-effect = "По умолчанию режим предупреждения: правило эвристическое."
-risk = "Повышенный: легитимные программы с именами системных утилит из нестандартных путей."
+summary = "Copies of system32 utilities that run from other folders are blocked, with an option to allow them."
+effect = "Warn mode by default because the rule is heuristic."
+risk = "Elevated: legitimate programs that have system utility names and run from non-standard paths."
 versions = "Windows 10 1709+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 6
-values = [ { value = 6, title = "Предупреждать" }, { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" } ]
+values = [ { value = 6, title = "Warn" }, { value = 1, title = "Block" }, { value = 2, title = "Audit" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -637,22 +637,22 @@ why = "ASR rule"
 id = "asr.prevalence"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: исполняемые файлы без репутации (аудит)"
+title = "ASR: executable files without a reputation (audit)"
 level = "optional"
 default = true
 requires = ["defender.asr", "defender.cloud"]
-tags = ["asr", "репутация", "распространённость", "01443614"]
+tags = ["asr", "reputation", "prevalence", "01443614"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Запуск редких или новых .exe журналируется (аудит). В режиме блокировки закрыл бы внутренние программы организации."
-effect = "События 1122 в журнале Defender показывают, что было бы заблокировано."
-risk = "Высокий в режиме блокировки: собственные программы без репутации. Включать в строгом профиле после месяца аудита."
+summary = "Launches of rare or new .exe files are logged (audit). In block mode, the rule would shut out the organization's internal programs."
+effect = "Event 1122 in the Defender log shows what would have been blocked."
+risk = "High in block mode: in-house programs without a reputation. Enable it in the Strict profile after a month of auditing."
 versions = "Windows 10 1803+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 2
-values = [ { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" }, { value = 1, title = "Блокировать" } ]
+values = [ { value = 2, title = "Audit" }, { value = 6, title = "Warn" }, { value = 1, title = "Block" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -666,22 +666,22 @@ why = "ASR rule"
 id = "asr.psexec-wmi"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: процессы из PsExec и WMI (аудит)"
+title = "ASR: processes created by PsExec and WMI (audit)"
 level = "optional"
 default = true
 requires = ["defender.asr"]
-tags = ["asr", "psexec", "wmi", "горизонтальное перемещение", "d1e49aac"]
+tags = ["asr", "psexec", "wmi", "lateral movement", "d1e49aac"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Удалённый запуск через PsExec и WMI журналируется. В режиме блокировки помешал бы удалённому администрированию своим специалистом."
-effect = "Аудит показывает попытки горизонтального перемещения по сети."
-risk = "Высокий в режиме блокировки для администрирования через PsExec/WMI."
+summary = "Remote execution through PsExec and WMI is logged. In block mode, the rule would interfere with remote administration by your own IT specialist."
+effect = "Auditing reveals attempts at lateral movement across the network."
+risk = "High in block mode if administration relies on PsExec/WMI."
 versions = "Windows 10 1803+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 2
-values = [ { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" }, { value = 1, title = "Блокировать" } ]
+values = [ { value = 2, title = "Audit" }, { value = 6, title = "Warn" }, { value = 1, title = "Block" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -695,22 +695,22 @@ why = "ASR rule"
 id = "asr.lsass"
 group = "defender.asr"
 phase = "specialize"
-title = "ASR: блокировать кражу учётных данных из LSASS"
+title = "ASR: block credential stealing from LSASS"
 level = "optional"
 default = false
 requires = ["defender.asr"]
 tags = ["asr", "lsass", "mimikatz", "9e6c4e1f"]
 doc = "docs/technical/reference/07-defender.md#rules-table"
-summary = "Дублирует правило защиты LSA (RunAsPPL) и создаёт много шума в журнале; по умолчанию выключено."
-effect = "Имеет смысл только там, где защиту LSA включить нельзя (неподписанные плагины смарт-карт)."
-risk = "Много событий от легитимных программ (обновление Chrome и другие). Режим предупреждения не поддерживается."
+summary = "Duplicates the LSA protection rule (RunAsPPL) and produces a lot of noise in the log; off by default."
+effect = "Makes sense only where LSA protection cannot be enabled (unsigned smart card plug-ins)."
+risk = "Many events from legitimate programs (the Chrome updater and others). Warn mode is not supported."
 versions = "Windows 10 1803+."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -726,24 +726,24 @@ why = "ASR rule"
 id = "defender.controlled-folder-access"
 group = "defender"
 phase = "specialize"
-title = "Контролируемый доступ к папкам (режим)"
+title = "Controlled Folder Access (mode)"
 level = "optional"
 default = true
 requires = ["defender.realtime"]
-tags = ["defender", "controlled folder access", "шифровальщик", "документы"]
+tags = ["defender", "controlled folder access", "crypto ransomware", "documents"]
 doc = "docs/technical/reference/07-defender.md#controlledfolderaccess"
-summary = "Записывает режим защиты папок Документы, Изображения, Рабочий стол. По умолчанию 0 (выключено) как политика: пользователь не включит случайно."
-effect = "В режиме блокировки писать в защищённые папки могут только доверенные приложения; шифровальщик, запущенный пользователем, документы не испортит."
-risk = "Режим 1 ломает программы учёта (1С, M.E.Doc, клиент-банки), старый Office и любые самописные программы, пишущие в Документы. Рекомендуемый путь: месяц аудита (2), разбор событий 1123/1124, затем блокировка."
+summary = "Sets the protection mode for the Documents, Pictures and Desktop folders. The default is 0 (off), set as a policy so the user cannot turn it on by accident."
+effect = "In block mode, only trusted apps can write to protected folders; ransomware launched by the user cannot damage documents."
+risk = "Mode 1 breaks accounting software (1C, M.E.Doc, client-bank apps), older versions of Office and any in-house programs that write to Documents. Recommended path: a month in audit mode (2), review of events 1123/1124, then block mode."
 versions = "Windows 10 1709+."
 verify = "Get-MpPreference | Select-Object EnableControlledFolderAccess"
-rollback = "Значение 0."
+rollback = "Value 0."
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 0
-values = [ { value = 0, title = "Выключено" }, { value = 2, title = "Аудит" }, { value = 1, title = "Блокировать (ломает старые программы)" } ]
+values = [ { value = 0, title = "Off" }, { value = 2, title = "Audit" }, { value = 1, title = "Block (breaks older programs)" } ]
 
 [[rule.actions]]
 type = "reg"
@@ -756,14 +756,14 @@ value = "{mode}"
 id = "defender.notifications"
 group = "defender"
 phase = "specialize"
-title = "Уведомления Безопасности Windows видны"
+title = "Windows Security notifications are shown"
 level = "baseline"
 default = true
-tags = ["defender", "уведомления", "security center"]
+tags = ["defender", "notifications", "security center"]
 doc = "docs/technical/reference/07-defender.md"
-summary = "Политики уведомлений Центра безопасности закреплены во включённом состоянии."
-effect = "Пользователь видит сообщения об угрозах и результатах проверок. Оригинальный файл UnattendedWinstall отключал все уведомления."
-versions = "Без изменений."
+summary = "Security Center notification policies are enforced in the enabled state."
+effect = "The user sees messages about threats and scan results. The original UnattendedWinstall file turned off all notifications."
+versions = "No changes."
 
 [[rule.actions]]
 type = "reg"
@@ -783,23 +783,23 @@ value = 0
 id = "defender.smartscreen-shell"
 group = "defender"
 phase = "specialize"
-title = "SmartScreen для скачанных программ и файлов"
+title = "SmartScreen for downloaded programs and files"
 level = "recommended"
 default = true
-tags = ["smartscreen", "загрузки", "mark of the web", "репутация"]
+tags = ["smartscreen", "downloads", "mark of the web", "reputation"]
 doc = "docs/technical/reference/07-defender.md#smartscreenlevel"
-summary = "Запуск скачанной из интернета программы без репутации показывает предупреждение (Warn) или запрещается (Block)."
-effect = "Работает по метке зоны интернета; файлы с флешек и из локальной сети не проверяются (их покрывают правило ASR для USB и облачная защита)."
-risk = "Режим Block запрещает установку любой малораспространённой программы, включая программы учёта с сайтов разработчиков."
-versions = "Политика ShellSmartScreenLevel с Windows 10 1703."
-verify = "Безопасность Windows -> Управление приложениями и браузером -> Проверка приложений и файлов"
-rollback = "Удалить ShellSmartScreenLevel; останется умолчание Warn, но пользователь сможет выключить."
+summary = "Running a program downloaded from the internet that has no reputation shows a warning (Warn) or is blocked (Block)."
+effect = "Works based on the Internet zone mark; files from USB flash drives and the local network are not checked (they are covered by the ASR rule for USB and by cloud protection)."
+risk = "Block mode prevents installing any uncommon program, including accounting software from developer websites."
+versions = "ShellSmartScreenLevel policy since Windows 10 1703."
+verify = "Windows Security -> App & browser control -> Check apps and files"
+rollback = "Delete ShellSmartScreenLevel; the default Warn remains, but the user will be able to turn it off."
 
 [rule.params.level]
 type = "enum"
-title = "Уровень"
+title = "Level"
 default = "Warn"
-values = [ { value = "Warn", title = "Предупреждать" }, { value = "Block", title = "Блокировать" } ]
+values = [ { value = "Warn", title = "Warn" }, { value = "Block", title = "Block" } ]
 
 [[rule.actions]]
 type = "reg"

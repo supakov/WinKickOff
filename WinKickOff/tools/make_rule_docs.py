@@ -18,7 +18,9 @@ DOCS = ROOT.parent / "docs" / "user"
 sys.path.insert(0, str(ROOT))
 
 from winkickoff.core.catalog import Catalog, load_catalog  # noqa: E402
-from winkickoff.core.i18n import LANGUAGES, CatalogTexts  # noqa: E402
+from winkickoff.core.i18n import CatalogTexts  # noqa: E402
+
+DOC_LANGUAGES = ("ru", "uk", "en")  # the languages of docs/user
 
 WORDS = {
     "ru": {
@@ -103,7 +105,7 @@ def expected(catalog: Catalog, language: str) -> str:
 
 def main() -> None:
     catalog = load_catalog(ROOT / "rules", docs_root=ROOT.parent)
-    for language in LANGUAGES:
+    for language in DOC_LANGUAGES:
         path = DOCS / language / "rules.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(expected(catalog, language).replace("\n", "\r\n").encode("utf-8"))

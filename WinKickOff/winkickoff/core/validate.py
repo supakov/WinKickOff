@@ -50,15 +50,15 @@ def has_errors(issues: list[Issue]) -> bool:
 def check_account_name(name: str) -> str | None:
     """Reason why a local account name is invalid, or None."""
     if not name.strip():
-        return tr("имя пустое")
+        return tr("the name is empty")
     if len(name) > 20:
-        return tr("длиннее 20 символов")
+        return tr("longer than 20 characters")
     if _BAD_NAME_CHARS.search(name):
-        return tr("содержит запрещённые символы")
+        return tr("contains invalid characters")
     if name.lower() in RESERVED_ACCOUNT_NAMES:
-        return tr("зарезервированное имя Windows")
+        return tr("reserved Windows name")
     if name.strip(". ") != name:
-        return tr("не может начинаться или заканчиваться точкой или пробелом")
+        return tr("cannot begin or end with a period or space")
     return None
 
 
@@ -69,16 +69,16 @@ def validate_accounts(profile: Profile) -> list[Issue]:
         target = f"accounts[{index}]"
         reason = check_account_name(account.name)
         if reason:
-            issues.append(Issue("error", target, tr("Учётная запись '{0}': {1}", account.name, reason)))
+            issues.append(Issue("error", target, tr("Account '{0}': {1}", account.name, reason)))
         if account.name.lower() in seen:
-            issues.append(Issue("error", target, tr("Учётная запись '{0}' повторяется", account.name)))
+            issues.append(Issue("error", target, tr("Account '{0}' is duplicated", account.name)))
         seen.add(account.name.lower())
         if account.group not in ("Administrators", "Users"):
-            issues.append(Issue("error", target, tr("Группа '{0}' недопустима (Administrators или Users)", account.group)))
+            issues.append(Issue("error", target, tr("Group '{0}' is not allowed (Administrators or Users)", account.group)))
         if account.password:
-            issues.append(Issue("warning", target, tr("Пароль '{0}' попадёт в XML открытым текстом; храните файл как секрет", account.name)))
+            issues.append(Issue("warning", target, tr("Password '{0}' will be written to the XML in plain text; keep the file secret", account.name)))
     if not any(a.group == "Administrators" for a in profile.accounts):
-        issues.append(Issue("error", "accounts", tr("Нужна хотя бы одна учётная запись в группе Administrators")))
+        issues.append(Issue("error", "accounts", tr("At least one account in the Administrators group is required")))
     return issues
 
 
@@ -86,17 +86,17 @@ def _check_param(rule: Any, param: Any, value: Any) -> str | None:
     title = catalog_texts().param(rule, param)
     if param.type == "int":
         if not isinstance(value, int) or isinstance(value, bool):
-            return tr("'{0}' должно быть целым числом", title)
+            return tr("'{0}' must be an integer", title)
         if param.min is not None and value < param.min or param.max is not None and value > param.max:
-            return tr("'{0}' вне диапазона {1}..{2}", title, param.min, param.max)
+            return tr("'{0}' is out of range {1}..{2}", title, param.min, param.max)
     elif param.type == "enum":
         if value not in {v for v, _ in param.values}:
-            return tr("'{0}': недопустимое значение {1!r}", title, value)
+            return tr("'{0}': invalid value {1!r}", title, value)
     elif param.type == "bool":
         if not isinstance(value, bool):
-            return tr("'{0}' должно быть да или нет", title)
+            return tr("'{0}' must be yes or no", title)
     elif param.type == "string" and not str(value).strip():
-        return tr("'{0}' не может быть пустым", title)
+        return tr("'{0}' cannot be empty", title)
     return None
 
 
@@ -106,27 +106,27 @@ def validate_profile(profile: Profile, catalog: Catalog, keyboards: list[dict[st
     edition = profile.install.get("edition")
     mode = profile.install.get("product_key_mode")
     if mode not in ("generic", "custom", "ask"):
-        issues.append(Issue("error", "install.product_key_mode", tr("Неизвестный режим ключа '{0}'", mode)))
+        issues.append(Issue("error", "install.product_key_mode", tr("Unknown key mode '{0}'", mode)))
     if mode == "generic" and edition not in EDITION_KEYS:
-        issues.append(Issue("error", "install.edition", tr("Для редакции '{0}' нет универсального ключа", edition)))
+        issues.append(Issue("error", "install.edition", tr("Edition '{0}' has no generic key", edition)))
     if mode == "custom" and not _KEY_RE.match(str(profile.install.get("product_key", "")).strip().upper()):
-        issues.append(Issue("error", "install.product_key", tr("Ключ продукта должен иметь вид XXXXX-XXXXX-XXXXX-XXXXX-XXXXX")))
+        issues.append(Issue("error", "install.product_key", tr("The product key must be in the format XXXXX-XXXXX-XXXXX-XXXXX-XXXXX")))
     if not str(profile.install.get("time_zone", "")).strip():
-        issues.append(Issue("error", "install.time_zone", tr("Часовой пояс не задан")))
+        issues.append(Issue("error", "install.time_zone", tr("Time zone is not set")))
 
-    for key, title in (("ui_language", tr("Язык интерфейса")), ("system_locale", tr("Язык программ без Юникода")), ("user_locale", tr("Формат дат и чисел"))):
+    for key, title in (("ui_language", tr("Display language")), ("system_locale", tr("Language for non-Unicode programs")), ("user_locale", tr("Date and number format"))):
         value = str(profile.languages.get(key, ""))
         if not _LOCALE_RE.match(value):
-            issues.append(Issue("error", f"languages.{key}", tr("{0}: '{1}' не похоже на тег языка вида uk-UA", title, value)))
+            issues.append(Issue("error", f"languages.{key}", tr("{0}: '{1}' does not look like a language tag such as uk-UA", title, value)))
     inputs = [str(i) for i in (profile.languages.get("input") or [])]
     if not inputs:
-        issues.append(Issue("error", "languages.input", tr("Нужен хотя бы один язык ввода")))
+        issues.append(Issue("error", "languages.input", tr("At least one input language is required")))
     if len(set(inputs)) != len(inputs):
-        issues.append(Issue("warning", "languages.input", tr("Языки ввода повторяются")))
+        issues.append(Issue("warning", "languages.input", tr("Duplicate input languages")))
     if keyboards is not None:
         for item in inputs:
             if find_keyboard(keyboards, item) is None:
-                issues.append(Issue("error", "languages.input", tr("Неизвестный язык ввода '{0}'", item)))
+                issues.append(Issue("error", "languages.input", tr("Unknown input language '{0}'", item)))
 
     for rule in catalog.rules.values():
         title = catalog_texts().rule(rule, "title")
@@ -134,27 +134,28 @@ def validate_profile(profile: Profile, catalog: Catalog, keyboards: list[dict[st
         for pname, param in rule.params.items():
             problem = _check_param(rule, param, profile.param(catalog, rule.id, pname))
             if problem:
-                issues.append(Issue("error", rule.id, tr("«{0}»: {1}", title, problem), rule.doc))
+                issues.append(Issue("error", rule.id, tr("\"{0}\": {1}", title, problem), rule.doc))
         if enabled:
             for req in rule.requires:
                 if not profile.is_enabled(req):
-                    issues.append(Issue("error", rule.id, tr("«{0}» включено, но требует выключенное «{1}»", title, catalog_texts().rule(catalog.rules[req], "title")), rule.doc))
+                    issues.append(Issue("error", rule.id, tr("\"{0}\" is enabled but requires \"{1}\", which is disabled", title, catalog_texts().rule(catalog.rules[req], "title")), rule.doc))
             for other in rule.conflicts:
                 if profile.is_enabled(other):
-                    issues.append(Issue("error", rule.id, tr("«{0}» конфликтует с включённым «{1}»", title, catalog_texts().rule(catalog.rules[other], "title")), rule.doc))
+                    issues.append(Issue("error", rule.id, tr("\"{0}\" conflicts with \"{1}\", which is enabled", title, catalog_texts().rule(catalog.rules[other], "title")), rule.doc))
             if rule.level == "risky":
-                issues.append(Issue("warning", rule.id, tr("Включено рискованное правило «{0}»: {1}", title, catalog_texts().rule(rule, "risk") or catalog_texts().rule(rule, "effect")), rule.doc))
+                issues.append(Issue("warning", rule.id, tr("Risky rule \"{0}\" is enabled: {1}", title, catalog_texts().rule(rule, "risk") or catalog_texts().rule(rule, "effect")), rule.doc))
         elif rule.level == "baseline":
-            issues.append(Issue("warning", rule.id, tr("Выключено базовое правило «{0}»", title), rule.doc))
+            issues.append(Issue("warning", rule.id, tr("Baseline rule \"{0}\" is disabled", title), rule.doc))
     encryption = catalog.rules.get(DEVICE_ENCRYPTION_RULE)
     if encryption is not None and not profile.is_enabled(encryption.id):
         issues.append(Issue("warning", encryption.id, tr(
-            "Автоматическое шифрование устройства разрешено: Windows может зашифровать системный диск сама, а с "
-            "локальными учётными записями ключ восстановления никуда не сохраняется. Сразу после установки проверьте "
-            "Get-BitLockerVolume C: и сохраните ключ (manage-bde -protectors -get C:) отдельно от компьютера, иначе "
-            "при сбое TPM или замене платы данные будут потеряны."), encryption.doc))
+            "Automatic device encryption is allowed: Windows may encrypt the system drive on its own, "
+            "and with local accounts the recovery key is not saved anywhere. Right after installation, "
+            "check Get-BitLockerVolume C: and store the key (manage-bde -protectors -get C:) away from "
+            "the computer; otherwise the data will be lost if the TPM fails or the motherboard is "
+            "replaced."), encryption.doc))
     if profile.unknown:
-        issues.append(Issue("info", "profile", tr("В профиле есть правила, которых нет в каталоге: ") + ", ".join(sorted(profile.unknown))))
+        issues.append(Issue("info", "profile", tr("The profile contains rules that are not in the catalog: ") + ", ".join(sorted(profile.unknown))))
     return issues
 
 
@@ -169,33 +170,33 @@ def _text(element: ET.Element | None) -> str:
 
 
 def validate_catalog(rules_dir: Path, docs_root: Path | None) -> tuple[Catalog | None, list[Issue]]:
-    """Reload the catalog from disk (command «Проверить каталог»). Loader defects are errors; gaps in
+    """Reload the catalog from disk (command "Check rule catalog"). Loader defects are errors; gaps in
     the descriptions are warnings: every rule must say how to check it and how to undo it, either
     in its own text or through steps derived from its actions (core/verify.py)."""
     try:
         catalog = load_catalog(rules_dir, docs_root=docs_root)
     except CatalogError as exc:
-        return None, [Issue("error", exc.rule_id or "catalog", tr("Каталог не загружается: {0}", exc))]
+        return None, [Issue("error", exc.rule_id or "catalog", tr("The catalog cannot be loaded: {0}", exc))]
     issues: list[Issue] = []
     anchors: dict[Path, set[str]] = {}
     for rule in catalog.rules.values():
         params = {name: param.default for name, param in rule.params.items()}
         if not rule.verify and not verify_steps(rule, params):
-            issues.append(Issue("warning", rule.id, tr("«{0}»: нет текста проверки, и по действиям его не вывести", rule.title), rule.doc))
+            issues.append(Issue("warning", rule.id, tr("\"{0}\": no check text, and it cannot be derived from the actions", rule.title), rule.doc))
         if not rule.rollback and not rollback_steps(rule, params):
-            issues.append(Issue("warning", rule.id, tr("«{0}»: нет текста отката, и по действиям его не вывести", rule.title), rule.doc))
+            issues.append(Issue("warning", rule.id, tr("\"{0}\": no rollback text, and it cannot be derived from the actions", rule.title), rule.doc))
         if rule.level == "risky" and not rule.risk:
-            issues.append(Issue("warning", rule.id, tr("«{0}»: рискованное правило без описания риска", rule.title), rule.doc))
+            issues.append(Issue("warning", rule.id, tr("\"{0}\": risky rule with no risk description", rule.title), rule.doc))
         if docs_root is not None and "#" in rule.doc:
             file_part, anchor = rule.doc.split("#", 1)
             path = docs_root / file_part
             if path not in anchors:
                 anchors[path] = heading_anchors(path.read_text(encoding="utf-8"))
             if anchor not in anchors[path]:
-                issues.append(Issue("warning", rule.id, tr("«{0}»: в {1} нет заголовка для ссылки #{2}", rule.title, file_part, anchor), rule.doc))
+                issues.append(Issue("warning", rule.id, tr("\"{0}\": {1} has no heading for link #{2}", rule.title, file_part, anchor), rule.doc))
     for group_id in catalog.groups:
         if not catalog.rules_in_group(group_id):
-            issues.append(Issue("info", "catalog", tr("Группа {0} без правил", group_id)))
+            issues.append(Issue("info", "catalog", tr("Group {0} has no rules", group_id)))
     return catalog, issues
 
 
@@ -205,28 +206,28 @@ def validate_xml(text: str) -> list[Issue]:
         parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
         root = ET.fromstring(text.encode("utf-8"), parser=parser)
     except ET.ParseError as exc:
-        return [Issue("error", "xml", tr("XML не разбирается: {0}", exc))]
+        return [Issue("error", "xml", tr("XML cannot be parsed: {0}", exc))]
     if root.tag != f"{U}unattend":
-        issues.append(Issue("error", "xml", tr("Корневой элемент не unattend в пространстве имён Microsoft")))
+        issues.append(Issue("error", "xml", tr("The root element is not unattend in the Microsoft namespace")))
 
     for component in root.iter(f"{U}component"):
         name = component.get("name", "?")
         if any(node.tag is ET.Comment for node in component.iter()):
-            issues.append(Issue("error", "xml", tr("Комментарий внутри компонента {0}: установщик отвергнет файл", name)))
+            issues.append(Issue("error", "xml", tr("Comment inside component {0}: Windows Setup will reject the file", name)))
 
     for sync in root.iter(f"{U}RunSynchronous"):
         orders = [_text(cmd.find(f"{U}Order")) for cmd in sync.findall(f"{U}RunSynchronousCommand")]
         if len(set(orders)) != len(orders):
-            issues.append(Issue("error", "xml", tr("Повторяющиеся значения Order в RunSynchronous")))
+            issues.append(Issue("error", "xml", tr("Duplicate Order values in RunSynchronous")))
     for cmd in root.iter(f"{U}RunSynchronousCommand"):
         path = _text(cmd.find(f"{U}Path"))
         description = _text(cmd.find(f"{U}Description"))
         if not path:
-            issues.append(Issue("error", "xml", tr("Пустой Path в RunSynchronousCommand")))
+            issues.append(Issue("error", "xml", tr("Empty Path in RunSynchronousCommand")))
         elif len(path) > MAX_PATH:
-            issues.append(Issue("error", "xml", tr("Команда длиннее {0} символов ({1}): {2}...", MAX_PATH, len(path), path[:60])))
+            issues.append(Issue("error", "xml", tr("Command is longer than {0} characters ({1}): {2}...", MAX_PATH, len(path), path[:60])))
         if len(description) > MAX_PATH:
-            issues.append(Issue("error", "xml", tr("Description длиннее {0} символов", MAX_PATH)))
+            issues.append(Issue("error", "xml", tr("Description is longer than {0} characters", MAX_PATH)))
 
     for settings in root.findall(f"{U}settings"):
         if settings.get("pass") != "oobeSystem":
@@ -236,28 +237,28 @@ def validate_xml(text: str) -> list[Issue]:
             if component.get("name") == "Microsoft-Windows-International-Core":
                 for field in ("InputLocale", "SystemLocale", "UILanguage", "UserLocale"):
                     if not _text(component.find(f"{U}{field}")):
-                        issues.append(Issue("error", "xml", tr("International-Core ({0}): не задан {1}; установщик покажет экран языка", arch, field)))
+                        issues.append(Issue("error", "xml", tr("International-Core ({0}): {1} is not set; Windows Setup will show the language screen", arch, field)))
                 for item in _text(component.find(f"{U}InputLocale")).split(";"):
                     if item and not _INPUT_LOCALE_ITEM.match(item):
-                        issues.append(Issue("error", "xml", tr("InputLocale ({0}): неверный элемент '{1}'", arch, item)))
+                        issues.append(Issue("error", "xml", tr("InputLocale ({0}): invalid item '{1}'", arch, item)))
             if component.get("name") == "Microsoft-Windows-Shell-Setup":
                 groups = [_text(g) for g in component.iter(f"{U}Group")]
                 if groups and "Administrators" not in groups:
-                    issues.append(Issue("error", "xml", tr("LocalAccounts ({0}): нет учётной записи в группе Administrators", arch)))
+                    issues.append(Issue("error", "xml", tr("LocalAccounts ({0}): no account in the Administrators group", arch)))
 
     extensions = root.find(f"{EXT}Extensions")
     files = extensions.findall(f"{EXT}File") if extensions is not None else []
     commands = " ".join(_text(c.find(f"{U}Path")) for c in root.iter(f"{U}RunSynchronousCommand"))
     if "Extensions.ExtractScript" in commands and not files:
-        issues.append(Issue("error", "xml", tr("Команда извлечения скриптов есть, а встроенных скриптов нет")))
+        issues.append(Issue("error", "xml", tr("The script extraction command is present, but there are no embedded scripts")))
     names = {f.get("path", "").rsplit("\\", 1)[-1] for f in files}
     if "Setup-System.ps1" in commands and "Setup-System.ps1" not in names:
-        issues.append(Issue("error", "xml", tr("Команда запуска Setup-System.ps1 есть, а самого скрипта нет")))
+        issues.append(Issue("error", "xml", tr("The command that runs Setup-System.ps1 is present, but the script itself is missing")))
     for f in files:
         body = (f.text or "").strip()
         name = f.get("path", "?").rsplit("\\", 1)[-1]
         if not body:
-            issues.append(Issue("error", "xml", tr("Скрипт {0} пуст", name)))
+            issues.append(Issue("error", "xml", tr("Script {0} is empty", name)))
         elif not re.search(r"(?m)^\s*exit 0\s*$", body):
-            issues.append(Issue("error", "xml", tr("Скрипт {0} не заканчивается 'exit 0'", name)))
+            issues.append(Issue("error", "xml", tr("Script {0} does not end with 'exit 0'", name)))
     return issues

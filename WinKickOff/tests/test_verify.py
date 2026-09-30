@@ -53,7 +53,7 @@ class VerifyTest(unittest.TestCase):
         rule = rule_with(("reg", {"path": "DU:\\Software\\X", "name": "A", "kind": "DWord", "value": 0}), phase="default-user")
         steps = verify_steps(rule, {})
         self.assertIn("HKCU\\Software\\X", steps[0])
-        self.assertIn("учётной записью", steps[-1])
+        self.assertIn("signed in with an account", steps[-1])
 
     def test_service_feature_appx(self) -> None:
         rule = rule_with(

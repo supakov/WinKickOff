@@ -26,8 +26,19 @@ source code, you need Python 3.14 for Windows; in the `WinKickOff` folder, run:
 python -m winkickoff
 ```
 
-The interface language (English, Ukrainian or Russian) is chosen in the "Language" menu; the program
-remembers the choice and keeps the open profile when switching.
+## Language and appearance
+
+The main language of the program is English; the Russian and Ukrainian translations are separate files, and
+the program finds every available language by itself. By default it uses the Windows language when there is a
+translation for it, otherwise English. The language is changed in the "Language" menu, the colour scheme in
+the "Theme" menu: "As in Windows" (light or dark, as set in Windows), "Light", "Dark" and the playful "Matrix".
+The program remembers the choice and keeps the open profile when switching.
+
+Adding a language needs no change to the program: a file `strings.<code>.json` in the `resources` folder (for
+example `strings.pl.json` with the field `"_language": "Polski"`) and a file `<code>.toml` with the rule
+translations in `rules\lang`. Use the Russian or Ukrainian files as a sample. Untranslated strings are shown in
+English. A colour scheme of your own: a file `resources\themes\<name>.json` modelled on `dark.json`. In the
+portable build these folders are inside `_internal`.
 
 ## Documents
 

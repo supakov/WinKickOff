@@ -1,17 +1,17 @@
-# Службы и удаление приложений. Раздел 9 скрипта машины v0.2.
-# Каждое приложение отдельным правилом: генератор собирает все включённые действия appx в один вызов Remove-Apps.
+# Services and app removal. Section 9 of the v0.2 machine script.
+# One rule per app: the generator collects every enabled appx action into one Remove-Apps call.
 
 [[rule]]
 id = "apps.retail-demo-off"
 group = "apps"
 phase = "specialize"
-title = "Служба демонстрационного режима магазина отключена"
+title = "Retail demo service disabled"
 level = "baseline"
 default = true
-tags = ["retaildemo", "служба"]
+tags = ["retaildemo", "service"]
 doc = "docs/technical/reference/13-services-apps.md"
-summary = "Служба RetailDemo нужна только витринным ПК."
-effect = "Одна фоновая служба меньше."
+summary = "The RetailDemo service is needed only on store display PCs."
+effect = "One background service fewer."
 
 [[rule.actions]]
 type = "service"
@@ -23,16 +23,16 @@ default = 3
 id = "apps.xbox-services-off"
 group = "apps"
 phase = "specialize"
-title = "Службы Xbox отключены, запись игр (Game DVR) выключена"
+title = "Xbox services disabled, game recording (Game DVR) off"
 level = "recommended"
 default = true
-tags = ["xbox", "game bar", "gamedvr", "службы"]
+tags = ["xbox", "game bar", "gamedvr", "services"]
 doc = "docs/technical/reference/13-services-apps.md#removexboxservices"
-summary = "Службы Xbox Live (аутентификация, сохранения, сеть, контроллеры) отключены; политика запрещает запись игр и Game Bar."
-effect = "Нет фоновых служб Xbox и записи экрана в фоне, которая грузит слабые ПК. Игры из Store с Xbox Live не работают."
-versions = "XboxGipSvc с Windows 10 1709."
+summary = "Xbox Live services (authentication, game saves, networking, controllers) are disabled; a policy prohibits game recording and Game Bar."
+effect = "No Xbox background services and no background screen recording that slows down low-end PCs. Store games that use Xbox Live do not work."
+versions = "XboxGipSvc since Windows 10 1709."
 verify = "Get-Service Xbl*, XboxNetApiSvc, XboxGipSvc | Select-Object Name, StartType"
-rollback = "Set-Service <имя> -StartupType Manual; удалить AllowGameDVR."
+rollback = "Set-Service <name> -StartupType Manual; delete AllowGameDVR."
 
 [[rule.actions]]
 type = "service"
@@ -69,14 +69,14 @@ value = 0
 id = "apps.maps-broker-off"
 group = "apps"
 phase = "specialize"
-title = "Служба загрузки офлайн-карт отключена"
+title = "Offline maps download service disabled"
 level = "optional"
 default = true
 requires = ["apps.remove.maps"]
-tags = ["mapsbroker", "карты", "служба"]
+tags = ["mapsbroker", "maps", "service"]
 doc = "docs/technical/reference/13-services-apps.md#removexboxservices"
-summary = "MapsBroker обслуживает приложение «Карты»; без приложения служба не нужна. В файле v0.2 отключалась под условием Xbox, здесь привязана к удалению Карт."
-effect = "Одна автоматическая служба меньше."
+summary = "MapsBroker serves the Maps app; without the app the service is not needed. In the v0.2 file it was disabled under the Xbox condition; here it is tied to removing Maps."
+effect = "One automatic service fewer."
 rollback = "Set-Service MapsBroker -StartupType Automatic"
 
 [[rule.actions]]
@@ -89,16 +89,16 @@ default = 2
 id = "apps.remove-quick-assist"
 group = "apps"
 phase = "specialize"
-title = "Удалить Быструю помощь (Quick Assist)"
+title = "Remove Quick Assist"
 level = "recommended"
 default = true
-tags = ["quick assist", "быстрая помощь", "мошенники", "удалённый доступ", "capability"]
+tags = ["quick assist", "scammers", "remote access", "capability"]
 doc = "docs/technical/reference/13-services-apps.md#removequickassist"
-summary = "Штатное средство удалённого управления, которое мошенники «техподдержки» просят запустить по телефону, удаляется (компонент Windows 10 и Store-версия Windows 11)."
-effect = "Для поддержки своим администратором организация выбирает инструмент сама. Пользователь может установить Quick Assist обратно из Store."
-versions = "Компонент App.Support.QuickAssist в Windows 10 1809+ и 11 21H2; с 22H2 приложение Store."
-verify = "Get-WindowsCapability -Online -Name 'App.Support.QuickAssist*'"
-rollback = "Store -> Быстрая помощь, или Add-WindowsCapability -Online -Name App.Support.QuickAssist~~~~0.0.1.0"
+summary = "The built-in remote control tool that \"tech support\" scammers ask people to launch over the phone is removed (the Windows 10 feature and the Windows 11 Store version)."
+effect = "The organization chooses its own tool for support by its administrator. The user can reinstall Quick Assist from the Store."
+versions = "The App.Support.QuickAssist feature in Windows 10 1809+ and 11 21H2; a Store app since 22H2."
+verify = "Get-WindowsCapability -Online -Name 'App.Support.QuickAssist*' "
+rollback = "Store -> Quick Assist, or Add-WindowsCapability -Online -Name App.Support.QuickAssist~~~~0.0.1.0"
 
 [[rule.actions]]
 type = "capability"
@@ -114,13 +114,13 @@ names = ["MicrosoftCorporationII.QuickAssist"]
 id = "apps.remove.bing-search"
 group = "apps.remove"
 phase = "specialize"
-title = "Поиск в Интернете от Bing (для меню Пуск)"
+title = "Bing Search (for the Start menu)"
 level = "optional"
 default = true
-tags = ["appx", "bing", "пуск"]
+tags = ["appx", "bing", "start menu"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Отправляет запросы из меню Пуск в Bing и показывает рекламу."
-effect = "Есть в образе 24H2 и новее."
+summary = "Sends Start menu queries to Bing and shows ads."
+effect = "Present in the 24H2 image and later."
 
 [[rule.actions]]
 type = "appx"
@@ -130,13 +130,13 @@ names = ["Microsoft.BingSearch"]
 id = "apps.remove.bing-news"
 group = "apps.remove"
 phase = "specialize"
-title = "Новости (MSN)"
+title = "News (MSN)"
 level = "optional"
 default = true
-tags = ["appx", "bing", "новости"]
+tags = ["appx", "bing", "news"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Новости MSN с рекламой."
-effect = "Есть в Windows 10 и 11 до 23H2."
+summary = "MSN news with ads."
+effect = "Present in Windows 10 and 11 up to 23H2."
 
 [[rule.actions]]
 type = "appx"
@@ -146,13 +146,13 @@ names = ["Microsoft.BingNews"]
 id = "apps.remove.bing-weather"
 group = "apps.remove"
 phase = "specialize"
-title = "Погода (MSN)"
+title = "Weather (MSN)"
 level = "optional"
 default = true
-tags = ["appx", "bing", "погода"]
+tags = ["appx", "bing", "weather"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Погода MSN: реклама и запрос местоположения."
-effect = "Есть во всех версиях."
+summary = "MSN Weather: ads and location requests."
+effect = "Present in all versions."
 
 [[rule.actions]]
 type = "appx"
@@ -162,13 +162,13 @@ names = ["Microsoft.BingWeather"]
 id = "apps.remove.get-help"
 group = "apps.remove"
 phase = "specialize"
-title = "Техническая поддержка (Get Help)"
+title = "Get Help (technical support)"
 level = "optional"
 default = true
-tags = ["appx", "поддержка", "мошенники"]
+tags = ["appx", "support", "scammers"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Чат с поддержкой Microsoft; не нужен и служит каналом для мошенничества «поддержка»."
-effect = "Есть во всех версиях."
+summary = "Chat with Microsoft support; not needed and serves as a channel for \"support\" scams."
+effect = "Present in all versions."
 
 [[rule.actions]]
 type = "appx"
@@ -178,13 +178,13 @@ names = ["Microsoft.GetHelp"]
 id = "apps.remove.get-started"
 group = "apps.remove"
 phase = "specialize"
-title = "Советы (Get Started)"
+title = "Tips (Get Started)"
 level = "optional"
 default = true
-tags = ["appx", "советы"]
+tags = ["appx", "tips"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Реклама функций Windows."
-effect = "Есть в Windows 10 и 11 до 22H2."
+summary = "Advertising for Windows features."
+effect = "Present in Windows 10 and 11 up to 22H2."
 
 [[rule.actions]]
 type = "appx"
@@ -194,13 +194,13 @@ names = ["Microsoft.Getstarted"]
 id = "apps.remove.feedback-hub"
 group = "apps.remove"
 phase = "specialize"
-title = "Центр отзывов"
+title = "Feedback Hub"
 level = "optional"
 default = true
-tags = ["appx", "отзывы", "телеметрия"]
+tags = ["appx", "feedback", "telemetry"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Отправка отзывов и диагностики в Microsoft."
-effect = "Есть во всех версиях."
+summary = "Sends feedback and diagnostics to Microsoft."
+effect = "Present in all versions."
 
 [[rule.actions]]
 type = "appx"
@@ -210,13 +210,13 @@ names = ["Microsoft.WindowsFeedbackHub"]
 id = "apps.remove.3d-viewer"
 group = "apps.remove"
 phase = "specialize"
-title = "Просмотр 3D"
+title = "3D Viewer"
 level = "optional"
 default = true
 tags = ["appx", "3d"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Просмотр 3D-моделей; в офисе не нужен."
-effect = "Есть в Windows 10 и 11 до 22H2."
+summary = "Viewer for 3D models; not needed in an office."
+effect = "Present in Windows 10 and 11 up to 22H2."
 
 [[rule.actions]]
 type = "appx"
@@ -226,13 +226,13 @@ names = ["Microsoft.Microsoft3DViewer"]
 id = "apps.remove.mixed-reality"
 group = "apps.remove"
 phase = "specialize"
-title = "Портал смешанной реальности"
+title = "Mixed Reality Portal"
 level = "optional"
 default = true
 tags = ["appx", "mixed reality", "vr"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Устаревший портал VR-гарнитур."
-effect = "Есть в Windows 10 и 11 до 23H2."
+summary = "Outdated portal for VR headsets."
+effect = "Present in Windows 10 and 11 up to 23H2."
 
 [[rule.actions]]
 type = "appx"
@@ -242,13 +242,13 @@ names = ["Microsoft.MixedReality.Portal"]
 id = "apps.remove.solitaire"
 group = "apps.remove"
 phase = "specialize"
-title = "Пасьянсы Microsoft Solitaire Collection"
+title = "Microsoft Solitaire Collection"
 level = "optional"
 default = true
-tags = ["appx", "игры", "реклама"]
+tags = ["appx", "games", "ads"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Игры с рекламой."
-effect = "Есть во всех версиях."
+summary = "Card games with ads."
+effect = "Present in all versions."
 
 [[rule.actions]]
 type = "appx"
@@ -258,13 +258,13 @@ names = ["Microsoft.MicrosoftSolitaireCollection"]
 id = "apps.remove.xbox-gaming-app"
 group = "apps.remove"
 phase = "specialize"
-title = "Приложение Xbox"
+title = "Xbox app"
 level = "optional"
 default = true
-tags = ["appx", "xbox", "игры"]
+tags = ["appx", "xbox", "games"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Магазин игр и Xbox Live."
-effect = "Есть во всех версиях."
+summary = "Game store and Xbox Live."
+effect = "Present in all versions."
 
 [[rule.actions]]
 type = "appx"
@@ -274,13 +274,13 @@ names = ["Microsoft.GamingApp"]
 id = "apps.remove.xbox-app"
 group = "apps.remove"
 phase = "specialize"
-title = "Xbox (старое приложение Windows 10)"
+title = "Xbox (old Windows 10 app)"
 level = "optional"
 default = true
 tags = ["appx", "xbox"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Старое приложение Xbox."
-effect = "Есть в Windows 10."
+summary = "The old Xbox app."
+effect = "Present in Windows 10."
 
 [[rule.actions]]
 type = "appx"
@@ -290,13 +290,13 @@ names = ["Microsoft.XboxApp"]
 id = "apps.remove.xbox-game-overlay"
 group = "apps.remove"
 phase = "specialize"
-title = "Game Bar (наложение)"
+title = "Game Bar (overlay)"
 level = "optional"
 default = true
 tags = ["appx", "xbox", "game bar"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Наложение Game Bar: запись экрана в фоне."
-effect = "Есть во всех версиях."
+summary = "Game Bar overlay: background screen recording."
+effect = "Present in all versions."
 
 [[rule.actions]]
 type = "appx"
@@ -311,8 +311,8 @@ level = "optional"
 default = true
 tags = ["appx", "xbox", "game bar"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Вторая часть Game Bar."
-effect = "Есть во всех версиях."
+summary = "The second part of Game Bar."
+effect = "Present in all versions."
 
 [[rule.actions]]
 type = "appx"
@@ -322,13 +322,13 @@ names = ["Microsoft.XboxGamingOverlay"]
 id = "apps.remove.xbox-identity"
 group = "apps.remove"
 phase = "specialize"
-title = "Поставщик удостоверений Xbox"
+title = "Xbox Identity Provider"
 level = "optional"
 default = true
 tags = ["appx", "xbox"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Вход в Xbox Live."
-effect = "Есть во всех версиях."
+summary = "Sign-in to Xbox Live."
+effect = "Present in all versions."
 
 [[rule.actions]]
 type = "appx"
@@ -338,13 +338,13 @@ names = ["Microsoft.XboxIdentityProvider"]
 id = "apps.remove.xbox-speech-to-text"
 group = "apps.remove"
 phase = "specialize"
-title = "Субтитры Game Bar (Speech to Text)"
+title = "Game Bar captions (Speech to Text)"
 level = "optional"
 default = true
 tags = ["appx", "xbox"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Субтитры для игрового чата."
-effect = "Есть во всех версиях."
+summary = "Captions for game chat."
+effect = "Present in all versions."
 
 [[rule.actions]]
 type = "appx"
@@ -354,13 +354,13 @@ names = ["Microsoft.XboxSpeechToTextOverlay"]
 id = "apps.remove.xbox-tcui"
 group = "apps.remove"
 phase = "specialize"
-title = "Интерфейс Xbox Live (TCUI)"
+title = "Xbox Live interface (TCUI)"
 level = "optional"
 default = true
 tags = ["appx", "xbox"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Служебный интерфейс Xbox Live."
-effect = "Есть во всех версиях."
+summary = "Internal Xbox Live interface component."
+effect = "Present in all versions."
 
 [[rule.actions]]
 type = "appx"
@@ -370,13 +370,13 @@ names = ["Microsoft.Xbox.TCUI"]
 id = "apps.remove.edge-game-assist"
 group = "apps.remove"
 phase = "specialize"
-title = "Game Assist (оверлей Edge в играх)"
+title = "Game Assist (Edge in-game overlay)"
 level = "optional"
 default = true
-tags = ["appx", "edge", "игры"]
+tags = ["appx", "edge", "games"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Игровой оверлей браузера."
-effect = "Есть в 24H2 и новее (2025)."
+summary = "The browser's in-game overlay."
+effect = "Present in 24H2 and later (2025)."
 
 [[rule.actions]]
 type = "appx"
@@ -386,13 +386,13 @@ names = ["Microsoft.Edge.GameAssist"]
 id = "apps.remove.maps"
 group = "apps.remove"
 phase = "specialize"
-title = "Карты"
+title = "Maps"
 level = "optional"
 default = true
-tags = ["appx", "карты", "maps"]
+tags = ["appx", "maps"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Офлайн-карты и служба MapsBroker."
-effect = "Есть во всех версиях."
+summary = "Offline maps and the MapsBroker service."
+effect = "Present in all versions."
 
 [[rule.actions]]
 type = "appx"
@@ -402,13 +402,13 @@ names = ["Microsoft.WindowsMaps"]
 id = "apps.remove.people"
 group = "apps.remove"
 phase = "specialize"
-title = "Люди (контакты)"
+title = "People (contacts)"
 level = "optional"
 default = true
-tags = ["appx", "контакты"]
+tags = ["appx", "contacts"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Устаревшее приложение контактов с синхронизацией в облако."
-effect = "Есть в Windows 10 и 11 до 23H2."
+summary = "Outdated contacts app with cloud sync."
+effect = "Present in Windows 10 and 11 up to 23H2."
 
 [[rule.actions]]
 type = "appx"
@@ -418,13 +418,13 @@ names = ["Microsoft.People"]
 id = "apps.remove.phone-link"
 group = "apps.remove"
 phase = "specialize"
-title = "Связь с телефоном (Phone Link)"
+title = "Phone Link"
 level = "optional"
 default = true
-tags = ["appx", "телефон", "sms", "облако"]
+tags = ["appx", "phone", "sms", "cloud"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Доступ к SMS и файлам телефона через облако Microsoft."
-effect = "Есть во всех версиях."
+summary = "Access to the phone's SMS messages and files through the Microsoft cloud."
+effect = "Present in all versions."
 
 [[rule.actions]]
 type = "appx"
@@ -437,10 +437,10 @@ phase = "specialize"
 title = "Power Automate"
 level = "optional"
 default = true
-tags = ["appx", "автоматизация", "power automate"]
+tags = ["appx", "automation", "power automate"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Средство автоматизации рабочего стола; потенциал злоупотреблений."
-effect = "Есть в Windows 10 21H2+ и 11."
+summary = "Desktop automation tool; potential for abuse."
+effect = "Present in Windows 10 21H2+ and 11."
 
 [[rule.actions]]
 type = "appx"
@@ -453,10 +453,10 @@ phase = "specialize"
 title = "Microsoft To Do"
 level = "optional"
 default = true
-tags = ["appx", "задачи", "облако"]
+tags = ["appx", "tasks", "cloud"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Требует учётную запись Microsoft."
-effect = "Есть во всех версиях."
+summary = "Requires a Microsoft account."
+effect = "Present in all versions."
 
 [[rule.actions]]
 type = "appx"
@@ -466,13 +466,13 @@ names = ["Microsoft.Todos"]
 id = "apps.remove.family"
 group = "apps.remove"
 phase = "specialize"
-title = "Семейная безопасность"
+title = "Family Safety"
 level = "optional"
 default = true
-tags = ["appx", "семья", "облако"]
+tags = ["appx", "family", "cloud"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Требует учётную запись Microsoft."
-effect = "Есть в Windows 11 22H2+."
+summary = "Requires a Microsoft account."
+effect = "Present in Windows 11 22H2+."
 
 [[rule.actions]]
 type = "appx"
@@ -485,10 +485,10 @@ phase = "specialize"
 title = "Dev Home"
 level = "optional"
 default = true
-tags = ["appx", "разработчики"]
+tags = ["appx", "developers"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Инструмент разработчика, снят с поддержки в 2025."
-effect = "Есть в Windows 11 23H2-24H2."
+summary = "Developer tool, retired in 2025."
+effect = "Present in Windows 11 23H2-24H2."
 
 [[rule.actions]]
 type = "appx"
@@ -498,13 +498,13 @@ names = ["Microsoft.Windows.DevHome"]
 id = "apps.remove.clipchamp"
 group = "apps.remove"
 phase = "specialize"
-title = "Clipchamp (видеоредактор)"
+title = "Clipchamp (video editor)"
 level = "optional"
 default = true
-tags = ["appx", "видео", "подписка"]
+tags = ["appx", "video", "subscription"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Облачный сервис с рекламой подписки."
-effect = "Есть в Windows 11 22H2+."
+summary = "Cloud service with subscription ads."
+effect = "Present in Windows 11 22H2+."
 
 [[rule.actions]]
 type = "appx"
@@ -514,13 +514,13 @@ names = ["Clipchamp.Clipchamp"]
 id = "apps.remove.teams"
 group = "apps.remove"
 phase = "specialize"
-title = "Teams (личный)"
+title = "Teams (personal)"
 level = "optional"
 default = true
-tags = ["appx", "teams", "чат"]
+tags = ["appx", "teams", "chat"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Не рабочая версия; рабочий Teams устанавливается отдельно."
-effect = "Есть в Windows 11 23H2+."
+summary = "Not the work version; Teams for work is installed separately."
+effect = "Present in Windows 11 23H2+."
 
 [[rule.actions]]
 type = "appx"
@@ -535,8 +535,8 @@ level = "optional"
 default = true
 tags = ["appx", "skype"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Сервис закрыт в 2025."
-effect = "Есть в Windows 10 и 11 до 23H2."
+summary = "The service was shut down in 2025."
+effect = "Present in Windows 10 and 11 up to 23H2."
 
 [[rule.actions]]
 type = "appx"
@@ -546,13 +546,13 @@ names = ["Microsoft.SkypeApp"]
 id = "apps.remove.office-hub"
 group = "apps.remove"
 phase = "specialize"
-title = "Office (лаунчер Microsoft 365)"
+title = "Office (Microsoft 365 launcher)"
 level = "optional"
 default = true
-tags = ["appx", "office", "подписка"]
+tags = ["appx", "office", "subscription"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Реклама подписки Microsoft 365."
-effect = "Есть во всех версиях."
+summary = "Advertising for a Microsoft 365 subscription."
+effect = "Present in all versions."
 
 [[rule.actions]]
 type = "appx"
@@ -562,13 +562,13 @@ names = ["Microsoft.MicrosoftOfficeHub"]
 id = "apps.remove.outlook-new"
 group = "apps.remove"
 phase = "specialize"
-title = "Новый Outlook"
+title = "New Outlook"
 level = "optional"
 default = true
-tags = ["appx", "outlook", "почта", "облако"]
+tags = ["appx", "outlook", "mail", "cloud"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Почта через облако Microsoft; синхронизирует пароли IMAP в облако."
-effect = "Есть в Windows 11 23H2+. Снимите флажок, если сотрудники используют новый Outlook."
+summary = "Mail through the Microsoft cloud; syncs IMAP passwords to the cloud."
+effect = "Present in Windows 11 23H2+. Clear the check box if employees use the new Outlook."
 
 [[rule.actions]]
 type = "appx"
@@ -578,13 +578,13 @@ names = ["Microsoft.OutlookForWindows"]
 id = "apps.remove.mail-calendar"
 group = "apps.remove"
 phase = "specialize"
-title = "Почта и Календарь"
+title = "Mail and Calendar"
 level = "optional"
 default = true
-tags = ["appx", "почта", "календарь"]
+tags = ["appx", "mail", "calendar"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Заменены новым Outlook, не обновляются."
-effect = "Есть в Windows 10 и 11 до 24H2."
+summary = "Replaced by the new Outlook and no longer updated."
+effect = "Present in Windows 10 and 11 up to 24H2."
 
 [[rule.actions]]
 type = "appx"
@@ -594,13 +594,13 @@ names = ["microsoft.windowscommunicationsapps"]
 id = "apps.remove.copilot"
 group = "apps.remove"
 phase = "specialize"
-title = "Copilot (приложение)"
+title = "Copilot (app)"
 level = "optional"
 default = true
-tags = ["appx", "copilot", "ии"]
+tags = ["appx", "copilot", "ai"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "ИИ-помощник с отправкой данных."
-effect = "Есть в Windows 11 24H2+."
+summary = "AI assistant that sends data."
+effect = "Present in Windows 11 24H2+."
 
 [[rule.actions]]
 type = "appx"
@@ -610,13 +610,13 @@ names = ["Microsoft.Copilot"]
 id = "apps.remove.copilot-provider"
 group = "apps.remove"
 phase = "specialize"
-title = "Поставщик Copilot"
+title = "Copilot provider"
 level = "optional"
 default = true
-tags = ["appx", "copilot", "ии"]
+tags = ["appx", "copilot", "ai"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Служебный компонент Copilot."
-effect = "Есть в Windows 11 23H2."
+summary = "Internal Copilot component."
+effect = "Present in Windows 11 23H2."
 
 [[rule.actions]]
 type = "appx"
@@ -631,8 +631,8 @@ level = "optional"
 default = true
 tags = ["appx", "cortana"]
 doc = "docs/technical/reference/13-services-apps.md#table-of-removed-apps"
-summary = "Удалена Microsoft в 2023; на старых образах присутствует."
-effect = "Есть в Windows 10 и 11 до 22H2."
+summary = "Removed by Microsoft in 2023; present on old images."
+effect = "Present in Windows 10 and 11 up to 22H2."
 
 [[rule.actions]]
 type = "appx"
@@ -645,14 +645,14 @@ phase = "default-user"
 title = "OneDrive"
 level = "optional"
 default = true
-tags = ["onedrive", "облако", "синхронизация", "onedrivesetup", "run"]
+tags = ["onedrive", "cloud", "sync", "onedrivesetup", "run"]
 doc = "docs/technical/reference/13-services-apps.md#onedrive"
-summary = "OneDrive не устанавливается пользователям: из профиля по умолчанию удаляется автозапуск его установщика."
-effect = "Учётные записи, созданные после установки (Admin, User и следующие), получают профиль без OneDrive: нет значка, папки OneDrive и синхронизации файлов с облаком. Пользователи, уже входившие в систему, свой OneDrive сохраняют."
-risk = "Файлы пользователей не копируются в облако Microsoft; резервное копирование организации настраивается отдельно."
-versions = "Windows 10 и 11. Установщик OneDriveSetup.exe (в Windows 11 24H2+ в System32) остаётся в системе и запускается только вручную."
-verify = 'После первого входа нового пользователя: нет папки %LOCALAPPDATA%\Microsoft\OneDrive и значения OneDrive в HKCU\Software\Microsoft\Windows\CurrentVersion\Run.'
-rollback = 'Для пользователя: запустить %SystemRoot%\System32\OneDriveSetup.exe или установить OneDrive с сайта Microsoft.'
+summary = "OneDrive is not installed for users: the autostart of its installer is removed from the default profile."
+effect = "Accounts created after installation (Admin, User and later ones) get a profile without OneDrive: no icon, no OneDrive folder, no file sync with the cloud. Users who have already signed in keep their OneDrive."
+risk = "User files are not copied to the Microsoft cloud; the organisation sets up backups separately."
+versions = "Windows 10 and 11. The installer OneDriveSetup.exe (in System32 on Windows 11 24H2+) stays in the system and runs only when started by hand."
+verify = "After the first sign-in of a new user: no %LOCALAPPDATA%\\Microsoft\\OneDrive folder and no OneDrive value in HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run."
+rollback = "For a user: run %SystemRoot%\\System32\\OneDriveSetup.exe or install OneDrive from the Microsoft website."
 
 [[rule.actions]]
 type = "reg-remove"
@@ -666,16 +666,16 @@ default = "unknown"
 id = "onedrive.kfm-block"
 group = "apps.onedrive"
 phase = "specialize"
-title = "OneDrive: запретить перенос папок пользователя в облако"
+title = "OneDrive: block moving user folders to the cloud"
 level = "optional"
 default = true
-tags = ["onedrive", "известные папки", "kfm", "облако"]
+tags = ["onedrive", "known folders", "kfm", "cloud"]
 doc = "docs/technical/reference/19-more-privacy.md#onedrive-policies"
-summary = "Пользователи не могут перенести «Рабочий стол», «Документы» и «Изображения» в OneDrive (ни в рабочий, ни в личный), резервное копирование папок в параметрах OneDrive недоступно."
-effect = "Рабочие файлы остаются на компьютере и не попадают в личное облако сотрудника. На ПК в домене Microsoft запрещает перенос в личный OneDrive сама, в рабочей группе нужна эта политика."
-versions = "Клиент синхронизации OneDrive (все поддерживаемые версии). Значение в HKCU из списка заказчика не описано Microsoft и не пишется."
-verify = 'reg query "HKLM\SOFTWARE\Policies\Microsoft\OneDrive" /v KFMBlockOptIn'
-rollback = "Удалить значение."
+summary = "Users cannot move \"Desktop\", \"Documents\" and \"Pictures\" to OneDrive (neither work nor personal), and folder backup in the OneDrive settings is unavailable."
+effect = "Work files stay on the computer and do not end up in the employee's personal cloud. On domain-joined PCs Microsoft itself blocks moving to a personal OneDrive; in a workgroup this policy is needed."
+versions = "OneDrive sync client (all supported versions). The HKCU value from the customer's list is not documented by Microsoft and is not written."
+verify = "reg query \"HKLM\\SOFTWARE\\Policies\\Microsoft\\OneDrive\" /v KFMBlockOptIn"
+rollback = "Delete the value."
 
 [[rule.actions]]
 type = "reg"
@@ -688,17 +688,17 @@ value = 1
 id = "onedrive.no-traffic-before-signin"
 group = "apps.onedrive"
 phase = "specialize"
-title = "OneDrive: не выходить в сеть до входа пользователя"
+title = "OneDrive: no network access before the user signs in"
 level = "optional"
 default = true
-tags = ["onedrive", "сеть", "телеметрия"]
+tags = ["onedrive", "network", "telemetry"]
 doc = "docs/technical/reference/19-more-privacy.md#onedrive-policies"
-summary = "Клиент OneDrive не обращается к серверам Microsoft (в том числе за обновлениями), пока пользователь не вошёл в OneDrive."
-effect = "Без учётной записи OneDrive компьютер не шлёт OneDrive никакого трафика."
-risk = "Значение продолжает действовать и после удаления политики (так описано в документации Microsoft)."
-versions = "Клиент синхронизации OneDrive."
-verify = 'reg query "HKLM\SOFTWARE\Policies\Microsoft\OneDrive" /v PreventNetworkTrafficPreUserSignIn'
-rollback = "Удалить значение."
+summary = "The OneDrive client does not contact Microsoft servers (including for updates) until the user signs in to OneDrive."
+effect = "Without a OneDrive account, the computer sends no OneDrive traffic at all."
+risk = "The value stays in effect even after the policy is removed (as described in the Microsoft documentation)."
+versions = "OneDrive sync client."
+verify = "reg query \"HKLM\\SOFTWARE\\Policies\\Microsoft\\OneDrive\" /v PreventNetworkTrafficPreUserSignIn"
+rollback = "Delete the value."
 
 [[rule.actions]]
 type = "reg"
@@ -711,16 +711,16 @@ value = 1
 id = "onedrive.feedback-off"
 group = "apps.onedrive"
 phase = "specialize"
-title = "OneDrive: без отзывов, опросов и обращений в поддержку"
+title = "OneDrive: no feedback, surveys or support requests"
 level = "optional"
 default = true
-tags = ["onedrive", "отзывы", "опросы"]
+tags = ["onedrive", "feedback", "surveys"]
 doc = "docs/technical/reference/19-more-privacy.md#onedrive-policies"
-summary = "В приложении OneDrive выключены отправка отзывов, опросы и связь со службой поддержки Microsoft."
-effect = "Журналы и снимки экрана не уходят в Microsoft вместе с отзывами."
-versions = "Клиент синхронизации OneDrive."
-verify = 'reg query "HKLM\SOFTWARE\Policies\Microsoft\OneDrive"'
-rollback = "Удалить значения."
+summary = "Sending feedback, surveys and contacting Microsoft support are turned off in the OneDrive app."
+effect = "Logs and screenshots do not go to Microsoft together with feedback."
+versions = "OneDrive sync client."
+verify = "reg query \"HKLM\\SOFTWARE\\Policies\\Microsoft\\OneDrive\""
+rollback = "Delete the values."
 
 [[rule.actions]]
 type = "reg"
@@ -747,17 +747,17 @@ value = 0
 id = "onedrive.block"
 group = "apps.onedrive"
 phase = "specialize"
-title = "OneDrive: запретить использование полностью"
+title = "OneDrive: block its use completely"
 level = "optional"
 default = false
-tags = ["onedrive", "облако", "disablefilesyncngsc", "утечка данных"]
+tags = ["onedrive", "cloud", "disablefilesyncngsc", "data leak"]
 doc = "docs/technical/reference/19-more-privacy.md#onedrive-policies"
-summary = "OneDrive нельзя использовать для хранения файлов: приложение, проводник и приложения Store не открывают OneDrive, синхронизация и загрузка фотографий не работают."
-effect = "Даже заново установленный OneDrive не синхронизирует файлы. Выключено по умолчанию: это решение организации, а не настройка ИИ или телеметрии."
-risk = "Пользователи, которым OneDrive нужен для работы, теряют к нему доступ на этом компьютере."
-versions = "Windows 10 1703 и новее, Pro, Enterprise, Education."
-verify = 'reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive" /v DisableFileSyncNGSC'
-rollback = "Удалить значение."
+summary = "OneDrive cannot be used to store files: the app, File Explorer and Store apps do not open OneDrive, sync and photo upload do not work."
+effect = "Even a reinstalled OneDrive does not sync files. Off by default: this is a decision of the organization, not an AI or telemetry setting."
+risk = "Users who need OneDrive for their work lose access to it on this computer."
+versions = "Windows 10 1703 and later, Pro, Enterprise, Education."
+verify = "reg query \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\OneDrive\" /v DisableFileSyncNGSC"
+rollback = "Delete the value."
 
 [[rule.actions]]
 type = "reg"
@@ -770,17 +770,17 @@ value = 1
 id = "onedrive.personal-sync-off"
 group = "apps.onedrive"
 phase = "default-user"
-title = "OneDrive: запретить синхронизацию личного OneDrive"
+title = "OneDrive: block personal OneDrive sync"
 level = "optional"
 default = false
-tags = ["onedrive", "личная учётная запись", "disablepersonalsync"]
+tags = ["onedrive", "personal account", "disablepersonalsync"]
 doc = "docs/technical/reference/19-more-privacy.md#onedrive-policies"
-summary = "Пользователь не может подключить к OneDrive личную учётную запись Microsoft."
-effect = "Рабочие файлы не попадают в личное облако сотрудника; рабочий OneDrive (Entra ID) остаётся доступным."
-risk = "Сотрудники, которые хранят рабочие файлы в личном OneDrive, потеряют синхронизацию."
-versions = "Клиент синхронизации OneDrive."
-verify = 'reg query "HKCU\Software\Policies\Microsoft\OneDrive" /v DisablePersonalSync'
-rollback = "Удалить значение в профиле пользователя."
+summary = "The user cannot connect a personal Microsoft account to OneDrive."
+effect = "Work files do not end up in the employee's personal cloud; work OneDrive (Entra ID) remains available."
+risk = "Employees who keep work files in a personal OneDrive lose sync."
+versions = "OneDrive sync client."
+verify = "reg query \"HKCU\\Software\\Policies\\Microsoft\\OneDrive\" /v DisablePersonalSync"
+rollback = "Delete the value in the user profile."
 
 [[rule.actions]]
 type = "reg"

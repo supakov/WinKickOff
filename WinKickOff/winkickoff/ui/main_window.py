@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import re
+import sys
 import threading
 import time
 import tkinter as tk
@@ -42,7 +43,7 @@ from winkickoff.core.apply import (
 )
 from winkickoff.core import apply as apply_module
 from winkickoff.core.deps import Change, Resolver
-from winkickoff.core.i18n import LANGUAGE_NAMES, N_, catalog_texts, language, tr
+from winkickoff.core.i18n import SOURCE_LANGUAGE, N_, available_languages, catalog_texts, language, tr
 from winkickoff.core.importer import IMPORTED_NAME, ImportFailed, import_xml
 from winkickoff.core.paths import AppPaths, display_path
 from winkickoff.core.profile import Profile
@@ -50,6 +51,7 @@ from winkickoff.core.pscheck import PsCheckResult, check_scripts
 from winkickoff.core.render import BuildResult, Renderer, RenderError, render_action, substitute
 from winkickoff.core.resources import Resources
 from winkickoff.core.settings import Settings
+from winkickoff.core.themes import Theme, available_themes, resolve_theme
 from winkickoff.core.validate import Issue, has_errors, validate_catalog, validate_profile, validate_xml
 from winkickoff.core.verify import rollback_steps, verify_steps
 from winkickoff.ui.checkimages import make_check_images
@@ -58,61 +60,73 @@ from winkickoff.ui.data_forms import AccountsForm, InstallForm, LanguagesForm
 log = logging.getLogger(__name__)
 
 WORKFLOW_NODE = "info:workflow"
-PRESET_NAMES = (N_("Офис"), N_("Строгий"), N_("Ноутбук"))  # preset names are Russian data; shown through tr()
+PRESET_NAMES = (N_("Office"), N_("Strict"), N_("Laptop"))  # preset names are English data; shown through tr()
+THEME_NAMES = (N_("Light"), N_("Dark"), N_("Matrix"))  # names of the bundled themes; shown through tr()
 DATA_NODES: tuple[tuple[str, str], ...] = (
-    ("data:install", N_("Установка: редакция, ключ, часовой пояс")),
-    ("data:accounts", N_("Учётные записи")),
-    ("data:languages", N_("Языки и регион")),
+    ("data:install", N_("Installation: edition, key, time zone")),
+    ("data:accounts", N_("Accounts")),
+    ("data:languages", N_("Languages and region")),
 )
-LEVEL_TITLES = {"baseline": N_("базовое"), "recommended": N_("рекомендуемое"), "optional": N_("необязательное"), "risky": N_("рискованное")}
+LEVEL_TITLES = {"baseline": N_("baseline"), "recommended": N_("recommended"), "optional": N_("optional"), "risky": N_("risky")}
 PHASE_TITLES = {
-    "windowspe": N_("установщик (windowsPE)"),
-    "specialize-xml": N_("первая загрузка (команда в XML)"),
-    "specialize": N_("первая загрузка (скрипт машины Setup-System.ps1)"),
-    "default-user": N_("профиль пользователя по умолчанию"),
-    "user-first-logon": N_("первый вход каждого пользователя (Setup-User.ps1)"),
-    "post-oobe": N_("после первичной настройки (Post-OOBE.ps1)"),
-    "oobe-xml": N_("первичная настройка (OOBE)"),
+    "windowspe": N_("Windows Setup (windowsPE)"),
+    "specialize-xml": N_("first boot (command in XML)"),
+    "specialize": N_("first boot (machine script Setup-System.ps1)"),
+    "default-user": N_("default user profile"),
+    "user-first-logon": N_("each user's first sign-in (Setup-User.ps1)"),
+    "post-oobe": N_("after initial setup (Post-OOBE.ps1)"),
+    "oobe-xml": N_("initial setup (OOBE)"),
 }
-ISSUE_TITLES = {"error": N_("ошибка"), "warning": N_("предупреждение"), "info": N_("сведения"), "change": N_("изменено")}
+ISSUE_TITLES = {"error": N_("error"), "warning": N_("warning"), "info": N_("information"), "change": N_("changed")}
 VK_S, VK_O, VK_F = 83, 79, 70  # virtual-key codes: shortcuts work with any keyboard layout
 
 WORKFLOW = [
-    ("h1", N_("Порядок работы")),
-    ("", N_("WinKickOff собирает файл autounattend.xml для автоматической установки Windows 11. Файл кладётся в корень "
-         "флешки с установкой Windows; установщик сам находит его и выполняет всё, что выбрано здесь.")),
-    ("h2", N_("1. Профиль")),
-    ("", N_("Поле «Профиль» на панели сверху. «Пресет: Офис» повторяет проверенный файл ответов v0.2; «Пресет: Строгий» "
-         "добавляет ограничения, которые могут мешать старым программам. Пресеты не меняются: изменённый профиль "
-         "сохраняется под своим именем (кнопка «Сохранить как»).")),
-    ("h2", N_("2. Правила")),
-    ("", N_("Дерево слева содержит все настройки установки. Квадрат перед названием включает или выключает правило "
-         "(или всю группу); «+» только раскрывает ветку. Правила, которые зависят от выключенного, выключаются "
-         "автоматически, а включение правила включает то, что ему нужно: что изменилось, видно в строке состояния "
-         "и в списке внизу. Поиск (Ctrl+F) ищет по названию, тегам и техническим деталям, например по имени ключа реестра.")),
-    ("h2", N_("3. Описание и параметры")),
-    ("", N_("Справа для выбранного правила: что оно делает технически (ключи реестра, службы, команды), эффект, риски, "
-         "версии Windows, проверка и откат. Параметры правила (часы, режимы, пороги) меняются там же, под описанием.")),
-    ("h2", N_("4. Данные установки")),
-    ("", N_("Узлы «Установка», «Учётные записи», «Языки и регион» в начале дерева: редакция и ключ, часовой пояс, "
-         "стартовые учётные записи, язык интерфейса (равен языку ISO) и языки ввода.")),
-    ("h2", N_("5. Сохранение профиля")),
-    ("", N_("«Сохранить» (Ctrl+S) записывает профиль в папку profiles рядом с программой, чтобы повторять установку на "
-         "других ПК. Профиль также встраивается в каждый собранный файл: «Файл, Открыть профиль из autounattend.xml» "
-         "восстанавливает настройки из готового autounattend.xml.")),
-    ("h2", N_("6. Проверка и сборка")),
-    ("", N_("«Проверить» (F7) проверяет профиль и файл, который получится. «Собрать autounattend.xml» (F9) собирает файл "
-         "только из включённых правил, проверяет ограничения установщика Windows и синтаксис PowerShell и предлагает, "
-         "куда сохранить. Ошибки и предупреждения появляются в списке внизу; двойной щелчок ведёт к правилу.")),
-    ("h2", N_("7. Установка")),
-    ("", N_("Скопируйте autounattend.xml в корень флешки с установочным образом Windows 11 и загрузите ПК с неё. "
-         "Установщик спросит только диск для установки. После установки логи лежат в C:\\ProgramData\\Unattend\\Logs.")),
+    ("h1", N_("Workflow")),
+    ("", N_("WinKickOff builds an autounattend.xml file for automated installation of Windows 11. Put "
+            "the file in the root of the Windows installation USB drive; Windows Setup finds it on its "
+            "own and does everything selected here.")),
+    ("h2", N_("1. Profile")),
+    ("", N_("The \"Profile\" field in the top panel. \"Preset: Office\" reproduces the tested v0.2 answer "
+            "file; \"Preset: Strict\" adds restrictions that may interfere with older programs. Presets "
+            "are never modified: a changed profile is saved under its own name (the \"Save as\" button).")),
+    ("h2", N_("2. Rules")),
+    ("", N_("The tree on the left contains all installation settings. The checkbox before a name "
+            "enables or disables the rule (or the whole group); \"+\" only expands the branch. Rules "
+            "that depend on a disabled rule are disabled automatically, and enabling a rule enables "
+            "what it needs: the changes are shown in the status bar and in the list below. Search "
+            "(Ctrl+F) looks in names, tags and technical details, for example a registry key name.")),
+    ("h2", N_("3. Description and parameters")),
+    ("", N_("On the right, for the selected rule: what it does technically (registry keys, services, "
+            "commands), effect, risks, Windows versions, check and rollback. The rule parameters "
+            "(hours, modes, thresholds) are changed there too, below the description.")),
+    ("h2", N_("4. Installation data")),
+    ("", N_("The \"Installation\", \"Accounts\" and \"Languages and region\" nodes at the top of the tree: "
+            "edition and key, time zone, initial accounts, display language (same as the ISO language) "
+            "and input languages.")),
+    ("h2", N_("5. Saving the profile")),
+    ("", N_("\"Save\" (Ctrl+S) writes the profile to the profiles folder next to the program, so the "
+            "installation can be repeated on other PCs. The profile is also embedded in every built "
+            "file: \"File, Open profile from autounattend.xml\" restores the settings from a finished "
+            "autounattend.xml.")),
+    ("h2", N_("6. Check and build")),
+    ("", N_("\"Check\" (F7) checks the profile and the resulting file. \"Build autounattend.xml\" (F9) "
+            "builds the file from enabled rules only, checks Windows Setup limits and PowerShell "
+            "syntax, and asks where to save it. Errors and warnings appear in the list below; "
+            "double-click one to go to the rule.")),
+    ("h2", N_("7. Installation")),
+    ("", N_("Copy autounattend.xml to the root of a USB drive with the Windows 11 installation image "
+            "and boot the PC from it. Windows Setup asks only for the drive to install to. After "
+            "installation, logs are in C:\\ProgramData\\Unattend\\Logs.")),
 ]
 
 
-def user_docs() -> str:
-    """The user documentation in the interface language (docs/user/<ru|uk|en>/README.md)."""
-    return f"docs/user/{language()}/README.md"
+def user_docs(docs_root: Path | None = None) -> str:
+    """The user documentation in the interface language (docs/user/<code>/README.md), English when a language
+    has no documentation."""
+    wanted = f"docs/user/{language()}/README.md"
+    if docs_root is not None and not (docs_root / wanted).exists():
+        return f"docs/user/{SOURCE_LANGUAGE}/README.md"
+    return wanted
 
 
 def _profile_name(path: Path) -> str:
@@ -152,7 +166,7 @@ class MainWindow(tk.Tk):
         self.geometry(self.settings.geometry or "1260x800")
         self.minsize(980, 620)
         self._setup_style()
-        self.images = make_check_images(self)
+        self.images = make_check_images(self, self.theme.colors)
         self.style.configure("Treeview", rowheight=self.images["on"].height() + 8)
         self._build_menu()
         self._build_toolbar()
@@ -162,16 +176,25 @@ class MainWindow(tk.Tk):
         self.refresh_profile_choices()
         self.update_title()
         self.select_node(WORKFLOW_NODE)
-        self.set_status(tr("Каталог правил {0}: {1} правил в {2} группах. Профиль: {3}.", catalog.version, len(catalog.rules), len(catalog.groups), tr(profile.name)))
+        self._dark_title_bar(self.theme.dark)
+        self.set_status(tr("Rule catalog {0}: {1} rules in {2} groups. Profile: {3}.", catalog.version, len(catalog.rules), len(catalog.groups), tr(profile.name)))
 
     # ----------------------------------------------------------------- style and layout
 
     def _setup_style(self) -> None:
+        """ttk styles, fonts and colours of the theme (resources/themes, settings.theme; "" follows Windows)."""
+        self.theme: Theme = resolve_theme(self.settings.theme, self.paths.resources)
         self.style = ttk.Style(self)
         try:
-            self.style.theme_use("vista")
+            self.style.theme_use("vista" if self.theme.base == "native" else self.theme.base)
         except tk.TclError:
             pass
+        if self.theme.font:
+            for name in ("TkDefaultFont", "TkTextFont", "TkMenuFont", "TkHeadingFont", "TkCaptionFont", "TkTooltipFont"):
+                try:
+                    tkfont.nametofont(name).configure(family=self.theme.font)
+                except tk.TclError:
+                    pass
         base = tkfont.nametofont("TkDefaultFont")
         family = base.actual("family")
         size = int(base.actual("size")) or 9
@@ -179,10 +202,76 @@ class MainWindow(tk.Tk):
         self.font_h2 = tkfont.Font(self, family=family, size=size + 1, weight="bold")
         self.font_text = tkfont.Font(self, family=family, size=size + 1)
         self.font_mono = tkfont.Font(self, family="Consolas", size=size)
+        self._apply_theme_colors()
         self.style.configure("H1.TLabel", font=self.font_h1)
-        self.style.configure("Note.TLabel", foreground="#555555")
-        self.style.configure("Error.TLabel", foreground="#b00020")
-        self.style.configure("Changed.TLabel", foreground="#1f4e79", font=(family, size, "bold"))
+        self.style.configure("Note.TLabel", foreground=self.color("muted"))
+        self.style.configure("Error.TLabel", foreground=self.color("error"))
+        self.style.configure("Changed.TLabel", foreground=self.color("changed"), font=(family, size, "bold"))
+
+    def color(self, key: str) -> str:
+        return self.theme.color(key)
+
+    def _apply_theme_colors(self) -> None:
+        """Colours of every widget style; a native theme with no window colours keeps the Windows look."""
+        c = self.theme.colors
+        bg, fg, field, field_fg = c["background"], c["foreground"], c["field"], c["field_foreground"]
+        if not bg:
+            return
+        select, select_fg, border = c["select"] or field, c["select_foreground"] or fg, c["border"] or bg
+        button, button_fg, active = c["button"] or bg, c["button_foreground"] or fg, c["button_active"] or select
+        s = self.style
+        self.configure(background=bg)
+        s.configure(".", background=bg, foreground=fg, fieldbackground=field, bordercolor=border, lightcolor=bg,
+                    darkcolor=bg, troughcolor=bg, selectbackground=select, selectforeground=select_fg,
+                    insertcolor=field_fg, arrowcolor=fg, focuscolor=select)
+        s.map(".", foreground=[("disabled", c["disabled"])], background=[("active", active)])
+        for name in ("TFrame", "TLabel", "TLabelframe", "TPanedwindow", "TCheckbutton", "TRadiobutton"):
+            s.configure(name, background=bg, foreground=fg)
+        s.configure("TLabelframe.Label", background=bg, foreground=fg)
+        s.map("TCheckbutton", background=[("active", bg)], indicatorbackground=[("selected", select), ("!selected", field)])
+        s.map("TRadiobutton", background=[("active", bg)], indicatorbackground=[("selected", select), ("!selected", field)])
+        s.configure("TButton", background=button, foreground=button_fg, bordercolor=border)
+        s.map("TButton", background=[("pressed", select), ("active", active)], foreground=[("disabled", c["disabled"])])
+        for name in ("TEntry", "TCombobox", "TSpinbox"):
+            s.configure(name, fieldbackground=field, foreground=field_fg, background=button, insertcolor=field_fg, arrowcolor=fg)
+        s.map("TCombobox", fieldbackground=[("readonly", field)], foreground=[("readonly", field_fg)],
+              selectbackground=[("readonly", field)], selectforeground=[("readonly", field_fg)])
+        s.configure("Treeview", background=field, fieldbackground=field, foreground=field_fg, bordercolor=border)
+        s.map("Treeview", background=[("selected", select)], foreground=[("selected", select_fg)])
+        s.configure("Treeview.Heading", background=c["heading"] or button, foreground=fg, bordercolor=border)
+        s.map("Treeview.Heading", background=[("active", active)])
+        s.configure("TScrollbar", background=button, troughcolor=bg, arrowcolor=fg, bordercolor=border)
+        s.map("TScrollbar", background=[("active", active)])
+        for option, value in (("*TCombobox*Listbox.background", field), ("*TCombobox*Listbox.foreground", field_fg),
+                              ("*TCombobox*Listbox.selectBackground", select), ("*TCombobox*Listbox.selectForeground", select_fg),
+                              ("*Menu.background", bg), ("*Menu.foreground", fg), ("*Menu.activeBackground", select),
+                              ("*Menu.activeForeground", select_fg), ("*Listbox.background", field),
+                              ("*Listbox.foreground", field_fg), ("*Listbox.selectBackground", select),
+                              ("*Listbox.selectForeground", select_fg), ("*Toplevel.background", bg)):
+            self.option_add(option, value)
+
+    def _style_text(self, widget: tk.Text) -> None:
+        c = self.theme.colors
+        if c["field"]:
+            widget.configure(background=c["field"], foreground=c["field_foreground"] or c["foreground"],
+                             insertbackground=c["field_foreground"] or c["foreground"],
+                             selectbackground=c["select"] or c["field"], selectforeground=c["select_foreground"] or c["foreground"])
+
+    def _dark_title_bar(self, dark: bool) -> None:
+        """A dark title bar for dark themes (DwmSetWindowAttribute on this window only; Windows 10 20H1+)."""
+        if not dark or sys.platform != "win32":
+            return
+        try:
+            import ctypes
+
+            self.update_idletasks()
+            hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
+            value = ctypes.c_int(1)
+            for attribute in (20, 19):  # DWMWA_USE_IMMERSIVE_DARK_MODE; 19 on builds before 20H1
+                if ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, attribute, ctypes.byref(value), ctypes.sizeof(value)) == 0:
+                    break
+        except (AttributeError, OSError):
+            pass
 
     def _build_menu(self) -> None:
         menubar = tk.Menu(self)
@@ -190,63 +279,74 @@ class MainWindow(tk.Tk):
         presets = tk.Menu(file_menu, tearoff=False)
         for path in sorted((self.paths.data / "profiles").glob("preset-*.json")):
             presets.add_command(label=tr(_profile_name(path)), command=lambda p=path: self.load_profile_file(p))
-        file_menu.add_cascade(label=tr("Новый профиль из пресета"), menu=presets)
-        file_menu.add_command(label=tr("Открыть профиль..."), accelerator="Ctrl+O", command=self.open_profile_dialog)
-        file_menu.add_command(label=tr("Открыть профиль из autounattend.xml..."), command=self.import_from_xml)
-        file_menu.add_command(label=tr("Сравнить с профилем..."), command=self.compare_with_file)
+        file_menu.add_cascade(label=tr("New profile from preset"), menu=presets)
+        file_menu.add_command(label=tr("Open profile..."), accelerator="Ctrl+O", command=self.open_profile_dialog)
+        file_menu.add_command(label=tr("Open profile from autounattend.xml..."), command=self.import_from_xml)
+        file_menu.add_command(label=tr("Compare with profile..."), command=self.compare_with_file)
         self.recent_menu = tk.Menu(file_menu, tearoff=False)
-        file_menu.add_cascade(label=tr("Недавние"), menu=self.recent_menu)
+        file_menu.add_cascade(label=tr("Recent"), menu=self.recent_menu)
         self._rebuild_recent_menu()
         file_menu.add_separator()
-        file_menu.add_command(label=tr("Сохранить профиль"), accelerator="Ctrl+S", command=self.save_profile)
-        file_menu.add_command(label=tr("Сохранить профиль как..."), command=self.save_profile_as)
+        file_menu.add_command(label=tr("Save profile"), accelerator="Ctrl+S", command=self.save_profile)
+        file_menu.add_command(label=tr("Save profile as..."), command=self.save_profile_as)
         file_menu.add_separator()
-        file_menu.add_command(label=tr("Выход"), command=self.on_close)
-        menubar.add_cascade(label=tr("Файл"), menu=file_menu)
+        file_menu.add_command(label=tr("Exit"), command=self.on_close)
+        menubar.add_cascade(label=tr("File"), menu=file_menu)
         build_menu = tk.Menu(menubar, tearoff=False)
-        build_menu.add_command(label=tr("Проверить"), accelerator="F7", command=self.check)
-        build_menu.add_command(label=tr("Собрать autounattend.xml..."), accelerator="F9", command=self.build)
-        build_menu.add_command(label=tr("Открыть папку результата"), command=self.open_output_folder)
+        build_menu.add_command(label=tr("Check"), accelerator="F7", command=self.check)
+        build_menu.add_command(label=tr("Build autounattend.xml..."), accelerator="F9", command=self.build)
+        build_menu.add_command(label=tr("Open output folder"), command=self.open_output_folder)
         build_menu.add_separator()
-        build_menu.add_command(label=tr("Проверить каталог правил"), command=self.check_catalog)
-        menubar.add_cascade(label=tr("Сборка"), menu=build_menu)
+        build_menu.add_command(label=tr("Check rule catalog"), command=self.check_catalog)
+        menubar.add_cascade(label=tr("Build"), menu=build_menu)
         view_menu = tk.Menu(menubar, tearoff=False)
-        self.language_var = tk.StringVar(value=language())
-        for code, name in LANGUAGE_NAMES.items():  # native names, never translated
+        # "" follows the Windows language; the others are every translation file found (native names, never translated)
+        self.language_var = tk.StringVar(value=self.settings.language)
+        view_menu.add_radiobutton(label=tr("As in Windows"), value="", variable=self.language_var, command=lambda: self.change_language(""))
+        view_menu.add_separator()
+        for code, name in available_languages(self.paths.resources, self.paths.rules).items():
             view_menu.add_radiobutton(label=name, value=code, variable=self.language_var, command=lambda c=code: self.change_language(c))
-        menubar.add_cascade(label=tr("Язык"), menu=view_menu)
+        menubar.add_cascade(label=tr("Language"), menu=view_menu)
+        theme_menu = tk.Menu(menubar, tearoff=False)
+        self.theme_var = tk.StringVar(value=self.settings.theme)
+        theme_menu.add_radiobutton(label=tr("As in Windows"), value="", variable=self.theme_var, command=lambda: self.change_theme(""))
+        theme_menu.add_separator()
+        for theme_id, theme in available_themes(self.paths.resources).items():
+            theme_menu.add_radiobutton(label=tr(theme.name), value=theme_id, variable=self.theme_var,
+                                       command=lambda t=theme_id: self.change_theme(t))
+        menubar.add_cascade(label=tr("Theme"), menu=theme_menu)
         self.pc_menu = tk.Menu(menubar, tearoff=False)
         self._fill_pc_menu(self.pc_menu)
         self.pc_menu.add_separator()
         self.allow_apply_var = tk.BooleanVar(value=self.settings.allow_apply)
-        self.pc_menu.add_checkbutton(label=tr("Разрешить применение на этом ПК"), variable=self.allow_apply_var,
+        self.pc_menu.add_checkbutton(label=tr("Allow applying on this PC"), variable=self.allow_apply_var,
                                      command=self.toggle_allow_apply)
-        menubar.add_cascade(label=tr("Этот ПК"), menu=self.pc_menu)
+        menubar.add_cascade(label=tr("This PC"), menu=self.pc_menu)
         self.tree_menu = tk.Menu(self, tearoff=False)
         self._fill_pc_menu(self.tree_menu)
         help_menu = tk.Menu(menubar, tearoff=False)
-        help_menu.add_command(label=tr("Порядок работы"), command=lambda: self.select_node(WORKFLOW_NODE))
-        help_menu.add_command(label=tr("Документация пользователя"), command=lambda: self.open_doc(user_docs()))
-        help_menu.add_command(label=tr("О программе"), command=self.about)
-        menubar.add_cascade(label=tr("Справка"), menu=help_menu)
+        help_menu.add_command(label=tr("Workflow"), command=lambda: self.select_node(WORKFLOW_NODE))
+        help_menu.add_command(label=tr("User documentation"), command=lambda: self.open_doc(user_docs(self.paths.docs_root)))
+        help_menu.add_command(label=tr("About"), command=self.about)
+        menubar.add_cascade(label=tr("Help"), menu=help_menu)
         self.config(menu=menubar)
 
     def _build_toolbar(self) -> None:
         bar = ttk.Frame(self, padding=(8, 6, 8, 4))
         bar.pack(side=tk.TOP, fill=tk.X)
-        ttk.Label(bar, text=tr("Профиль:")).pack(side=tk.LEFT)
+        ttk.Label(bar, text=tr("Profile:")).pack(side=tk.LEFT)
         self.profile_var = tk.StringVar()
         self.profile_box = ttk.Combobox(bar, textvariable=self.profile_var, state="readonly", width=34)
         self.profile_box.pack(side=tk.LEFT, padx=(4, 6))
         self.profile_box.bind("<<ComboboxSelected>>", self._on_profile_selected)
-        for text, command in ((tr("Открыть..."), self.open_profile_dialog), (tr("Сохранить"), self.save_profile), (tr("Сохранить как..."), self.save_profile_as)):
+        for text, command in ((tr("Open..."), self.open_profile_dialog), (tr("Save"), self.save_profile), (tr("Save as..."), self.save_profile_as)):
             ttk.Button(bar, text=text, command=command).pack(side=tk.LEFT, padx=2)
         ttk.Separator(bar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
-        self.check_button = ttk.Button(bar, text=tr("Проверить (F7)"), command=self.check)
+        self.check_button = ttk.Button(bar, text=tr("Check (F7)"), command=self.check)
         self.check_button.pack(side=tk.LEFT, padx=2)
-        self.build_button = ttk.Button(bar, text=tr("Собрать autounattend.xml (F9)"), command=self.build)
+        self.build_button = ttk.Button(bar, text=tr("Build autounattend.xml (F9)"), command=self.build)
         self.build_button.pack(side=tk.LEFT, padx=2)
-        ttk.Button(bar, text=tr("Папка результата"), command=self.open_output_folder).pack(side=tk.LEFT, padx=2)
+        ttk.Button(bar, text=tr("Output folder"), command=self.open_output_folder).pack(side=tk.LEFT, padx=2)
 
     def _build_body(self) -> None:
         self.status_var = tk.StringVar()
@@ -261,11 +361,11 @@ class MainWindow(tk.Tk):
         horizontal.add(left, weight=2)
         search_row = ttk.Frame(left)
         search_row.pack(fill=tk.X)
-        ttk.Label(search_row, text=tr("Поиск:")).pack(side=tk.LEFT)
+        ttk.Label(search_row, text=tr("Search:")).pack(side=tk.LEFT)
         self.search_var = tk.StringVar()
         self.search_entry = ttk.Entry(search_row, textvariable=self.search_var)
         self.search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=4)
-        ttk.Button(search_row, text=tr("Сбросить"), command=self.clear_search).pack(side=tk.LEFT)
+        ttk.Button(search_row, text=tr("Clear"), command=self.clear_search).pack(side=tk.LEFT)
         self.search_var.trace_add("write", lambda *_: self._schedule_search())
 
         tree_frame = ttk.Frame(left)
@@ -275,10 +375,10 @@ class MainWindow(tk.Tk):
         self.tree.configure(yscrollcommand=tree_scroll.set)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         tree_scroll.pack(side=tk.LEFT, fill=tk.Y)
-        self.tree.tag_configure("off", foreground="#7a7a7a")
-        self.tree.tag_configure("changed", foreground="#1f4e79")
-        self.tree.tag_configure("risky", foreground="#a33333")
-        self.tree.tag_configure("info", foreground="#1f4e79")
+        self.tree.tag_configure("off", foreground=self.color("disabled"))
+        self.tree.tag_configure("changed", foreground=self.color("changed"))
+        self.tree.tag_configure("risky", foreground=self.color("risky"))
+        self.tree.tag_configure("info", foreground=self.color("changed"))
         self.tree.bind("<Button-1>", self._on_tree_click)
         self.tree.bind("<Double-Button-1>", self._on_tree_double)
         self.tree.bind("<space>", self._on_space)
@@ -293,6 +393,7 @@ class MainWindow(tk.Tk):
         self.text_frame = ttk.Frame(self.detail_view)
         self.text_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         self.detail = tk.Text(self.text_frame, wrap=tk.WORD, font=self.font_text, state=tk.DISABLED, padx=10, pady=8, height=12, relief=tk.FLAT)
+        self._style_text(self.detail)
         detail_scroll = ttk.Scrollbar(self.text_frame, orient=tk.VERTICAL, command=self.detail.yview)
         self.detail.configure(yscrollcommand=detail_scroll.set)
         self.detail.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -300,9 +401,9 @@ class MainWindow(tk.Tk):
         self.detail.tag_configure("h1", font=self.font_h1, spacing3=4)
         self.detail.tag_configure("h2", font=self.font_h2, spacing1=10, spacing3=2)
         self.detail.tag_configure("mono", font=self.font_mono, lmargin1=12, lmargin2=12)
-        self.detail.tag_configure("muted", foreground="#666666")
-        self.detail.tag_configure("risk", foreground="#a33333")
-        self.detail.tag_configure("link", foreground="#1a5fb4", underline=True)
+        self.detail.tag_configure("muted", foreground=self.color("muted"))
+        self.detail.tag_configure("risk", foreground=self.color("risky"))
+        self.detail.tag_configure("link", foreground=self.color("link"), underline=True)
         self.detail.tag_bind("link", "<Enter>", lambda _e: self.detail.configure(cursor="hand2"))
         self.detail.tag_bind("link", "<Leave>", lambda _e: self.detail.configure(cursor=""))
         self._link_tags: list[str] = []
@@ -311,20 +412,20 @@ class MainWindow(tk.Tk):
 
         messages = ttk.Frame(vertical, padding=(8, 2, 8, 2))
         vertical.add(messages, weight=1)
-        ttk.Label(messages, text=tr("Сообщения: проверка, сборка, автоматические изменения (двойной щелчок ведёт к правилу)")).pack(anchor=tk.W)
+        ttk.Label(messages, text=tr("Messages: check, build, automatic changes (double-click to go to the rule)")).pack(anchor=tk.W)
         box = ttk.Frame(messages)
         box.pack(fill=tk.BOTH, expand=True)
         self.messages = ttk.Treeview(box, columns=("level", "target", "message"), show="headings", height=5)
-        for column, title, width, stretch in (("level", tr("Вид"), 110, False), ("target", tr("Где"), 230, False), ("message", tr("Сообщение"), 700, True)):
+        for column, title, width, stretch in (("level", tr("Type"), 110, False), ("target", tr("Location"), 230, False), ("message", tr("Message"), 700, True)):
             self.messages.heading(column, text=title)
             self.messages.column(column, width=width, stretch=stretch)
         messages_scroll = ttk.Scrollbar(box, orient=tk.VERTICAL, command=self.messages.yview)
         self.messages.configure(yscrollcommand=messages_scroll.set)
         self.messages.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         messages_scroll.pack(side=tk.LEFT, fill=tk.Y)
-        self.messages.tag_configure("error", foreground="#b00020")
-        self.messages.tag_configure("warning", foreground="#8a5a00")
-        self.messages.tag_configure("change", foreground="#1f4e79")
+        self.messages.tag_configure("error", foreground=self.color("error"))
+        self.messages.tag_configure("warning", foreground=self.color("warning"))
+        self.messages.tag_configure("change", foreground=self.color("changed"))
         self.messages.bind("<Double-Button-1>", self._on_message_double)
 
     def _bind_keys(self) -> None:
@@ -365,7 +466,7 @@ class MainWindow(tk.Tk):
         """Build the tree from the catalog. With visible, only those rules (and their groups) are shown, expanded."""
         self.tree.delete(*self.tree.get_children(""))
         if visible is None:
-            self.tree.insert("", tk.END, iid=WORKFLOW_NODE, text="  " + tr("Порядок работы"), tags=("info",))
+            self.tree.insert("", tk.END, iid=WORKFLOW_NODE, text="  " + tr("Workflow"), tags=("info",))
             for iid, title in DATA_NODES:
                 self.tree.insert("", tk.END, iid=iid, text="  " + tr(title))
         self._insert_groups("", None, visible)
@@ -407,7 +508,7 @@ class MainWindow(tk.Tk):
 
     def _group_text(self, group_id: str) -> str:
         on, total = self._group_counts(group_id)
-        return " " + tr("{0}   {1} из {2}", self.group_title(group_id), on, total)
+        return " " + tr("{0}   {1} of {2}", self.group_title(group_id), on, total)
 
     # ----------------------------------------------------------------- texts in the interface language
 
@@ -516,33 +617,33 @@ class MainWindow(tk.Tk):
     def _reason_text(self, change: Change) -> str:
         reason = change.reason
         for prefix, template in (
-            ("requires ", tr("требует «{}», которое выключено")),
-            ("required by ", tr("нужно для «{}»")),
-            ("conflicts with ", tr("конфликтует с «{}»")),
+            ("requires ", tr("requires \"{}\", which is disabled")),
+            ("required by ", tr("needed by \"{}\"")),
+            ("conflicts with ", tr("conflicts with \"{}\"")),
         ):
             if reason.startswith(prefix):
                 other = reason[len(prefix):]
                 title = self.rule_title(other) if other in self.catalog.rules else other
                 return template.format(title)
-        return tr("по вашему действию")
+        return tr("by your action")
 
     def _apply_changes(self, changes: list[Change], scope: set[str] | None = None) -> None:
         """Show the result of a toggle. scope: rules the user acted on (a rule or a whole group);
         everything else in changes happened automatically because of dependencies."""
         if not changes:
-            self.set_status(tr("Без изменений"))
+            self.set_status(tr("No changes"))
             return
         self.mark_dirty()
         self.refresh_marks()
         scope = scope if scope is not None else {c.rule_id for c in changes if c.reason == "user"}
         direct = [c for c in changes if c.rule_id in scope]
         cascade = [c for c in changes if c.rule_id not in scope]
-        action = tr("Включено") if (direct or changes)[0].enabled else tr("Выключено")
-        text = tr("{0} правил: {1}", action, len(direct))
+        action = tr("Enabled") if (direct or changes)[0].enabled else tr("Disabled")
+        text = tr("{0} rules: {1}", action, len(direct))
         if cascade:
-            text += tr("; автоматически изменено ещё {0} за пределами выбранного (список внизу)", len(cascade))
+            text += tr("; {0} more changed automatically outside the selection (list below)", len(cascade))
             rows = [
-                Issue("change", c.rule_id, tr("{0} «{1}»: {2}", tr("Включено") if c.enabled else tr("Выключено"), self.rule_title(c.rule_id), self._reason_text(c)))
+                Issue("change", c.rule_id, tr("{0} \"{1}\": {2}", tr("Enabled") if c.enabled else tr("Disabled"), self.rule_title(c.rule_id), self._reason_text(c)))
                 for c in cascade
             ]
             self.show_issues(rows)
@@ -567,12 +668,13 @@ class MainWindow(tk.Tk):
                 self.tree.see(self._current_item)
             return
         found = set(self.catalog.search(query))
-        if language() != "ru":  # the index is Russian; also search the translated titles and summaries
+        if language() != SOURCE_LANGUAGE:  # the index is English; also search the translated titles, summaries and tags
             needle = query.lower()
+            texts = catalog_texts()
             found |= {r.id for r in self.catalog.rules.values()
-                      if needle in (self.rule_text(r, "title") + " " + self.rule_text(r, "summary")).lower()}
+                      if needle in " ".join([self.rule_text(r, "title"), self.rule_text(r, "summary"), *texts.tags(r)]).lower()}
         self.rebuild_tree(found)
-        self.set_status(tr("Найдено правил: {0}", len(found)) if found else tr("Ничего не найдено"))
+        self.set_status(tr("Rules found: {0}", len(found)) if found else tr("Nothing found"))
 
     def clear_search(self) -> None:
         if self._search_job is not None:
@@ -623,54 +725,54 @@ class MainWindow(tk.Tk):
         enabled = self.profile.is_enabled(rule.id)
         parts: list[tuple[str, str]] = [
             ("h1", self.rule_title(rule.id)),
-            ("muted", tr("{0}   |   уровень: {1}   |   {2}   |   {3}", tr("Включено") if enabled else tr("Выключено"),
+            ("muted", tr("{0}   |   level: {1}   |   {2}   |   {3}", tr("Enabled") if enabled else tr("Disabled"),
                          tr(LEVEL_TITLES.get(rule.level, rule.level)), tr(PHASE_TITLES.get(rule.phase, rule.phase)), rule.id)),
             ("", self.rule_text(rule, "summary")),
-            ("h2", tr("Что делает технически")),
+            ("h2", tr("What it does technically")),
         ]
         parts += [("mono", self._action_text(action, params)) for action in rule.actions]
-        parts += [("h2", tr("Эффект")), ("", self.rule_text(rule, "effect"))]
+        parts += [("h2", tr("Effect")), ("", self.rule_text(rule, "effect"))]
         if rule.risk:
-            parts += [("h2", tr("Риск и побочные действия")), ("risk", self.rule_text(rule, "risk"))]
+            parts += [("h2", tr("Risks and side effects")), ("risk", self.rule_text(rule, "risk"))]
         if rule.versions:
-            parts += [("h2", tr("Версии Windows")), ("", self.rule_text(rule, "versions"))]
-        parts.append(("h2", tr("Зависимости")))
+            parts += [("h2", tr("Windows versions")), ("", self.rule_text(rule, "versions"))]
+        parts.append(("h2", tr("Dependencies")))
         for caption, ids, optional in (
-            (tr("Требует"), list(rule.requires), False),
-            (tr("Выключится вместе с ним"), self.resolver.dependents(rule.id), False),
-            (tr("Конфликтует с"), list(rule.conflicts), True),
+            (tr("Requires"), list(rule.requires), False),
+            (tr("Disabled along with it"), self.resolver.dependents(rule.id), False),
+            (tr("Conflicts with"), list(rule.conflicts), True),
         ):
             if not ids and optional:
                 continue
-            parts.append(("", f"{caption}: {tr('ничего')}" if not ids else f"{caption}:"))
+            parts.append(("", f"{caption}: {tr("nothing")}" if not ids else f"{caption}:"))
             parts += [(f"link:r:{other}", "    " + self._rule_link_text(other)) for other in ids]
-        parts.append(("h2", tr("Проверка после установки")))
+        parts.append(("h2", tr("Check after installation")))
         if rule.verify:
             parts.append(("mono", self.rule_text(rule, "verify")))
         else:
-            parts.append(("muted", tr("Сформировано по действиям правила:")))
+            parts.append(("muted", tr("Generated from the rule's actions:")))
             parts += [("mono", step) for step in verify_steps(rule, params)]
-        parts.append(("h2", tr("Откат")))
+        parts.append(("h2", tr("Rollback")))
         if rule.rollback:
             parts.append(("", self.rule_text(rule, "rollback")))
         else:
-            parts.append(("muted", tr("Сформировано по действиям правила:")))
+            parts.append(("muted", tr("Generated from the rule's actions:")))
             parts += [("mono", step) for step in rollback_steps(rule, params)]
-        parts += [("h2", tr("Подробнее")), (f"link:doc:{rule.doc}", tr("Карточка справочника: ") + rule.doc)]
+        parts += [("h2", tr("More details")), (f"link:doc:{rule.doc}", tr("Reference entry: ") + rule.doc)]
         return parts
 
     def _rule_link_text(self, rule_id: str) -> str:
-        state = tr("включено") if self.profile.is_enabled(rule_id) else tr("выключено")
+        state = tr("enabled") if self.profile.is_enabled(rule_id) else tr("disabled")
         return f"{self.rule_title(rule_id)} ({state})"
 
     def _group_parts(self, group_id: str) -> list[tuple[str, str]]:
         group = self.catalog.groups[group_id]
         on, total = self._group_counts(group_id)
         summary = catalog_texts().group(group, "summary")
-        parts: list[tuple[str, str]] = [("h1", self.group_title(group_id)), ("muted", tr("Правил: {0}, включено: {1}", total, on))]
+        parts: list[tuple[str, str]] = [("h1", self.group_title(group_id)), ("muted", tr("Rules: {0}, enabled: {1}", total, on))]
         if summary:
             parts.append(("", summary))
-        parts.append(("h2", tr("Правила группы")))
+        parts.append(("h2", tr("Rules in this group")))
         for rule in self.catalog.rules_in_group(group_id):
             mark = "[x]" if self.profile.is_enabled(rule.id) else "[ ]"
             parts.append((f"link:r:{rule.id}", f"{mark} {self.rule_title(rule.id)}"))
@@ -680,9 +782,9 @@ class MainWindow(tk.Tk):
         f = action.fields
         if action.type == "xml-oobe":
             value = substitute(f["value"], params)
-            return tr("XML, первичная настройка: <{0}>{1}</{2}>", f['element'], value, f['element'])
+            return tr("XML, initial setup: <{0}>{1}</{2}>", f['element'], value, f['element'])
         if action.type in ("xml-pe-command", "xml-specialize-command"):
-            return tr("XML, команда: {0}", f['command'])
+            return tr("XML, command: {0}", f['command'])
         try:
             return render_action(action, params)
         except (RenderError, KeyError) as exc:
@@ -718,13 +820,13 @@ class MainWindow(tk.Tk):
         """Open a card of the reference in the program Windows associates with .md files."""
         path = self.paths.docs_root / doc.split("#", 1)[0]
         if not path.exists():
-            self.set_status(tr("Карточка справочника не найдена: {0}", path))
+            self.set_status(tr("Reference entry not found: {0}", path))
             return
         try:
             os.startfile(path)  # type: ignore[attr-defined]
-            self.set_status(tr("Открыта карточка справочника: {0}", path.name) + (tr(", раздел «{0}»", doc.split('#', 1)[1]) if "#" in doc else ""))
+            self.set_status(tr("Opened reference entry: {0}", path.name) + (tr(", section \"{0}\"", doc.split('#', 1)[1]) if "#" in doc else ""))
         except OSError as exc:
-            self.set_status(tr("Карточка не открылась: {0}", exc))
+            self.set_status(tr("Could not open the reference entry: {0}", exc))
 
     def _clear_params(self) -> None:
         for widget in self.params_frame.winfo_children():
@@ -735,12 +837,12 @@ class MainWindow(tk.Tk):
 
     def _build_group_buttons(self, group_id: str) -> None:
         self._clear_params()
-        self.params_frame.configure(text=tr("Вся группа"))
+        self.params_frame.configure(text=tr("Whole group"))
         self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
         for text, command in (
-            (tr("Включить все"), lambda: self._group_action(group_id, True)),
-            (tr("Выключить все"), lambda: self._group_action(group_id, False)),
-            (tr("Как в каталоге по умолчанию"), lambda: self._group_reset(group_id)),
+            (tr("Enable all"), lambda: self._group_action(group_id, True)),
+            (tr("Disable all"), lambda: self._group_action(group_id, False)),
+            (tr("Catalog defaults"), lambda: self._group_reset(group_id)),
         ):
             ttk.Button(self.params_frame, text=text, command=command).pack(side=tk.LEFT, padx=(0, 6))
 
@@ -758,20 +860,20 @@ class MainWindow(tk.Tk):
         self._clear_params()
         if not rule.params:
             return
-        self.params_frame.configure(text=tr("Параметры правила"))
+        self.params_frame.configure(text=tr("Rule parameters"))
         self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
         for row, param in enumerate(rule.params.values()):
             ttk.Label(self.params_frame, text=self.param_title(rule, param)).grid(row=row, column=0, sticky=tk.W, padx=(0, 12), pady=2)
             self._param_widget(rule, param).grid(row=row, column=1, sticky=tk.W, pady=2)
-            hint = tr("по умолчанию: {0}", self._param_display(rule, param, param.default))
+            hint = tr("default: {0}", self._param_display(rule, param, param.default))
             if param.type == "int" and (param.min is not None or param.max is not None):
-                hint += tr(", диапазон {0}..{1}", param.min, param.max)
+                hint += tr(", range {0}..{1}", param.min, param.max)
             ttk.Label(self.params_frame, text=hint, style="Note.TLabel").grid(row=row, column=2, sticky=tk.W, padx=(10, 0))
             mark = ttk.Label(self.params_frame, style="Changed.TLabel")
             mark.grid(row=row, column=3, sticky=tk.W, padx=(10, 0))
             self._param_marks[param.name] = mark
             self._update_param_mark(rule, param)
-        ttk.Button(self.params_frame, text=tr("Вернуть значения по умолчанию"), command=lambda: self._reset_params(rule)).grid(
+        ttk.Button(self.params_frame, text=tr("Restore defaults"), command=lambda: self._reset_params(rule)).grid(
             row=len(rule.params), column=1, sticky=tk.W, pady=(6, 0)
         )
 
@@ -779,7 +881,7 @@ class MainWindow(tk.Tk):
         if param.type == "enum":
             return next((title for v, title in self.param_options(rule, param) if v == value), str(value))
         if param.type == "bool":
-            return tr("да") if value else tr("нет")
+            return tr("yes") if value else tr("no")
         return str(value)
 
     def _param_widget(self, rule: Rule, param: Param) -> tk.Widget:
@@ -809,16 +911,16 @@ class MainWindow(tk.Tk):
         """A parameter that differs from the catalog default is marked next to its hint."""
         mark = self._param_marks.get(param.name)
         if mark is not None:
-            mark.configure(text=tr("изменено") if param.name in self.profile.rules[rule.id].params else "")
+            mark.configure(text=tr("changed") if param.name in self.profile.rules[rule.id].params else "")
 
     def _set_param_text(self, rule: Rule, param: Param, raw: str) -> None:
         try:
             value = int(raw)
         except ValueError:
-            self.set_status(tr("«{0}»: нужно целое число", self.param_title(rule, param)))
+            self.set_status(tr("\"{0}\": an integer is required", self.param_title(rule, param)))
             return
         if param.min is not None and value < param.min or param.max is not None and value > param.max:
-            self.set_status(tr("«{0}»: допустимо от {1} до {2}", self.param_title(rule, param), param.min, param.max))
+            self.set_status(tr("\"{0}\": allowed range is {1} to {2}", self.param_title(rule, param), param.min, param.max))
             return
         self._set_param(rule, param, value)
 
@@ -832,7 +934,7 @@ class MainWindow(tk.Tk):
         else:
             state.params[param.name] = value
         self.mark_dirty()
-        self.set_status(f"«{self.rule_title(rule.id)}»: {self.param_title(rule, param)} = {self._param_display(rule, param, value)}")
+        self.set_status(f"{self.rule_title(rule.id)}: {self.param_title(rule, param)} = {self._param_display(rule, param, value)}")
         self._update_param_mark(rule, param)
         self.refresh_marks()
         self._write_detail(self._rule_parts(rule))
@@ -875,7 +977,7 @@ class MainWindow(tk.Tk):
     def refresh_profile_choices(self) -> None:
         choices: list[tuple[str, Path]] = []
         for path in sorted((self.paths.data / "profiles").glob("preset-*.json")):
-            choices.append((tr("Пресет: {0}", tr(_profile_name(path))), path))
+            choices.append((tr("Preset: {0}", tr(_profile_name(path))), path))
         for path in sorted(self.paths.profiles.glob("*.json")):
             if not path.name.startswith("preset-"):
                 choices.append((path.stem, path))
@@ -893,7 +995,7 @@ class MainWindow(tk.Tk):
                 if path.resolve() == self.profile.path.resolve():
                     return label
             return self.profile.path.stem
-        return tr("{0} (не сохранён)", tr(self.profile.name))
+        return tr("{0} (not saved)", tr(self.profile.name))
 
     def _is_preset(self, path: Path | None) -> bool:
         return path is not None and path.name.startswith("preset-")
@@ -909,7 +1011,7 @@ class MainWindow(tk.Tk):
     def confirm_discard(self) -> bool:
         if not self.dirty:
             return True
-        answer = messagebox.askyesnocancel(APP_NAME, tr("Профиль «{0}» изменён. Сохранить изменения?", tr(self.profile.name)), parent=self)
+        answer = messagebox.askyesnocancel(APP_NAME, tr("Profile \"{0}\" has been changed. Save changes?", tr(self.profile.name)), parent=self)
         if answer is None:
             return False
         if answer:
@@ -937,13 +1039,13 @@ class MainWindow(tk.Tk):
         try:
             profile, warnings = Profile.load(path, self.catalog)
         except (OSError, ValueError) as exc:
-            messagebox.showerror(APP_NAME, tr("Профиль не открыт:\n{0}\n\n{1}", path, exc), parent=self)
+            messagebox.showerror(APP_NAME, tr("Could not open the profile:\n{0}\n\n{1}", path, exc), parent=self)
             return False
         self.set_profile(profile, dirty=False, warnings=warnings)
         if not self._is_preset(path):
             self.remember_file(path)
-        kind = tr("Пресет") if self._is_preset(path) else tr("Профиль")
-        self.set_status(tr("{0} «{1}» открыт", kind, profile.name) + (tr(" (изменения сохраняются под новым именем)") if self._is_preset(path) else ""))
+        kind = tr("Preset") if self._is_preset(path) else tr("Profile")
+        self.set_status(tr("{0} \"{1}\" opened", kind, profile.name) + (tr(" (changes are saved under a new name)") if self._is_preset(path) else ""))
         return True
 
     def remember_file(self, path: Path | None) -> None:
@@ -956,7 +1058,7 @@ class MainWindow(tk.Tk):
     def _rebuild_recent_menu(self) -> None:
         self.recent_menu.delete(0, tk.END)
         if not self.settings.recent:
-            self.recent_menu.add_command(label=tr("(пусто)"), state=tk.DISABLED)
+            self.recent_menu.add_command(label=tr("(empty)"), state=tk.DISABLED)
             return
         for index, item in enumerate(self.settings.recent, start=1):
             self.recent_menu.add_command(label=f"{index}. {item}", command=lambda i=item: self.open_recent(i))
@@ -964,7 +1066,7 @@ class MainWindow(tk.Tk):
     def open_recent(self, item: str) -> bool:
         path = Settings.resolve(item, self.paths.root)
         if not path.exists():
-            messagebox.showerror(APP_NAME, tr("Файл не найден и убран из списка недавних:\n{0}", path), parent=self)
+            messagebox.showerror(APP_NAME, tr("File not found and removed from the recent list:\n{0}", path), parent=self)
             self.settings.forget(path, self.paths.root)
             self.settings.save(self.paths.settings_file)
             self._rebuild_recent_menu()
@@ -974,8 +1076,8 @@ class MainWindow(tk.Tk):
         return self.load_profile_file(path)
 
     def open_profile_dialog(self) -> None:
-        name = filedialog.askopenfilename(parent=self, title=tr("Открыть профиль"), initialdir=str(self.paths.profiles),
-                                          filetypes=[(tr("Профиль WinKickOff"), "*.json"), (tr("Все файлы"), "*.*")])
+        name = filedialog.askopenfilename(parent=self, title=tr("Open profile"), initialdir=str(self.paths.profiles),
+                                          filetypes=[(tr("WinKickOff profile"), "*.json"), (tr("All files"), "*.*")])
         if name:
             self.load_profile_file(Path(name))
 
@@ -985,45 +1087,45 @@ class MainWindow(tk.Tk):
         try:
             self.profile.save(self.profile.path, self.catalog)
         except OSError as exc:
-            messagebox.showerror(APP_NAME, tr("Профиль не сохранён:\n{0}", exc), parent=self)
+            messagebox.showerror(APP_NAME, tr("Could not save the profile:\n{0}", exc), parent=self)
             return False
         self.dirty = False
         self.update_title()
         self.remember_file(self.profile.path)
-        self.set_status(tr("Профиль сохранён: {0}", self.profile.path))
+        self.set_status(tr("Profile saved: {0}", self.profile.path))
         return True
 
     def save_profile_as(self) -> bool:
         suggested = re.sub(r'[\\/:*?"<>|]', "_", self.profile.name) or "profile"
         if self._is_preset(self.profile.path):
-            suggested += tr(" (мой)")
-        name = filedialog.asksaveasfilename(parent=self, title=tr("Сохранить профиль как"), initialdir=str(self.paths.profiles),
+            suggested += tr(" (mine)")
+        name = filedialog.asksaveasfilename(parent=self, title=tr("Save profile as"), initialdir=str(self.paths.profiles),
                                             initialfile=f"{suggested}.json", defaultextension=".json",
-                                            filetypes=[(tr("Профиль WinKickOff"), "*.json")])
+                                            filetypes=[(tr("WinKickOff profile"), "*.json")])
         if not name:
             return False
         path = Path(name)
         if path.name.startswith("preset-"):
-            messagebox.showerror(APP_NAME, tr("Имена preset-*.json зарезервированы для пресетов. Выберите другое имя."), parent=self)
+            messagebox.showerror(APP_NAME, tr("The names preset-*.json are reserved for presets. Choose a different name."), parent=self)
             return False
         self.profile.name = path.stem
         try:
             self.profile.save(path, self.catalog)
         except OSError as exc:
-            messagebox.showerror(APP_NAME, tr("Профиль не сохранён:\n{0}", exc), parent=self)
+            messagebox.showerror(APP_NAME, tr("Could not save the profile:\n{0}", exc), parent=self)
             return False
         self.dirty = False
         self.refresh_profile_choices()
         self.update_title()
         self.remember_file(path)
-        self.set_status(tr("Профиль сохранён: {0}", path))
+        self.set_status(tr("Profile saved: {0}", path))
         return True
 
     # ----------------------------------------------------------------- comparison
 
     def compare_with_file(self) -> None:
-        name = filedialog.askopenfilename(parent=self, title=tr("Сравнить с профилем"), initialdir=str(self.paths.profiles),
-                                          filetypes=[(tr("Профиль WinKickOff"), "*.json"), (tr("Все файлы"), "*.*")])
+        name = filedialog.askopenfilename(parent=self, title=tr("Compare with profile"), initialdir=str(self.paths.profiles),
+                                          filetypes=[(tr("WinKickOff profile"), "*.json"), (tr("All files"), "*.*")])
         if name:
             self.show_comparison(Path(name))
 
@@ -1031,12 +1133,12 @@ class MainWindow(tk.Tk):
         """(tree node, kind, item, value here, value there) for every difference from other."""
 
         def state(value: Any) -> str:
-            return "" if value is None else tr("включено") if value else tr("выключено")
+            return "" if value is None else tr("enabled") if value else tr("disabled")
 
-        install_titles = {"edition": tr("Редакция"), "product_key_mode": tr("Режим ключа"), "product_key": tr("Ключ продукта"),
-                          "time_zone": tr("Часовой пояс")}
-        language_titles = {"ui_language": tr("Язык интерфейса"), "system_locale": tr("Язык программ без Юникода"),
-                           "user_locale": tr("Формат дат и чисел"), "input": tr("Языки ввода")}
+        install_titles = {"edition": tr("Edition"), "product_key_mode": tr("Key mode"), "product_key": tr("Product key"),
+                          "time_zone": tr("Time zone")}
+        language_titles = {"ui_language": tr("Display language"), "system_locale": tr("Language for non-Unicode programs"),
+                           "user_locale": tr("Date and number format"), "input": tr("Input languages")}
 
         def text(value: Any) -> str:
             return ", ".join(str(v) for v in value) if isinstance(value, list) else "" if value is None else str(value)
@@ -1045,40 +1147,40 @@ class MainWindow(tk.Tk):
         for d in self.profile.diff(other, self.catalog):
             if d.kind == "rule":
                 title = self.rule_title(d.key) if d.key in self.catalog.rules else d.key
-                rows.append(("r:" + d.key, tr("правило"), title, state(d.before), state(d.after)))
+                rows.append(("r:" + d.key, tr("rule"), title, state(d.before), state(d.after)))
             elif d.kind == "param":
                 rule_id, _, name = d.key.rpartition(".")
                 rule = self.catalog.rules.get(rule_id)
                 if rule is not None and name in rule.params:
                     param = rule.params[name]
-                    rows.append(("r:" + rule_id, tr("параметр"), f"{self.rule_title(rule_id)}: {self.param_title(rule, param)}",
+                    rows.append(("r:" + rule_id, tr("parameter"), f"{self.rule_title(rule_id)}: {self.param_title(rule, param)}",
                                  self._param_display(rule, param, d.before), self._param_display(rule, param, d.after)))
                 else:
-                    rows.append(("", tr("параметр"), d.key, text(d.before), text(d.after)))
+                    rows.append(("", tr("parameter"), d.key, text(d.before), text(d.after)))
             elif d.kind == "install":
-                rows.append(("data:install", tr("установка"), install_titles.get(d.key, d.key), text(d.before), text(d.after)))
+                rows.append(("data:install", tr("installation"), install_titles.get(d.key, d.key), text(d.before), text(d.after)))
             elif d.kind == "languages":
-                rows.append(("data:languages", tr("языки"), language_titles.get(d.key, d.key), text(d.before), text(d.after)))
+                rows.append(("data:languages", tr("languages"), language_titles.get(d.key, d.key), text(d.before), text(d.after)))
             else:
-                rows.append(("data:accounts", tr("учётные записи"), tr("список учётных записей"), text(d.before), text(d.after)))
+                rows.append(("data:accounts", tr("accounts"), tr("account list"), text(d.before), text(d.after)))
         return rows
 
     def show_comparison(self, path: Path) -> tk.Toplevel | None:
         try:
             other, _warnings = Profile.load(path, self.catalog)
         except (OSError, ValueError) as exc:
-            messagebox.showerror(APP_NAME, tr("Профиль не открыт:\n{0}\n\n{1}", path, exc), parent=self)
+            messagebox.showerror(APP_NAME, tr("Could not open the profile:\n{0}\n\n{1}", path, exc), parent=self)
             return None
         rows = self.comparison_rows(other)
         window = tk.Toplevel(self)
-        window.title(tr("Сравнение: «{0}» и «{1}»", tr(self.profile.name), tr(other.name)))
+        window.title(tr("Comparison: \"{0}\" and \"{1}\"", tr(self.profile.name), tr(other.name)))
         window.geometry("980x520")
-        caption = tr("Различий: {0}. Двойной щелчок ведёт к правилу или данным.", len(rows)) if rows else tr("Профили совпадают.")
+        caption = tr("Differences: {0}. Double-click to go to the rule or data.", len(rows)) if rows else tr("The profiles are identical.")
         ttk.Label(window, text=caption, padding=(10, 8)).pack(anchor=tk.W)
         box = ttk.Frame(window, padding=(10, 0, 10, 0))
         box.pack(fill=tk.BOTH, expand=True)
         table = ttk.Treeview(box, columns=("kind", "item", "mine", "theirs"), show="headings")
-        for column, title, width in (("kind", tr("Что"), 110), ("item", tr("Где"), 420),
+        for column, title, width in (("kind", tr("Item"), 110), ("item", tr("Location"), 420),
                                      ("mine", tr(self.profile.name), 200), ("theirs", tr(other.name), 200)):
             table.heading(column, text=title)
             table.column(column, width=width, stretch=column == "item")
@@ -1098,15 +1200,15 @@ class MainWindow(tk.Tk):
                 self.select_node(targets[selection[0]])
 
         table.bind("<Double-Button-1>", go)
-        ttk.Button(window, text=tr("Закрыть"), command=window.destroy).pack(anchor=tk.E, padx=10, pady=8)
+        ttk.Button(window, text=tr("Close"), command=window.destroy).pack(anchor=tk.E, padx=10, pady=8)
         window.comparison_rows = rows  # type: ignore[attr-defined]
         return window
 
     def import_from_xml(self) -> None:
         if not self.confirm_discard():
             return
-        name = filedialog.askopenfilename(parent=self, title=tr("Открыть профиль из autounattend.xml"),
-                                          filetypes=[(tr("Файл ответов"), "*.xml"), (tr("Все файлы"), "*.*")])
+        name = filedialog.askopenfilename(parent=self, title=tr("Open profile from autounattend.xml"),
+                                          filetypes=[(tr("Answer file"), "*.xml"), (tr("All files"), "*.*")])
         if name:
             self.import_file(Path(name))
 
@@ -1117,15 +1219,15 @@ class MainWindow(tk.Tk):
             text = path.read_text(encoding="utf-8")
             profile, warnings = import_xml(text, self.catalog, self.resources.keyboards)
         except (OSError, UnicodeDecodeError, ImportFailed) as exc:
-            messagebox.showerror(APP_NAME, tr("Профиль не восстановлен:\n{0}", exc), parent=self)
+            messagebox.showerror(APP_NAME, tr("Could not restore the profile:\n{0}", exc), parent=self)
             return False
         by_actions = profile.name == IMPORTED_NAME
         if by_actions:
-            profile.name = tr("Импорт {0}", path.stem)
+            profile.name = tr("Import {0}", path.stem)
         self.set_profile(profile, dirty=True, warnings=warnings)
         self.remember_file(path)
-        how = tr("по действиям файла (сомнения в списке внизу)") if by_actions else tr("из встроенного профиля")
-        self.set_status(tr("Профиль «{0}» восстановлен {1}; сохраните его, чтобы использовать повторно", profile.name, how))
+        how = tr("from the file's actions (uncertain items in the list below)") if by_actions else tr("from the embedded profile")
+        self.set_status(tr("Profile \"{0}\" restored {1}; save it to use it again", profile.name, how))
         return True
 
     # ----------------------------------------------------------------- check and build
@@ -1137,7 +1239,7 @@ class MainWindow(tk.Tk):
         try:
             result = self.renderer.build(self.profile, app_version=APP_VERSION)
         except RenderError as exc:
-            return None, issues + [Issue("error", "build", tr("Сборка невозможна: {0}", exc))]
+            return None, issues + [Issue("error", "build", tr("Cannot build: {0}", exc))]
         issues += validate_xml(result.xml)
         if with_powershell and not has_errors(issues):
             issues += self._ps_issues(check_scripts(result.scripts, self.paths.logs / "tmp"))
@@ -1146,32 +1248,32 @@ class MainWindow(tk.Tk):
     @staticmethod
     def _ps_issues(ps: PsCheckResult) -> list[Issue]:
         if ps.skipped:
-            return [Issue("info", "powershell", tr("Проверка синтаксиса PowerShell пропущена: powershell.exe не найден"))]
+            return [Issue("info", "powershell", tr("PowerShell syntax check skipped: powershell.exe not found"))]
         if ps.failure:
-            return [Issue("warning", "powershell", tr("Проверка синтаксиса PowerShell не выполнена: {0}", ps.failure))]
+            return [Issue("warning", "powershell", tr("PowerShell syntax check could not be run: {0}", ps.failure))]
         if ps.errors:
             return [Issue("error", "powershell", e) for e in ps.errors]
-        return [Issue("info", "powershell", tr("Синтаксис скриптов по Windows PowerShell 5.1: ошибок нет"))]
+        return [Issue("info", "powershell", tr("Script syntax (Windows PowerShell 5.1): no errors"))]
 
     def check(self) -> list[Issue]:
         result, issues = self.run_checks(with_powershell=False)
         if result is not None:
-            issues.append(Issue("info", "build", tr("Файл соберётся: {0} правил, скрипты: {1}", len(result.rule_ids), ', '.join(result.scripts) or tr('нет скриптов'))))
+            issues.append(Issue("info", "build", tr("The file can be built: {0} rules, scripts: {1}", len(result.rule_ids), ', '.join(result.scripts) or tr("no scripts"))))
         self.show_issues(issues)
         errors = sum(1 for i in issues if i.level == "error")
         warnings = sum(1 for i in issues if i.level == "warning")
-        self.set_status(tr("Проверка: ошибок {0}, предупреждений {1}", errors, warnings) + (tr("; можно собирать (F9)") if not errors else ""))
+        self.set_status(tr("Check: {0} errors, {1} warnings", errors, warnings) + (tr("; ready to build (F9)") if not errors else ""))
         return issues
 
     def check_catalog(self) -> list[Issue]:
         """Re-read the rule files from disk and report defects (useful while editing the TOML)."""
         catalog, issues = validate_catalog(self.paths.rules, self.paths.docs_root)
         if catalog is not None:
-            issues.append(Issue("info", "catalog", tr("Каталог {0} читается: {1} правил, {2} групп. Изменения файлов каталога вступают в силу после перезапуска программы.", catalog.version, len(catalog.rules), len(catalog.groups))))
+            issues.append(Issue("info", "catalog", tr("Catalog {0} is readable: {1} rules, {2} groups. Changes to catalog files take effect after the program is restarted.", catalog.version, len(catalog.rules), len(catalog.groups))))
         self.show_issues(issues)
         errors = sum(1 for i in issues if i.level == "error")
         warnings = sum(1 for i in issues if i.level == "warning")
-        self.set_status(tr("Проверка каталога: ошибок {0}, предупреждений {1}", errors, warnings))
+        self.set_status(tr("Catalog check: {0} errors, {1} warnings", errors, warnings))
         return issues
 
     def write_build(self, result: BuildResult, path: Path) -> None:
@@ -1206,7 +1308,7 @@ class MainWindow(tk.Tk):
                 outcome["error"] = exc
 
         thread = threading.Thread(target=work, name="pscheck", daemon=True)
-        self.set_busy(True, tr("Проверка синтаксиса PowerShell..."))
+        self.set_busy(True, tr("Checking PowerShell syntax..."))
         thread.start()
 
         def poll() -> None:
@@ -1215,7 +1317,7 @@ class MainWindow(tk.Tk):
                 return
             self.set_busy(False)
             if "error" in outcome:
-                extra = [Issue("warning", "powershell", tr("Проверка синтаксиса PowerShell не выполнена: {0}", outcome['error']))]
+                extra = [Issue("warning", "powershell", tr("PowerShell syntax check could not be run: {0}", outcome['error']))]
             else:
                 extra = self._ps_issues(outcome["ps"])
             self._finish_build(result, issues + extra)
@@ -1226,28 +1328,28 @@ class MainWindow(tk.Tk):
         self.show_issues(issues)
         if result is None or has_errors(issues):
             count = sum(1 for i in issues if i.level == "error")
-            self.set_status(tr("Сборка остановлена: ошибок {0}", count))
-            messagebox.showerror(APP_NAME, tr("Сборка остановлена: ошибок {0}. Список внизу окна, двойной щелчок ведёт к месту ошибки.", count), parent=self)
+            self.set_status(tr("Build stopped: {0} errors", count))
+            messagebox.showerror(APP_NAME, tr("Build stopped: {0} errors. See the list at the bottom of the window; double-click an item to go to the error.", count), parent=self)
             return
         initial_dir = self._last_output.parent if self._last_output else self.paths.output
-        name = filedialog.asksaveasfilename(parent=self, title=tr("Сохранить файл ответов"), initialdir=str(initial_dir),
+        name = filedialog.asksaveasfilename(parent=self, title=tr("Save answer file"), initialdir=str(initial_dir),
                                             initialfile="autounattend.xml", defaultextension=".xml",
-                                            filetypes=[(tr("Файл ответов Windows"), "*.xml")])
+                                            filetypes=[(tr("Windows answer file"), "*.xml")])
         if not name:
-            self.set_status(tr("Сборка готова, но не сохранена"))
+            self.set_status(tr("Build complete but not saved"))
             return
         path = Path(name)
         try:
             self.write_build(result, path)
         except OSError as exc:
-            messagebox.showerror(APP_NAME, tr("Файл не записан:\n{0}", exc), parent=self)
+            messagebox.showerror(APP_NAME, tr("Could not write the file:\n{0}", exc), parent=self)
             return
-        note = "" if path.name.lower() == "autounattend.xml" else tr("\n\nВнимание: установщик ищет файл только с именем autounattend.xml.")
-        self.show_issues(issues + [Issue("info", "build", tr("Сохранено: {0} ({1} правил)", path, len(result.rule_ids)))])
-        self.set_status(tr("Собрано: {0}", path))
+        note = "" if path.name.lower() == "autounattend.xml" else tr("\n\nWarning: Windows Setup looks only for a file named autounattend.xml.")
+        self.show_issues(issues + [Issue("info", "build", tr("Saved: {0} ({1} rules)", path, len(result.rule_ids)))])
+        self.set_status(tr("Built: {0}", path))
         if messagebox.askyesno(
             APP_NAME,
-            tr("Файл сохранён:\n{0}\n\nВключено правил: {1}.\nСкопируйте его в корень флешки с установочным образом Windows 11 и загрузите ПК с неё.{2}\n\nОткрыть папку с файлом?", path, len(result.rule_ids), note),
+            tr("File saved:\n{0}\n\nRules enabled: {1}.\nCopy it to the root of a USB drive with the Windows 11 installation image and boot the PC from it.{2}\n\nOpen the folder containing the file?", path, len(result.rule_ids), note),
             parent=self,
         ):
             self._open_folder(path.parent)
@@ -1257,10 +1359,10 @@ class MainWindow(tk.Tk):
     def _fill_pc_menu(self, menu: tk.Menu) -> None:
         # Always available: the first apply or return asks for permission (toggle_allow_apply) instead of a
         # greyed-out item whose switch is hard to find.
-        menu.add_command(label=tr("Проверить выбранное на этом ПК"), command=self.audit_selected)
-        menu.add_command(label=tr("Сохранить скрипт применения выбранного..."), command=self.save_apply_scripts)
-        menu.add_command(label=tr("Применить выбранное сейчас..."), command=self.apply_now)
-        menu.add_command(label=tr("Вернуть выбранное к умолчаниям Windows сейчас..."), command=self.revert_now)
+        menu.add_command(label=tr("Check the selection on this PC"), command=self.audit_selected)
+        menu.add_command(label=tr("Save an apply script for the selection..."), command=self.save_apply_scripts)
+        menu.add_command(label=tr("Apply the selection now..."), command=self.apply_now)
+        menu.add_command(label=tr("Return the selection to Windows defaults now..."), command=self.revert_now)
 
     def _on_tree_right_click(self, event: tk.Event) -> str | None:  # type: ignore[type-arg]
         item = self.tree.identify_row(event.y)
@@ -1274,10 +1376,10 @@ class MainWindow(tk.Tk):
     def toggle_allow_apply(self) -> None:
         wanted = bool(self.allow_apply_var.get())
         if wanted and not messagebox.askyesno(APP_NAME, tr(
-                "Разрешить применение правил к этому компьютеру?\n\n"
-                "Скрипт применения меняет реестр, службы и компоненты Windows. Сначала проверьте его на тестовом "
-                "компьютере или виртуальной машине. Удаление приложений и шаги на PowerShell нельзя откатить "
-                "автоматически. Применение всегда запускается через запрос контроля учётных записей."),
+                "Allow applying rules to this computer?\n\nThe apply script changes the registry, services "
+                "and Windows components. Test it on a test computer or a virtual machine first. App "
+                "removal and PowerShell steps cannot be rolled back automatically. Applying always starts "
+                "through a User Account Control prompt."),
                 icon=messagebox.WARNING, default=messagebox.NO, parent=self):
             self.allow_apply_var.set(False)
             wanted = False
@@ -1285,7 +1387,7 @@ class MainWindow(tk.Tk):
         self.settings.save(self.paths.settings_file)
 
     def _ensure_apply_allowed(self) -> bool:
-        """Changes to this PC need the permission of «Этот ПК, Разрешить применение»; ask for it once."""
+        """Changes to this PC need the permission of "This PC, Allow applying on this PC"; ask for it once."""
         if self.settings.allow_apply:
             return True
         self.allow_apply_var.set(True)
@@ -1295,40 +1397,40 @@ class MainWindow(tk.Tk):
     def _apply_items(self) -> list[str]:
         items = [i for i in self.tree.selection() if i.startswith("r:") or i.startswith("g:")]
         if not items:
-            messagebox.showinfo(APP_NAME, tr("Выберите в дереве правило или группу."), parent=self)
+            messagebox.showinfo(APP_NAME, tr("Select a rule or a group in the tree."), parent=self)
         return items
 
     def _plan_issues(self, plan: ApplyPlan) -> list[Issue]:
-        issues = [Issue("info", rule.id, tr("не применяется: {0}", tr(reason))) for rule, reason in plan.excluded]
+        issues = [Issue("info", rule.id, tr("not applied: {0}", tr(reason))) for rule, reason in plan.excluded]
         for planned in plan.rules:
             notes = []
             if planned.requirement:
-                notes.append(tr("нужно для выбранного правила"))
+                notes.append(tr("needed by a selected rule"))
             if planned.irreversible:
-                notes.append(tr("автоматически не откатывается"))
+                notes.append(tr("not rolled back automatically"))
             if planned.reboot:
-                notes.append(tr("нужна перезагрузка"))
+                notes.append(tr("restart needed"))
             level = "warning" if planned.irreversible else "info"
-            issues.append(Issue(level, planned.rule.id, tr("будет применено") + (": " + "; ".join(notes) if notes else "")))
+            issues.append(Issue(level, planned.rule.id, tr("will be applied") + (": " + "; ".join(notes) if notes else "")))
         for returning in plan.reverts:
-            notes = [tr("выключено в профиле")]
+            notes = [tr("disabled in the profile")]
             if returning.dependent:
-                notes.append(tr("зависит от выбранного правила"))
+                notes.append(tr("depends on a selected rule"))
             if returning.skipped:
-                notes.append(tr("не возвращается автоматически: {0}", ", ".join(sorted({a.type for a in returning.skipped}))))
+                notes.append(tr("not returned automatically: {0}", ", ".join(sorted({a.type for a in returning.skipped}))))
             if returning.reboot:
-                notes.append(tr("нужна перезагрузка"))
+                notes.append(tr("restart needed"))
             level = "warning" if returning.skipped else "info"
-            issues.append(Issue(level, returning.rule.id, tr("будет возвращено к умолчаниям Windows") + ": " + "; ".join(notes)))
+            issues.append(Issue(level, returning.rule.id, tr("will be returned to Windows defaults") + ": " + "; ".join(notes)))
         return issues
 
     def _nothing_to_apply(self, plan: ApplyPlan) -> None:
         """Say plainly why nothing happens, instead of a line in the status bar only."""
         reasons = [f"{self.rule_title(rule.id)}: {tr(reason)}" for rule, reason in plan.excluded[:8]]
-        more = tr("\n... и ещё {0}", len(plan.excluded) - 8) if len(plan.excluded) > 8 else ""
-        messagebox.showinfo(APP_NAME, tr("Среди выбранного нечего применять к этому компьютеру.") + "\n\n"
+        more = tr("\n... and {0} more", len(plan.excluded) - 8) if len(plan.excluded) > 8 else ""
+        messagebox.showinfo(APP_NAME, tr("There is nothing in the selection to apply to this computer.") + "\n\n"
                             + "\n".join(reasons) + more, parent=self)
-        self.set_status(tr("Среди выбранного нет правил, которые можно применить к работающей системе"))
+        self.set_status(tr("The selection has no rules that can be applied to a running system"))
 
     def audit_selected(self) -> None:
         """Read-only check on this PC: which of the selected rules already take effect."""
@@ -1338,10 +1440,10 @@ class MainWindow(tk.Tk):
         if not items:
             return
         rule_ids, skipped = audit_rules(self.catalog, items)
-        excluded = [Issue("info", rule.id, tr("не проверяется: {0}", tr(reason))) for rule, reason in skipped]
+        excluded = [Issue("info", rule.id, tr("not checked: {0}", tr(reason))) for rule, reason in skipped]
         if not rule_ids:
             self.show_issues(excluded)
-            self.set_status(tr("Среди выбранного нет правил, которые можно проверить на работающей системе"))
+            self.set_status(tr("The selection has no rules that can be checked on a running system"))
             return
         script = render_audit(rule_ids, self.profile, self.catalog, self.paths.templates, APP_VERSION)
         outcome: dict[str, Any] = {}
@@ -1353,7 +1455,7 @@ class MainWindow(tk.Tk):
                 outcome["error"] = exc
 
         thread = threading.Thread(target=work, name="audit", daemon=True)
-        self.set_busy(True, tr("Проверка на этом ПК (только чтение)..."))
+        self.set_busy(True, tr("Checking this PC (read-only)..."))
         thread.start()
 
         def poll() -> None:
@@ -1362,8 +1464,8 @@ class MainWindow(tk.Tk):
                 return
             self.set_busy(False)
             if "error" in outcome:
-                self.show_issues([Issue("error", "audit", tr("Проверка не выполнена: {0}", outcome["error"]))] + excluded)
-                self.set_status(tr("Проверка на этом ПК не выполнена"))
+                self.show_issues([Issue("error", "audit", tr("The check failed: {0}", outcome["error"]))] + excluded)
+                self.set_status(tr("The check on this PC failed"))
                 return
             self.show_audit(outcome["text"], excluded)
 
@@ -1375,13 +1477,13 @@ class MainWindow(tk.Tk):
         counts = {"applied": 0, "not-applied": 0, "partial": 0, "unknown": 0}
         for rule_id, result in results.items():
             counts[result.status] = counts.get(result.status, 0) + 1
-            details = [f"{c['check']}: {c['current'] or tr('нет значения')} ({tr('нужно')} {c['expected']})"
+            details = [f"{c['check']}: {c['current'] or tr("no value")} ({tr("expected")} {c['expected']})"
                        for c in result.checks if c["status"] == "differs"][:3]
             level = "info" if result.status in ("applied", "unknown") else "warning"
             issues.append(Issue(level, rule_id, status_title(result.status) + (": " + "; ".join(details) if details else "")))
         self.show_issues(issues + excluded)
-        note = "" if str(meta.get("admin")).lower() == "true" else tr(" Без прав администратора часть проверок недоступна.")
-        self.set_status(tr("Проверка на этом ПК: действует {0}, не действует {1}, частично {2}, не проверяется {3}.",
+        note = "" if str(meta.get("admin")).lower() == "true" else tr(" Without administrator rights some checks are unavailable.")
+        self.set_status(tr("Check on this PC: in effect {0}, not in effect {1}, partly {2}, not checked {3}.",
                            counts["applied"], counts["not-applied"], counts["partial"], counts["unknown"]) + note)
 
     def _write_apply_folder(self, folder: Path, plan: ApplyPlan) -> Path:
@@ -1389,21 +1491,21 @@ class MainWindow(tk.Tk):
         apply_path = folder / "Apply.ps1"
         write_script(apply_path, render_apply(plan, self.profile, self.catalog, self.paths.templates, APP_VERSION))
         write_script(folder / "Undo-Apply.ps1", render_undo(self.paths.templates, self.profile, APP_VERSION))
-        lines = [tr("Скрипты применения WinKickOff {0}, профиль «{1}».", APP_VERSION, tr(self.profile.name)), "",
-                 tr("1. Сначала проверьте на тестовом компьютере или виртуальной машине."),
-                 tr("2. Запустите Apply.ps1 от имени администратора: powershell -ExecutionPolicy Bypass -File Apply.ps1"),
-                 tr("3. Журнал и резервная копия прежних значений появятся рядом со скриптом (apply-*.log, backup-*.json)."),
-                 tr("4. Откат: Undo-Apply.ps1 от имени администратора. Удалённые приложения и шаги на PowerShell не откатываются."),
-                 tr("5. После применения перезагрузите компьютер."), "", tr("Правила:")]
+        lines = [tr("WinKickOff {0} apply scripts, profile \"{1}\".", APP_VERSION, tr(self.profile.name)), "",
+                 tr("1. Test on a test computer or a virtual machine first."),
+                 tr("2. Run Apply.ps1 as administrator: powershell -ExecutionPolicy Bypass -File Apply.ps1"),
+                 tr("3. The log and the backup of the previous values appear next to the script (apply-*.log, backup-*.json)."),
+                 tr("4. Rollback: Undo-Apply.ps1 as administrator. Removed apps and PowerShell steps are not rolled back."),
+                 tr("5. Restart the computer after applying."), "", tr("Rules:")]
         for planned in plan.rules:
-            flags = (tr(" (не откатывается)") if planned.irreversible else "") + (tr(" (нужна перезагрузка)") if planned.reboot else "")
+            flags = (tr(" (not rolled back)") if planned.irreversible else "") + (tr(" (restart needed)") if planned.reboot else "")
             lines.append(f"- {planned.rule.id}: {self.rule_title(planned.rule.id)}{flags}")
         if plan.reverts:
-            lines += ["", tr("Выключены в профиле, возвращаются к значениям Windows по умолчанию:")]
+            lines += ["", tr("Off in the profile, returning to the Windows defaults:")]
             for returning in plan.reverts:
-                lines.append(f"- {returning.rule.id}: {self.rule_title(returning.rule.id)}" + (tr(" (частично)") if returning.skipped else ""))
+                lines.append(f"- {returning.rule.id}: {self.rule_title(returning.rule.id)}" + (tr(" (partly)") if returning.skipped else ""))
         if plan.excluded:
-            lines += ["", tr("Не применяются:")]
+            lines += ["", tr("Not applied:")]
             lines += [f"- {rule.id}: {tr(reason)}" for rule, reason in plan.excluded]
         (folder / "README.txt").write_bytes(("\n".join(lines) + "\n").replace("\n", "\r\n").encode("utf-8-sig"))
         return apply_path
@@ -1417,16 +1519,16 @@ class MainWindow(tk.Tk):
         if plan.empty:
             self._nothing_to_apply(plan)
             return None
-        name = filedialog.askdirectory(parent=self, title=tr("Папка для скриптов применения"), initialdir=str(self.paths.output))
+        name = filedialog.askdirectory(parent=self, title=tr("Folder for the apply scripts"), initialdir=str(self.paths.output))
         if not name:
             return None
         folder = Path(name) / time.strftime("apply-%Y%m%d-%H%M%S")
         try:
             self._write_apply_folder(folder, plan)
         except OSError as exc:
-            messagebox.showerror(APP_NAME, tr("Скрипты не записаны:\n{0}", exc), parent=self)
+            messagebox.showerror(APP_NAME, tr("The scripts were not written:\n{0}", exc), parent=self)
             return None
-        self.set_status(tr("Скрипты применения сохранены: {0} (правил: {1})", folder, len(plan.rules) + len(plan.reverts)))
+        self.set_status(tr("Apply scripts saved: {0} (rules: {1})", folder, len(plan.rules) + len(plan.reverts)))
         return folder
 
     def apply_now(self) -> bool:
@@ -1440,15 +1542,15 @@ class MainWindow(tk.Tk):
             self._nothing_to_apply(plan)
             return False
         irreversible = [self.rule_title(p.rule.id) for p in plan.rules if p.irreversible]
-        text = tr("Применить выбранные правила ({1}) к компьютеру {0}?", os.environ.get("COMPUTERNAME", "?"), len(plan.rules) + len(plan.reverts))
+        text = tr("Apply the selected rules ({1}) to computer {0}?", os.environ.get("COMPUTERNAME", "?"), len(plan.rules) + len(plan.reverts))
         if plan.reverts:
-            text += "\n\n" + tr("Включены в профиле и будут применены: {0}. Выключены в профиле и вернутся к значениям Windows по умолчанию: {1}.",
+            text += "\n\n" + tr("On in the profile and applied: {0}. Off in the profile and returned to the Windows defaults: {1}.",
                                 len(plan.rules), len(plan.reverts))
         if irreversible:
-            text += "\n\n" + tr("Автоматически не откатываются: {0}.", "; ".join(irreversible[:8]) + ("..." if len(irreversible) > 8 else ""))
+            text += "\n\n" + tr("Not rolled back automatically: {0}.", "; ".join(irreversible[:8]) + ("..." if len(irreversible) > 8 else ""))
         if any(p.reboot for p in plan.rules) or any(p.reboot for p in plan.reverts):
-            text += "\n\n" + tr("После применения нужна перезагрузка.")
-        text += "\n\n" + tr("Windows запросит подтверждение прав администратора. Прежние значения сохраняются для отката (Undo-Apply.ps1).")
+            text += "\n\n" + tr("A restart is needed after applying.")
+        text += "\n\n" + tr("Windows will ask to confirm administrator rights. The previous values are saved for rollback (Undo-Apply.ps1).")
         if not messagebox.askyesno(APP_NAME, text, icon=messagebox.WARNING, default=messagebox.NO, parent=self):
             return False
         folder = self.paths.logs / time.strftime("apply-%Y%m%d-%H%M%S")
@@ -1456,23 +1558,23 @@ class MainWindow(tk.Tk):
             script = self._write_apply_folder(folder, plan)
             apply_module.launch_elevated(script)
         except (OSError, RuntimeError) as exc:
-            messagebox.showerror(APP_NAME, tr("Применение не запущено:\n{0}", exc), parent=self)
+            messagebox.showerror(APP_NAME, tr("Applying was not started:\n{0}", exc), parent=self)
             return False
-        self.set_status(tr("Скрипт применения запущен; журнал и резервная копия: {0}", folder))
+        self.set_status(tr("The apply script was started; log and backup: {0}", folder))
         return True
 
     def _revert_issues(self, plan: RevertPlan) -> list[Issue]:
-        issues = [Issue("info", rule.id, tr("не возвращается: {0}", tr(reason))) for rule, reason in plan.excluded]
+        issues = [Issue("info", rule.id, tr("not returned: {0}", tr(reason))) for rule, reason in plan.excluded]
         for planned in plan.rules:
             notes = []
             if planned.dependent:
-                notes.append(tr("зависит от выбранного правила"))
+                notes.append(tr("depends on a selected rule"))
             if planned.skipped:
-                notes.append(tr("не возвращается автоматически: {0}", ", ".join(sorted({a.type for a in planned.skipped}))))
+                notes.append(tr("not returned automatically: {0}", ", ".join(sorted({a.type for a in planned.skipped}))))
             if planned.reboot:
-                notes.append(tr("нужна перезагрузка"))
+                notes.append(tr("restart needed"))
             level = "warning" if planned.skipped else "info"
-            issues.append(Issue(level, planned.rule.id, tr("будет возвращено к умолчаниям Windows") + (": " + "; ".join(notes) if notes else "")))
+            issues.append(Issue(level, planned.rule.id, tr("will be returned to Windows defaults") + (": " + "; ".join(notes) if notes else "")))
         return issues
 
     def _write_revert_folder(self, folder: Path, plan: RevertPlan) -> Path:
@@ -1480,17 +1582,17 @@ class MainWindow(tk.Tk):
         script_path = folder / "Apply.ps1"
         write_script(script_path, render_revert(plan, self.profile, self.paths.templates, APP_VERSION))
         write_script(folder / "Undo-Apply.ps1", render_undo(self.paths.templates, self.profile, APP_VERSION))
-        lines = [tr("Возврат к значениям Windows по умолчанию, WinKickOff {0}.", APP_VERSION), "",
-                 tr("1. Сначала проверьте на тестовом компьютере или виртуальной машине."),
-                 tr("2. Запустите Apply.ps1 от имени администратора: powershell -ExecutionPolicy Bypass -File Apply.ps1"),
-                 tr("3. Журнал и резервная копия прежних значений появятся рядом со скриптом (apply-*.log, backup-*.json)."),
-                 tr("4. Отмена возврата: Undo-Apply.ps1 от имени администратора."),
-                 tr("5. После применения перезагрузите компьютер."), "", tr("Правила:")]
+        lines = [tr("Return to Windows defaults, WinKickOff {0}.", APP_VERSION), "",
+                 tr("1. Test on a test computer or a virtual machine first."),
+                 tr("2. Run Apply.ps1 as administrator: powershell -ExecutionPolicy Bypass -File Apply.ps1"),
+                 tr("3. The log and the backup of the previous values appear next to the script (apply-*.log, backup-*.json)."),
+                 tr("4. To undo the return: Undo-Apply.ps1 as administrator."),
+                 tr("5. Restart the computer after applying."), "", tr("Rules:")]
         for planned in plan.rules:
-            flags = tr(" (частично)") if planned.skipped else ""
+            flags = tr(" (partly)") if planned.skipped else ""
             lines.append(f"- {planned.rule.id}: {self.rule_title(planned.rule.id)}{flags}")
         if plan.excluded:
-            lines += ["", tr("Не возвращаются:")]
+            lines += ["", tr("Not returned:")]
             lines += [f"- {rule.id}: {tr(reason)}" for rule, reason in plan.excluded]
         (folder / "README.txt").write_bytes(("\n".join(lines) + "\n").replace("\n", "\r\n").encode("utf-8-sig"))
         return script_path
@@ -1503,18 +1605,18 @@ class MainWindow(tk.Tk):
         plan = plan_revert(self.catalog, items)
         self.show_issues(self._revert_issues(plan))
         if not plan.rules:
-            self.set_status(tr("Среди выбранного нет правил, которые можно вернуть к умолчаниям Windows на работающей системе"))
+            self.set_status(tr("The selection has no rules that can be returned to Windows defaults on a running system"))
             return False
         partial = [self.rule_title(p.rule.id) for p in plan.rules if p.skipped]
-        text = tr("Вернуть выбранные правила ({1}) на компьютере {0} к значениям Windows по умолчанию?",
+        text = tr("Return the selected rules ({1}) on computer {0} to Windows defaults?",
                   os.environ.get("COMPUTERNAME", "?"), len(plan.rules))
         dependents = [self.rule_title(p.rule.id) for p in plan.rules if p.dependent]
         if dependents:
-            text += "\n\n" + tr("Вместе с ними: {0}.", "; ".join(dependents[:8]) + ("..." if len(dependents) > 8 else ""))
+            text += "\n\n" + tr("Together with them: {0}.", "; ".join(dependents[:8]) + ("..." if len(dependents) > 8 else ""))
         if partial:
-            text += "\n\n" + tr("Возвращаются не полностью (приложения, скрипты, значения с неизвестным умолчанием): {0}.",
+            text += "\n\n" + tr("Not returned completely (apps, scripts, values with an unknown default): {0}.",
                                 "; ".join(partial[:8]) + ("..." if len(partial) > 8 else ""))
-        text += "\n\n" + tr("Windows запросит подтверждение прав администратора. Прежние значения сохраняются для отката (Undo-Apply.ps1).")
+        text += "\n\n" + tr("Windows will ask to confirm administrator rights. The previous values are saved for rollback (Undo-Apply.ps1).")
         if not messagebox.askyesno(APP_NAME, text, icon=messagebox.WARNING, default=messagebox.NO, parent=self):
             return False
         folder = self.paths.logs / time.strftime("revert-%Y%m%d-%H%M%S")
@@ -1522,9 +1624,9 @@ class MainWindow(tk.Tk):
             script = self._write_revert_folder(folder, plan)
             apply_module.launch_elevated(script)
         except (OSError, RuntimeError) as exc:
-            messagebox.showerror(APP_NAME, tr("Возврат не запущен:\n{0}", exc), parent=self)
+            messagebox.showerror(APP_NAME, tr("The return was not started:\n{0}", exc), parent=self)
             return False
-        self.set_status(tr("Скрипт возврата к умолчаниям запущен; журнал и резервная копия: {0}", folder))
+        self.set_status(tr("The return-to-defaults script is running; log and backup: {0}", folder))
         return True
 
     def open_output_folder(self) -> None:
@@ -1534,7 +1636,7 @@ class MainWindow(tk.Tk):
         try:
             os.startfile(folder)  # type: ignore[attr-defined]
         except OSError as exc:
-            messagebox.showerror(APP_NAME, tr("Папка не открыта:\n{0}", exc), parent=self)
+            messagebox.showerror(APP_NAME, tr("Could not open the folder:\n{0}", exc), parent=self)
 
     # ----------------------------------------------------------------- misc
 
@@ -1543,25 +1645,34 @@ class MainWindow(tk.Tk):
         self._write_detail(
             [
                 ("h1", f"{APP_NAME} {APP_VERSION}"),
-                ("", tr("Каталог правил: версия {0}, {1} правил.", self.catalog.version, len(self.catalog.rules))),
-                ("", tr("Папка программы: {0}", self.paths.root)),
-                ("", tr("Профили: {0}", self.paths.profiles)),
-                ("", tr("Собранные файлы по умолчанию: {0}", self.paths.output)),
-                ("", tr("Настройки программы: {0}", self.paths.settings_file)),
-                ("", tr("Шаблоны рантайма: {0}", self.paths.templates)),
-                ("h2", tr("Документация")),
-                ("link:doc:" + user_docs(), tr("Документация пользователя: ") + user_docs()),
-                ("link:doc:docs/technical/reference/README.md", tr("Технический справочник параметров (на английском): docs/technical/reference/README.md")),
-                ("muted", tr("Постановка и план редактора: docs/technical/editor/ в репозитории проекта.")),
+                ("", tr("Rule catalog: version {0}, {1} rules.", self.catalog.version, len(self.catalog.rules))),
+                ("", tr("Program folder: {0}", self.paths.root)),
+                ("", tr("Profiles: {0}", self.paths.profiles)),
+                ("", tr("Default location for built files: {0}", self.paths.output)),
+                ("", tr("Program settings: {0}", self.paths.settings_file)),
+                ("", tr("Runtime templates: {0}", self.paths.templates)),
+                ("h2", tr("Documentation")),
+                ("link:doc:" + user_docs(self.paths.docs_root), tr("User documentation: ") + user_docs(self.paths.docs_root)),
+                ("link:doc:docs/technical/reference/README.md", tr("Technical parameter reference (in English): docs/technical/reference/README.md")),
+                ("muted", tr("Editor specification and plan: docs/technical/editor/ in the project repository.")),
             ]
         )
 
     def change_language(self, code: str) -> None:
         """Save the choice and rebuild the window in the new language; the open profile, its unsaved
         changes and the selected node survive (app.run creates the new window from restart_state)."""
-        if code == language():
+        if code == self.settings.language:
             return
         self.settings.language = code
+        self.save_settings()
+        self.restart_state = {"profile": self.profile, "dirty": self.dirty, "item": self._current_item}
+        self.destroy()
+
+    def change_theme(self, theme_id: str) -> None:
+        """Save the choice and rebuild the window in the new colours, like a language change."""
+        if theme_id == self.settings.theme:
+            return
+        self.settings.theme = theme_id
         self.save_settings()
         self.restart_state = {"profile": self.profile, "dirty": self.dirty, "item": self._current_item}
         self.destroy()

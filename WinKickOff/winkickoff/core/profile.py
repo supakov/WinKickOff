@@ -92,10 +92,10 @@ def _migrate_catalog_02(
         if value != region.params["geo_id"].default:
             rules[REGION_RULE].params["geo_id"] = value
             warnings.append(
-                tr("languages.geo_id = {0} перенесено в параметр правила {1}; проверьте код страны geo_name", geo_id, REGION_RULE)
+                tr("languages.geo_id = {0} was moved to a parameter of rule {1}; check the geo_name country code", geo_id, REGION_RULE)
             )
     if "iso_language" in (data.get("install") or {}):
-        warnings.append(tr("поле install.iso_language больше не используется: язык интерфейса всегда равен языку ISO"))
+        warnings.append(tr("the install.iso_language field is no longer used: the display language always matches the ISO language"))
 
 
 def _now() -> str:
@@ -121,7 +121,7 @@ class Profile:
     # ----------------------------------------------------------------- construction
 
     @classmethod
-    def from_catalog(cls, catalog: Catalog, name: str = "Офис") -> Profile:
+    def from_catalog(cls, catalog: Catalog, name: str = "Office") -> Profile:
         rules = {rule.id: RuleState(enabled=rule.default) for rule in catalog.rules.values()}
         return cls(name=name, catalog_version=catalog.version, rules=rules)
 
@@ -185,7 +185,7 @@ class Profile:
         warnings: list[str] = []
         fmt = int(data.get("format_version", 0))
         if fmt != FORMAT_VERSION:
-            warnings.append(tr("формат профиля {0}, ожидался {1}: применены значения по умолчанию для недостающего", fmt, FORMAT_VERSION))
+            warnings.append(tr("profile format {0}, expected {1}: default values were applied to missing items", fmt, FORMAT_VERSION))
         raw_rules = data.get("rules", {}) if isinstance(data.get("rules"), dict) else {}
         rules: dict[str, RuleState] = {}
         new_rules: list[str] = []
@@ -201,15 +201,15 @@ class Profile:
                 if pname in rule.params:
                     params[pname] = pvalue
                 else:
-                    warnings.append(tr("{0}: неизвестный параметр {1} пропущен", rule.id, pname))
+                    warnings.append(tr("{0}: unknown parameter {1} skipped", rule.id, pname))
             rules[rule.id] = RuleState(enabled=bool(entry.get("enabled", rule.default)), params=params)
         if new_rules:
             enabled = sum(1 for r in new_rules if rules[r].enabled)
             shown = ", ".join(new_rules[:12]) + (", ..." if len(new_rules) > 12 else "")
-            warnings.append(tr("новых правил каталога: {0}, из них включено по умолчанию {1}: {2}", len(new_rules), enabled, shown))
+            warnings.append(tr("new catalog rules: {0}, of them on by default {1}: {2}", len(new_rules), enabled, shown))
         unknown = {rid: entry for rid, entry in raw_rules.items() if rid not in catalog.rules}
         if unknown:
-            warnings.append(tr("правила, отсутствующие в каталоге, сохранены в 'unknown': ") + ", ".join(sorted(unknown)))
+            warnings.append(tr("rules missing from the catalog were saved to 'unknown': ") + ", ".join(sorted(unknown)))
         stored_unknown = data.get("unknown") if isinstance(data.get("unknown"), dict) else {}
         unknown = {**stored_unknown, **unknown}
         install = dict(DEFAULT_INSTALL)
@@ -222,9 +222,9 @@ class Profile:
         accounts = [Account.from_dict(a) for a in accounts_raw] if isinstance(accounts_raw, list) else [copy.copy(a) for a in DEFAULT_ACCOUNTS]
         catalog_version = str(data.get("catalog_version", catalog.version))
         if catalog_version != catalog.version:
-            warnings.append(tr("профиль сохранён каталогом {0}, текущий {1}", catalog_version, catalog.version))
+            warnings.append(tr("the profile was saved with catalog {0}, the current catalog is {1}", catalog_version, catalog.version))
         profile = cls(
-            name=str(data.get("name", tr("Профиль"))),
+            name=str(data.get("name", tr("Profile"))),
             catalog_version=catalog.version,
             rules=rules,
             format_version=FORMAT_VERSION,

@@ -22,6 +22,10 @@ Ukrainian UI and rule translations, a profile comparison dialog, a third preset.
 
 ## Implementer notes
 
+30.09.2026: superseded in part by T18. The source language is now English; Russian and Ukrainian are
+translation files, `strings.en.json` and `rules/lang/en.toml` are gone. The notes below describe the state
+of 25.09.2026.
+
 25.09.2026 (from T16): the rule texts are translated completely into Ukrainian and English
 (`rules/lang/uk.toml`, `rules/lang/en.toml`, loaded by `core/i18n.py`; completeness is tested by
 `tests/test_docs.py`). Remaining for T14: interface strings, the language switch in the window, the

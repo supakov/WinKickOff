@@ -1,20 +1,20 @@
-# SMB, разрешение имён, брандмауэр. Раздел 5 скрипта машины v0.2.
+# SMB, name resolution, firewall. Section 5 of the v0.2 machine script.
 
 [[rule]]
 id = "network.smb1-off"
 group = "network"
 phase = "specialize"
-title = "SMB1 отключён и удалён"
+title = "SMB1 disabled and removed"
 level = "recommended"
 default = true
-tags = ["smb1", "smbv1", "wannacry", "мфу", "nas", "сканирование в папку"]
+tags = ["smb1", "smbv1", "wannacry", "mfp", "nas", "scan to folder"]
 doc = "docs/technical/reference/09-network-smb-firewall.md#disablesmb1"
-summary = "Сервер не отвечает по SMB1, клиентский драйвер отключён, компонент SMB1Protocol удалён, если установлен."
-effect = "Протокол 1996 года, через который распространялись WannaCry и NotPetya, отсутствует полностью."
-risk = "Устройства только с SMB1 (МФУ со сканированием в сетевую папку до 2015 года, старые NAS, Windows XP) не подключатся. Решение: прошивка с SMB2/3, сканирование на FTP или e-mail."
-versions = "Windows 11 24H2 не содержит SMB1 вообще (WARN в логе о драйвере ожидаем); Windows 10 1709+ и 11 до 23H2 компонент не установлен, но доступен; Windows 10 до 1709 установлен."
+summary = "The server does not respond over SMB1, the client driver is disabled, and the SMB1Protocol feature is removed if it is installed."
+effect = "The 1996 protocol through which WannaCry and NotPetya spread is completely absent."
+risk = "SMB1-only devices (multifunction printers with scan to network folder made before 2015, old NAS devices, Windows XP) will not connect. Solution: firmware with SMB2/3, scanning to FTP or e-mail."
+versions = "Windows 11 24H2 does not contain SMB1 at all (a WARN about the driver in the log is expected); on Windows 10 1709+ and Windows 11 up to 23H2 the feature is not installed but available; on Windows 10 before 1709 it is installed."
 verify = "Get-SmbServerConfiguration | Select-Object EnableSMB1Protocol"
-rollback = "Не рекомендуется; Enable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol на сборках, где он есть."
+rollback = "Not recommended; Enable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol on builds where it exists."
 
 [[rule.actions]]
 type = "reg"
@@ -40,15 +40,15 @@ default = "Disabled"
 id = "network.smb-signing"
 group = "network"
 phase = "specialize"
-title = "Подпись SMB обязательна (сервер и клиент)"
+title = "SMB signing required (server and client)"
 level = "recommended"
 default = true
-tags = ["smb", "подпись", "signing", "ntlm relay", "мфу", "nas"]
+tags = ["smb", "signing", "ntlm relay", "mfp", "nas"]
 doc = "docs/technical/reference/09-network-smb-firewall.md#requiresmbsigning"
-summary = "Каждый пакет SMB подписан; ретрансляция NTLM и подмена трафика общих папок невозможны."
-effect = "ПК рабочей группы, настроенные этим файлом, совместимы между собой; производительность на гигабите падает на несколько процентов."
-risk = "Старые NAS и МФУ без поддержки подписи SMB2 не подключатся. Ослаблять вместе с правилами SMB1 и NTLMv2 после инвентаризации."
-versions = "Windows 11 24H2 и Server 2025 требуют подпись по умолчанию на Pro и Enterprise; правило делает это явно и для Windows 10 и 11 до 23H2."
+summary = "Every SMB packet is signed; NTLM relay and tampering with shared folder traffic are impossible."
+effect = "Workgroup PCs configured with this file are compatible with each other; performance on gigabit networks drops by a few percent."
+risk = "Old NAS devices and multifunction printers without SMB2 signing support will not connect. Relax it together with the SMB1 and NTLMv2 rules after an inventory."
+versions = "Windows 11 24H2 and Server 2025 require signing by default on Pro and Enterprise; the rule sets it explicitly, also for Windows 10 and Windows 11 up to 23H2."
 verify = "Get-SmbServerConfiguration | Select-Object RequireSecuritySignature; Get-SmbClientConfiguration | Select-Object RequireSecuritySignature"
 rollback = "Set-SmbServerConfiguration -RequireSecuritySignature $false; Set-SmbClientConfiguration -RequireSecuritySignature $false"
 
@@ -88,16 +88,16 @@ default = "unknown"
 id = "network.llmnr-off"
 group = "network"
 phase = "specialize"
-title = "LLMNR выключен (защита от подмены имён в сети)"
+title = "LLMNR disabled (protection against name spoofing on the network)"
 level = "recommended"
 default = true
-tags = ["llmnr", "responder", "подмена имён", "multicast", "разрешение имён"]
+tags = ["llmnr", "responder", "name spoofing", "multicast", "name resolution"]
 doc = "docs/technical/reference/09-network-smb-firewall.md#disablellmnr"
-summary = "Широковещательный опрос имён LLMNR отключён; инструменты класса Responder не получают хэши от этих ПК."
-effect = "Имена компьютеров рабочей группы продолжают разрешаться через NetBIOS (оставлен включённым) и mDNS."
-versions = "Политика с Windows Vista; в 24H2 Microsoft объявила LLMNR устаревшим в пользу mDNS."
+summary = "LLMNR multicast name queries are disabled; Responder-type tools do not get hashes from these PCs."
+effect = "Workgroup computer names continue to resolve through NetBIOS (left enabled) and mDNS."
+versions = "Policy available since Windows Vista; in 24H2 Microsoft announced LLMNR as deprecated in favor of mDNS."
 verify = "Get-ItemProperty 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient' -Name EnableMulticast"
-rollback = "Удалить значение."
+rollback = "Delete the value."
 
 [[rule.actions]]
 type = "reg"
@@ -111,17 +111,17 @@ why = "LLMNR off"
 id = "network.netbios-off"
 group = "network"
 phase = "specialize"
-title = "NetBIOS over TCP/IP выключен"
+title = "NetBIOS over TCP/IP disabled"
 level = "risky"
 default = false
-tags = ["netbios", "nbt-ns", "responder", "137", "139", "разрешение имён"]
+tags = ["netbios", "nbt-ns", "responder", "137", "139", "name resolution"]
 doc = "docs/technical/reference/09-network-smb-firewall.md#disablenetbios"
-summary = "Закрывает второй канал подмены имён (NBT-NS) и порты 137-139 на всех текущих интерфейсах."
-effect = "Без домена и WINS имя вида \\\\PC-BUH разрешается только через mDNS (pc-buh.local) или DNS маршрутизатора; привычные ярлыки на общие папки могут перестать работать."
-risk = "Интерфейсы, добавленные после установки (новый Wi-Fi адаптер, VPN), получат умолчание. Включать только после проверки в конкретной сети."
-versions = "Значения одинаковы с Windows 2000; в 24H2 NetBIOS по умолчанию включён."
+summary = "Closes the second name spoofing channel (NBT-NS) and ports 137-139 on all current interfaces."
+effect = "Without a domain and WINS, a name such as \\\\PC-BUH resolves only through mDNS (pc-buh.local) or the router's DNS; familiar shortcuts to shared folders may stop working."
+risk = "Interfaces added after installation (a new Wi-Fi adapter, VPN) get the default setting. Enable it only after testing on the specific network."
+versions = "The values have been the same since Windows 2000; in 24H2 NetBIOS is enabled by default."
 verify = "Get-CimInstance Win32_NetworkAdapterConfiguration | Select-Object Description, TcpipNetbiosOptions"
-rollback = "NetbiosOptions = 0 для интерфейсов, NodeType удалить."
+rollback = "NetbiosOptions = 0 for the interfaces, delete NodeType."
 
 [[rule.actions]]
 type = "reg"
@@ -144,17 +144,17 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfac
 id = "network.firewall"
 group = "network"
 phase = "specialize"
-title = "Брандмауэр включён на всех профилях, входящие блокируются, журнал отброшенных пакетов"
+title = "Firewall on for all profiles, inbound blocked, dropped packets logged"
 level = "recommended"
 default = true
-tags = ["брандмауэр", "firewall", "входящие", "журнал", "pfirewall.log"]
+tags = ["firewall", "inbound", "logging", "pfirewall.log"]
 doc = "docs/technical/reference/09-network-smb-firewall.md#firewallonwithlogging"
-summary = "Политика для доменного, частного и общедоступного профилей: брандмауэр включён и не выключается из Панели управления, входящие по умолчанию блокируются, исходящие разрешены, отброшенные пакеты пишутся в файл 16 МБ."
-effect = "Разрешающие правила (общий доступ к файлам и принтерам, Delivery Optimization, mDNS) продолжают работать; при расследовании видно, кто стучался на какие порты."
-risk = "Профиль сети (частная/общедоступная) файлом не задаётся; общий доступ к папкам требует частного профиля."
-versions = "Политика одинакова с Windows Vista."
+summary = "Policy for the domain, private and public profiles: the firewall is on and cannot be turned off from Control Panel, inbound connections are blocked by default, outbound connections are allowed, dropped packets are written to a 16 MB file."
+effect = "Allow rules (file and printer sharing, Delivery Optimization, mDNS) keep working; during an investigation you can see who tried to connect to which ports."
+risk = "The network profile (private/public) is not set by the file; folder sharing requires the private profile."
+versions = "The policy has been the same since Windows Vista."
 verify = "Get-NetFirewallProfile | Select-Object Name, Enabled, DefaultInboundAction, LogBlocked"
-rollback = "Удалить ключи профилей под HKLM:\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall."
+rollback = "Delete the profile keys under HKLM:\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall."
 
 [[rule.actions]]
 type = "reg"

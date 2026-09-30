@@ -1,49 +1,50 @@
 # 03. Data model
 
-Revision 0.2 of 25.09.2026. Formats: TOML for the catalog (read by `tomllib`, edited by people),
-JSON for profiles and reference data (written by the program).
+Revision 0.2 of 25.09.2026, updated 30.09.2026 (T18: English catalog, translation files, themes). Formats:
+TOML for the catalog (read by `tomllib`, edited by people), JSON for profiles, reference data, interface
+translations and colour themes.
 
 ## 1. Tree groups: `rules/groups.toml`
 
 ```toml
 [[group]]
 id = "security"
-title = "Безопасность"
-order = 30
-summary = "Учётные данные, UAC, удалённый доступ, шифрование."
+title = "Security"
+order = 60
+summary = "UAC, accounts, credential protection, remote access, encryption."
 
 [[group]]
 id = "security.lsa"
 parent = "security"
-title = "Защита учётных данных"
-order = 2
+title = "Credential protection (LSA, NTLM)"
+order = 3
 ```
 
 A dotted identifier defines the path; `parent` is required for nested groups. Nodes are ordered by `order`.
 
-## 2. Rule: `rules/NN-<направление>.toml`
+## 2. Rule: `rules/NN-<area>.toml`
 
 ```toml
 [[rule]]
 id = "defender.pua"
 group = "defender"
 phase = "specialize"
-title = "Блокировать потенциально нежелательные программы (PUA)"
+title = "Block potentially unwanted apps (PUA)"
 level = "recommended"          # baseline | recommended | optional | risky
 default = true
 requires = ["defender.realtime"]
 conflicts = []
-tags = ["defender", "adware", "bundlers"]
+tags = ["defender", "pua", "adware", "bundleware", "miners"]
 doc = "docs/technical/reference/07-defender.md#defenderpuaprotection"
-summary = "Defender блокирует adware, установщики-бандлы и майнеры при скачивании и запуске."
+summary = "Defender blocks adware, bundling installers and miners on download and launch."
 effect = """
-Пользователь видит уведомление Безопасности Windows и файл не запускается.
-Закрывает самый частый канал заражения: «бесплатная программа с кнопкой Скачать».
+Closes the most common infection channel for non-professional users:
+"a free program from a website with a Download button".
 """
-risk = "Легитимные утилиты, помеченные как PUA (некоторые средства удалённого доступа), требуют исключения."
-versions = "Политика с Windows 10 1607; переключатель в Параметрах с 2004; на 24H2 без изменений."
+risk = "Legitimate utilities flagged as PUA (some remote access tools) require an exclusion."
+versions = "Policy since Windows 10 1607; toggle in Settings since 2004."
 verify = "Get-MpPreference | Select-Object PUAProtection"
-rollback = "Удалить значение PUAProtection из ключа политик Defender."
+rollback = "Delete the PUAProtection value."
 
 [[rule.actions]]
 type = "reg"
@@ -58,15 +59,15 @@ Rule fields:
 
 | Field | Required | Meaning |
 |---|---|---|
-| id | yes | `группа.имя`, Latin letters, dots; unique in the catalog |
+| id | yes | `group.name`, Latin letters, dots; unique in the catalog |
 | group | yes | Identifier of the tree group |
 | phase | yes | `windowspe`, `specialize-xml`, `specialize`, `default-user`, `user-first-logon`, `post-oobe`, `oobe-xml` |
-| title | yes | Title in the tree |
+| title | yes | Title in the tree (English; translations in `rules/lang/<code>.toml`) |
 | level | yes | `baseline` (disabling gives a warning), `recommended`, `optional`, `risky` (enabling gives a warning) |
-| default | yes | State in the «Офис» (Office) preset |
+| default | yes | State in the Office preset |
 | requires | no | Identifiers of rules without which this rule is disabled |
 | conflicts | no | Identifiers of rules that are disabled when this one is enabled |
-| tags | no | Words for search |
+| tags | no | English words for search (a translation file may add words in its language) |
 | doc | yes | Link to the reference card |
 | summary | yes | One or two sentences |
 | effect, risk, versions | effect yes | Text for the description panel |
@@ -79,16 +80,16 @@ Rule fields:
 ```toml
 [rule.params.seconds]
 type = "int"            # int | enum | string | bool
-title = "Секунд простоя до блокировки"
+title = "Seconds of inactivity before locking"
 default = 900
 min = 60
 max = 599940
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Блокировать" }, { value = 2, title = "Аудит" }, { value = 6, title = "Предупреждать" } ]
+values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" }, { value = 6, title = "Warn" } ]
 ```
 
 In actions, a parameter is substituted as the string `"{seconds}"`; the generator converts it to the action's type.
@@ -109,8 +110,8 @@ In actions, a parameter is substituted as the string `"{seconds}"`; the generato
 | xml-specialize-command | command, description | `RunSynchronousCommand` in specialize |
 | xml-oobe | element, value | element inside `<OOBE>` |
 
-`default` (catalog 0.4) is the state of a clean Windows, used by «Вернуть выбранное к умолчаниям Windows»
-(Return the selection to Windows defaults, `core/apply.py` `plan_revert`): `"absent"` (no such value), a value of
+`default` (catalog 0.4) is the state of a clean Windows, used by "Return the selection to Windows defaults"
+(`core/apply.py` `plan_revert`): `"absent"` (no such value), a value of
 the action's kind, a start type 2-4, `Enabled`/`Disabled`, or `"unknown"` (not returned automatically). Without
 the field a value under `SOFTWARE\Policies` returns to "absent" (a missing policy is the Windows default), a
 `reg-remove` needs nothing (the removed values do not exist in a clean Windows) and anything else is unknown.
@@ -126,30 +127,56 @@ setting; the unconditional actions of v0.2 are grouped into rules of the `baseli
 
 ## 3. Translations: `rules/lang/<lang>.toml` and interface strings
 
-Rule texts, `rules/lang/uk.toml` and `rules/lang/en.toml`:
+Since 30.09.2026 the source language is English: the code, the rule catalog (`rules/*.toml`) and every
+interface string are written in English, and the English text is the key of each translation. Russian and
+Ukrainian are translation files like any other language. A language is available when one of its files
+exists (`core/i18n.py` `available_languages`), so a user adds a language by adding files, without code:
+
+Rule texts, `rules/lang/<code>.toml` (now `ru.toml`, `uk.toml`):
 
 ```toml
+_language = "Українська"          # native name, used when there is no strings file
+
 ["defender.pua"]
 title = "Блокувати потенційно небажані програми (PUA)"
 summary = "..."
-params.mode = "..."          # parameter title
-values.mode."1" = "..."      # option title
+tags = ["небажані програми"]     # extra search words in this language (optional)
+params.mode = "..."               # parameter title
+values.mode."1" = "..."           # option title
 
 [_groups."defender"]
 title = "..."
 ```
 
 The table key is the rule identifier; `title`, `summary`, `effect`, `risk`, `versions`, `verify`,
-`rollback`, parameter titles and option titles are translated; `_groups` holds group titles and
-summaries. A missing translation shows the Russian text; `tests/test_docs.py` requires complete files.
+`rollback`, parameter titles and option titles are translated; `_groups` holds group titles and summaries.
+Search looks at the English source and at the translated title, summary and tags of the current language.
 
-Interface strings, `resources/strings.uk.json` and `resources/strings.en.json`: the key is the Russian
-source text itself (gettext style), the value its translation. Code marks texts with `tr("...")`;
-templates use positional fields, `tr("Профиль «{0}» открыт", name)`. Texts stored before the language
-is known (module-level constants) are marked with `N_("...")` and translated with `tr()` where shown.
-`tests/test_i18n.py` requires a translation for every marked text, the same placeholders and line
-breaks, and no stale entries. The language (`ru`, `uk`, `en`) is chosen in the menu and stored in
-`settings.json`; the window is rebuilt with the open profile, including unsaved changes.
+Interface strings, `resources/strings.<code>.json`: `{"_language": "<native name>", "<English text>":
+"<translation>"}` (gettext style). Code marks texts with `tr("...")`; templates use positional fields,
+`tr("Profile \"{0}\" opened", name)`. Texts stored before the language is known (module-level constants)
+are marked with `N_("...")` and translated with `tr()` where shown.
+
+Anything missing (a file, a rule, a field, a string) falls back to English. `tests/test_i18n.py` requires a
+Russian and a Ukrainian translation for every marked text, the same placeholders and line breaks, no stale
+entries and no Cyrillic in the source strings; `tests/test_docs.py` requires complete catalog translations;
+`tests/test_sources.py` requires English code, comments and catalog. The language is chosen in the menu
+(`""` follows the Windows interface language) and stored in `settings.json`; the window is rebuilt with the
+open profile, including unsaved changes.
+
+### Colour themes: `resources/themes/<id>.json`
+
+```json
+{ "name": "Dark", "base": "clam", "dark": true, "font": "",
+  "colors": { "background": "#202020", "foreground": "#e6e6e6", "field": "#2b2b2b", "select": "#264f78", ... } }
+```
+
+`base` is the ttk theme (`native` keeps the Windows look and only recolours texts, `clam` takes every colour),
+`dark` gives the window a dark title bar, `font` optionally replaces the font family. Missing colours come
+from the built-in light palette (`core/themes.py` `LIGHT_COLORS`), bad values are ignored with a log line, a
+broken file is skipped. Bundled: `light` (the previous look), `dark`, `matrix`. The setting `theme` in
+`settings.json`: `""` follows Windows (read-only `AppsUseLightTheme`), otherwise a theme id. The window is
+rebuilt on a change, like for the language.
 
 ## 4. Profile: `profiles/<имя>.json`
 

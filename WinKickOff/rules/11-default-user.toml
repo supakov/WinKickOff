@@ -1,21 +1,21 @@
-# Профиль пользователя по умолчанию (куст C:\Users\Default\NTUSER.DAT, смонтирован как $du).
-# Раздел 10 скрипта машины v0.2. Пути DU:\ генератор заменяет на "$du\".
-# Это личные настройки пользователя, а не политики: пользователь может их изменить в Параметрах.
+# Default user profile (hive C:\Users\Default\NTUSER.DAT, mounted as $du).
+# Section 10 of the v0.2 machine script. The generator replaces DU:\ paths with "$du\".
+# These are personal settings of the user, not policies: the user can change them in Settings.
 
 [[rule]]
 id = "default-user.show-file-extensions"
 group = "default-user"
 phase = "default-user"
-title = "Показывать расширения файлов"
+title = "Show file name extensions"
 level = "baseline"
 default = true
-tags = ["расширения", "hidefileext", "проводник", "фишинг"]
+tags = ["extensions", "hidefileext", "file explorer", "phishing"]
 doc = "docs/technical/reference/14-default-user-profile.md"
-summary = "Расширения файлов видны: «счёт.pdf.exe» не притворится PDF."
-effect = "Главная настройка безопасности этого раздела; умолчание Windows скрывает расширения."
-versions = "Все версии."
+summary = "File name extensions are visible: \"invoice.pdf.exe\" cannot pass itself off as a PDF."
+effect = "The most important security setting in this section; by default Windows hides extensions."
+versions = "All versions."
 verify = "Get-ItemProperty HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced -Name HideFileExt"
-rollback = "Параметры проводника -> Вид."
+rollback = "File Explorer Options -> View."
 
 [[rule.actions]]
 type = "reg"
@@ -30,13 +30,13 @@ default = "absent"
 id = "default-user.no-sync-provider-ads"
 group = "privacy.ads"
 phase = "default-user"
-title = "Без рекламы OneDrive и Microsoft 365 в проводнике"
+title = "No OneDrive and Microsoft 365 ads in File Explorer"
 level = "baseline"
 default = true
-tags = ["проводник", "onedrive", "реклама"]
+tags = ["file explorer", "onedrive", "ads"]
 doc = "docs/technical/reference/14-default-user-profile.md"
-summary = "Уведомления поставщиков синхронизации в проводнике выключены."
-effect = "Проводник не показывает баннеры OneDrive и подписки."
+summary = "Sync provider notifications in File Explorer are turned off."
+effect = "File Explorer does not show OneDrive and subscription banners."
 versions = "Windows 10 1607+."
 
 [[rule.actions]]
@@ -51,16 +51,16 @@ default = "absent"
 id = "default-user.no-consumer-content"
 group = "privacy.ads"
 phase = "default-user"
-title = "Без предустановок, рекламы, советов и экрана «Завершим настройку»"
+title = "No preinstalled apps, ads, tips or \"Let's finish setting up\" screen"
 level = "recommended"
 default = true
 requires = ["privacy.consumer-content"]
-tags = ["contentdeliverymanager", "предустановки", "реклама", "spotlight", "scoobe", "пуск", "рекламный идентификатор"]
+tags = ["contentdeliverymanager", "preinstalled apps", "ads", "spotlight", "scoobe", "start menu", "advertising id"]
 doc = "docs/technical/reference/14-default-user-profile.md#values-under-the-disableconsumercontent-condition"
-summary = "17 значений ContentDeliveryManager (Store не ставит приложения тихо, нет советов и «интересных фактов»), нет экрана «Завершим настройку устройства», нет рекомендаций и напоминаний про учётную запись Microsoft в Пуске, рекламный идентификатор и персонализированные предложения выключены."
-effect = "Именно эти значения делают на Pro то, что политика DisableWindowsConsumerFeatures делает на Enterprise."
-versions = "Start_IrisRecommendations с Windows 11 22H2; Start_AccountNotifications с 23H2; остальное с Windows 10."
-rollback = "Параметры -> Персонализация и Конфиденциальность, либо те же значения в кусте Default."
+summary = "17 ContentDeliveryManager values (the Store does not install apps silently, no tips or \"fun facts\"), no \"Let's finish setting up your device\" screen, no recommendations or Microsoft account reminders in Start, advertising ID and tailored experiences turned off."
+effect = "These values do on Pro what the DisableWindowsConsumerFeatures policy does on Enterprise."
+versions = "Start_IrisRecommendations since Windows 11 22H2; Start_AccountNotifications since 23H2; the rest since Windows 10."
+rollback = "Settings -> Personalization and Privacy, or the same values in the Default hive."
 
 [[rule.actions]]
 type = "reg"
@@ -243,14 +243,14 @@ default = "absent"
 id = "default-user.widgets-button-off"
 group = "default-user"
 phase = "default-user"
-title = "Кнопка виджетов скрыта"
+title = "Widgets button hidden"
 level = "recommended"
 default = true
 requires = ["privacy.widgets-off"]
-tags = ["виджеты", "taskbarda", "панель задач"]
+tags = ["widgets", "taskbarda", "taskbar"]
 doc = "docs/technical/reference/14-default-user-profile.md#values-under-other-conditions"
-summary = "Кнопка виджетов на панели задач скрыта у каждого нового пользователя (дублирует политику Dsh)."
-effect = "Панель задач без кнопки погоды и новостей."
+summary = "The widgets button on the taskbar is hidden for every new user (duplicates the Dsh policy)."
+effect = "A taskbar without the weather and news button."
 versions = "Windows 11."
 
 [[rule.actions]]
@@ -265,15 +265,15 @@ default = "absent"
 id = "default-user.copilot-off"
 group = "privacy.ai"
 phase = "default-user"
-title = "Copilot выключен в профиле пользователя"
+title = "Copilot turned off in the user profile"
 level = "recommended"
 default = true
 requires = ["privacy.copilot-recall-off"]
-tags = ["copilot", "панель задач", "политика пользователя"]
+tags = ["copilot", "taskbar", "user policy"]
 doc = "docs/technical/reference/14-default-user-profile.md#values-under-other-conditions"
-summary = "Кнопка Copilot скрыта; пользовательская политика TurnOffWindowsCopilot записана в профиль (единственный уровень, где она действует)."
-effect = "Copilot Preview (23H2) не появляется; в 24H2 приложение удаляется отдельным правилом."
-versions = "ShowCopilotButton и политика с Windows 11 23H2."
+summary = "The Copilot button is hidden; the TurnOffWindowsCopilot user policy is written to the profile (the only level where it applies)."
+effect = "Copilot Preview (23H2) does not appear; in 24H2 the app is removed by a separate rule."
+versions = "ShowCopilotButton and the policy since Windows 11 23H2."
 
 [[rule.actions]]
 type = "reg"
@@ -295,15 +295,15 @@ why = "user-scope policy"
 id = "default-user.autoplay-off"
 group = "default-user"
 phase = "default-user"
-title = "Без диалога автозапуска носителей"
+title = "No AutoPlay dialog for media"
 level = "recommended"
 default = true
 requires = ["removable.autorun-off"]
-tags = ["autoplay", "автозапуск", "носители"]
+tags = ["autoplay", "storage media"]
 doc = "docs/technical/reference/14-default-user-profile.md#values-under-other-conditions"
-summary = "Диалог «Что делать с этим носителем?» выключен у каждого нового пользователя."
-effect = "Дополняет машинную политику автозапуска."
-versions = "Все версии."
+summary = "The \"What do you want to do with this media?\" dialog is turned off for every new user."
+effect = "Complements the machine-level AutoRun policy."
+versions = "All versions."
 
 [[rule.actions]]
 type = "reg"
@@ -317,23 +317,23 @@ default = "absent"
 id = "default-user.region"
 group = "default-user"
 phase = "default-user"
-title = "Регион пользователя"
+title = "User region"
 level = "baseline"
 default = true
-tags = ["регион", "geo", "украина", "store"]
+tags = ["region", "geo", "ukraine", "store"]
 doc = "docs/technical/reference/14-default-user-profile.md#unconditional-values"
-summary = "Страна (GeoID) для новых пользователей: влияет на Store, погоду и предложения контента; не меняет язык интерфейса и часовой пояс."
-effect = "По умолчанию Украина (241, UA)."
-versions = "Значение Name читается Windows 10 1803+ в первую очередь."
+summary = "Country (GeoID) for new users: affects the Store, weather and content offers; does not change the display language or the time zone."
+effect = "Default is Ukraine (241, UA)."
+versions = "Windows 10 1803+ reads the Name value first."
 
 [rule.params.geo_id]
 type = "string"
-title = "GeoID страны"
+title = "Country GeoID"
 default = "241"
 
 [rule.params.geo_name]
 type = "string"
-title = "Двухбуквенный код страны"
+title = "Two-letter country code"
 default = "UA"
 
 [[rule.actions]]
@@ -356,13 +356,13 @@ default = "unknown"
 id = "default-user.http-accept-language-optout"
 group = "privacy.ads"
 phase = "default-user"
-title = "Не сообщать сайтам список языков пользователя"
+title = "Do not share the user's language list with websites"
 level = "optional"
 default = true
-tags = ["accept-language", "отпечаток", "браузер", "конфиденциальность"]
+tags = ["accept-language", "fingerprinting", "browser", "privacy"]
 doc = "docs/technical/reference/14-default-user-profile.md#unconditional-values"
-summary = "Браузеры не передают сайтам список предпочитаемых языков (уменьшает отпечаток)."
-effect = "Сайты определяют язык по другим признакам."
+summary = "Browsers do not send the list of preferred languages to websites (reduces the fingerprint)."
+effect = "Websites determine the language by other means."
 versions = "Windows 10+."
 
 [[rule.actions]]

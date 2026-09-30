@@ -1,7 +1,7 @@
-# Переклади текстів каталогу правил українською (rules/NN-*.toml).
-# Ключ таблиці: ідентифікатор правила; _groups: назви та описи груп.
-# Поля: title, summary, effect, risk, versions, verify, rollback; params.<назва>; values.<назва>."<значення>".
-# Змінюючи текст правила в каталозі, змініть і переклад; повноту перевіряє tests/test_docs.py.
+# Ukrainian texts of the rule catalog (rules/NN-*.toml). Table key: the rule id; _groups: group titles and summaries.
+# Fields: title, summary, effect, risk, versions, verify, rollback, tags; params.<name>; values.<name>."<value>".
+# A missing text falls back to the English source; tests/test_docs.py checks that these files are complete.
+_language = "Українська"
 
 ["install.bypass-tpm"]
 title = '''Обхід перевірки TPM 2.0'''

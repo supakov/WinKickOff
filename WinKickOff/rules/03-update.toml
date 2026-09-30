@@ -1,17 +1,17 @@
-# Обновления Windows. Раздел 2 скрипта машины v0.2. Порядок: снятие блокировок раньше настроек.
+# Windows Update. Section 2 of the v0.2 machine script. Order: blocks are removed before the settings.
 
 [[rule]]
 id = "update.unblock"
 group = "update"
 phase = "specialize"
-title = "Снять любые блокировки Центра обновления"
+title = "Remove all Windows Update blocks"
 level = "baseline"
 default = true
-tags = ["windows update", "wuauserv", "обновления", "store"]
+tags = ["windows update", "wuauserv", "updates", "store"]
 doc = "docs/technical/reference/06-windows-update.md"
-summary = "Удаляет политики, которые отключают обновления, драйверы или автообновление Store, и возвращает отключённые службы обновления в ручной режим."
-effect = "На чистом образе ничего не меняет; защищает от следов сторонних «оптимизаторов» и делает повторный запуск скрипта безопасным."
-versions = "Без изменений."
+summary = "Removes policies that turn off updates, driver updates or Store automatic updates, and returns disabled update services to manual startup."
+effect = "Changes nothing on a clean image; removes leftovers of third-party \"optimizers\" and makes it safe to run the script again."
+versions = "No changes."
 verify = "Get-ItemProperty HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU"
 
 [[rule.actions]]
@@ -55,29 +55,29 @@ foreach ($svc in 'wuauserv','UsoSvc','BITS','DoSvc','WaaSMedicSvc') {
 id = "update.automatic"
 group = "update"
 phase = "specialize"
-title = "Автоматическая установка обновлений и период активности"
+title = "Automatic update installation and active hours"
 level = "recommended"
 default = true
 requires = ["update.unblock"]
-tags = ["windows update", "auoptions", "период активности", "перезагрузка"]
+tags = ["windows update", "auoptions", "active hours", "restart"]
 doc = "docs/technical/reference/06-windows-update.md#windowsupdateautomatic"
-summary = "Обновления скачиваются и ставятся сами; автоматическая перезагрузка запрещена в период активности."
-effect = "Перезагрузка ночью или до начала рабочего дня; пользователь видит уведомление и может отложить в пределах политики."
-risk = "Период активности не длиннее 18 часов. ПК, работающие круглосуточно, перезагрузятся вне периода."
-versions = "Работает на Windows 10 и 11; в 24H2 фиксированные часы заменяют автоопределение периода."
+summary = "Updates are downloaded and installed automatically; automatic restarts are not allowed during active hours."
+effect = "Restarts happen at night or before the workday starts; the user sees a notification and can postpone within the policy limits."
+risk = "Active hours cannot exceed 18 hours. PCs that run around the clock will restart outside active hours."
+versions = "Works on Windows 10 and 11; in 24H2 fixed hours replace automatic detection of active hours."
 verify = "Get-ItemProperty HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate"
-rollback = "Удалить SetActiveHours, ActiveHoursStart, ActiveHoursEnd."
+rollback = "Delete SetActiveHours, ActiveHoursStart, ActiveHoursEnd."
 
 [rule.params.start]
 type = "int"
-title = "Начало периода активности (час)"
+title = "Active hours start (hour)"
 default = 8
 min = 0
 max = 23
 
 [rule.params.end]
 type = "int"
-title = "Конец периода активности (час)"
+title = "Active hours end (hour)"
 default = 20
 min = 0
 max = 23
@@ -122,15 +122,15 @@ value = "{end}"
 id = "update.other-microsoft-products"
 group = "update"
 phase = "specialize"
-title = "Обновления других продуктов Microsoft (Office, .NET)"
+title = "Updates for other Microsoft products (Office, .NET)"
 level = "recommended"
 default = false
 requires = ["update.unblock"]
 tags = ["microsoft update", "office", ".net"]
 doc = "docs/technical/reference/06-windows-update.md#updateothermicrosoftproducts"
-summary = "Подключение к Microsoft Update: исправления Office (MSI), .NET и других продуктов приходят вместе с Windows."
-effect = "Переключатель в Параметрах включён и заблокирован. Office 365 (Click-to-Run) обновляется своим механизмом независимо."
-versions = "Без изменений."
+summary = "Opts in to Microsoft Update: fixes for Office (MSI), .NET and other products arrive together with Windows updates."
+effect = "The toggle in Settings is turned on and locked. Office 365 (Click-to-Run) updates independently through its own mechanism."
+versions = "No changes."
 verify = "(New-Object -ComObject Microsoft.Update.ServiceManager).Services | Where-Object IsDefaultAUService"
 
 [[rule.actions]]
@@ -145,22 +145,22 @@ why = "Office and other Microsoft products via WU"
 id = "update.defer-feature"
 group = "update"
 phase = "specialize"
-title = "Отсрочка обновлений функций"
+title = "Defer feature updates"
 level = "optional"
 default = true
 requires = ["update.unblock"]
-tags = ["обновления функций", "24h2", "25h2", "отсрочка", "defer"]
+tags = ["feature updates", "24h2", "25h2", "deferral", "defer"]
 doc = "docs/technical/reference/06-windows-update.md#deferfeatureupdatesdays"
-summary = "Ежегодные обновления версии приходят с задержкой; ежемесячные обновления безопасности не откладываются."
-effect = "За время отсрочки Microsoft исправляет ошибки первых недель, а программы учёта выпускают совместимые версии."
-risk = "Требует работающей оценки совместимости: правило минимальной телеметрии намеренно оставляет DiagTrack в ручном режиме, а не отключает."
-versions = "Windows 10 1703+ и Windows 11 Pro/Enterprise; на Home отсрочки нет. Диапазон 0-365 дней."
+summary = "Annual version updates arrive with a delay; monthly security updates are not deferred."
+effect = "During the deferral period, Microsoft fixes the bugs of the first weeks and accounting software vendors release compatible versions."
+risk = "Requires working compatibility assessment: the minimal telemetry rule intentionally leaves DiagTrack on manual startup instead of disabling it."
+versions = "Windows 10 1703+ and Windows 11 Pro/Enterprise; Home has no deferral. Range 0-365 days."
 verify = "Get-ItemProperty HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate | Select-Object DeferFeatureUpdatesPeriodInDays"
-rollback = "Удалить DeferFeatureUpdates и DeferFeatureUpdatesPeriodInDays."
+rollback = "Delete DeferFeatureUpdates and DeferFeatureUpdatesPeriodInDays."
 
 [rule.params.days]
 type = "int"
-title = "Дней отсрочки"
+title = "Deferral period, days"
 default = 90
 min = 1
 max = 365
@@ -184,21 +184,21 @@ why = "security updates are never deferred"
 id = "update.delivery-optimization-lan"
 group = "update"
 phase = "specialize"
-title = "Delivery Optimization: обмен обновлениями только в локальной сети"
+title = "Delivery Optimization: share updates only on the local network"
 level = "recommended"
 default = true
-tags = ["delivery optimization", "трафик", "peer", "локальная сеть"]
+tags = ["delivery optimization", "traffic", "peer", "lan"]
 doc = "docs/technical/reference/06-windows-update.md#deliveryoptimizationlanonly"
-summary = "ПК одной сети обмениваются скачанными фрагментами обновлений между собой; наружу ничего не отдаётся."
-effect = "В офисе с десятком ПК обновление скачивается из интернета один раз. Нужен открытый порт 7680 между ПК (правило брандмауэра Windows создаёт сама)."
-versions = "Режимы 0 (только HTTP), 1 (локальная сеть), 3 (интернет), 99 (простой режим) одинаковы с Windows 10 1607."
+summary = "PCs on the same network share downloaded update fragments with each other; nothing is uploaded outside the network."
+effect = "In an office with a dozen PCs, an update is downloaded from the internet only once. Port 7680 must be open between PCs (Windows creates the firewall rule itself)."
+versions = "Modes 0 (HTTP only), 1 (local network), 3 (internet) and 99 (simple mode) have been the same since Windows 10 1607."
 verify = "Get-DOConfig"
 
 [rule.params.mode]
 type = "enum"
-title = "Режим"
+title = "Mode"
 default = 1
-values = [ { value = 1, title = "Только локальная сеть" }, { value = 0, title = "Только HTTP, без обмена" }, { value = 99, title = "Простой режим без облака" } ]
+values = [ { value = 1, title = "Local network only" }, { value = 0, title = "HTTP only, no peer sharing" }, { value = 99, title = "Simple mode without the cloud" } ]
 
 [[rule.actions]]
 type = "reg"

@@ -1,0 +1,30 @@
+{
+  "name": "Matrix",
+  "base": "clam",
+  "dark": true,
+  "font": "Consolas",
+  "colors": {
+    "background": "#000000",
+    "foreground": "#00ff41",
+    "field": "#050d05",
+    "field_foreground": "#00ff41",
+    "select": "#003b00",
+    "select_foreground": "#b6ffb6",
+    "border": "#00551a",
+    "button": "#001a08",
+    "button_foreground": "#00ff41",
+    "button_active": "#003b00",
+    "heading": "#001a08",
+    "disabled": "#007a1f",
+    "muted": "#00b32d",
+    "link": "#39ff14",
+    "changed": "#adff2f",
+    "error": "#ff3131",
+    "warning": "#ffd700",
+    "risky": "#ff5f5f",
+    "check_border": "#00ff41",
+    "check_on": "#00b32d",
+    "check_off": "#000000",
+    "check_mark": "#000000"
+  }
+}

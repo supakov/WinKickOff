@@ -33,7 +33,8 @@ WinKickOff/
       validate.py            profile and XML verification; Issue
       importer.py            profile from XML (embedded) or from the v0.2 file (action parsing)
       pscheck.py             syntax verification via powershell.exe, if available
-      i18n.py                interface strings and rule translations
+      i18n.py                translations: languages found from files, English fallback
+      themes.py              colour themes from resources/themes, following the Windows light or dark mode
     ui/
       main_window.py         window, menu, three areas, hotkeys
       rule_tree.py           tree with check boxes, search, filter
@@ -42,8 +43,8 @@ WinKickOff/
       dialogs.py             about, profile comparison, cascade list
   rules/
     groups.toml              group tree
-    NN-<направление>.toml    rules by area, file order = application order
-    lang/uk.toml             translations of rule strings
+    NN-<area>.toml           rules by area (English), file order = application order
+    lang/<code>.toml         translations of rule strings (ru, uk; a new file adds a language)
   templates/
     autounattend.template.xml      skeleton with slot markers
     Setup-System.runtime.ps1       functions, trap, header, hive mounting
@@ -51,7 +52,8 @@ WinKickOff/
     Post-OOBE.runtime.ps1          waiting for OOBE, reading the profile, completion
     VERSION                        catalog and runtime version (0.3)
   resources/
-    strings.uk.json, strings.en.json   interface strings
+    strings.<code>.json                interface translations keyed by the English text (ru, uk)
+    themes/<id>.json                   colour themes (light, dark, matrix)
     keyboards.json, timezones.json     reference data
   profiles/
     preset-office.json, preset-strict.json
@@ -207,7 +209,7 @@ on the unpacked text.
 - The description is built from the rule data and the action table; the «Подробнее» (More details) link opens
   the reference card (`os.startfile`) if the file is in the build.
 - Parameters: widgets by type (Spinbox, Combobox, Entry) below the description; a change goes straight into the profile.
-- Data nodes: «Установка» (Installation), «Учётные записи» (Accounts), «Языки и регион» (Languages and region) open forms in the right panel.
+- Data nodes: "Installation: edition, key, time zone", "Accounts", "Languages and region" open forms in the right panel.
 - DPI: `SetProcessDpiAwareness(1)` before Tk is created; theme `vista`.
 
 ## 9. Build

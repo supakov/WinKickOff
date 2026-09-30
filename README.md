@@ -15,7 +15,7 @@ no installation, no administrator rights).
 
 | Tool | What it does |
 |---|---|
-| Editor (`WinKickOff/`) | Every installation rule in a searchable tree with descriptions; dependent rules are disabled automatically; profiles and presets; the output is `autounattend.xml` built from the selection only; interface in Russian, Ukrainian and English |
+| Editor (`WinKickOff/`) | Every installation rule in a searchable tree with descriptions; dependent rules are disabled automatically; profiles and presets; the output is `autounattend.xml` built from the selection only; interface in English with Russian and Ukrainian translations (more languages are added as files), light, dark and Matrix colour themes |
 | This PC (menu of the editor) | Read-only check of an installed Windows; apply the selected rules or return them to Windows defaults, with a backup and rollback |
 | Validate-Unattend (`tools/Validate-Unattend.ps1`) | Static check of any answer file against the limits of Windows Setup (36 checks), read-only |
 
@@ -31,8 +31,8 @@ cd WinKickOff
 python -m winkickoff
 ```
 
-In the window: choose a profile (the «Офис» (Office) preset), disable or adjust rules if needed, press
-«Собрать autounattend.xml» (Build autounattend.xml, F9) and put the file into the root of a USB drive with the
+In the window: choose a profile (the Office preset), disable or adjust rules if needed, press
+"Build autounattend.xml" (F9) and put the file into the root of a USB drive with the
 Windows 11 installation image. Step by step: [quick start](docs/user/en/quick-start.md).
 
 Check a built file:
@@ -47,7 +47,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 
 - The starter accounts Admin and User are created without passwords: passwords and groups are assigned by a
   separate project after installation. A password entered in the editor is stored in the file in plain text.
 - The tools change nothing on the computer they run on unless the user explicitly applies or returns rules
-  through «Этот ПК» (This PC): the editor writes only into its own folder, the checker only reads the file.
+  through the This PC menu: the editor writes only into its own folder, the checker only reads the file.
 
 ## Documentation
 

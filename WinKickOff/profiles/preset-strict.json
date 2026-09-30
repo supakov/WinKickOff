@@ -1,11 +1,11 @@
 {
   "format_version": 2,
   "catalog_version": "0.4",
-  "name": "Строгий",
+  "name": "Strict",
   "author": "",
   "created": "2026-09-25T00:00:00",
   "modified": "2026-09-25T00:00:00",
-  "comment": "Офис плюс ограничения, которые могут мешать старым программам: контролируемый доступ к папкам в режиме блокировки, SmartScreen запрещает запуск программ без репутации, правило ASR по распространённости блокирует, неподписанные программы с USB не запускаются, UAC всегда спрашивает администратора, обновления других продуктов Microsoft включены, NetBIOS выключен, движок VBScript удаляется. Перед массовым внедрением проверить на одном ПК.",
+  "comment": "Office plus restrictions that may disturb old programs: Controlled Folder Access in block mode, SmartScreen blocks programs without a reputation, the ASR prevalence rule blocks, unsigned programs from USB do not run, UAC always asks the administrator, updates of other Microsoft products are on, NetBIOS is off, the VBScript engine is removed. Test on one PC before a wide rollout.",
   "install": {
     "edition": "Pro",
     "product_key_mode": "generic",

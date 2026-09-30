@@ -26,7 +26,7 @@ from winkickoff.core.i18n import tr
 EXT = "{urn:workgroup-unattend}"
 U = "{urn:schemas-microsoft-com:unattend}"
 SCRIPT_NAMES = ("Setup-System.ps1", "Setup-User.ps1", "Post-OOBE.ps1")
-IMPORTED_NAME = "Импорт из XML"  # name of a profile restored by actions; the UI replaces it with the file name
+IMPORTED_NAME = "Imported from XML"  # name of a profile restored by actions; the UI replaces it with the file name
 
 
 class ImportFailed(ValueError):
@@ -37,17 +37,17 @@ def import_xml(text: str, catalog: Catalog, keyboards: list[dict[str, Any]] | No
     try:
         root = ET.fromstring(text.encode("utf-8"))
     except ET.ParseError as exc:
-        raise ImportFailed(tr("файл не является корректным XML: {0}", exc)) from exc
+        raise ImportFailed(tr("the file is not valid XML: {0}", exc)) from exc
     if root.tag != f"{U}unattend":
-        raise ImportFailed(tr("это не файл ответов Windows: корневой элемент не unattend"))
+        raise ImportFailed(tr("this is not a Windows answer file: the root element is not unattend"))
     element = root.find(f"{EXT}Extensions/{EXT}Profile")
     if element is not None and (element.text or "").strip():
         try:
             data = json.loads(element.text or "")
         except json.JSONDecodeError as exc:
-            raise ImportFailed(tr("встроенный профиль повреждён: {0}", exc)) from exc
+            raise ImportFailed(tr("the embedded profile is corrupted: {0}", exc)) from exc
         if not isinstance(data, dict):
-            raise ImportFailed(tr("встроенный профиль должен быть объектом JSON"))
+            raise ImportFailed(tr("the embedded profile must be a JSON object"))
         profile, warnings = Profile.from_dict(data, catalog)
         profile.path = None
         return profile, warnings
@@ -185,15 +185,15 @@ def import_by_actions(root: ET.Element, text: str, catalog: Catalog, keyboards: 
             profile.rules[rule.id].enabled = False
             profile.rules[rule.id].params.clear()
             if any(evidence):
-                partial.append(tr("{0} ({1} из {2})", rule.id, sum(evidence), len(evidence)))
+                partial.append(tr("{0} ({1} of {2})", rule.id, sum(evidence), len(evidence)))
     enabled = len(profile.enabled_ids())
     warnings.append(
-        tr("Профиль восстановлен по действиям файла: включено {0} правил из {1}. Проверьте результат (F7) перед сборкой.", enabled, len(catalog.rules))
+        tr("Profile restored from the file's actions: {0} of {1} rules enabled. Check the result (F7) before building.", enabled, len(catalog.rules))
     )
     if partial:
-        warnings.append(tr("Найдены не все действия, правила выключены: ") + ", ".join(partial))
+        warnings.append(tr("Rules disabled because not all of their actions were found: ") + ", ".join(partial))
     if undecided:
-        warnings.append(tr("Не определено по файлу, оставлено как в каталоге: ") + ", ".join(undecided))
+        warnings.append(tr("Could not be determined from the file, left as in the catalog: ") + ", ".join(undecided))
     _import_install(root, profile, warnings)
     _import_languages(root, text, profile, keyboards, warnings)
     _import_accounts(root, profile)
@@ -216,7 +216,7 @@ def _import_install(root: ET.Element, profile: Profile, warnings: list[str]) -> 
             profile.install.update(product_key_mode="ask", product_key="")
         else:
             profile.install.update(product_key_mode="custom", product_key=key)
-            warnings.append(tr("В файле собственный ключ продукта: редакция по ключу не определяется, оставлена Pro"))
+            warnings.append(tr("The file contains a custom product key: the edition cannot be determined from the key, Pro is kept"))
     for pass_name in ("specialize", "oobeSystem"):
         shell = _first_component(root, pass_name, "Microsoft-Windows-Shell-Setup")
         zone = shell.findtext(f"{U}TimeZone") if shell is not None else None
@@ -265,7 +265,7 @@ def _import_languages(root: ET.Element, text: str, profile: Profile, keyboards: 
         items.append(str(entry["tag"]) if entry and entry.get("tag") and find_keyboard(keyboards, str(entry["tag"])) is entry else pair.strip())
     if items:
         profile.languages["input"] = items
-        warnings.append(tr("Языки ввода взяты из InputLocale: временные языки (например «Русский (Украина)») так не восстанавливаются"))
+        warnings.append(tr("Input languages were taken from InputLocale: temporary languages (for example \"Russian (Ukraine)\") cannot be restored this way"))
 
 
 def _import_accounts(root: ET.Element, profile: Profile) -> None:

@@ -1,21 +1,21 @@
-# Первый вход каждого пользователя: скрипт Setup-User.ps1, запускаемый Active Setup.
-# Регистрация Active Setup это инфраструктура: генератор добавляет её, если включено хотя бы одно правило фазы.
-# Рантайм скрипта предоставляет Write-Log (лог на каждого пользователя).
+# First sign-in of each user: script Setup-User.ps1 started by Active Setup.
+# The Active Setup registration is infrastructure: the generator adds it when at least one rule of the phase is on.
+# The script runtime provides Write-Log (a log per user).
 
 [[rule]]
 id = "user-logon.pin-ui-language"
 group = "user-logon"
 phase = "user-first-logon"
-title = "Закрепить язык интерфейса равным языку образа"
+title = "Pin the display language to the image language"
 level = "baseline"
 default = true
-tags = ["язык интерфейса", "uilanguageoverride", "iso", "display language"]
+tags = ["display language", "uilanguageoverride", "iso"]
 doc = "docs/technical/reference/15-per-user-script.md#step-1-pinning-the-display-language"
-summary = "Set-WinUILanguageOverride фиксирует язык интерфейса равным установленному, чтобы перестановка языков ввода (английский первым) не переключила интерфейс."
-effect = "Требование заказчика «язык интерфейса не менять» держится на этой строке."
-versions = "Командлет с Windows 8."
-rollback = "Set-WinUILanguageOverride без параметра снимает закрепление."
-verify = 'Под учётной записью пользователя: Get-WinUILanguageOverride возвращает язык образа (например uk-UA); язык интерфейса после первого входа не изменился.'
+summary = "Set-WinUILanguageOverride locks the display language to the installed one so that reordering input languages (English first) does not switch the interface."
+effect = "The customer's requirement \"do not change the display language\" relies on this line."
+versions = "Cmdlet available since Windows 8."
+rollback = "Set-WinUILanguageOverride without a parameter removes the override."
+verify = "Under the user account: Get-WinUILanguageOverride returns the image language (for example uk-UA); the display language has not changed after the first sign-in."
 
 [[rule.actions]]
 type = "ps"
@@ -30,17 +30,17 @@ try {
 id = "user-logon.input-languages"
 group = "user-logon"
 phase = "user-first-logon"
-title = "Список языков ввода пользователя из профиля (включая «Русский (Украина)»)"
+title = "User input language list from the profile (including \"Russian (Ukraine)\")"
 level = "recommended"
 default = true
 requires = ["user-logon.pin-ui-language"]
-tags = ["языки ввода", "раскладка", "ru-ua", "русский украина", "set-winuserlanguagelist"]
+tags = ["input languages", "keyboard layout", "ru-ua", "russian ukraine", "set-winuserlanguagelist"]
 doc = "docs/technical/reference/15-per-user-script.md#step-2-input-language-list"
-summary = "Заменяет список языков ввода пользователя на список из узла «Языки и регион» (по умолчанию en-US, uk-UA, ru-UA). Языки без числового кода, такие как «Русский (Украина)», задать в XML нельзя, поэтому они применяются здесь; если Windows не назначила им раскладку, применяется запасной список, где они заменены базовым языком."
-effect = "В переключателе языков пользователя тот же порядок, что в профиле; экран входа сохраняет список из XML (с базовым языком вместо «Русский (Украина)»)."
-versions = "ru-UA как язык ввода поддерживается Windows 10 1803+ и 11; на сборке 26200 получает временный код 2000:00000419. Windows может сокращать теги (uk-UA отображается как uk)."
+summary = "Replaces the user's input language list with the list from the \"Languages and region\" node (by default en-US, uk-UA, ru-UA). Languages without a numeric code, such as \"Russian (Ukraine)\", cannot be set in XML, so they are applied here; if Windows has not assigned them a keyboard layout, a fallback list is applied in which they are replaced with the base language."
+effect = "The user's language switcher shows the same order as the profile; the sign-in screen keeps the list from XML (with the base language instead of \"Russian (Ukraine)\")."
+versions = "ru-UA as an input language is supported by Windows 10 1803+ and 11; on build 26200 it gets the temporary code 2000:00000419. Windows may shorten tags (uk-UA is displayed as uk)."
 verify = "Get-WinUserLanguageList | Select-Object LanguageTag, InputMethodTips"
-rollback = "Параметры -> Язык и регион, либо Set-WinUserLanguageList."
+rollback = "Settings -> Language & region, or Set-WinUserLanguageList."
 
 [[rule.actions]]
 type = "ps"

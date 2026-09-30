@@ -1,11 +1,11 @@
 {
   "format_version": 2,
   "catalog_version": "0.4",
-  "name": "Ноутбук",
+  "name": "Laptop",
   "author": "",
   "created": "2026-09-25T00:00:00",
   "modified": "2026-09-25T00:00:00",
-  "comment": "Офис для ноутбуков: экран блокируется через 10 минут бездействия. Шифрование диска, как и во всех пресетах, не включается само: BitLocker включают отдельно вместе с сохранением ключей восстановления и паролями пользователей.",
+  "comment": "Office for laptops: the screen locks after 10 minutes of inactivity. As in every preset, the drive is not encrypted by itself: BitLocker is turned on separately, together with the escrow of recovery keys and user passwords.",
   "install": {
     "edition": "Pro",
     "product_key_mode": "generic",
