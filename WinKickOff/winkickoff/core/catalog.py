@@ -25,15 +25,21 @@ PHASES: tuple[str, ...] = (
 PHASE_ORDER: dict[str, int] = {phase: index for index, phase in enumerate(PHASES)}
 LEVELS: tuple[str, ...] = ("baseline", "recommended", "optional", "risky")
 REG_KINDS: tuple[str, ...] = ("DWord", "QWord", "String", "ExpandString", "MultiString", "Binary")
+LIST_KINDS: tuple[str, ...] = ("String", "ExpandString")  # the values of a reg-list action
 REG_PREFIXES: tuple[str, ...] = ("HKLM:\\", "HKCU:\\", "DU:\\")
-PARAM_TYPES: tuple[str, ...] = ("int", "enum", "string", "bool")
+PARAM_TYPES: tuple[str, ...] = ("int", "enum", "string", "bool", "list")
+REG_ACTIONS: tuple[str, ...] = ("reg", "reg-remove", "reg-list")
 
 # action type -> (required fields, optional fields)
 # "default" is the state of a clean Windows, used to return a rule to Windows defaults on a running PC:
 # DEFAULT_ABSENT (no such value), DEFAULT_UNKNOWN (not restored automatically) or the value itself.
+# reg-list writes a key that holds a list of values (the list element of a policy template): the value names are
+# the data itself, "prefix" with a number (prefix1, prefix2, ...) or, with explicit = true, given by each item
+# ("name=value"); without additive = true every other value of the key is deleted first, as Group Policy does.
 ACTION_FIELDS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "reg": (("path", "name", "kind", "value"), ("why", "default")),
     "reg-remove": (("path", "name"), ("default",)),
+    "reg-list": (("path", "kind", "value"), ("prefix", "explicit", "additive", "default")),
     "service": (("name", "start"), ("default",)),
     "exe": (("file", "args"), ()),
     "feature": (("name", "state"), ("default",)),
@@ -52,6 +58,7 @@ XML_ACTION_PHASE: dict[str, str] = {
 SCRIPT_PHASES: tuple[str, ...] = ("specialize", "default-user", "user-first-logon", "post-oobe")
 DEFAULT_ABSENT = "absent"
 DEFAULT_UNKNOWN = "unknown"
+LIST_NAME = chr(0) + "list"  # registry_values(): every value of a key (a reg-list); no value name holds a NUL
 
 _ID_RE = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*$")
 _PLACEHOLDER_RE = re.compile(r"\{([a-z_][a-z0-9_]*)\}")
@@ -82,7 +89,8 @@ class Param:
     min: int | None = None
     max: int | None = None
     values: tuple[tuple[Any, str], ...] = ()
-    required: bool = True  # a string may be empty only when False (optional text of an imported policy)
+    required: bool = True  # a string or a list may be empty only when False (optional text of an imported policy)
+    pairs: bool = False  # a list whose items are "name=value" (an explicitValue list of a policy template)
 
 
 @dataclass(frozen=True)
@@ -199,6 +207,7 @@ class Catalog:
             self._direct.setdefault(rule.group, []).append(rule)
         self._in_group: dict[str, list[Rule]] = {}
         self._values: dict[tuple[str, str, str], list[str]] | None = None
+        self._keys: dict[tuple[str, str], list[str]] = {}
 
     @property
     def order(self) -> list[str]:
@@ -232,16 +241,22 @@ class Catalog:
 
     def same_values(self, rule_id: str) -> list[str]:
         """Rules of the other kind (built-in for an imported rule, imported for a built-in one) that write or
-        remove a registry value this rule writes or removes, in catalog order."""
+        remove a registry value this rule writes or removes, in catalog order. A list of values (reg-list) meets
+        every value of its key."""
         if self._values is None:
-            self._values = {}
+            self._values, self._keys = {}, {}
             for rule in self.rules.values():
-                for key in registry_values(rule):
-                    self._values.setdefault(key, []).append(rule.id)
+                for scope, key, name in registry_values(rule):
+                    self._values.setdefault((scope, key, name), []).append(rule.id)
+                    self._keys.setdefault((scope, key), []).append(rule.id)
         imported = is_imported(rule_id)
         found: set[str] = set()
-        for key in registry_values(self.rules[rule_id]):
-            found.update(other for other in self._values.get(key, ()) if is_imported(other) != imported)
+        for scope, key, name in registry_values(self.rules[rule_id]):
+            if name == LIST_NAME:
+                others = self._keys.get((scope, key), [])
+            else:
+                others = self._values.get((scope, key, name), []) + self._values.get((scope, key, LIST_NAME), [])
+            found.update(other for other in others if is_imported(other) != imported)
         return sorted(found, key=lambda other: self._position[other])
 
     def search(self, query: str) -> list[str]:
@@ -364,6 +379,14 @@ def _parse_param(name: str, raw: dict[str, Any], file: str, rule_id: str) -> Par
             raise CatalogError(f"param '{name}': default outside min..max", file=file, rule_id=rule_id)
     if ptype == "bool" and not isinstance(default, bool):
         raise CatalogError(f"param '{name}': bool default must be true or false", file=file, rule_id=rule_id)
+    if ptype == "list":
+        if not isinstance(default, list) or not all(isinstance(item, str) for item in default):
+            raise CatalogError(f"param '{name}': list default must be a list of strings", file=file, rule_id=rule_id)
+        for key in ("required", "pairs"):
+            if not isinstance(raw.get(key, False), bool):
+                raise CatalogError(f"param '{name}': '{key}' must be true or false", file=file, rule_id=rule_id)
+        return Param(name=name, type=ptype, title=title, default=default, required=raw.get("required", False),
+                     pairs=raw.get("pairs", False))
     return Param(name=name, type=ptype, title=title, default=default, min=raw.get("min"), max=raw.get("max"), values=values)
 
 
@@ -384,8 +407,12 @@ def _parse_action(raw: dict[str, Any], file: str, rule_id: str, index: int) -> A
             raise CatalogError(f"action {index}: bad registry kind '{fields['kind']}'", file=file, rule_id=rule_id)
         if not str(fields["path"]).startswith(REG_PREFIXES):
             raise CatalogError(f"action {index}: registry path must start with one of {REG_PREFIXES}", file=file, rule_id=rule_id)
-    if atype == "reg-remove" and not str(fields["path"]).startswith(REG_PREFIXES):
+    if atype in ("reg-remove", "reg-list") and not str(fields["path"]).startswith(REG_PREFIXES):
         raise CatalogError(f"action {index}: registry path must start with one of {REG_PREFIXES}", file=file, rule_id=rule_id)
+    if atype == "reg-list":
+        problem = list_action_problem(fields)
+        if problem:
+            raise CatalogError(f"action {index} (reg-list): {problem}", file=file, rule_id=rule_id)
     if atype == "service" and fields["start"] not in (2, 3, 4):
         raise CatalogError(f"action {index}: service start must be 2, 3 or 4", file=file, rule_id=rule_id)
     if atype == "exe" and (not isinstance(fields["args"], list) or not all(isinstance(a, str) for a in fields["args"])):
@@ -403,10 +430,28 @@ def _parse_action(raw: dict[str, Any], file: str, rule_id: str, index: int) -> A
     return Action(type=atype, fields=fields, rule_id=rule_id)
 
 
+def list_action_problem(fields: dict[str, Any]) -> str:
+    """What is wrong with the fields of a reg-list action, or ""."""
+    if fields.get("kind") not in LIST_KINDS:
+        return f"kind must be one of {LIST_KINDS}"
+    value = fields.get("value")
+    if not (isinstance(value, str) and _PLACEHOLDER_RE.fullmatch(value)
+            or isinstance(value, list) and all(isinstance(item, str) for item in value)):
+        return "value must be a list of strings or one parameter such as '{items}'"
+    if not isinstance(fields.get("prefix", ""), str):
+        return "prefix must be a string"
+    for key in ("explicit", "additive"):
+        if not isinstance(fields.get(key, False), bool):
+            return f"{key} must be true or false"
+    if fields.get("explicit") and "prefix" in fields:
+        return "explicit names and a prefix exclude each other"
+    return ""
+
+
 def _default_problem(atype: str, fields: dict[str, Any]) -> str:
     default = fields["default"]
     sentinels = (DEFAULT_ABSENT, DEFAULT_UNKNOWN)
-    if atype == "reg-remove":
+    if atype in ("reg-remove", "reg-list"):
         return "" if default in sentinels else f"must be '{DEFAULT_ABSENT}' or '{DEFAULT_UNKNOWN}'"
     if atype == "service":
         return "" if default in (2, 3, 4) or default == DEFAULT_UNKNOWN else "must be 2, 3, 4 or 'unknown'"
@@ -503,7 +548,7 @@ def _check_action_phase(rule: Rule, action: Action) -> None:
         raise CatalogError(f"action type '{action.type}' belongs to phase '{expected}'", file=rule.source, rule_id=rule.id)
     if expected is None and rule.phase not in SCRIPT_PHASES:
         raise CatalogError(f"action type '{action.type}' is not allowed in phase '{rule.phase}'", file=rule.source, rule_id=rule.id)
-    if action.type in ("reg", "reg-remove"):
+    if action.type in REG_ACTIONS:
         path = str(action.fields["path"])
         if path.startswith("DU:\\") and rule.phase != "default-user":
             raise CatalogError("DU: paths are only valid in phase 'default-user'", file=rule.source, rule_id=rule.id)
@@ -539,15 +584,17 @@ def iter_actions(catalog: Catalog, rule_ids: Iterable[str]) -> list[Action]:
 
 def registry_values(rule: Rule) -> set[tuple[str, str, str]]:
     """(scope, key, value name) of every registry value a rule writes or removes, in lower case; the scope is
-    "machine" for HKLM and "user" for HKCU and the default user profile (DU)."""
+    "machine" for HKLM and "user" for HKCU and the default user profile (DU). A list of values (reg-list) has the
+    name LIST_NAME: it may write or delete any value of its key."""
     found: set[tuple[str, str, str]] = set()
     for action in rule.actions:
-        if action.type not in ("reg", "reg-remove"):
+        if action.type not in REG_ACTIONS:
             continue
         path = str(action.fields.get("path", ""))
         scope = "machine" if path.upper().startswith("HKLM:\\") else "user"
         key = path.split(":\\", 1)[-1].strip("\\").lower()
-        found.add((scope, key, str(action.fields.get("name", "")).lower()))
+        name = LIST_NAME if action.type == "reg-list" else str(action.fields.get("name", "")).lower()
+        found.add((scope, key, name))
     return found
 
 

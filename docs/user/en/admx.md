@@ -35,6 +35,11 @@ mostly in English.
 - A complex policy gets its parameters from its fields: numbers, lists of options, text, check boxes. When the
   "Disabled" state writes values of its own, a second rule marked "(Disabled)" appears; only one of the two can be
   on.
+- A list of values (for example allowed addresses) and multi-line text are edited in a multi-line box: one item
+  per line, empty lines and spaces around items are dropped. When every item has a name of its own, the line is
+  written as `name=value`; the hint next to the box says so. Unless the template allows adding to the list, it
+  replaces everything that was in its registry key, as Group Policy does; such a list left empty clears the key.
+  The "(Disabled)" rule of a policy with a list also leaves the key of the list empty.
 - Computer policies are written to HKLM during installation, user policies to the default user profile, so every
   account created during installation gets them.
 - Imported policies are switched on one by one; the check box of a group in this branch only switches them off.
@@ -48,10 +53,15 @@ built-in rule: it is reviewed and documented. When both are on, the check warns 
 
 ## What is not imported
 
-Policies with lists of values (for example lists of allowed addresses), multi-line text, options that write
-several values at once, and characters that are not safe in a script are skipped. After the import their number
-by reason is shown in the message list at the bottom of the window, and the total in the description of the
-branch.
+Policies with options or check boxes that write several values at once, with numbers larger than Windows
+PowerShell writes, and with characters that are not safe in a script (also in the key or the prefix of a list)
+are skipped. After the import their number by reason is shown in the message list at the bottom of the window,
+and the total in the description of the branch. In the templates of Windows 11 build 26300, for example, these are
+20 policies of 3552.
+
+Policies with lists of values and multi-line text are imported since version 1.1.0-rc.2. An import made by
+1.1.0-rc.1 does not contain them, and the description of its branch says how many were skipped: delete such an
+import and import the templates again.
 
 ## Profiles
 

@@ -67,6 +67,22 @@ class VerifyTest(unittest.TestCase):
         self.assertEqual(len(steps), 4)
         self.assertIn("Enable-WindowsOptionalFeature", rollback_steps(rule, {})[1])
 
+    def test_lists_of_values(self) -> None:
+        path = "HKLM:\\SOFTWARE\\Policies\\X\\Sites"
+        replace = rule_with(("reg-list", {"path": path, "kind": "String", "prefix": "", "value": "{sites}"}))
+        steps = verify_steps(replace, {"sites": ["a.example", "b.example"]})
+        self.assertIn("1 = a.example; 2 = b.example and no other values", steps[0])
+        self.assertIn("the key has no values", verify_steps(replace, {"sites": []})[0])
+        self.assertIn("reg delete \"HKLM\\SOFTWARE\\Policies\\X\\Sites\" /va /f", rollback_steps(replace, {"sites": []})[0])
+        pairs = rule_with(("reg-list", {"path": "DU:\\Software\\X", "kind": "ExpandString", "explicit": True, "additive": True,
+                                        "value": ["Zone=%TEMP%"]}), phase="default-user")
+        steps = verify_steps(pairs, {})
+        self.assertIn("HKCU\\Software\\X\": expected REG_EXPAND_SZ values Zone = %TEMP% (other values may stay)", steps[0])
+        self.assertIn("signed in with an account", steps[-1])
+        self.assertIn("can be restored if the previous values are known", rollback_steps(pairs, {})[0])
+        broken = rule_with(("reg-list", {"path": path, "kind": "String", "explicit": True, "value": ["no equals sign"]}))
+        self.assertIn("not valid", verify_steps(broken, {})[0])
+
     def test_script_only_rule_needs_text(self) -> None:
         rule = rule_with(("ps", {"script": "Write-Log 'x'"}))
         self.assertEqual(verify_steps(rule, {}), [])

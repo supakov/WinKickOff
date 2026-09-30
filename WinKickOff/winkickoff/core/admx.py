@@ -10,11 +10,15 @@ A policy becomes:
 - one rule with the parameter "state" (Enabled or Disabled) when both states set the same single value;
 - otherwise a rule for the Enabled state with the policy elements as parameters, plus a rule for the Disabled
   state when that state writes values; the two rules conflict.
+A list element (a key with a variable number of values) becomes a parameter of type "list" and a reg-list
+action: value names are the data itself, valuePrefix with a number, or given by each item ("name=value") for
+explicitValue; a list that is not additive deletes the other values of its key first, and the Disabled rule
+leaves the key without values, as Group Policy does. A multiText element is a "list" parameter written as one
+MultiString value.
 Machine policies write HKLM in the specialize pass; user policies write the default user profile (DU:), so
 every account created during installation gets them. Rule ids follow the template namespace and the policy
 name ("admx.<namespace>.<policy>"), so a profile keeps its choices across imports of the same templates.
-Policies with list or multi-line elements, value lists inside an option, or unsafe characters are skipped and
-counted with the reason.
+Policies with value lists inside an option or unsafe characters are skipped and counted with the reason.
 
 Template files are untrusted data: documents with a DTD or entities are refused, files and folders have size
 limits, and keys, value names and strings with control characters, "$", backquotes, double quotes, typographic
@@ -40,7 +44,9 @@ from winkickoff.core.i18n import N_, tr
 
 log = logging.getLogger(__name__)
 
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2  # 2: list and multiText elements (1.1.0-rc.2); imports of format 1 still load
+READ_FORMATS = (1, 2)
+LEGACY_SKIPS = ("list", "multitext")  # reasons of format 1 for elements that are converted now
 META_FILE = "import.json"
 DATA_FILE = "policies.json"
 SOURCE_CULTURE = "en-US"
@@ -58,8 +64,6 @@ _UNSAFE_VALUE = set(_CONTROL + _TYPOGRAPHIC_QUOTES)
 
 # why a policy was not imported; shown translated in the import summary
 SKIP_REASONS: dict[str, str] = {
-    "list": N_("list elements (several values in one key)"),
-    "multitext": N_("multi-line text elements"),
     "valuelist": N_("an option or a check box that writes several values"),
     "unsafe": N_("characters that are not safe in a script"),
     "range": N_("a number outside the range Windows PowerShell writes"),
@@ -314,15 +318,32 @@ def _presentation_parts(presentations: dict[str, ET.Element]) -> tuple[dict[str,
     return labels, controls
 
 
+def _list_element(element: ET.Element, element_id: str, key: str, labels: dict[str, dict[str, str]],
+                  taken: set[str]) -> dict[str, Any]:
+    """A key with a variable number of values; the list box of the presentation has no default."""
+    if not safe_name(key):
+        raise _Skip("unsafe")
+    explicit = element.get("explicitValue") == "true"
+    record: dict[str, Any] = {"param": _param_name(element_id, taken), "key": key.strip("\\"), "label": labels.get(element_id, {}),
+                              "id": element_id, "element": "list", "type": "list",
+                              "kind": "ExpandString" if element.get("expandable") == "true" else "String",
+                              "default": [], "required": False, "explicit": explicit,
+                              "additive": element.get("additive") == "true"}
+    prefix = element.get("valuePrefix")
+    if prefix is not None and not explicit:  # names prefix1, prefix2, ...; an empty prefix gives 1, 2, ...
+        if prefix and not safe_name(prefix):
+            raise _Skip("unsafe")
+        record["prefix"] = prefix
+    return record
+
+
 def _element(element: ET.Element, key: str, labels: dict[str, dict[str, str]], controls: dict[str, ET.Element],
              langs: _Languages, stem: str, taken: set[str]) -> dict[str, Any]:
     kind = _local(element.tag)
-    if kind == "list":
-        raise _Skip("list")
-    if kind == "multiText":
-        raise _Skip("multitext")
     element_id = element.get("id") or kind
     elem_key = element.get("key") or key
+    if kind == "list":
+        return _list_element(element, element_id, elem_key, labels, taken)
     name = element.get("valueName")
     if not name:
         raise _Skip("novalue")
@@ -355,6 +376,8 @@ def _element(element: ET.Element, key: str, labels: dict[str, dict[str, str]], c
             default = ""
         record.update(type="string", kind="ExpandString" if element.get("expandable") == "true" else "String", default=default,
                       required=element.get("required") == "true")
+    elif kind == "multiText":  # one REG_MULTI_SZ value, a line per string
+        record.update(element="multiText", type="list", kind="MultiString", default=[], required=element.get("required") == "true")
     elif kind == "boolean":
         if _kid(element, "trueList") is not None or _kid(element, "falseList") is not None:
             raise _Skip("valuelist")
@@ -559,7 +582,7 @@ def save_import(admx_root: Path, folder: Path, data: dict[str, Any], *, system: 
 
 def _info(meta: dict[str, Any]) -> ImportInfo:
     import_id = str(meta.get("id", ""))
-    if int(meta.get("format", 0)) != FORMAT_VERSION or not IMPORT_ID_RE.match(import_id):
+    if int(meta.get("format", 0)) not in READ_FORMATS or not IMPORT_ID_RE.match(import_id):
         raise AdmxError(f"unsupported import {import_id!r}")
     return ImportInfo(import_id, str(meta.get("name", import_id)), str(meta.get("folder", "")), str(meta.get("created", "")),
                       str(meta.get("windows", "")), tuple(str(c) for c in meta.get("cultures", [])),
@@ -625,18 +648,41 @@ def _action(write: dict[str, Any], prefix: str, rule_id: str, value: Any = None)
                           "value": write["value"] if value is None else value}, rule_id)
 
 
+def _is_list(element: dict[str, Any]) -> bool:
+    return element.get("element") == "list"
+
+
+def _list_action(element: dict[str, Any], prefix: str, rule_id: str, value: Any) -> Action:
+    """The values of a list element; an empty literal list (the Disabled state) leaves the key without values."""
+    fields: dict[str, Any] = {"path": prefix + str(element["key"]), "kind": element["kind"], "value": value}
+    if value == []:
+        return Action("reg-list", fields, rule_id)
+    if "prefix" in element:
+        fields["prefix"] = element["prefix"]
+    if element.get("explicit"):
+        fields["explicit"] = True
+    if element.get("additive"):
+        fields["additive"] = True
+    return Action("reg-list", fields, rule_id)
+
+
 def _unique(actions: list[Action]) -> tuple[Action, ...]:
-    """Later writes of the same value replace earlier ones (a policy value repeated by an element)."""
-    seen: dict[tuple[str, str], Action] = {}
+    """Later writes of the same value (or list) replace earlier ones (a policy value repeated by an element)."""
+    seen: dict[tuple[str, str | None], Action] = {}
     for action in actions:
-        seen.pop((str(action.fields["path"]).lower(), str(action.fields["name"]).lower()), None)
-        seen[(str(action.fields["path"]).lower(), str(action.fields["name"]).lower())] = action
+        name = action.fields.get("name")
+        target = (str(action.fields["path"]).lower(), None if name is None else str(name).lower())
+        seen.pop(target, None)
+        seen[target] = action
     return tuple(seen.values())
 
 
 def _param(element: dict[str, Any], language: str, only: bool) -> Param:
     # some templates leave the label empty; the only element of a policy is simply its value
     title = pick(element.get("label"), language) or (tr(VALUE) if only else element.get("id") or element["param"])
+    if element["type"] == "list":
+        return Param(element["param"], "list", title, list(element["default"]), required=bool(element.get("required")),
+                     pairs=bool(element.get("explicit")))
     if element["type"] == "enum":
         # texts None: the two states of a check box with its own values
         values = tuple((value, tr(ON if i == 0 else OFF) if texts is None else pick(texts, language) or str(value))
@@ -666,7 +712,7 @@ def policy_rules(policy: dict[str, Any], rule_id: str, group: str, language: str
     phase, prefix = ("specialize", "HKLM:\\") if machine else ("default-user", "DU:\\")
     title, summary, explain = _texts(policy, language)
     supported = pick(policy.get("supported"), language)
-    names = sorted({str(w["name"]).lower() for w in policy["enabled"] + policy["elements"]})
+    names = sorted({str(w["name"]).lower() for w in policy["enabled"] + policy["elements"] if w.get("name")})
     tags = tuple(dict.fromkeys(["admx", policy["file"].rsplit(".", 1)[0].lower(), policy["name"].lower(), *names]))
     common = dict(group=group, phase=phase, level="optional", default=False, doc="", summary=summary, effect=explain,
                   tags=tags, risk=tr(IMPORTED_RISK), versions=supported, source=source)
@@ -681,14 +727,19 @@ def policy_rules(policy: dict[str, Any], rule_id: str, group: str, language: str
         action = _action(enabled[0], prefix, rule_id, "{state}")
         return [Rule(id=rule_id, title=title, params={"state": state}, actions=(action,), **common)]
     params = {e["param"]: _param(e, language, len(elements) == 1) for e in elements}
-    on_actions = [_action(w, prefix, rule_id) for w in enabled]
-    on_actions += [_action(e, prefix, rule_id, "{" + e["param"] + "}") for e in elements]
+    lists = [e for e in elements if _is_list(e)]
+    values = [e for e in elements if not _is_list(e)]
+    # lists first: a list that is not additive deletes the other values of its key before they are written
+    on_actions = [_list_action(e, prefix, rule_id, "{" + e["param"] + "}") for e in lists]
+    on_actions += [_action(w, prefix, rule_id) for w in enabled]
+    on_actions += [_action(e, prefix, rule_id, "{" + e["param"] + "}") for e in values]
     writes_off = [w for w in disabled if w["kind"] != "delete"]
     off_id = rule_id + ".off"
     if not writes_off:
         return [Rule(id=rule_id, title=title, params=params, actions=_unique(on_actions), **common)]
-    off_actions = [_action(w, prefix, off_id) for w in disabled]
-    off_actions += [_action({**e, "kind": "delete"}, prefix, off_id) for e in elements]
+    off_actions = [_list_action(e, prefix, off_id, []) for e in lists]
+    off_actions += [_action(w, prefix, off_id) for w in disabled]
+    off_actions += [_action({**e, "kind": "delete"}, prefix, off_id) for e in values]
     return [
         Rule(id=rule_id, title=tr(TITLE_ENABLED, title), params=params, actions=_unique(on_actions), conflicts=(off_id,), **common),
         Rule(id=off_id, title=tr(TITLE_DISABLED, title), actions=_unique(off_actions), conflicts=(rule_id,), **common),
@@ -758,6 +809,10 @@ def catalog_part(info: ImportInfo, data: dict[str, Any], language: str, taken: s
     counts = tr("{0} policies as {1} rules; {2} skipped", info.policies, len(part.rules), info.skipped)
     if part.duplicates:
         counts += tr("; {0} are already in the catalog or in another import", part.duplicates)
+    older = sum(1 for item in data.get("skipped", []) if item.get("reason") in LEGACY_SKIPS)
+    if older:
+        counts += tr("; {0} policies with lists were skipped by an earlier version of WinKickOff, import the templates "
+                     "again to get them", older)
     part.groups[root] = Group(root, info.name, order, None, tr("Imported from {0} on {1}: {2}. Languages: {3}.", info.folder,
                               info.created.replace("T", " "), counts, ", ".join(info.cultures) or "-"), f"admx:{info.id}")
     return part

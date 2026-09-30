@@ -7,7 +7,7 @@ where the computers are used by non-professionals and the organisation is under 
 The goal: Windows hardened and updatable from the first boot, without configuring every PC by hand and
 without third-party programs.
 
-State on 30.09.2026: version 1.1.0-rc.1 (release candidate; import of ADMX policy templates). Installation from a built answer file has been
+State on 30.09.2026: version 1.1.0-rc.1 (release candidate; import of ADMX policy templates) is published, 1.1.0-rc.2 (ADMX policies with lists of values) is in the repository. Installation from a built answer file has been
 confirmed by the customer on real hardware. Downloads: the GitHub releases of the repository (portable zip,
 no installation, no administrator rights).
 

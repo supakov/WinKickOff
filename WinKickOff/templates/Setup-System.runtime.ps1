@@ -29,7 +29,7 @@ function Set-Reg {
         [Parameter(Mandatory)][string]$Path,
         [Parameter(Mandatory)][string]$Name,
         [Parameter(Mandatory)][ValidateSet('DWord','QWord','String','ExpandString','MultiString','Binary')][string]$Type,
-        [Parameter(Mandatory)][AllowEmptyString()][AllowNull()]$Value,
+        [Parameter(Mandatory)][AllowEmptyString()][AllowEmptyCollection()][AllowNull()]$Value,
         [string]$Why = ''
     )
     try {
@@ -50,6 +50,49 @@ function Remove-Reg {
         }
     } catch {
         Write-Log ("FAILED to remove {0}\{1}: {2}" -f $Path, $Name, $_.Exception.Message) 'ERROR'
+    }
+}
+
+function Open-RegKey {
+    # A writable key given as HKLM:\..., HKCU:\... or HKU:\..., created when missing. The .NET methods take value
+    # names literally, so list items such as "https://*.example.com" are never read as wildcards.
+    param([Parameter(Mandatory)][string]$Path)
+    $drive, $sub = $Path -split ':\\', 2
+    $root = switch ($drive) {
+        'HKLM' { [Microsoft.Win32.Registry]::LocalMachine }
+        'HKCU' { [Microsoft.Win32.Registry]::CurrentUser }
+        'HKU' { [Microsoft.Win32.Registry]::Users }
+        default { throw "unsupported registry path $Path" }
+    }
+    $root.CreateSubKey($sub)
+}
+
+function Set-RegList {
+    # A key that holds a list of values (the list element of a policy template): -Names and -Values pair up by
+    # position. Without -Additive every other value of the key is deleted first, as Group Policy does; an empty
+    # list that is not additive leaves the key without values.
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][ValidateSet('String','ExpandString')][string]$Type,
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Names,
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Values,
+        [switch]$Additive
+    )
+    try {
+        $key = Open-RegKey $Path
+        try {
+            if (-not $Additive) {
+                foreach ($n in @($key.GetValueNames())) {
+                    if ($Names -notcontains $n) { $key.DeleteValue($n, $false); Write-Log ("removed {0}\{1} (not in the list)" -f $Path, $n) 'OK' }
+                }
+            }
+            for ($i = 0; $i -lt $Names.Count; $i++) {
+                $key.SetValue($Names[$i], $Values[$i], [Microsoft.Win32.RegistryValueKind]$Type)
+                Write-Log ("{0}\{1} = {2}" -f $Path, $Names[$i], $Values[$i]) 'OK'
+            }
+        } finally { $key.Close() }
+    } catch {
+        Write-Log ("FAILED list {0}: {1}" -f $Path, $_.Exception.Message) 'ERROR'
     }
 }
 

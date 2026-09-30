@@ -10,9 +10,10 @@ conditions that can be evaluated statically is extracted:
 - loops over literal hashtables (`$AsrRules`, the audit subcategories) are unrolled;
 - the v0.2 list `$AppsToRemove` counts only when an active line loops over it.
 
-Tuples (all names and paths lower case):
+Tuples (all names and paths lower case, except the items of a list):
     ("reg", path, name, kind, value) ("reg-remove", path, name) ("service", name, start)
     ("exe", file, args) ("appx", name) ("feature", name, state) ("capability", pattern)
+    ("reg-list", path, kind, ((value name, data), ...), additive)
 """
 
 from __future__ import annotations
@@ -23,13 +24,14 @@ from typing import Any
 
 from winkickoff.core.catalog import Catalog, Rule
 from winkickoff.core.profile import Profile
-from winkickoff.core.render import substitute
+from winkickoff.core.render import RenderError, list_entries, substitute
 
 Action = tuple[Any, ...]
 DU_PREFIX = "hku:\\unattenddefault\\"
 INFRASTRUCTURE_PATH_FRAGMENTS = ("active setup",)  # written by the runtime, not by rules
 _COMPARE = {"-gt": lambda a, b: a > b, "-ge": lambda a, b: a >= b, "-lt": lambda a, b: a < b,
             "-le": lambda a, b: a <= b, "-eq": lambda a, b: a == b, "-ne": lambda a, b: a != b}
+_LIST = r"@\((?:'(?:[^']|'')*'(?:,'(?:[^']|'')*')*)?\)"  # @('a','b''c') as rendered by ps_quote
 
 
 def extract_script(xml_text: str, name: str) -> str:
@@ -314,6 +316,12 @@ class _Scanner:
             if path is not None and name is not None:
                 out.append(("reg-remove", path.lower(), name.lower()))
             return out
+        m = re.match(rf"^Set-RegList -Path (\S+|\"[^\"]*\"|'[^']*') -Type (\w+) -Names ({_LIST}) -Values ({_LIST})( -Additive)?$", s)
+        if m:
+            path, names, values = self.expr(m.group(1)), self.value(m.group(3)), self.value(m.group(4))
+            if path is not None and isinstance(names, list) and isinstance(values, list):
+                out.append(("reg-list", path.lower(), m.group(2), tuple(zip(names, values)), bool(m.group(5))))
+            return out
         m = re.match(r"^Set-ServiceStart -Name (\S+|'[^']*') -Start (\d)$", s)
         if m:
             name = self.expr(m.group(1))
@@ -417,6 +425,15 @@ def rule_actions(catalog: Catalog, profile: Profile, rule: Rule, du_prefix: str 
                 out.add(("reg", path, str(f["name"]).lower(), str(f["kind"]), str(int(f["value"]) if isinstance(f["value"], bool) else f["value"])))
             else:
                 out.add(("reg-remove", path, str(f["name"]).lower()))
+        elif t == "reg-list":
+            path = str(f["path"]).lower()
+            if path.startswith("du:\\"):
+                path = du_prefix + path[4:]
+            try:
+                entries = tuple(list_entries(f))
+            except RenderError:
+                continue  # an invalid list in the profile matches nothing
+            out.add(("reg-list", path, str(f["kind"]), entries, bool(f.get("additive"))))
         elif t == "service":
             out.add(("service", str(f["name"]).lower(), int(f["start"])))
         elif t == "exe":

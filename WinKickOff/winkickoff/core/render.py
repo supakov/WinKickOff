@@ -113,6 +113,32 @@ def render_reg_path(path: str) -> str:
     return ps_quote(path)
 
 
+def list_entries(fields: dict[str, Any]) -> list[tuple[str, str]]:
+    """(value name, data) of the items of a reg-list action whose parameters are substituted: "name=value" items
+    with explicit names, prefix1, prefix2, ... with a prefix, otherwise the data is its own name."""
+    items = fields.get("value")
+    if not isinstance(items, list) or not all(isinstance(item, str) for item in items):
+        raise RenderError(f"a list of values needs a list of strings, got {items!r}")
+    if fields.get("explicit"):
+        pairs = [item.partition("=") for item in items]
+        if any(not sep or not name.strip() for name, sep, _ in pairs):
+            raise RenderError("every item of a list with explicit names is written as name=value")
+        return [(name.strip(), data.strip()) for name, _, data in pairs]
+    if "prefix" in fields:
+        return [(f"{fields['prefix']}{number}", item) for number, item in enumerate(items, start=1)]
+    return [(item, item) for item in items]
+
+
+def render_list_args(fields: dict[str, Any]) -> str:
+    """-Type, -Names and -Values of Set-RegList and Test-RegList; names and values pair up by position."""
+    if fields.get("kind") not in ("String", "ExpandString"):
+        raise RenderError(f"a list of values is String or ExpandString, got {fields.get('kind')!r}")
+    entries = list_entries(fields)
+    names = ",".join(ps_quote(name) for name, _ in entries)
+    values = ",".join(ps_quote(data) for _, data in entries)
+    return f"-Type {fields['kind']} -Names @({names}) -Values @({values})"
+
+
 def render_action(action: Action, params: dict[str, Any]) -> str:
     """One action as PowerShell (script phases). XML actions are placed by the XML builder."""
     f = {key: substitute(value, params) for key, value in action.fields.items()}
@@ -127,6 +153,9 @@ def render_action(action: Action, params: dict[str, Any]) -> str:
         return line
     if t == "reg-remove":
         return f"Remove-Reg -Path {render_reg_path(str(f['path']))} -Name {ps_quote(str(f['name']))}"
+    if t == "reg-list":
+        line = f"Set-RegList -Path {render_reg_path(str(f['path']))} {render_list_args(f)}"
+        return line + " -Additive" if f.get("additive") else line
     if t == "service":
         return f"Set-ServiceStart -Name {ps_quote(str(f['name']))} -Start {int(f['start'])}"
     if t == "exe":

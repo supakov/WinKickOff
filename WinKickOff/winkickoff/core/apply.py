@@ -33,7 +33,7 @@ from winkickoff.core.catalog import DEFAULT_ABSENT, DEFAULT_UNKNOWN, Action, Cat
 from winkickoff.core.deps import Resolver
 from winkickoff.core.i18n import N_, tr
 from winkickoff.core.profile import Profile
-from winkickoff.core.render import fill, ps_quote, render_block, render_reg_path, render_reg_value, substitute
+from winkickoff.core.render import fill, ps_quote, render_block, render_list_args, render_reg_path, render_reg_value, substitute
 
 INSTALL_ONLY_PHASES = {"windowspe", "specialize-xml", "oobe-xml"}
 USER_PHASE = "user-first-logon"
@@ -122,7 +122,7 @@ def _running_phase_reason(rule: Rule) -> str | None:
 
 def _needs_reboot(rule: Rule) -> bool:
     return any(a.type in REBOOT_TYPES for a in rule.actions) or any(
-        a.type == "reg" and str(a.fields.get("path", "")).upper().startswith("HKLM:\\SYSTEM\\") for a in rule.actions)
+        a.type in ("reg", "reg-list") and str(a.fields.get("path", "")).upper().startswith("HKLM:\\SYSTEM\\") for a in rule.actions)
 
 
 def _with_dependents(catalog: Catalog, rule_ids: list[str], keep: Any = None) -> dict[str, bool]:
@@ -263,9 +263,10 @@ def render_undo(templates_dir: Path, profile: Profile, app_version: str = "0.0.0
 
 
 def windows_default(action: Action) -> tuple[str, Any] | None:
-    """How one action returns to a clean Windows: ("remove", None), ("set", value), ("service", start),
-    ("feature", state), ("keep", None) when there is nothing to do, or None when the default is unknown.
-    A value under SOFTWARE\\Policies needs no data: a missing policy is the Windows default."""
+    """How one action returns to a clean Windows: ("remove", None), ("set", value), ("clear", None) for a key
+    without any value, ("service", start), ("feature", state), ("keep", None) when there is nothing to do, or None
+    when the default is unknown. A value under SOFTWARE\\Policies needs no data: a missing policy is the Windows
+    default, and so is a policy key without values for a list."""
     default = action.fields.get("default")
     if default == DEFAULT_UNKNOWN:
         return None
@@ -273,6 +274,10 @@ def windows_default(action: Action) -> tuple[str, Any] | None:
         if default is None:
             return ("remove", None) if str(action.fields["path"]).upper().startswith(GPO_ROOTS) else None
         return ("remove", None) if default == DEFAULT_ABSENT else ("set", default)
+    if action.type == "reg-list":
+        if default == DEFAULT_ABSENT or (default is None and str(action.fields["path"]).upper().startswith(GPO_ROOTS)):
+            return ("clear", None)
+        return None
     if action.type == "reg-remove":
         return ("keep", None)
     if action.type == "service" and default is not None:
@@ -290,6 +295,8 @@ def _revert_line(action: Action, step: tuple[str, Any], params: dict[str, Any]) 
     if kind == "set":
         return (f"Set-Reg -Path {render_reg_path(str(f['path']))} -Name {ps_quote(str(f['name']))} -Type {f['kind']} "
                 f"-Value {render_reg_value(str(f['kind']), value)} -Why 'Windows default'")
+    if kind == "clear":  # an empty list that is not additive deletes every value of the key
+        return f"Set-RegList -Path {render_reg_path(str(f['path']))} {render_list_args({'kind': f['kind'], 'value': []})}"
     if kind == "service":
         return f"Set-ServiceStart -Name {ps_quote(str(f['name']))} -Start {int(value)}"
     if kind == "feature":
@@ -347,6 +354,10 @@ def render_audit_block(rule: Rule, params: dict[str, Any]) -> str:
         elif t == "reg-remove":
             path, note = _audit_path(str(f["path"]))
             lines.append(f"Test-RegAbsent -Rule {rid} -Path {ps_quote(path)} -Name {ps_quote(str(f['name']))} -Note {ps_quote(note)}")
+        elif t == "reg-list":
+            path, note = _audit_path(str(f["path"]))
+            additive = " -Additive" if f.get("additive") else ""
+            lines.append(f"Test-RegList -Rule {rid} -Path {ps_quote(path)} {render_list_args(f)}{additive} -Note {ps_quote(note)}")
         elif t == "service":
             lines.append(f"Test-ServiceStart -Rule {rid} -Name {ps_quote(str(f['name']))} -Start {int(f['start'])}")
         elif t == "feature":

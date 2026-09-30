@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from winkickoff.core.admx import safe_name
 from winkickoff.core.catalog import Catalog, CatalogError, heading_anchors, is_imported, load_catalog
 from winkickoff.core.i18n import catalog_texts, tr
 from winkickoff.core.profile import Profile
@@ -30,6 +31,7 @@ _INPUT_LOCALE_ITEM = re.compile(r"^([0-9A-Fa-f]{4}:[0-9A-Fa-f]{8}|[a-z]{2,3}(-[A
 U = "{urn:schemas-microsoft-com:unattend}"
 EXT = "{urn:workgroup-unattend}"
 MAX_PATH = 259
+MAX_LIST_ITEM = 4096  # characters of one item of a list parameter
 DEVICE_ENCRYPTION_RULE = "encryption.prevent-auto-bitlocker"
 
 
@@ -83,8 +85,40 @@ def validate_accounts(profile: Profile) -> list[Issue]:
     return issues
 
 
+def list_problem(value: Any, pairs: bool = False) -> str | None:
+    """Why the items of a list parameter cannot be written into a script, or None. Every item is a line of text
+    without control characters or "]]>"; with pairs every item is "name=value" with a safe, unique name."""
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        return tr("must be a list of lines")
+    names: set[str] = set()
+    for number, item in enumerate(value, start=1):
+        if not item.strip():
+            return tr("line {0} is empty", number)
+        if _CONTROL_RE.search(item) or "]]>" in item or len(item) > MAX_LIST_ITEM:
+            return tr("line {0} is longer than {1} characters or contains characters that cannot be written into the script",
+                      number, MAX_LIST_ITEM)
+        if pairs:
+            name, sep, _ = item.partition("=")
+            name = name.strip()
+            if not sep or not name:
+                return tr("line {0} must be written as name=value", number)
+            if not safe_name(name):
+                return tr("line {0}: the name {1} contains characters that are not allowed in a value name", number, name)
+            if name.lower() in names:
+                return tr("line {0}: the name {1} is used twice", number, name)
+            names.add(name.lower())
+    return None
+
+
 def _check_param(rule: Any, param: Any, value: Any) -> str | None:
     title = catalog_texts().param(rule, param)
+    if param.type == "list":
+        problem = list_problem(value, param.pairs)
+        if problem:
+            return tr("'{0}': {1}", title, problem)
+        if param.required and not value:
+            return tr("'{0}' cannot be empty", title)
+        return None
     if param.type == "int":
         if not isinstance(value, int) or isinstance(value, bool):
             return tr("'{0}' must be an integer", title)

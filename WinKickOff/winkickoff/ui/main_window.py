@@ -53,7 +53,7 @@ from winkickoff.core.render import BuildResult, Renderer, RenderError, render_ac
 from winkickoff.core.resources import Resources
 from winkickoff.core.settings import Settings
 from winkickoff.core.themes import Theme, available_themes, resolve_theme
-from winkickoff.core.validate import Issue, has_errors, validate_catalog, validate_profile, validate_xml
+from winkickoff.core.validate import Issue, has_errors, list_problem, validate_catalog, validate_profile, validate_xml
 from winkickoff.core.verify import rollback_steps, verify_steps
 from winkickoff.ui.checkimages import make_check_images
 from winkickoff.ui.data_forms import AccountsForm, InstallForm, LanguagesForm
@@ -160,6 +160,7 @@ class MainWindow(tk.Tk):
         self._open_groups: set[str] = set()
         self._param_vars: list[tk.Variable] = []
         self._param_marks: dict[str, ttk.Label] = {}
+        self._param_boxes: dict[str, tk.Text] = {}  # the text boxes of list parameters, by parameter name
         self._choices: list[tuple[str, Path]] = []
         self._last_output: Path | None = None
         self._issues: list[Issue] = []
@@ -957,6 +958,7 @@ class MainWindow(tk.Tk):
             widget.destroy()
         self._param_vars = []
         self._param_marks = {}
+        self._param_boxes = {}
         self.params_frame.pack_forget()
 
     def _build_group_buttons(self, group_id: str) -> None:
@@ -990,12 +992,15 @@ class MainWindow(tk.Tk):
         self.params_frame.configure(text=tr("Rule parameters"))
         self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
         for row, param in enumerate(rule.params.values()):
-            ttk.Label(self.params_frame, text=self.param_title(rule, param)).grid(row=row, column=0, sticky=tk.W, padx=(0, 12), pady=2)
+            sticky = tk.NW if param.type == "list" else tk.W
+            ttk.Label(self.params_frame, text=self.param_title(rule, param)).grid(row=row, column=0, sticky=sticky, padx=(0, 12), pady=2)
             self._param_widget(rule, param).grid(row=row, column=1, sticky=tk.W, pady=2)
             hint = tr("default: {0}", self._param_display(rule, param, param.default))
             if param.type == "int" and (param.min is not None or param.max is not None):
                 hint += tr(", range {0}..{1}", param.min, param.max)
-            ttk.Label(self.params_frame, text=hint, style="Note.TLabel").grid(row=row, column=2, sticky=tk.W, padx=(10, 0))
+            if param.type == "list":
+                hint = (tr("one item per line, as name=value") if param.pairs else tr("one item per line")) + "\n" + hint
+            ttk.Label(self.params_frame, text=hint, style="Note.TLabel").grid(row=row, column=2, sticky=sticky, padx=(10, 0))
             mark = ttk.Label(self.params_frame, style="Changed.TLabel")
             mark.grid(row=row, column=3, sticky=tk.W, padx=(10, 0))
             self._param_marks[param.name] = mark
@@ -1009,10 +1014,42 @@ class MainWindow(tk.Tk):
             return next((title for v, title in self.param_options(rule, param) if v == value), str(value))
         if param.type == "bool":
             return tr("yes") if value else tr("no")
+        if param.type == "list":
+            return "; ".join(str(item) for item in value) if isinstance(value, list) and value else tr("empty list")
         return str(value)
+
+    def _list_widget(self, rule: Rule, param: Param, value: Any) -> tk.Widget:
+        """A text box for a list parameter: one item per line; empty lines and spaces around items are dropped."""
+        frame = ttk.Frame(self.params_frame)
+        items = [str(item) for item in value] if isinstance(value, list) else []
+        box = tk.Text(frame, width=46, height=min(max(len(items) + 1, 4), 10), wrap=tk.NONE, font=self.font_mono, undo=True)
+        self._style_text(box)
+        scroll = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=box.yview)
+        box.configure(yscrollcommand=scroll.set)
+        box.pack(side=tk.LEFT, fill=tk.BOTH)
+        scroll.pack(side=tk.LEFT, fill=tk.Y)
+        box.insert("1.0", "\n".join(items))
+        box.edit_modified(False)
+
+        def changed(_event: object = None) -> None:
+            if not box.edit_modified():
+                return  # the flag was just reset below
+            box.edit_modified(False)
+            lines = [line.strip() for line in box.get("1.0", "end-1c").splitlines()]
+            self._set_param(rule, param, [line for line in lines if line])
+            problem = list_problem(self.profile.param(self.catalog, rule.id, param.name), param.pairs)
+            if problem:
+                self.set_status(f"\"{self.param_title(rule, param)}\": {problem}")
+
+        box.bind("<<Modified>>", changed)
+        box.bind("<Tab>", lambda _e: (box.tk_focusNext().focus_set(), "break")[1])  # Tab leaves the box, as in a form
+        self._param_boxes[param.name] = box
+        return frame
 
     def _param_widget(self, rule: Rule, param: Param) -> tk.Widget:
         value = self.profile.param(self.catalog, rule.id, param.name)
+        if param.type == "list":
+            return self._list_widget(rule, param, value)
         if param.type == "enum":
             options = self.param_options(rule, param)
             var = tk.StringVar(value=self._param_display(rule, param, value))

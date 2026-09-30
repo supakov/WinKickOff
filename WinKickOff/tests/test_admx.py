@@ -14,17 +14,24 @@ from datetime import datetime
 from pathlib import Path
 
 from winkickoff.core import admx, i18n
-from winkickoff.core.apply import plan_apply, plan_revert
-from winkickoff.core.catalog import CatalogError, load_catalog
+from winkickoff.core.apply import plan_apply, plan_revert, render_apply, render_audit, render_audit_block, render_revert, render_undo
+from winkickoff.core.catalog import CatalogError, load_catalog, merge
+from winkickoff.core.importer import import_xml
 from winkickoff.core.paths import AppPaths
 from winkickoff.core.profile import Profile
+from winkickoff.core.pscheck import check_scripts, powershell_path
 from winkickoff.core.render import Renderer, render_action, ps_quote
 from winkickoff.core.resources import Resources
 from winkickoff.core.settings import Settings
-from winkickoff.core.validate import validate_profile
+from winkickoff.core.validate import validate_profile, validate_xml
+from winkickoff.core.verify import rollback_steps, verify_steps
 
 ROOT = Path(__file__).resolve().parents[1]
+TEMPLATES = ROOT / "templates"
 ID_RE = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*$")
+# what a read-only audit must never contain (as in test_apply.py, plus the .NET writes of the list functions)
+MUTATING = re.compile(r"\b(Set-ItemProperty|New-Item|Remove-Item|Remove-ItemProperty|Set-Reg|Set-RegList|Remove-Reg|"
+                      r"SetValue|DeleteValue|CreateSubKey|reg\.exe)\b")
 NS = "http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions"
 
 ADMX = r"""<?xml version="1.0" encoding="utf-8"?>
@@ -65,8 +72,28 @@ ADMX = r"""<?xml version="1.0" encoding="utf-8"?>
       </enabledList>
       <disabledList><item valueName="A"><value><decimal value="0"/></value></item></disabledList>
     </policy>
-    <policy name="HasList" class="Machine" displayName="$(string.HasList)" key="Software\Policies\WKTest\List">
+    <policy name="HasList" class="Machine" displayName="$(string.HasList)" key="Software\Policies\WKTest\List" valueName="On" presentation="$(presentation.HasList)">
+      <enabledValue><decimal value="1"/></enabledValue>
+      <disabledValue><decimal value="0"/></disabledValue>
       <elements><list id="Items" key="Software\Policies\WKTest\List\Items"/></elements>
+    </policy>
+    <policy name="Explicit" class="User" displayName="$(string.Explicit)" key="Software\Policies\WKTest\Pairs" presentation="$(presentation.Explicit)">
+      <elements><list id="Zones" explicitValue="true" additive="true" expandable="true" valuePrefix="ignored"/></elements>
+    </policy>
+    <policy name="Numbered" class="Machine" displayName="$(string.Numbered)" key="Software\Policies\WKTest\Numbered">
+      <elements>
+        <list id="Urls" key="Software\Policies\WKTest\Numbered\Urls" valuePrefix=""/>
+        <list id="Servers" key="Software\Policies\WKTest\Numbered\Servers" valuePrefix="Server" additive="true"/>
+      </elements>
+    </policy>
+    <policy name="Lines" class="Machine" displayName="$(string.Lines)" key="Software\Policies\WKTest\Lines" presentation="$(presentation.Lines)">
+      <elements><multiText id="Text" valueName="Text" required="true"/></elements>
+    </policy>
+    <policy name="DefenderList" class="Machine" displayName="$(string.DefenderList)" key="Software\Policies\WKTest">
+      <elements><list id="All" key="Software\Policies\Microsoft\Windows Defender"/></elements>
+    </policy>
+    <policy name="BadList" class="Machine" displayName="$(string.BadList)" key="Software\Policies\WKTest">
+      <elements><list id="Bad" key="Software\Policies\WKTest\$(Get-Date)"/></elements>
     </policy>
     <policy name="Unsafe" class="Machine" displayName="$(string.Unsafe)" key="Software\Policies\WKTest\$(Get-Date)" valueName="X"/>
     <policy name="SameAsBuiltin" class="Machine" displayName="$(string.Same)" key="Software\Policies\Microsoft\Windows Defender" valueName="PUAProtection">
@@ -96,6 +123,11 @@ Second paragraph.</string>
       <string id="Pair">Pair of lists</string>
       <string id="Pair_Explain">Lists.</string>
       <string id="HasList">Has a list</string>
+      <string id="Explicit">Zones by name</string>
+      <string id="Numbered">Numbered lists</string>
+      <string id="Lines">Lines of text</string>
+      <string id="DefenderList">A list in the key of a built-in rule</string>
+      <string id="BadList">Unsafe list key</string>
       <string id="Unsafe">Unsafe key</string>
       <string id="Same">Same as built-in</string>
     </stringTable>
@@ -106,6 +138,9 @@ Second paragraph.</string>
         <textBox refId="Path"><label>Folder</label><defaultValue>%TEMP%</defaultValue></textBox>
         <checkBox refId="Flag" defaultChecked="true">Flag it</checkBox>
       </presentation>
+      <presentation id="HasList"><listBox refId="Items">Allowed sites</listBox></presentation>
+      <presentation id="Explicit"><listBox refId="Zones">Zone of each site</listBox></presentation>
+      <presentation id="Lines"><multiTextBox refId="Text">Text lines</multiTextBox></presentation>
     </presentationTable>
   </resources>
 </policyDefinitionResources>
@@ -161,6 +196,17 @@ TOGGLE = "admx.winkickoff.test.simpletoggle"
 ELEMENTS = "admx.winkickoff.test.with-elements"
 PAIR = "admx.winkickoff.test.pair"
 SAME = "admx.winkickoff.test.sameasbuiltin"
+HASLIST = "admx.winkickoff.test.haslist"
+EXPLICIT = "admx.winkickoff.test.explicit"
+NUMBERED = "admx.winkickoff.test.numbered"
+LINES = "admx.winkickoff.test.lines"
+DEFLIST = "admx.winkickoff.test.defenderlist"
+LIST_VALUES = {  # parameter values of the list policies used by the build, apply and window tests
+    HASLIST: {"items": ["a.example", "https://*.example.com/it's"]},
+    EXPLICIT: {"zones": ["Site=%TEMP%\\x", "Other = 2"]},
+    NUMBERED: {"urls": ["one", "two"], "servers": ["srv"]},
+    LINES: {"text": ["first line", "second line"]},
+}
 
 
 def write_templates(folder: Path) -> Path:
@@ -200,13 +246,14 @@ class ReadTemplatesTest(AdmxTestCase):
     def test_policies_skips_and_problems(self) -> None:
         data = admx.read_templates(self.templates, ["en", "ru", "uk"])
         self.assertEqual(data["cultures"], ["en-US", "ru-RU"])  # en-US first; de-DE is not a language of the program
-        self.assertEqual([p["name"] for p in data["policies"]], ["SimpleToggle", "With_Elements", "Pair", "SameAsBuiltin"])
-        self.assertEqual({(s["policy"], s["reason"]) for s in data["skipped"]}, {("HasList", "list"), ("Unsafe", "unsafe")})
+        self.assertEqual([p["name"] for p in data["policies"]], ["SimpleToggle", "With_Elements", "Pair", "HasList", "Explicit",
+                                                                "Numbered", "Lines", "DefenderList", "SameAsBuiltin"])
+        self.assertEqual({(s["policy"], s["reason"]) for s in data["skipped"]}, {("BadList", "unsafe"), ("Unsafe", "unsafe")})
         self.assertEqual(len(data["problems"]), 1)
         self.assertIn("DTDs", data["problems"][0])
         self.assertEqual(set(data["categories"]), {"WinKickOff.Test:Root", "WinKickOff.Test:Child"})
         summary = dict(admx.skip_summary(data))
-        self.assertEqual(summary[i18n.tr(admx.SKIP_REASONS["list"])], 1)
+        self.assertEqual(summary[i18n.tr(admx.SKIP_REASONS["unsafe"])], 2)
 
     def test_a_folder_without_templates_is_refused(self) -> None:
         with self.assertRaises(admx.AdmxError):
@@ -297,7 +344,7 @@ class StoreTest(AdmxTestCase):
         self.assertEqual(info.name, "templates, 2026-09-30 12:00")
         self.assertEqual([i.id for i in admx.list_imports(self.store)], [info.id])
         meta = json.loads((self.store / info.id / admx.META_FILE).read_text(encoding="utf-8"))
-        self.assertEqual((meta["policies"], meta["skipped"]), (4, 2))
+        self.assertEqual((meta["format"], meta["policies"], meta["skipped"]), (2, 9, 2))
         with self.assertRaises(admx.AdmxError):
             admx.delete_import(self.store, "..")
         with self.assertRaises(admx.AdmxError):
@@ -385,6 +432,151 @@ class UseTest(AdmxTestCase):
         self.assertIn("Remove-Reg", "\n".join(one.rules[0].lines))
 
 
+class ListTest(AdmxTestCase):
+    """List and multiText elements: parameters of type list, reg-list actions, build, apply, audit, import."""
+
+    def profile_with_lists(self, catalog):  # type: ignore[no-untyped-def]
+        profile = Profile.from_catalog(catalog)
+        for rule_id, values in LIST_VALUES.items():
+            profile.rules[rule_id].enabled = True
+            for name, value in values.items():
+                profile.set_param(rule_id, name, list(value))
+        return profile
+
+    def build(self, catalog, profile):  # type: ignore[no-untyped-def]
+        resources = Resources.load(ROOT / "resources")
+        return Renderer(catalog, TEMPLATES, resources.keyboards).build(profile, app_version="test")
+
+    def test_list_elements_become_list_parameters(self) -> None:
+        _, catalog = self.imported()
+        rule = catalog.rules[HASLIST]
+        items = rule.params["items"]
+        self.assertEqual((items.type, items.default, items.required, items.pairs, items.title),
+                         ("list", [], False, False, "Allowed sites"))
+        # the list comes first: a list that is not additive deletes the other values of its key before they are written
+        self.assertEqual([(a.type, a.fields) for a in rule.actions], [
+            ("reg-list", {"path": "HKLM:\\Software\\Policies\\WKTest\\List\\Items", "kind": "String", "value": "{items}"}),
+            ("reg", {"path": "HKLM:\\Software\\Policies\\WKTest\\List", "name": "On", "kind": "DWord", "value": 1})])
+        off = catalog.rules[HASLIST + ".off"]  # the Disabled state leaves the key of the list without values
+        self.assertEqual([(a.type, a.fields.get("value")) for a in off.actions], [("reg-list", []), ("reg", 0)])
+        zones = catalog.rules[EXPLICIT]
+        self.assertEqual((zones.phase, zones.params["zones"].pairs), ("default-user", True))
+        self.assertEqual(zones.actions[0].fields, {"path": "DU:\\Software\\Policies\\WKTest\\Pairs", "kind": "ExpandString",
+                                                   "value": "{zones}", "explicit": True, "additive": True})
+        numbered = catalog.rules[NUMBERED]
+        self.assertEqual([(a.fields.get("prefix"), a.fields.get("additive", False)) for a in numbered.actions],
+                         [("", False), ("Server", True)])
+        lines = catalog.rules[LINES]
+        self.assertEqual((lines.params["text"].type, lines.params["text"].required), ("list", True))
+        self.assertEqual(lines.actions[0].fields, {"path": "HKLM:\\Software\\Policies\\WKTest\\Lines", "name": "Text",
+                                                   "kind": "MultiString", "value": "{text}"})
+
+    def test_a_list_meets_every_value_of_its_key(self) -> None:
+        _, catalog = self.imported()
+        self.assertIn("defender.pua", catalog.same_values(DEFLIST))
+        self.assertIn(DEFLIST, catalog.same_values("defender.pua"))
+        self.assertEqual(catalog.same_values(NUMBERED), [])
+
+    def test_build_writes_the_lists(self) -> None:
+        _, catalog = self.imported()
+        profile = self.profile_with_lists(catalog)
+        self.assertEqual([i for i in validate_profile(profile, catalog) if i.level == "error"], [])
+        result = self.build(catalog, profile)
+        system = result.scripts["Setup-System.ps1"]
+        self.assertIn("function Set-RegList", system)
+        self.assertIn("Set-RegList -Path 'HKLM:\\Software\\Policies\\WKTest\\List\\Items' -Type String -Names "
+                      "@('a.example','https://*.example.com/it''s') -Values @('a.example','https://*.example.com/it''s')", system)
+        self.assertIn("Set-RegList -Path \"$du\\Software\\Policies\\WKTest\\Pairs\" -Type ExpandString "
+                      "-Names @('Site','Other') -Values @('%TEMP%\\x','2') -Additive", system)
+        self.assertIn("-Type String -Names @('1','2') -Values @('one','two')", system)
+        self.assertIn("-Type String -Names @('Server1') -Values @('srv') -Additive", system)
+        self.assertIn("-Name 'Text' -Type MultiString -Value @('first line','second line')", system)
+        self.assertLess(system.index("-Names @('a.example'"), system.index("-Name 'On' -Type DWord -Value 1"))
+        self.assertEqual([i for i in validate_xml(result.xml) if i.level == "error"], [])
+        if powershell_path():
+            with tempfile.TemporaryDirectory() as tmp:
+                checked = check_scripts(result.scripts, Path(tmp))
+            self.assertTrue(checked.ok, checked)
+
+    def test_validation_of_list_parameters(self) -> None:
+        _, catalog = self.imported()
+        profile = self.profile_with_lists(catalog)
+
+        def errors(rule_id: str, name: str, value: object) -> list[str]:
+            profile.set_param(rule_id, name, value)
+            found = [i.message for i in validate_profile(profile, catalog) if i.level == "error" and i.target == rule_id]
+            profile.set_param(rule_id, name, list(LIST_VALUES[rule_id][name]))
+            return found
+
+        self.assertEqual(errors(LINES, "text", []), ["\"Lines of text\": 'Text lines' cannot be empty"])  # required
+        self.assertEqual(errors(HASLIST, "items", []), [])  # an empty list is allowed: the key keeps no values
+        for bad, fragment in ((["a", ""], "line 2 is empty"), (["a" + chr(9) + "b"], "line 1 is longer"),
+                              (["x]]>y"], "line 1 is longer"), ("a", "list of lines"), ([1], "list of lines")):
+            with self.subTest(value=bad):
+                self.assertIn(fragment, errors(HASLIST, "items", bad)[0])
+        for bad, fragment in ((["no equals sign"], "name=value"), (["=1"], "name=value"), (["$x=1"], "not allowed"),
+                              (["a=1", "A = 2"], "used twice")):
+            with self.subTest(value=bad):
+                self.assertIn(fragment, errors(EXPLICIT, "zones", bad)[0])
+        self.assertEqual(errors(EXPLICIT, "zones", ["a=", "b=c=d"]), [])  # an empty value and "=" inside a value are fine
+
+    def test_apply_audit_and_revert(self) -> None:
+        _, catalog = self.imported()
+        profile = self.profile_with_lists(catalog)
+        plan = plan_apply(catalog, profile, ["r:" + rule_id for rule_id in LIST_VALUES])
+        self.assertEqual(sorted(plan.rule_ids), sorted(LIST_VALUES))
+        self.assertEqual(plan.reverts, [])
+        apply = render_apply(plan, profile, catalog, TEMPLATES, "test")
+        self.assertIn("foreach ($n in @($present) + @($Names)) { Save-RegState", apply)  # every value touched is saved
+        self.assertIn("-Names @('Site','Other')", apply)
+        audit = render_audit(plan.rule_ids, profile, catalog, TEMPLATES, "test")
+        self.assertIn(f"Test-RegList -Rule '{HASLIST}' -Path 'HKLM:\\Software\\Policies\\WKTest\\List\\Items' -Type String", audit)
+        self.assertIn(f"Test-RegList -Rule '{EXPLICIT}' -Path 'HKCU:\\Software\\Policies\\WKTest\\Pairs'", audit)
+        self.assertIn("-Additive -Note 'current user instead of the default profile'", audit)
+        self.assertEqual(MUTATING.findall(audit), [])
+        revert = plan_revert(catalog, ["r:" + HASLIST, "r:" + LINES])
+        lines = {p.rule.id: p.lines for p in revert.rules}
+        self.assertEqual(lines[HASLIST], ["Set-RegList -Path 'HKLM:\\Software\\Policies\\WKTest\\List\\Items' -Type String "
+                                          "-Names @() -Values @()",
+                                          "Remove-Reg -Path 'HKLM:\\Software\\Policies\\WKTest\\List' -Name 'On'"])
+        self.assertEqual(lines[LINES], ["Remove-Reg -Path 'HKLM:\\Software\\Policies\\WKTest\\Lines' -Name 'Text'"])
+        steps = verify_steps(catalog.rules[HASLIST], profile.params_for(catalog, HASLIST))
+        self.assertIn("a.example = a.example; https://*.example.com/it's = https://*.example.com/it's and no other values", steps[0])
+        if powershell_path():
+            scripts = {"Apply.ps1": apply, "Audit.ps1": audit, "Undo-Apply.ps1": render_undo(TEMPLATES, profile, "test"),
+                       "Revert.ps1": render_revert(revert, profile, TEMPLATES, "test")}
+            with tempfile.TemporaryDirectory() as tmp:
+                checked = check_scripts(scripts, Path(tmp))
+            self.assertTrue(checked.ok, checked)
+
+    def test_import_by_actions_reads_the_lists_back(self) -> None:
+        _, catalog = self.imported()
+        profile = self.profile_with_lists(catalog)
+        xml = re.sub(r"<Profile .*?</Profile>", "", self.build(catalog, profile).xml, flags=re.S)  # a build without its profile
+        restored, _ = import_xml(xml, catalog, Resources.load(ROOT / "resources").keyboards)
+        for rule_id, values in LIST_VALUES.items():
+            self.assertTrue(restored.is_enabled(rule_id), rule_id)
+            expected = dict(values, zones=["Site=%TEMP%\\x", "Other=2"]) if rule_id == EXPLICIT else values
+            self.assertEqual(restored.params_for(catalog, rule_id), expected)
+        self.assertFalse(restored.is_enabled(HASLIST + ".off"))
+
+    def test_imports_of_the_first_format_still_load(self) -> None:
+        info, _ = self.imported()
+        folder = self.store / info.id
+        meta = json.loads((folder / admx.META_FILE).read_text(encoding="utf-8"))
+        data = json.loads((folder / admx.DATA_FILE).read_text(encoding="utf-8"))
+        data["skipped"].append({"file": "wktest.admx", "policy": "Old", "reason": "list"})  # skipped by 1.1.0-rc.1
+        (folder / admx.DATA_FILE).write_text(json.dumps(data), encoding="utf-8")
+        for fmt, loads in ((1, True), (3, False)):  # format 3 would come from a newer program
+            with self.subTest(format=fmt):
+                (folder / admx.META_FILE).write_text(json.dumps(dict(meta, format=fmt)), encoding="utf-8")
+                self.assertEqual([i.id for i in admx.list_imports(self.store)], [info.id] if loads else [])
+        (folder / admx.META_FILE).write_text(json.dumps(dict(meta, format=1)), encoding="utf-8")
+        catalog, problems = admx.with_imports(self.base, self.store, [info.id], "en")
+        self.assertEqual(problems, [])
+        self.assertIn("1 policies with lists were skipped by an earlier version", catalog.groups["admx." + info.id].summary)
+
+
 @unittest.skipUnless(admx.system_folder().is_dir(), "no PolicyDefinitions folder")
 class SystemTemplatesTest(unittest.TestCase):
     """The templates of this Windows: read only, every policy converts and renders."""
@@ -393,6 +585,7 @@ class SystemTemplatesTest(unittest.TestCase):
         i18n.set_language("en", ROOT / "resources", ROOT / "rules")
         data = admx.read_templates(admx.system_folder(), ["en"])
         self.assertGreater(len(data["policies"]), 1000)
+        self.assertEqual({s["reason"] for s in data["skipped"]} & set(admx.LEGACY_SKIPS), set())  # lists are converted
         info = admx.ImportInfo("system-test", "system", str(admx.system_folder()), "", "", tuple(data["cultures"]),
                                len(data["policies"]), len(data["skipped"]))
         base = load_catalog(ROOT / "rules", docs_root=ROOT.parent)
@@ -403,8 +596,27 @@ class SystemTemplatesTest(unittest.TestCase):
             params = {name: p.default for name, p in rule.params.items()}
             for action in rule.actions:
                 render_action(action, params)  # raises on a value the generator cannot write
+            render_audit_block(rule, params)
+            self.assertTrue(verify_steps(rule, params) and rollback_steps(rule, params), rule.id)
         for group_id in part.groups:
             self.assertRegex(group_id, ID_RE)
+        lists = [r for r in part.rules.values() if not r.id.endswith(".off") and any(
+            a.type == "reg-list" or a.fields.get("kind") == "MultiString" for a in r.actions)]
+        self.assertGreater(len(lists), 150)
+        # every list policy of this Windows with sample items: the generated scripts parse in Windows PowerShell
+        catalog = merge(base, part.groups, part.rules, part.origins)
+        profile = Profile.from_catalog(catalog)
+        for rule in lists:
+            profile.rules[rule.id].enabled = True
+            for name, param in rule.params.items():
+                if param.type == "list":
+                    profile.set_param(rule.id, name, ["Name1=value 1", "Name2=%TEMP%"] if param.pairs else ["item 1", "https://*.example.com"])
+        result = Renderer(catalog, TEMPLATES, Resources.load(ROOT / "resources").keyboards).build(profile, app_version="test")
+        self.assertGreater(result.scripts["Setup-System.ps1"].count("Set-RegList -Path"), 100)
+        if powershell_path():
+            with tempfile.TemporaryDirectory() as tmp:
+                checked = check_scripts(result.scripts, Path(tmp))
+            self.assertTrue(checked.ok, checked)
 
 
 try:
@@ -482,6 +694,23 @@ class WindowTest(AdmxTestCase):
         self.assertEqual(win.settings.admx, [info.id, new_ids[0]])
         saved = json.loads(paths.settings_file.read_text(encoding="utf-8"))
         self.assertEqual(saved["admx"], [info.id, new_ids[0]])
+
+    def test_list_parameter_box(self) -> None:
+        win, _, _ = self.window()
+        win.update()  # the selection events of the start would show another item and destroy the box
+        win.show_item("r:" + HASLIST)
+        box = win._param_boxes["items"]
+        box.insert("1.0", " a.example \n\nhttps://*.example.com")  # spaces around items and empty lines are dropped
+        win.update()
+        self.assertEqual(win.profile.param(win.catalog, HASLIST, "items"), ["a.example", "https://*.example.com"])
+        self.assertIn("-Names @('a.example','https://*.example.com')", self.detail(win))
+        win.show_item("r:" + EXPLICIT)
+        self.assertEqual(win._param_boxes["zones"].get("1.0", "end-1c"), "")
+        win._param_boxes["zones"].insert("1.0", "no equals sign")
+        win.update()
+        self.assertIn("name=value", win.status_var.get())
+        win.show_item("r:" + HASLIST)  # the box is filled from the profile again
+        self.assertEqual(win._param_boxes["items"].get("1.0", "end-1c"), "a.example\nhttps://*.example.com")
 
     def test_hide_keeps_the_profile(self) -> None:
         win, info, _ = self.window()

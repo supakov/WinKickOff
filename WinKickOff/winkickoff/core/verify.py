@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from winkickoff.core.catalog import Action, Rule
-from winkickoff.core.render import substitute
+from winkickoff.core.render import RenderError, list_entries, substitute
 from winkickoff.core.i18n import tr
 
 SERVICE_START = {0: "BOOT_START", 1: "SYSTEM_START", 2: "AUTO_START", 3: "DEMAND_START", 4: "DISABLED"}
@@ -61,6 +61,24 @@ def _fields(action: Action, params: dict[str, Any]) -> dict[str, Any]:
     return {key: substitute(value, params) for key, value in action.fields.items()}
 
 
+def _list_step(f: dict[str, Any]) -> str:
+    """The check of a key that holds a list of values (reg-list)."""
+    path = reg_cli_path(str(f["path"]))
+    try:
+        entries = list_entries(f)
+    except RenderError:
+        return tr("reg query \"{0}\": the list of values in the profile is not valid", path)
+    if not entries and f.get("additive"):
+        return tr("reg query \"{0}\": nothing to check, the list is empty", path)
+    if not entries:
+        return tr("reg query \"{0}\": the key has no values", path)
+    shown = "; ".join(f"{name} = {data}" for name, data in entries)
+    kind = REG_TYPES.get(str(f["kind"]), str(f["kind"]))
+    if f.get("additive"):
+        return tr("reg query \"{0}\": expected {1} values {2} (other values may stay)", path, kind, shown)
+    return tr("reg query \"{0}\": expected {1} values {2} and no other values", path, kind, shown)
+
+
 def verify_steps(rule: Rule, params: dict[str, Any]) -> list[str]:
     """One line per action: what to run or where to look on an installed PC, and what to expect.
     Empty when no action can be checked generically (ps and exe need a hand-written text)."""
@@ -75,6 +93,9 @@ def verify_steps(rule: Rule, params: dict[str, Any]) -> list[str]:
         elif t == "reg-remove":
             du_note |= str(f["path"]).startswith("DU:\\")
             steps.append(tr("reg query \"{0}\" {1}: the value must not exist", reg_cli_path(str(f["path"])), _value_arg(str(f["name"]))))
+        elif t == "reg-list":
+            du_note |= str(f["path"]).startswith("DU:\\")
+            steps.append(_list_step(f))
         elif t == "service":
             start = int(f["start"])
             steps.append(f"sc qc {f['name']}: START_TYPE {start} {SERVICE_START.get(start, '')}".rstrip())
@@ -113,6 +134,12 @@ def rollback_steps(rule: Rule, params: dict[str, Any]) -> list[str]:
                 )
         elif t == "reg-remove":
             steps.append(tr("Value {0} in \"{1}\" was deleted: it can be restored if the previous value is known", f["name"], reg_cli_path(str(f["path"]))))
+        elif t == "reg-list":
+            path = reg_cli_path(str(f["path"]))
+            if _is_policy(str(f["path"])):
+                steps.append(tr("reg delete \"{0}\" /va /f: removes every value of the list, Windows returns to its default behavior", path))
+            else:
+                steps.append(tr("The values of the list in \"{0}\" were replaced: they can be restored if the previous values are known", path))
         elif t == "service":
             steps.append(tr("sc config {0} start= demand (or the startup type it had before installation)", f['name']))
         elif t == "feature":

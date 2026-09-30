@@ -1,6 +1,6 @@
 # T19. Import of policy templates (ADMX, ADML) as a subtree of rules
 
-Status: done (30.09.2026), version 1.1.0-rc.1. Stage 7. Dependencies: T18.
+Status: done (30.09.2026), version 1.1.0-rc.1; lists of values in 1.1.0-rc.2. Stage 7. Dependencies: T18.
 
 ## Goal
 
@@ -43,7 +43,34 @@ any folder with templates (Edge, Chrome, Office).
   fallback, store, build, validation, profile, apply, reserved prefix, window; the templates of this Windows are
   read and every rule renders).
 
+## Lists of values (1.1.0-rc.2, 30.09.2026)
+
+The first open point of rc.1 is closed: `list` and `multiText` elements are converted instead of skipped.
+
+- `core/catalog.py`: parameter type `list` (with `pairs` for "name=value" items and `required`), action
+  `reg-list` (path, kind String or ExpandString, value, prefix, explicit, additive, default "absent" or
+  "unknown"); `registry_values()` gives a list the name `LIST_NAME` (it contains a NUL, which no value name can),
+  so `same_values()` links a list to every value of its key.
+- `core/render.py` `list_entries()`: value names from the items, the prefix or the data; the runtime functions
+  `Open-RegKey` and `Set-RegList` (Setup-System, Apply; .NET registry API, value names taken literally; without
+  `-Additive` the other values of the key are deleted first) and `Test-RegList` (Audit); `Set-Reg` accepts an empty
+  MultiString; `templates/VERSION` 0.5.
+- `core/apply.py`: the apply script saves every value of the key before `Set-RegList` changes it, so
+  `Undo-Apply.ps1` restores the list value by value; return to Windows defaults leaves a policy key without values.
+- `core/verify.py`, `core/validate.py` (`list_problem`: lines, control characters, `]]>`, 4096 characters, safe
+  and unique names of pairs), `core/actions_parser.py` and `core/importer.py` (a build without its profile gives the
+  lists back), window: a text box with one item per line.
+- `core/admx.py`: import format 2; list actions come first in a rule; the Disabled rule clears the keys of its
+  lists; imports of format 1 load and their branch says how many list policies rc.1 skipped.
+- The templates of this PC (build 26300): 3532 policies as 3892 rules, 20 skipped (16 value lists, 4 values out of
+  range); 188 reg-list actions and 103 MultiString values. Every rule renders, is audited and has check and rollback
+  steps; a build with every list policy on and sample items parses in Windows PowerShell (`tests/test_admx.py`).
+
 ## Open points
 
-- List and multi-line elements need a new action type (a key with a variable number of values); not done.
 - ADML of uk-UA in Windows covers 5 of 224 templates: the Ukrainian interface shows the subtree mostly in English.
+- `Set-RegList`, `Test-RegList` and the rollback of lists are checked by parsing only; the acceptance of This PC in
+  a VM (T15) should include a list policy (for example "Allow installation of devices that match any of these
+  device IDs").
+- `maxStrings` and `maxLength` of multiText elements are not enforced; the validator limits every item to 4096
+  characters.

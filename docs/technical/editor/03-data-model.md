@@ -79,7 +79,7 @@ Rule fields:
 
 ```toml
 [rule.params.seconds]
-type = "int"            # int | enum | string | bool
+type = "int"            # int | enum | string | bool | list
 title = "Seconds of inactivity before locking"
 default = 900
 min = 60
@@ -90,9 +90,21 @@ type = "enum"
 title = "Mode"
 default = 1
 values = [ { value = 1, title = "Block" }, { value = 2, title = "Audit" }, { value = 6, title = "Warn" } ]
+
+[rule.params.sites]
+type = "list"           # a list of strings, edited as one item per line
+title = "Sites"
+default = []
+pairs = true            # optional: every item is "name=value" (the names of a reg-list with explicit = true)
+required = false        # optional: true when the list may not be empty
 ```
 
 In actions, a parameter is substituted as the string `"{seconds}"`; the generator converts it to the action's type.
+A `list` parameter goes into the `value` of a `reg-list` action or of a `reg` action of kind `MultiString`. The
+validator requires every item to be a non-empty line of at most 4096 characters without control characters or
+`]]>`; with `pairs` every item has a name before the first `=`, the name is a safe value name (no `"`, backquote,
+`$` or typographic quotes) and no name repeats. The built-in catalog has no list parameters yet; imported policy
+templates use them (section 8).
 
 ### Actions
 
@@ -100,6 +112,7 @@ In actions, a parameter is substituted as the string `"{seconds}"`; the generato
 |---|---|---|
 | reg | path, name, kind (DWord, QWord, String, ExpandString, MultiString, Binary), value, why?, default? | `Set-Reg ...` |
 | reg-remove | path, name, default? | `Remove-Reg ...` |
+| reg-list | path, kind (String, ExpandString), value (list of strings or `"{param}"`), prefix?, explicit?, additive?, default? | `Set-RegList -Path ... -Type ... -Names @(...) -Values @(...) [-Additive]` |
 | service | name, start (2, 3, 4), default? | `Set-ServiceStart ...` |
 | exe | file, args (list of strings) | `Invoke-Exe ...` |
 | feature | name, state (`Enabled`, `Disabled`), default? | runtime wrapper around DISM |
@@ -110,11 +123,24 @@ In actions, a parameter is substituted as the string `"{seconds}"`; the generato
 | xml-specialize-command | command, description | `RunSynchronousCommand` in specialize |
 | xml-oobe | element, value | element inside `<OOBE>` |
 
+`reg-list` (catalog 0.5) writes a key that holds a list of values, the `list` element of a policy template. The
+generator pairs every item with a value name: with `explicit = true` the item is `name=value` (split at the first
+`=`, spaces around both parts dropped); with `prefix` the names are the prefix and a number from 1 (`prefix = ""`
+gives `1`, `2`, ...); otherwise the data is its own name. Without `additive = true` the runtime function
+`Set-RegList` deletes every other value of the key first, as Group Policy does for a list that is not additive,
+so an empty list leaves the key without values. `Set-RegList` works through the .NET registry API, which takes
+value names literally (an item such as `https://*.example.com` is not a wildcard). The apply script saves every
+value of the key it touches before the change, so `Undo-Apply.ps1` restores the list value by value; the audit
+calls `Test-RegList`, which reports "differs" when a value is missing, holds other data or, for a list that is
+not additive, when the key has other values.
+
 `default` (catalog 0.4) is the state of a clean Windows, used by "Return the selection to Windows defaults"
 (`core/apply.py` `plan_revert`): `"absent"` (no such value), a value of
 the action's kind, a start type 2-4, `Enabled`/`Disabled`, or `"unknown"` (not returned automatically). Without
 the field a value under `SOFTWARE\Policies` returns to "absent" (a missing policy is the Windows default), a
 `reg-remove` needs nothing (the removed values do not exist in a clean Windows) and anything else is unknown.
+A `reg-list` takes only `"absent"` or `"unknown"`; "absent" (and no field under `SOFTWARE\Policies`) returns the
+key to having no values at all.
 Write a default only when it is certain for Windows 10 and 11; if it changed between builds, write `"unknown"`.
 
 Registry paths: prefix `HKLM:\`, `HKCU:\` (user-first-logon phase only), `DU:\` (default user profile;
@@ -252,6 +278,11 @@ third-party one), the import parses the actions from the scripts and matches the
   of 0.3 load with a warning; their saved rule states are kept, new rules get the defaults (one message).
 - Editor 1.1.0 (30.09.2026, T19): imported policy templates (section 8); the catalog and profile formats did not
   change, the prefix `admx.` of rule and group ids is reserved for them.
+- Catalog 0.5 (30.09.2026, editor 1.1.0-rc.2): the parameter type `list`, the action `reg-list` and the runtime
+  functions `Open-RegKey`, `Set-RegList` (Setup-System, Apply) and `Test-RegList` (Audit); `Set-Reg` accepts an
+  empty MultiString. The built-in rules did not change: profiles of 0.4 load with the usual warning about the
+  catalog version and give the same rule blocks; only the runtime part of `Setup-System.ps1` gained the new
+  functions.
 
 ## 8. Imported policy templates (ADMX, ADML): `admx/<id>/`
 
@@ -261,11 +292,15 @@ result is kept next to the settings, in the writable program folder:
 
 - `admx/<id>/import.json`: `{format, id, name, folder, created, windows, cultures, policies, skipped, files}`;
   the id is `system-YYYYMMDD-HHMMSS` or `folder-...`, the name is generated ("PolicyDefinitions 10.0.26200,
-  2026-09-30 13:05"; the folder name for a chosen folder).
+  2026-09-30 13:05"; the folder name for a chosen folder). Format 2 (1.1.0-rc.2) adds list and multiText
+  elements; imports of format 1 still load, and the description of their branch counts the policies with lists
+  that 1.1.0-rc.1 skipped (import the templates again to get them); a newer format is not loaded.
 - `admx/<id>/policies.json`: the policies as records: file, namespace, name, class, category, the texts of every
   kept culture (title, explain, supported), the writes of the Enabled and Disabled states (`{key, name, kind,
   value}`, kind `delete` for a removal) and the elements (`{param, type, key, name, kind, default, min, max,
-  values, label, required}`); categories with their parents; skipped policies with a reason code.
+  values, label, required}`; a list element has `element: "list"`, no name and `explicit`, `additive` and, for
+  valuePrefix, `prefix`; a multiText element has `element: "multiText"`, type `list` and kind `MultiString`);
+  categories with their parents; skipped policies with a reason code.
 - `settings.json` `admx`: the imports shown in the tree; they are merged into the catalog at start
   (`with_imports`, `catalog.merge`) in the interface language, so every text of the subtree comes from ADML.
 
@@ -274,15 +309,17 @@ Conversion of a policy (`policy_rules`):
 | Policy | Rules |
 |---|---|
 | one value, Enabled and Disabled of the same kind | one rule, enum parameter `state` (Enabled or Disabled value) |
-| elements or value lists | rule of the Enabled state, elements as parameters (`decimal` int with min and max, `longDecimal` QWord, `text` string or ExpandString, `boolean` bool or a two-value enum, `enum` enum) |
-| the Disabled state writes values | plus the rule `<id>.off`, the two rules conflict |
-| `list`, `multiText`, value lists inside an option or a check box, values over the signed DWORD range, unsafe characters | skipped with a reason |
+| elements or value lists | rule of the Enabled state, elements as parameters (`decimal` int with min and max, `longDecimal` QWord, `text` string or ExpandString, `boolean` bool or a two-value enum, `enum` enum, `multiText` a `list` parameter written as one MultiString value, `required` means not empty) |
+| `list` element | a `list` parameter (empty by default, `pairs` for explicitValue) and a `reg-list` action on the key of the element or of the policy: String or ExpandString (`expandable`), names from `valuePrefix` (an empty prefix gives 1, 2, ...), from the items for `explicitValue`, otherwise the data; `additive` keeps the other values of the key. The list actions come first in the rule, so a list that is not additive cannot delete a value the same policy writes into its key |
+| the Disabled state writes values | plus the rule `<id>.off`, the two rules conflict; its list actions are empty and not additive, so the keys of the lists keep no values |
+| value lists inside an option or a check box, values over the signed DWORD range, unsafe characters (also in the key or the prefix of a list) | skipped with a reason |
 
 Ids: rule `admx.<namespace>.<policy>` in lower case (other characters become `-`), so a profile keeps its choice
 across imports of the same templates; groups `admx.<import id>`, `.machine` or `.user`, `.c<n>` per category,
 `.none` without a category. Machine and Both policies write `HKLM:\` in phase `specialize`, User policies `DU:\` in
 phase `default-user`. Level `optional`, default off, no `doc`; `Catalog.origins` holds the source (import, file,
-policy), `Catalog.same_values()` the rules of the other kind that write the same (scope, key, value name).
+policy), `Catalog.same_values()` the rules of the other kind that write the same (scope, key, value name); a list
+meets every value of its key, so a list policy that clears a key links to the built-in rules writing into it.
 
 Behaviour that differs from built-in rules: an imported policy without a check mark is "not configured" (not
 written to the profile, not validated, not reverted by "Apply the selection now"); "Return to Windows defaults"

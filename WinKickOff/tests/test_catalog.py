@@ -38,6 +38,32 @@ value = 1
 """
 
 
+RULE_LIST = """
+[[rule]]
+id = "a.list"
+group = "a"
+phase = "specialize"
+title = "List"
+level = "optional"
+default = false
+doc = "README.md"
+summary = "s"
+effect = "e"
+[rule.params.sites]
+type = "list"
+title = "Sites"
+default = ["a=1"]
+pairs = true
+required = true
+[[rule.actions]]
+type = "reg-list"
+path = 'HKLM:\\SOFTWARE\\Policies\\Test\\Sites'
+kind = "String"
+explicit = true
+value = "{sites}"
+"""
+
+
 def write_catalog(tmp: str, rules: str, groups: str = GROUPS) -> Path:
     root = Path(tmp)
     (root / "rules").mkdir()
@@ -55,7 +81,7 @@ class RealCatalogTest(unittest.TestCase):
     def test_loads_with_rules_and_groups(self) -> None:
         self.assertGreater(len(self.catalog.rules), 60)
         self.assertGreater(len(self.catalog.groups), 15)
-        self.assertEqual(self.catalog.version, "0.4")
+        self.assertEqual(self.catalog.version, "0.5")
 
     def test_every_rule_has_actions_and_docs(self) -> None:
         for rule in self.catalog.rules.values():
@@ -136,6 +162,19 @@ class BrokenCatalogTest(unittest.TestCase):
             with self.subTest(default=good), tempfile.TemporaryDirectory() as tmp:
                 root = write_catalog(tmp, RULE_OK.replace("value = 1", f"value = 1\ndefault = {good}"))
                 self.assertIn("a.one", load_catalog(root / "rules", docs_root=root).rules)
+
+    def test_list_parameter_and_list_action(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = write_catalog(tmp, RULE_LIST)
+            rule = load_catalog(root / "rules", docs_root=root).rules["a.list"]
+            param = rule.params["sites"]
+            self.assertEqual((param.type, param.default, param.pairs, param.required), ("list", ["a=1"], True, True))
+            self.assertEqual(rule.actions[0].fields["value"], "{sites}")
+        self._expect(RULE_LIST.replace('default = ["a=1"]', "default = 1"), "list of strings")
+        self._expect(RULE_LIST.replace('kind = "String"', 'kind = "DWord"'), "kind must be one of")
+        self._expect(RULE_LIST.replace("explicit = true", 'explicit = true\nprefix = "n"'), "exclude each other")
+        self._expect(RULE_LIST.replace('value = "{sites}"', "value = [1, 2]"), "list of strings")
+        self._expect(RULE_LIST.replace('value = "{sites}"', 'value = "{sites}"\ndefault = "none"'), "must be 'absent'")
 
     def test_missing_doc_file(self) -> None:
         self._expect(RULE_OK.replace('doc = "README.md"', 'doc = "nope.md"'), "doc file not found")

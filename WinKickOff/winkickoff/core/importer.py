@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 import xml.etree.ElementTree as ET
@@ -17,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from winkickoff.core.actions_parser import ScriptActions, extract_script, parse_script, rule_actions
-from winkickoff.core.catalog import Catalog, Rule
+from winkickoff.core.catalog import Action, Catalog, Rule
 from winkickoff.core.profile import Account, Profile
 from winkickoff.core.render import ASK_KEY, EDITION_KEYS, substitute
 from winkickoff.core.resources import PAIR_RE, find_keyboard
@@ -117,11 +118,19 @@ def _ps_signature(script: str) -> str:
     return max(lines, key=len) if lines else ""
 
 
+def _list_items(action: Action, entries: tuple[tuple[str, str], ...]) -> list[str]:
+    """The parameter value of a list read back from its (value name, data) pairs."""
+    if action.fields.get("explicit"):
+        return [f"{name}={data}" for name, data in entries]
+    return [data for _, data in entries]
+
+
 def _infer_params(rule: Rule, profile: Profile, catalog: Catalog, found: set[tuple[Any, ...]]) -> None:
-    """A registry value that is exactly a parameter ("{seconds}") is read back from the file."""
+    """A registry value or a list of values that is exactly a parameter ("{seconds}") is read back from the file."""
     index = {(a[1], a[2]): a[4] for a in found if a[0] == "reg"}
+    lists = {(a[1], a[2], a[4]): a[3] for a in found if a[0] == "reg-list"}
     for action in rule.actions:
-        if action.type != "reg":
+        if action.type not in ("reg", "reg-list"):
             continue
         value = action.fields.get("value")
         match = re.fullmatch(r"\{([a-z_][a-z0-9_]*)\}", str(value))
@@ -130,12 +139,25 @@ def _infer_params(rule: Rule, profile: Profile, catalog: Catalog, found: set[tup
         path = str(action.fields["path"]).lower()
         if path.startswith("du:\\"):
             path = "hku:\\unattenddefault\\" + path[4:]
+        param = rule.params[match.group(1)]
+        if action.type == "reg-list":
+            entries = lists.get((path, str(action.fields["kind"]), bool(action.fields.get("additive"))))
+            items = _list_items(action, entries) if entries is not None else None
+            if items is not None and items != param.default:
+                profile.rules[rule.id].params[param.name] = items
+            continue
         raw = index.get((path, str(action.fields["name"]).lower()))
         if raw is None:
             continue
-        param = rule.params[match.group(1)]
         converted: Any = raw
-        if param.type == "int":
+        if param.type == "list":  # a MultiString value, kept as the text of a Python list
+            try:
+                converted = ast.literal_eval(raw)
+            except (ValueError, SyntaxError):
+                converted = None
+            if not isinstance(converted, list) or not all(isinstance(item, str) for item in converted):
+                converted = None
+        elif param.type == "int":
             converted = int(raw) if str(raw).lstrip("-").isdigit() else None
         elif param.type == "bool":
             converted = str(raw) in ("1", "True", "true")
