@@ -18,8 +18,10 @@ REDRAW = 0x0001 | 0x0004 | 0x0100 | 0x0400  # RDW_INVALIDATE, RDW_ERASE, RDW_UPD
 
 
 def colorref(color: str) -> int:
-    """#rrggbb as a Windows COLORREF (0x00bbggrr)."""
+    """#rrggbb or #rgb as a Windows COLORREF (0x00bbggrr)."""
     value = color.lstrip("#")
+    if len(value) == 3:
+        value = "".join(ch * 2 for ch in value)
     red, green, blue = int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16)
     return red | (green << 8) | (blue << 16)
 

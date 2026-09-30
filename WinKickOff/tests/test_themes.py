@@ -17,6 +17,7 @@ from winkickoff.core.paths import AppPaths
 from winkickoff.core.profile import Profile
 from winkickoff.core.resources import Resources
 from winkickoff.core.settings import Settings
+from winkickoff.ui import winmenus
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -51,6 +52,10 @@ class ThemeFilesTest(unittest.TestCase):
             self.assertEqual(list(found), ["light", "dark", "sepia"])  # the built-in light theme is always there
             self.assertEqual(found["sepia"].colors["background"], "#f4ecd8")
             self.assertEqual(found["sepia"].colors["link"], themes.LIGHT_COLORS["link"])  # a bad value keeps the default
+
+    def test_colorref(self) -> None:
+        self.assertEqual(winmenus.colorref("#102030"), 0x302010)
+        self.assertEqual(winmenus.colorref("#abc"), 0xCCBBAA)
 
     def test_empty_choice_follows_windows(self) -> None:
         with mock.patch.object(themes, "windows_uses_dark_mode", return_value=True):
@@ -96,6 +101,7 @@ class WindowThemeTest(unittest.TestCase):
                         if field:
                             self.assertEqual(str(win.detail.cget("background")).lower(), field.lower())
                         self._check_menu_bar(win)
+                        self._check_window_frame(win)
                         margins = win.menu_margins
                         win.change_theme("dark" if theme_id != "dark" else "light")
                         self.assertIsNotNone(win.restart_state)
@@ -105,6 +111,27 @@ class WindowThemeTest(unittest.TestCase):
                             win.destroy()
                         except tk.TclError:
                             pass
+
+    def _check_window_frame(self, win: object) -> None:
+        """A coloured theme paints the title bar, its text and the border of this window (DwmSetWindowAttribute
+        34-36, Windows 11); the light theme leaves the Windows frame alone."""
+        if sys.platform != "win32":
+            return
+        import ctypes
+
+        fake = mock.Mock()
+        fake.DwmSetWindowAttribute.return_value = 0
+        with mock.patch.object(ctypes.windll, "dwmapi", fake, create=True):
+            win._windows_frame()  # type: ignore[attr-defined]
+        values = {call.args[1]: call.args[2]._obj.value for call in fake.DwmSetWindowAttribute.call_args_list}
+        colors = win.theme.colors  # type: ignore[attr-defined]
+        if win.theme.base == "native":  # type: ignore[attr-defined]
+            self.assertFalse({34, 35, 36} & set(values))
+            return
+        self.assertEqual(values[35], winmenus.colorref(colors["title_bar"] or colors["background"]))
+        self.assertEqual(values[36], winmenus.colorref(colors["title_text"] or colors["foreground"]))
+        self.assertEqual(values[34], winmenus.colorref(colors["border"]))
+        self.assertEqual(values.get(20), 1 if win.theme.dark else None)  # type: ignore[attr-defined]
 
     def _check_menu_bar(self, win: object) -> None:
         """Light keeps the Windows menu bar; a coloured theme draws its own, since Windows paints its menu bar in

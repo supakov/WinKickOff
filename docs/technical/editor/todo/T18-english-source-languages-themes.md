@@ -53,4 +53,6 @@ system colours only, so coloured themes now get a row of menu buttons in the the
 letter, F10), and `ui/winmenus.py` repaints the light 2 px margin around drop-down menus (WinEvent hook of this
 thread, `SetMenuInfo`); a 1 px grey outline drawn by Windows remains. Menus of the Matrix theme now use its
 font (on Windows menus take the system font unless `*Menu.font` is set). The same day the customer asked for
-a beige, coffee and milk theme: `latte.json`.
+a beige, coffee and milk theme: `latte.json`. Second remark: the white title bar of Latte; coloured themes now
+paint the title bar, its text and the window border of their window (DwmSetWindowAttribute 34-36, Windows 11;
+optional theme colours `title_bar` and `title_text`).

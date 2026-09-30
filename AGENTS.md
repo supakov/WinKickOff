@@ -261,7 +261,9 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
   (`AppsUseLightTheme`, read only), no module may write it. A language or theme change rebuilds the window
   with the open profile. Windows paints the native menu bar in system colours only: coloured themes (`clam`) get
   a row of menu buttons, and `ui/winmenus.py` repaints the margin of drop-down menus through a WinEvent hook of
-  this thread; everything is per window and per process, system-wide calls are forbidden by `test_sources.py`.
+  this thread; the title bar, its text and the window border take the theme colours on Windows 11
+  (DwmSetWindowAttribute 34-36, keys `title_bar`, `title_text`, `border`); everything is per window and per
+  process, system-wide calls are forbidden by `test_sources.py`.
 - T15 scripts: tests only generate and parse Apply, Undo and Audit scripts; `run_audit` is exercised with a harmless
   script and `launch_elevated` is always mocked. Never run an apply or an audit on the customer's PC from an agent.
 - Catalog 0.3: the country moved into the parameters of rule `default-user.region` (string `"241"`), the field

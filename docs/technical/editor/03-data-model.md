@@ -183,6 +183,10 @@ buttons in the theme colours instead (access letters underlined while Alt is hel
 the menus); the drop-down menus are drawn by Tk in the theme colours, and `ui/winmenus.py` repaints the 2 px
 margin Windows leaves around them (a WinEvent hook of this thread, `SetMenuInfo` `MIM_BACKGROUND`). Nothing
 outside the program changes; `tests/test_sources.py` forbids system-wide calls such as `SetSysColors`.
+On Windows 11 a coloured theme also paints the title bar, its text and the window border of this window
+(DwmSetWindowAttribute 35, 36, 34): the optional colours `title_bar` and `title_text` default to
+`background` and `foreground`, the border takes `border`. A dark theme additionally turns on the dark mode of
+the frame (attribute 20), which older builds understand.
 
 ## 4. Profile: `profiles/<name>.json`
 

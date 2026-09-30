@@ -44,6 +44,8 @@ LIGHT_COLORS: dict[str, str] = {
     "button_foreground": "",
     "button_active": "",
     "heading": "",  # table headings
+    "title_bar": "",  # window title bar (Windows 11); "" takes the background of a coloured theme
+    "title_text": "",  # title bar text; "" takes the foreground of a coloured theme
     "disabled": "#7a7a7a",  # rules that are off in the tree
     "muted": "#666666",  # notes, hints, secondary text
     "link": "#1a5fb4",

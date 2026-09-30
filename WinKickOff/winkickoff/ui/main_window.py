@@ -56,7 +56,7 @@ from winkickoff.core.validate import Issue, has_errors, validate_catalog, valida
 from winkickoff.core.verify import rollback_steps, verify_steps
 from winkickoff.ui.checkimages import make_check_images
 from winkickoff.ui.data_forms import AccountsForm, InstallForm, LanguagesForm
-from winkickoff.ui.winmenus import MenuMargins
+from winkickoff.ui.winmenus import MenuMargins, colorref
 
 log = logging.getLogger(__name__)
 
@@ -177,7 +177,7 @@ class MainWindow(tk.Tk):
         self.refresh_profile_choices()
         self.update_title()
         self.select_node(WORKFLOW_NODE)
-        self._windows_dark_mode(self.theme.dark)
+        self._windows_frame()
         self.set_status(tr("Rule catalog {0}: {1} rules in {2} groups. Profile: {3}.", catalog.version, len(catalog.rules), len(catalog.groups), tr(profile.name)))
 
     # ----------------------------------------------------------------- style and layout
@@ -259,13 +259,15 @@ class MainWindow(tk.Tk):
                              insertbackground=c["field_foreground"] or c["foreground"],
                              selectbackground=c["select"] or c["field"], selectforeground=c["select_foreground"] or c["foreground"])
 
-    def _windows_dark_mode(self, dark: bool) -> None:
-        """Dark window frame and menu frames for dark themes. Both calls affect only this program while it runs:
-        DwmSetWindowAttribute on this window, and the preferred app mode of this process, which makes Windows draw
-        the borders of drop-down menus dark (uxtheme ordinals 135 SetPreferredAppMode and 136 FlushMenuThemes,
-        undocumented but stable since Windows 10 1903). Nothing is written to the system."""
+    def _windows_frame(self) -> None:
+        """The window frame and the menu frames in the theme colours. Every call affects only this program while it
+        runs: DwmSetWindowAttribute on this window (dark mode; on Windows 11 also the colours of the title bar, its
+        text and the border) and the preferred app mode of this process, which makes Windows draw the borders of
+        drop-down menus dark (uxtheme ordinals 135 SetPreferredAppMode and 136 FlushMenuThemes, undocumented but
+        stable since Windows 10 1903). Nothing is written to the system."""
         if sys.platform != "win32":
             return
+        dark, c = self.theme.dark, self.theme.colors
         try:
             import ctypes
 
@@ -273,14 +275,22 @@ class MainWindow(tk.Tk):
                 uxtheme = ctypes.windll.uxtheme
                 uxtheme[135](2 if dark else 0)  # ForceDark or Default
                 uxtheme[136]()
-            if dark:
-                self.update_idletasks()
-                hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
-                value = ctypes.c_int(1)
-                for attribute in (20, 19):  # DWMWA_USE_IMMERSIVE_DARK_MODE; 19 on builds before 20H1
-                    if ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, attribute, ctypes.byref(value), ctypes.sizeof(value)) == 0:
-                        break
-        except (AttributeError, OSError):
+            self.update_idletasks()
+            hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
+
+            def put(attribute: int, value: int) -> bool:
+                data = ctypes.c_int(value)
+                return ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, attribute, ctypes.byref(data), ctypes.sizeof(data)) == 0
+
+            if dark and not put(20, 1):  # DWMWA_USE_IMMERSIVE_DARK_MODE; 19 on builds before 20H1
+                put(19, 1)
+            if self.theme.base != "native":
+                # DWMWA_BORDER_COLOR, DWMWA_CAPTION_COLOR, DWMWA_TEXT_COLOR: Windows 11, ignored by older builds
+                for attribute, color in ((34, c["border"]), (35, c["title_bar"] or c["background"]),
+                                         (36, c["title_text"] or c["foreground"])):
+                    if color:
+                        put(attribute, colorref(color))
+        except (AttributeError, OSError, ValueError):
             pass
 
     def _top_menu(self, label: str) -> tk.Menu:
