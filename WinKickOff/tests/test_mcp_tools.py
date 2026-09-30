@@ -1,0 +1,1212 @@
+"""mcp/tools.py, mcp/workspace.py and mcp/resources.py driven through McpServer.handle on a HeadlessWorkspace.
+
+Every tool in read, edit and files mode, the shape of every refusal, redaction of passwords and product keys, and the
+functions no tool may reach. Nothing here starts PowerShell, binds a socket or opens a window; every file goes into a
+temporary folder. Imported ADMX policies come from the synthetic templates of test_admx.py.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import json
+import re
+import sys
+import tempfile
+import unittest
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+from unittest import mock
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # the ADMX fixtures of test_admx.py, whichever way the tests run
+
+from test_admx import HASLIST, LINES, PAIR, SAME, TOGGLE, write_templates  # noqa: E402
+
+from winkickoff.core import admx, i18n, linked  # noqa: E402
+from winkickoff.core.catalog import is_imported, load_catalog  # noqa: E402
+from winkickoff.core.deps import Change, Resolver  # noqa: E402
+from winkickoff.core.i18n import CatalogTexts, available_languages  # noqa: E402
+from winkickoff.core.paths import AppPaths, display_path  # noqa: E402
+from winkickoff.core.profile import Profile  # noqa: E402
+from winkickoff.core.render import SCRIPT_ORDER, Renderer, write_answer_file  # noqa: E402
+from winkickoff.core.resources import Resources  # noqa: E402
+from winkickoff.core.validate import Issue, validate_profile, validate_xml  # noqa: E402
+from winkickoff.mcp import MODE_EDIT, MODE_FILES, MODE_READ, MODES, allows  # noqa: E402
+from winkickoff.mcp.bridge import InlineBridge  # noqa: E402
+from winkickoff.mcp.errors import RedactionError  # noqa: E402
+from winkickoff.mcp.journal import Journal  # noqa: E402
+from winkickoff.mcp.protocol import McpServer, Session  # noqa: E402
+from winkickoff.mcp.redact import HIDDEN, KEY_PLACEHOLDER, assert_redacted_build, check_name, clean_text, redacted_copy  # noqa: E402
+from winkickoff.mcp.resources import ResourceRegistry  # noqa: E402
+from winkickoff.mcp.tools import PARTS, ToolRegistry  # noqa: E402
+from winkickoff.mcp.workspace import POWERSHELL_NOTE, PRESET_IDS, HeadlessWorkspace  # noqa: E402
+
+ROOT = Path(__file__).resolve().parents[1]
+OFFICE = ROOT / "profiles" / "preset-office.json"
+SECRET_PASSWORD = "Zq9!secretPW-7731"
+SECRET_KEY = "ABCDE-FGHIJ-KLMNO-PQRST-UVWXY"
+NOW = datetime(2026, 9, 30, 12, 0, 0)
+LANGUAGES = tuple(available_languages(ROOT / "resources", ROOT / "rules"))
+TOOL_NAME_RE = re.compile(r"^[A-Za-z0-9_]{1,32}$")
+BOUNDED_PATTERN_RE = re.compile(r"\{\d+,\d+\}\$?\)?\$$")  # a pattern whose last quantifier bounds the length
+INT_RULE, INT_PARAM = "update.automatic", "start"  # an int parameter 0..23 with default 8
+_shared: dict[str, Any] = {}
+
+
+def base_catalog() -> Any:
+    """The built-in catalog, loaded once per process (it is never changed by the tools)."""
+    if "catalog" not in _shared:
+        _shared["catalog"] = load_catalog(ROOT / "rules", docs_root=ROOT.parent)
+    return _shared["catalog"]
+
+
+def shared_resources() -> Resources:
+    if "resources" not in _shared:
+        _shared["resources"] = Resources.load(ROOT / "resources")
+    return _shared["resources"]
+
+
+def representative(file_name: str = "mcp-test") -> dict[str, dict[str, Any]]:
+    """Valid arguments of every tool, in the order of the registry; the file tools write <file_name>."""
+    return {
+        "get_status": {}, "list_groups": {}, "list_rules": {"limit": 5}, "get_rule": {"id": "defender.pua"},
+        "get_profile": {}, "list_profiles": {}, "diff_profile": {"name": "strict"}, "check_profile": {},
+        "preview_build": {"part": "Setup-System.ps1"}, "get_messages": {},
+        "set_rules": {"items": [{"id": "defender.pua", "enabled": False}]},
+        "set_group": {"id": "printing", "action": "defaults"},
+        "set_param": {"id": INT_RULE, "name": INT_PARAM, "value": 9},
+        "set_profile_info": {"name": "MCP test", "author": "unittest", "comment": "written by the test"},
+        "load_profile": {"name": "office", "force": True},
+        "show_item": {"item": "r:defender.pua"},
+        "save_profile": {"name": file_name}, "write_answer_file": {"name": file_name},
+    }
+
+
+def change_rows(changes: list[Change]) -> list[dict[str, Any]]:
+    return [{"id": c.rule_id, "enabled": c.enabled, "reason": c.reason} for c in changes]
+
+
+def property_schemas(schema: dict[str, Any], path: str = "") -> list[tuple[str, dict[str, Any]]]:
+    """Every property of a schema with its path, through nested objects and array items."""
+    found: list[tuple[str, dict[str, Any]]] = []
+    for name, item in schema.get("properties", {}).items():
+        found.append((f"{path}.{name}" if path else name, item))
+        found += property_schemas(item, f"{path}.{name}" if path else name)
+    if isinstance(schema.get("items"), dict):
+        found += property_schemas(schema["items"], path + "[]")
+    return found
+
+
+class McpToolsTestCase(unittest.TestCase):
+    """A headless workspace on the Office preset behind an InlineBridge, driven through McpServer.handle."""
+
+    def setUp(self) -> None:
+        i18n.set_language("en", ROOT / "resources", ROOT / "rules")
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        base = self.tmp / "app"
+        self.paths = AppPaths(root=base, data=ROOT, docs_root=ROOT.parent, profiles=base / "profiles",
+                              output=base / "output", logs=base / "logs")
+        for folder in (self.paths.profiles, self.paths.output, self.paths.logs):
+            folder.mkdir(parents=True)
+        self.catalog = base_catalog()
+        self.resources = shared_resources()
+        self.mode = MODE_READ
+        self.attach(self.office_profile())
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+        i18n.set_language("en")
+
+    # ----------------------------------------------------------------- fixtures
+
+    def office_profile(self) -> Profile:
+        profile, _ = Profile.load(OFFICE, self.catalog)
+        return profile
+
+    def secret_profile(self) -> Profile:
+        profile = self.office_profile()
+        profile.accounts[0].password = SECRET_PASSWORD
+        profile.install["product_key_mode"] = "custom"
+        profile.install["product_key"] = SECRET_KEY
+        return profile
+
+    def attach(self, profile: Profile, catalog: Any = None) -> None:
+        """A fresh workspace, registries, journal and initialized session on the profile (and catalog)."""
+        if catalog is not None:
+            self.catalog = catalog
+        self.profile = profile
+        self.workspace = HeadlessWorkspace(self.paths, self.catalog, profile, self.resources, "test")
+        self.bridge = InlineBridge(self.workspace)
+        self.tools = ToolRegistry(self.paths, LANGUAGES)
+        self.registry = ResourceRegistry(self.paths, LANGUAGES)
+        self.journal = Journal()
+        self.server = McpServer(self.tools, self.registry, self.bridge, self.journal, transport="stdio",
+                                mode=lambda: self.mode, has_window=False, app_version="test")
+        self.session = Session("test", "stdio")
+        self.seq = 0
+        response = self.request("initialize", {"protocolVersion": "2025-06-18", "clientInfo": {"name": "unittest", "version": "1"}})
+        self.assertIn("result", response)
+
+    def import_templates(self) -> admx.ImportInfo:
+        """The synthetic templates of test_admx.py imported into paths.admx and shown in the catalog."""
+        folder = write_templates(self.tmp / "templates")
+        data = admx.read_templates(folder, ["en", "ru", "uk"])
+        info = admx.save_import(self.paths.admx, folder, data, system=False, now=NOW)
+        catalog, problems = admx.with_imports(base_catalog(), self.paths.admx, [info.id], "en")
+        self.assertEqual(problems, [])
+        profile, _ = Profile.load(OFFICE, catalog)
+        self.attach(profile, catalog)
+        return info
+
+    def build(self, profile: Profile) -> Any:
+        return Renderer(self.catalog, ROOT / "templates", self.resources.keyboards).build(profile, app_version="test")
+
+    # ----------------------------------------------------------------- protocol helpers
+
+    def request(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        self.seq += 1
+        message: dict[str, Any] = {"jsonrpc": "2.0", "id": self.seq, "method": method}
+        if params is not None:
+            message["params"] = params
+        response = self.server.handle(message, self.session)
+        self.assertIsNotNone(response)
+        return response  # type: ignore[return-value]
+
+    def call(self, tool: str, **arguments: Any) -> dict[str, Any]:
+        """The tools/call result object (content, structuredContent, isError)."""
+        response = self.request("tools/call", {"name": tool, "arguments": arguments})
+        self.assertIn("result", response, response)
+        return response["result"]
+
+    def ok(self, tool: str, **arguments: Any) -> dict[str, Any]:
+        result = self.call(tool, **arguments)
+        self.assertFalse(result["isError"], (tool, result["content"][0]["text"]))
+        return result["structuredContent"]
+
+    def refused(self, tool: str, kind: str, **arguments: Any) -> dict[str, Any]:
+        result = self.call(tool, **arguments)
+        self.assertTrue(result["isError"], (tool, result["structuredContent"]))
+        data = result["structuredContent"]
+        self.assertEqual(data["error"], kind, data)
+        self.assertEqual(result["content"][0]["text"], data["message"])
+        return data
+
+    def read_resource(self, uri: str) -> dict[str, Any]:
+        response = self.request("resources/read", {"uri": uri})
+        self.assertIn("result", response, response)
+        return response["result"]
+
+    def template_uris(self) -> list[str]:
+        """Every resource template with one real value for each placeholder."""
+        values = {"{id}": "defender.pua", "{lang}": "en"}
+        uris: list[str] = []
+        for template in self.registry.templates():
+            uri = template["uriTemplate"]
+            file = self.registry.reference[0] if "reference" in uri else self.registry.user["en"][0]
+            for placeholder, value in {**values, "{file}": file}.items():
+                uri = uri.replace(placeholder, value)
+            self.assertNotIn("{", uri)
+            uris.append(uri)
+        return uris
+
+
+# --------------------------------------------------------------------------- modes and schemas
+
+
+class ModeTest(McpToolsTestCase):
+    def test_every_tool_answers_or_refuses_by_mode(self) -> None:
+        self.assertEqual(list(representative()), list(self.tools.specs))
+        for mode in MODES:
+            self.attach(self.office_profile())
+            self.mode = mode
+            for name, args in representative().items():
+                with self.subTest(mode=mode, tool=name):
+                    spec = self.tools.specs[name]
+                    result = self.call(name, **args)
+                    if allows(mode, spec.mode):
+                        self.assertFalse(result["isError"], result["content"][0]["text"])
+                        self.assertNotIn("error", result["structuredContent"])
+                    else:
+                        self.assertTrue(result["isError"])
+                        data = result["structuredContent"]
+                        self.assertEqual((data["error"], data["required"], data["current"]), ("mode_required", spec.mode, mode))
+                        self.assertIn("MCP menu", data["how"])
+                        self.assertEqual(result["content"][0]["text"], data["message"])
+
+    def test_a_refused_mode_changes_nothing(self) -> None:
+        self.refused("set_rules", "mode_required", items=[{"id": "defender.pua", "enabled": False}])
+        self.refused("save_profile", "mode_required", name="x")
+        self.assertTrue(self.profile.is_enabled("defender.pua"))
+        self.assertFalse(self.workspace.dirty)
+        self.assertEqual(list(self.paths.profiles.iterdir()), [])
+
+    def test_edit_mode_still_refuses_files(self) -> None:
+        self.mode = MODE_EDIT
+        self.ok("set_group", id="printing", action="off")
+        self.refused("write_answer_file", "mode_required", name="x")
+        self.assertEqual(list(self.paths.output.iterdir()), [])
+
+    def test_schema_violations_are_checked_before_the_mode(self) -> None:
+        data = self.refused("save_profile", "invalid_arguments", name="")
+        self.assertTrue(any("name" in problem for problem in data["problems"]))
+        data = self.refused("set_rules", "invalid_arguments", items=[{"id": "defender.pua", "enabled": False}], extra=1)
+        self.assertTrue(any("extra" in problem for problem in data["problems"]))
+
+    def test_unknown_tool_is_a_json_rpc_error(self) -> None:
+        response = self.request("tools/call", {"name": "delete_everything", "arguments": {}})
+        self.assertEqual(response["error"]["code"], -32602)
+
+
+class SchemaTest(McpToolsTestCase):
+    def test_no_path_arguments(self) -> None:
+        for spec in self.tools.specs.values():
+            for name, _schema in property_schemas(spec.input_schema):
+                self.assertNotIn("path", name.lower(), f"{spec.name}: property {name}")
+
+    def test_tool_names_are_identifiers_and_unique(self) -> None:
+        names = [tool["name"] for tool in self.tools.listing()]
+        self.assertEqual(len(names), 18)
+        self.assertEqual(len(set(names)), len(names))
+        for name in names:
+            self.assertRegex(name, TOOL_NAME_RE)
+
+    def test_every_string_argument_is_bounded(self) -> None:
+        """maxLength, or an enumeration, or a pattern whose quantifier bounds the length (the id arguments)."""
+        for spec in self.tools.specs.values():
+            for name, schema in property_schemas(spec.input_schema):
+                types = schema.get("type")
+                if types == "string" or (isinstance(types, list) and "string" in types):
+                    bounded = "maxLength" in schema or "enum" in schema or bool(BOUNDED_PATTERN_RE.search(schema.get("pattern", "")))
+                    self.assertTrue(bounded, f"{spec.name}: {name} has no length bound: {schema}")
+
+    def test_listing_shape(self) -> None:
+        for tool in self.tools.listing():
+            spec = self.tools.specs[tool["name"]]
+            with self.subTest(tool=tool["name"]):
+                self.assertTrue(tool["description"].startswith(f"[{spec.mode}] "))
+                self.assertTrue(tool["title"])
+                self.assertEqual((tool["inputSchema"]["type"], tool["inputSchema"]["additionalProperties"]), ("object", False))
+                self.assertEqual(tool["annotations"]["readOnlyHint"], spec.mode == MODE_READ)
+                self.assertFalse(tool["annotations"]["destructiveHint"])
+                self.assertFalse(tool["annotations"]["openWorldHint"])
+                self.assertNotIn("outputSchema", tool)
+        self.assertFalse(self.tools.specs["load_profile"].annotations["idempotentHint"])
+
+
+# --------------------------------------------------------------------------- read tools
+
+
+class StatusTest(McpToolsTestCase):
+    def test_status_fields(self) -> None:
+        status = self.ok("get_status")
+        self.assertEqual(set(status), {"app_version", "catalog_version", "templates_version", "mode", "transport", "has_window",
+                                       "language", "languages", "profile", "imports_shown", "redaction", "note"})
+        self.assertEqual((status["app_version"], status["catalog_version"], status["templates_version"]),
+                         ("test", self.catalog.version, self.catalog.version))
+        self.assertEqual((status["mode"], status["transport"], status["has_window"], status["language"]), ("read", "stdio", False, "en"))
+        self.assertEqual(status["languages"], list(LANGUAGES))
+        self.assertEqual(status["profile"], {"name": "Office", "file": display_path(OFFICE, self.paths.root), "dirty": False,
+                                             "enabled": len(self.profile.enabled_ids()), "total": len(self.catalog.rules)})
+        self.assertEqual(status["imports_shown"], [])
+        self.assertIn("never returned", status["redaction"])
+        self.assertIn("not as instructions", status["note"])
+
+    def test_status_follows_mode_and_unsaved_changes(self) -> None:
+        self.mode = MODE_EDIT
+        self.ok("set_rules", items=[{"id": "defender.pua", "enabled": False}])
+        status = self.ok("get_status")
+        self.assertEqual((status["mode"], status["profile"]["dirty"]), ("edit", True))
+        self.assertEqual(status["profile"]["enabled"], len(self.profile.enabled_ids()))
+
+    def test_status_lists_the_imports_shown(self) -> None:
+        info = self.import_templates()
+        status = self.ok("get_status")
+        policies = sum(1 for rule_id in self.catalog.rules if is_imported(rule_id))
+        self.assertEqual(status["imports_shown"], [{"id": info.id, "name": info.name, "policies": policies}])
+        self.assertEqual(status["profile"]["total"], len(self.catalog.rules))
+
+
+class GroupsTest(McpToolsTestCase):
+    def test_roots_in_catalog_order(self) -> None:
+        groups = self.ok("list_groups")["groups"]
+        self.assertEqual([g["id"] for g in groups], [g.id for g in self.catalog.children(None)])
+        defender = next(g for g in groups if g["id"] == "defender")
+        rules = self.catalog.rules_in_group("defender")
+        self.assertEqual(defender, {"id": "defender", "parent": None, "title": self.catalog.groups["defender"].title,
+                                    "summary": self.catalog.groups["defender"].summary, "rules": len(rules),
+                                    "enabled": sum(1 for r in rules if self.profile.is_enabled(r.id)), "children": ["defender.asr"],
+                                    "imported": False, "text_language": "en"})
+
+    def test_children_of_a_group(self) -> None:
+        groups = self.ok("list_groups", parent="defender")["groups"]
+        self.assertEqual([(g["id"], g["parent"]) for g in groups], [("defender.asr", "defender")])
+        self.assertEqual(self.ok("list_groups", parent="defender.asr")["groups"], [])
+
+    def test_unknown_parent(self) -> None:
+        self.assertEqual(self.refused("list_groups", "unknown_id", parent="nope")["id"], "nope")
+
+    def test_titles_in_the_requested_language(self) -> None:
+        texts = CatalogTexts.load(ROOT / "rules", "uk")
+        page = self.ok("list_groups", language="uk")
+        self.assertEqual(page["language"], "uk")
+        first = page["groups"][0]
+        self.assertEqual((first["title"], first["text_language"]), (texts.group(self.catalog.groups[first["id"]], "title"), "uk"))
+        self.refused("list_groups", "invalid_arguments", language="de")
+
+    def test_an_imported_tree_follows_the_program_language(self) -> None:
+        info = self.import_templates()
+        groups = self.ok("list_groups", language="uk")["groups"]
+        tree = next(g for g in groups if g["id"] == "admx." + info.id)
+        self.assertEqual((tree["imported"], tree["text_language"], tree["title"]), (True, "en", info.name))
+        self.assertTrue(tree["children"])
+
+
+class RulesListTest(McpToolsTestCase):
+    def test_default_page_is_100(self) -> None:
+        page = self.ok("list_rules")
+        self.assertEqual((page["total"], page["offset"], page["limit"], page["language"]), (len(self.catalog.rules), 0, 100, "en"))
+        self.assertEqual([r["id"] for r in page["rules"]], self.catalog.order[:100])
+
+    def test_offset_and_limit(self) -> None:
+        page = self.ok("list_rules", offset=100, limit=20)
+        self.assertEqual([r["id"] for r in page["rules"]], self.catalog.order[100:120])
+        self.assertEqual(len(self.ok("list_rules", limit=500)["rules"]), len(self.catalog.rules))
+        self.assertEqual(self.ok("list_rules", offset=len(self.catalog.rules) + 5)["rules"], [])
+
+    def test_limit_bounds(self) -> None:
+        for limit in (0, 501):
+            with self.subTest(limit=limit):
+                data = self.refused("list_rules", "invalid_arguments", limit=limit)
+                self.assertTrue(any("limit" in problem for problem in data["problems"]))
+        self.refused("list_rules", "invalid_arguments", offset=-1)
+        self.refused("list_rules", "invalid_arguments", limit=True)
+
+    def test_row_shape(self) -> None:
+        row = self.ok("list_rules", limit=1)["rules"][0]
+        rule = self.catalog.rules[row["id"]]
+        self.assertEqual(row, {"id": rule.id, "group": rule.group, "title": rule.title, "level": rule.level, "phase": rule.phase,
+                               "enabled": self.profile.is_enabled(rule.id), "default": rule.default, "risky": rule.level == "risky",
+                               "imported": False, "covered_by": None, "text_language": "en"})
+
+    def test_group_filter_includes_subgroups(self) -> None:
+        page = self.ok("list_rules", group="defender", limit=500)
+        self.assertEqual([r["id"] for r in page["rules"]], [r.id for r in self.catalog.rules_in_group("defender")])
+        self.assertIn("defender.asr", {r["group"] for r in page["rules"]})
+        self.assertEqual(self.refused("list_rules", "unknown_id", group="nope")["id"], "nope")
+
+    def test_query_in_english(self) -> None:
+        page = self.ok("list_rules", query="PUA")
+        self.assertIn("defender.pua", [r["id"] for r in page["rules"]])
+        self.assertEqual(page["total"], len(self.catalog.search("PUA")))
+        self.refused("list_rules", "invalid_arguments", query="")
+
+    def test_query_in_ukrainian(self) -> None:
+        texts = CatalogTexts.load(ROOT / "rules", "uk")
+        title = texts.rule(self.catalog.rules["defender.pua"], "title")
+        self.assertNotEqual(title, self.catalog.rules["defender.pua"].title)
+        page = self.ok("list_rules", query=title, language="uk")
+        ids = [r["id"] for r in page["rules"]]
+        self.assertIn("defender.pua", ids)
+        row = page["rules"][ids.index("defender.pua")]
+        self.assertEqual((row["title"], row["text_language"], page["language"]), (title, "uk", "uk"))
+        self.assertEqual(self.ok("list_rules", query=title)["total"], 0)  # the English search does not know the Ukrainian title
+
+    def test_enabled_filter(self) -> None:
+        on = self.ok("list_rules", enabled=True, limit=500)
+        off = self.ok("list_rules", enabled=False, limit=500)
+        self.assertTrue(all(r["enabled"] for r in on["rules"]))
+        self.assertFalse(any(r["enabled"] for r in off["rules"]))
+        self.assertEqual((on["total"], on["total"] + off["total"]), (len(self.profile.enabled_ids()), len(self.catalog.rules)))
+
+    def test_level_and_phase_filters(self) -> None:
+        risky = self.ok("list_rules", level="risky", limit=500)
+        self.assertEqual({r["level"] for r in risky["rules"]}, {"risky"})
+        self.assertTrue(all(r["risky"] for r in risky["rules"]))
+        self.assertEqual(risky["total"], sum(1 for r in self.catalog.rules.values() if r.level == "risky"))
+        phase = self.ok("list_rules", phase="specialize", limit=500)
+        self.assertEqual(phase["total"], sum(1 for r in self.catalog.rules.values() if r.phase == "specialize"))
+        self.assertEqual({r["phase"] for r in phase["rules"]}, {"specialize"})
+        self.refused("list_rules", "invalid_arguments", level="huge")
+        self.refused("list_rules", "invalid_arguments", phase="never")
+
+    def test_imported_filter(self) -> None:
+        self.assertEqual(self.ok("list_rules", imported=True)["total"], 0)
+        self.import_templates()
+        page = self.ok("list_rules", imported=True, limit=500)
+        self.assertEqual(page["total"], sum(1 for rule_id in self.catalog.rules if is_imported(rule_id)))
+        self.assertTrue(all(r["imported"] and r["id"].startswith("admx.") and r["text_language"] == "en" for r in page["rules"]))
+        self.assertEqual(self.ok("list_rules", imported=False, limit=500)["total"], len(base_catalog().rules))
+
+    def test_filters_combine(self) -> None:
+        page = self.ok("list_rules", group="defender", enabled=True, phase="specialize", limit=500)
+        expected = [r.id for r in self.catalog.rules_in_group("defender") if self.profile.is_enabled(r.id) and r.phase == "specialize"]
+        self.assertEqual([r["id"] for r in page["rules"]], expected)
+
+
+class RuleCardTest(McpToolsTestCase):
+    def test_built_in_rule_card(self) -> None:
+        rule = self.catalog.rules["defender.pua"]
+        card = self.ok("get_rule", id="defender.pua")
+        self.assertEqual((card["id"], card["group"], card["phase"], card["level"]), (rule.id, rule.group, rule.phase, rule.level))
+        self.assertEqual((card["title"], card["summary"], card["effect"], card["risk"]), (rule.title, rule.summary, rule.effect, rule.risk))
+        self.assertEqual(card["group_title"], self.catalog.groups[rule.group].title)
+        self.assertEqual((card["enabled"], card["default"], card["origin"], card["text_language"], card["linked"]),
+                         (True, True, None, "en", None))
+        self.assertEqual((card["requires"], card["required_by"], card["conflicts"]),
+                         (list(rule.requires), self.catalog.required_by(rule.id), list(rule.conflicts)))
+        self.assertEqual(card["dependents"], Resolver(self.catalog).dependents(rule.id))
+        self.assertEqual([a["type"] for a in card["actions"]], [a.type for a in rule.actions])
+        self.assertTrue(card["verify_steps"] and card["rollback_steps"])
+        self.assertEqual(card["doc"], rule.doc or None)
+        self.assertEqual(card["same_values"], [])
+
+    def test_ukrainian_texts_when_requested(self) -> None:
+        texts = CatalogTexts.load(ROOT / "rules", "uk")
+        rule = self.catalog.rules["defender.pua"]
+        card = self.ok("get_rule", id="defender.pua", language="uk")
+        self.assertEqual((card["title"], card["text_language"]), (texts.rule(rule, "title"), "uk"))
+        self.assertEqual(card["group_title"], texts.group(self.catalog.groups[rule.group], "title"))
+
+    def test_parameters_with_current_values(self) -> None:
+        self.mode = MODE_EDIT
+        self.ok("set_param", id=INT_RULE, name=INT_PARAM, value=9)
+        card = self.ok("get_rule", id=INT_RULE)
+        param = {p["name"]: p for p in card["params"]}[INT_PARAM]
+        definition = self.catalog.rules[INT_RULE].params[INT_PARAM]
+        self.assertEqual(param, {"name": INT_PARAM, "type": "int", "title": definition.title, "value": 9, "default": definition.default,
+                                 "min": definition.min, "max": definition.max})
+        enum_card = self.ok("get_rule", id="defender.cloud")
+        level = next(p for p in enum_card["params"] if p["type"] == "enum")
+        self.assertEqual([v["value"] for v in level["values"]], [v for v, _ in self.catalog.rules["defender.cloud"].params[level["name"]].values])
+
+    def test_imported_rule_card(self) -> None:
+        info = self.import_templates()
+        card = self.ok("get_rule", id=TOGGLE, language="uk")
+        self.assertEqual(card["origin"], {"import": info.id, "name": info.name, "file": "wktest.admx", "policy": "SimpleToggle",
+                                          "unreviewed_text": True})
+        self.assertEqual(card["text_language"], "en")  # texts of imported policies follow the program, whatever is requested
+        self.assertEqual((card["title"], card["enabled"], card["default"]), (self.catalog.rules[TOGGLE].title, False, False))
+        self.assertEqual([p["name"] for p in card["params"]], ["state"])
+        self.assertEqual(card["group_title"], self.catalog.groups[self.catalog.rules[TOGGLE].group].title)
+
+    def test_a_linked_policy_is_shown_covered(self) -> None:
+        self.import_templates()
+        card = self.ok("get_rule", id=SAME)
+        self.assertEqual(card["linked"], {"rule": "defender.pua", "equal": True, "covered": True})
+        self.assertTrue(card["enabled"])  # shown on through the built-in rule
+        self.assertEqual(card["same_values"], ["defender.pua"])
+        row = next(r for r in self.ok("list_rules", query="Same as built-in")["rules"] if r["id"] == SAME)
+        self.assertEqual((row["enabled"], row["covered_by"]), (True, "defender.pua"))
+
+    def test_unknown_id_suggests_rules(self) -> None:
+        data = self.refused("get_rule", "unknown_id", id="defender.puaa")
+        self.assertEqual(data["id"], "defender.puaa")
+        self.assertIn("defender.pua", data["suggestions"])
+        self.assertLessEqual(len(data["suggestions"]), 3)
+        self.assertEqual(self.refused("get_rule", "unknown_id", id="zzzz.qqqq")["suggestions"], [])
+
+    def test_bad_or_missing_id(self) -> None:
+        self.refused("get_rule", "invalid_arguments", id="a b")
+        self.refused("get_rule", "invalid_arguments")
+
+
+class ProfileTest(McpToolsTestCase):
+    def test_profile_is_redacted(self) -> None:
+        self.attach(self.secret_profile())
+        data = self.ok("get_profile")
+        self.assertEqual(data["install"]["has_product_key"], True)
+        self.assertNotIn("product_key", data["install"])
+        self.assertEqual([a["has_password"] for a in data["accounts"]], [True, False])
+        self.assertFalse(any("password" in a for a in data["accounts"]))
+        self.assertTrue(all("description_text" in a for a in data["accounts"]))
+        self.assertIn("comment_text", data)
+        self.assertIn("author_text", data)
+        self.assertNotIn("comment", data)
+        self.assertNotIn("author", data)
+        text = json.dumps(data, ensure_ascii=False)
+        self.assertNotIn(SECRET_PASSWORD, text)
+        self.assertNotIn(SECRET_KEY, text)
+
+    def test_state_fields(self) -> None:
+        data = self.ok("get_profile")
+        self.assertEqual((data["name"], data["file"], data["dirty"], data["enabled_count"]),
+                         ("Office", display_path(OFFICE, self.paths.root), False, len(self.profile.enabled_ids())))
+        self.assertEqual(data["rules"]["defender.pua"], {"enabled": True})
+        self.assertEqual(data["changed_from_defaults"], [])
+
+    def test_changed_from_defaults(self) -> None:
+        self.mode = MODE_EDIT
+        self.ok("set_rules", items=[{"id": "defender.pua", "enabled": False}])
+        self.ok("set_param", id=INT_RULE, name=INT_PARAM, value=9)
+        changed = self.ok("get_profile")["changed_from_defaults"]
+        self.assertIn("defender.pua", changed)
+        self.assertIn(INT_RULE, changed)
+        self.assertEqual(changed, [r for r in self.catalog.order if r in changed])  # catalog order
+
+
+class ProfilesListTest(McpToolsTestCase):
+    def test_presets_from_data_and_user_files_from_root(self) -> None:
+        self.assertNotEqual(self.paths.data, self.paths.root)
+        other = self.office_profile()
+        other.save(self.paths.profiles / "Каса.json", self.catalog)
+        (self.paths.profiles / "CON.json").write_text("{}", encoding="utf-8")  # a reserved name: counted, not listed
+        (self.paths.profiles / "preset-mine.json").write_text("{}", encoding="utf-8")  # not a preset folder: ignored
+        (self.paths.profiles / "broken.json").write_text("not json", encoding="utf-8")
+        data = self.ok("list_profiles")
+        presets = [p for p in data["profiles"] if p["kind"] == "preset"]
+        self.assertEqual(sorted(p["name"] for p in presets), sorted(PRESET_IDS))
+        self.assertTrue(all(p["readable"] and p["catalog_version"] == self.catalog.version for p in presets))
+        users = {p["name"]: p for p in data["profiles"] if p["kind"] == "user"}
+        self.assertEqual(sorted(users), ["broken", "Каса"])
+        self.assertEqual((users["Каса"]["readable"], users["Каса"]["title_text"]), (True, "Office"))
+        self.assertEqual(users["broken"]["readable"], False)
+        self.assertEqual(data["unlisted"], 1)
+        for entry in data["profiles"]:
+            self.assertEqual(set(entry), {"name", "kind", "title_text", "modified", "catalog_version", "readable"})
+
+    def test_without_user_profiles(self) -> None:
+        data = self.ok("list_profiles")
+        self.assertEqual(([p["kind"] for p in data["profiles"]], data["unlisted"]), (["preset"] * 4, 0))
+
+
+class DiffTest(McpToolsTestCase):
+    def test_against_a_preset(self) -> None:
+        strict, _ = Profile.load(ROOT / "profiles" / "preset-strict.json", self.catalog)
+        expected = self.profile.diff(strict, self.catalog)
+        self.assertTrue(expected)
+        data = self.ok("diff_profile", name="strict")
+        self.assertEqual(data["other"], "strict")
+        self.assertEqual([(d["kind"], d["key"]) for d in data["differences"]], [(d.kind, d.key) for d in expected])
+        for row, item in zip(data["differences"], expected):
+            if item.kind in ("rule", "param"):
+                self.assertEqual((row["before"], row["after"]), (item.before, item.after))
+
+    def test_against_a_saved_user_profile(self) -> None:
+        other = self.office_profile()
+        other.rules["printing.spooler-automatic"].enabled = not other.rules["printing.spooler-automatic"].enabled
+        other.set_param(INT_RULE, INT_PARAM, 11)
+        other.save(self.paths.profiles / "Каса.json", self.catalog)
+        expected = self.profile.diff(other, self.catalog)
+        data = self.ok("diff_profile", name="Каса")
+        self.assertEqual(data["differences"], [{"kind": d.kind, "key": d.key, "before": d.before, "after": d.after} for d in expected])
+        self.assertIn(("param", f"{INT_RULE}.{INT_PARAM}"), [(d["kind"], d["key"]) for d in data["differences"]])
+
+    def test_the_same_profile_has_no_differences(self) -> None:
+        self.assertEqual(self.ok("diff_profile", name="office")["differences"], [])
+        self.assertEqual(self.ok("diff_profile", name="OFFICE")["differences"], [])  # preset ids are case-insensitive
+
+    def test_unknown_and_refused_names(self) -> None:
+        self.assertEqual(self.refused("diff_profile", "unknown_id", name="nope")["name"], "nope")
+        self.refused("diff_profile", "name_refused", name="..")
+        self.refused("diff_profile", "name_refused", name="preset-office")
+
+    def test_product_key_is_hidden(self) -> None:
+        self.attach(self.secret_profile())
+        data = self.ok("diff_profile", name="office")
+        rows = {(d["kind"], d["key"]): d for d in data["differences"]}
+        self.assertEqual((rows[("install", "product_key")]["before"], rows[("install", "product_key")]["after"]), (HIDDEN, HIDDEN))
+        self.assertEqual((rows[("install", "product_key_mode")]["before"], rows[("install", "product_key_mode")]["after"]),
+                         ("custom", "generic"))
+        self.assertEqual(rows[("accounts", "accounts")]["before"], ["Admin", "User"])
+        text = json.dumps(data, ensure_ascii=False)
+        self.assertNotIn(SECRET_KEY, text)
+        self.assertNotIn(SECRET_PASSWORD, text)
+
+
+class CheckTest(McpToolsTestCase):
+    def test_equals_validate_profile_plus_validate_xml(self) -> None:
+        build = self.build(self.profile)
+        expected = validate_profile(self.profile, self.catalog, self.resources.keyboards) + validate_xml(build.xml)
+        data = self.ok("check_profile")
+        self.assertEqual([(i["level"], i["target"], i["message"], i["doc"]) for i in data["issues"]],
+                         [(i.level, i.target, i.message, i.doc or None) for i in expected])
+        self.assertEqual((data["ok"], data["errors"], data["warnings"]), (True, 0, sum(1 for i in expected if i.level == "warning")))
+        self.assertEqual(data["build"], {"rules": len(build.rule_ids), "warnings": build.warnings})
+        self.assertEqual((data["powershell_checked"], data["issues_language"]), (False, "en"))
+
+    def test_errors_stop_the_build(self) -> None:
+        self.profile.install["time_zone"] = ""
+        data = self.ok("check_profile")
+        self.assertEqual((data["ok"], data["build"], data["powershell_checked"]), (False, None, False))
+        self.assertGreaterEqual(data["errors"], 1)
+        self.assertIn("install.time_zone", [i["target"] for i in data["issues"] if i["level"] == "error"])
+
+    def test_nothing_is_written(self) -> None:
+        self.ok("check_profile")
+        self.assertEqual(list(self.paths.output.iterdir()), [])
+        self.assertEqual(list(self.paths.profiles.iterdir()), [])
+        self.assertFalse(self.workspace.dirty)
+
+
+class PreviewTest(McpToolsTestCase):
+    def test_answer_file_text_equals_the_redacted_build(self) -> None:
+        expected = self.build(redacted_copy(self.profile))
+        result = self.call("preview_build")
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["content"][0]["text"], expected.xml)
+        self.assertEqual(result["structuredContent"], {"part": "autounattend.xml", "parts": list(PARTS), "redacted": True,
+                                                       "bytes": len(expected.xml.encode("utf-8")), "truncated": False,
+                                                       "rules": len(expected.rule_ids)})
+
+    def test_each_script_part(self) -> None:
+        expected = self.build(redacted_copy(self.profile))
+        self.assertEqual(PARTS, ("autounattend.xml", *SCRIPT_ORDER))
+        for part in SCRIPT_ORDER:
+            with self.subTest(part=part):
+                result = self.call("preview_build", part=part)
+                self.assertFalse(result["isError"])
+                self.assertEqual(result["content"][0]["text"], expected.scripts[part])
+                self.assertEqual(result["structuredContent"]["part"], part)
+        self.refused("preview_build", "invalid_arguments", part="Other.ps1")
+
+    def test_secrets_are_absent_from_every_part(self) -> None:
+        self.attach(self.secret_profile())
+        for part in PARTS:
+            with self.subTest(part=part):
+                result = self.call("preview_build", part=part)
+                self.assertFalse(result["isError"])
+                text = result["content"][0]["text"]
+                self.assertNotIn(SECRET_PASSWORD, text)
+                self.assertNotIn(SECRET_KEY, text)
+                self.assertTrue(result["structuredContent"]["redacted"])
+        self.assertIn(KEY_PLACEHOLDER, self.call("preview_build")["content"][0]["text"])
+
+    def test_short_passwords_do_not_trip_the_check(self) -> None:
+        for password in ("1", "a", "Admin", "2026"):
+            with self.subTest(password=password):
+                profile = self.office_profile()
+                profile.accounts[0].password = password
+                self.attach(profile)
+                self.assertTrue(self.ok("preview_build")["redacted"])
+
+    def test_the_structural_check_refuses_an_unredacted_build(self) -> None:
+        profile = self.secret_profile()
+        with self.assertRaises(RedactionError):
+            assert_redacted_build(self.build(profile))
+        assert_redacted_build(self.build(redacted_copy(profile)))
+
+    def test_errors_refuse_the_preview(self) -> None:
+        self.profile.install["time_zone"] = ""
+        self.assertTrue(self.refused("preview_build", "validation_failed")["errors"])
+
+    def test_nothing_is_written(self) -> None:
+        self.ok("preview_build")
+        self.assertEqual(list(self.paths.output.iterdir()), [])
+
+
+class MessagesTest(McpToolsTestCase):
+    def test_headless_messages_follow_the_last_build(self) -> None:
+        self.assertEqual(self.ok("get_messages"), {"issues": [], "issues_language": "en"})
+        self.mode = MODE_FILES
+        self.ok("write_answer_file", name="one")
+        data = self.ok("get_messages")
+        self.assertEqual(data["issues"][-1], {"level": "info", "target": "powershell", "message": POWERSHELL_NOTE, "doc": None})
+        self.profile.install["time_zone"] = ""
+        self.refused("write_answer_file", "validation_failed", name="two")
+        self.assertIn("install.time_zone", [i["target"] for i in self.ok("get_messages")["issues"] if i["level"] == "error"])
+
+
+# --------------------------------------------------------------------------- edit tools
+
+
+class SetRulesTest(McpToolsTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.mode = MODE_EDIT
+
+    def test_cascade_equals_the_resolver(self) -> None:
+        expected = Resolver(self.catalog).set_rule(self.profile.copy(), "defender.asr", False)
+        self.assertGreater(len(expected), 1)  # the ASR rules go off with their parent
+        data = self.ok("set_rules", items=[{"id": "defender.asr", "enabled": False}])
+        self.assertEqual(data["changes"], change_rows(expected))
+        self.assertEqual((data["refused"], data["dirty"], data["issues_errors"]), ([], True, 0))
+        self.assertTrue(self.workspace.dirty)
+        self.assertFalse(any(self.profile.is_enabled(r) for r in self.catalog.required_by("defender.asr")))
+
+    def test_enabling_pulls_the_requirements(self) -> None:
+        for rule_id in ("update.unblock", INT_RULE):
+            self.profile.rules[rule_id].enabled = False
+        expected = Resolver(self.catalog).set_rule(self.profile.copy(), INT_RULE, True)
+        data = self.ok("set_rules", items=[{"id": INT_RULE, "enabled": True}])
+        self.assertEqual(data["changes"], change_rows(expected))
+        self.assertIn({"id": "update.unblock", "enabled": True, "reason": f"required by {INT_RULE}"}, data["changes"])
+
+    def test_several_items_in_order(self) -> None:
+        copied = self.profile.copy()
+        resolver = Resolver(self.catalog)
+        expected = resolver.set_rule(copied, "defender.pua", False) + resolver.set_rule(copied, "printing.spooler-automatic", False)
+        data = self.ok("set_rules", items=[{"id": "defender.pua", "enabled": False}, {"id": "printing.spooler-automatic", "enabled": False}])
+        self.assertEqual(data["changes"], change_rows(expected))
+
+    def test_unknown_ids_are_refused_and_the_rest_applied(self) -> None:
+        data = self.ok("set_rules", items=[{"id": "no.such", "enabled": True}, {"id": "defender.pua", "enabled": False}])
+        self.assertEqual(data["refused"], [{"id": "no.such", "reason": "unknown rule"}])
+        self.assertEqual([c["id"] for c in data["changes"]], ["defender.pua"])
+        self.assertFalse(self.profile.is_enabled("defender.pua"))
+
+    def test_no_change_when_already_in_that_state(self) -> None:
+        data = self.ok("set_rules", items=[{"id": "defender.pua", "enabled": True}])
+        self.assertEqual((data["changes"], data["refused"]), ([], []))
+        self.assertFalse(self.workspace.dirty)
+
+    def test_conflicts_are_reported(self) -> None:
+        self.import_templates()  # the built-in catalog has no conflicts; a two-state policy gives a conflicting pair
+        self.assertEqual(self.catalog.rules[PAIR].conflicts, (PAIR + ".off",))
+        self.profile.rules[PAIR + ".off"].enabled = True
+        expected = Resolver(self.catalog).set_rule(self.profile.copy(), PAIR, True)
+        data = self.ok("set_rules", items=[{"id": PAIR, "enabled": True}])
+        self.assertEqual(data["changes"], change_rows(expected))
+        self.assertIn({"id": PAIR + ".off", "enabled": False, "reason": f"conflicts with {PAIR}"}, data["changes"])
+        self.assertEqual((self.profile.is_enabled(PAIR), self.profile.is_enabled(PAIR + ".off")), (True, False))
+
+    def test_redundant_policies_are_dropped(self) -> None:
+        self.import_templates()
+        self.profile.rules[SAME].enabled = True  # as if set by hand while the built-in rule defender.pua is on
+        self.assertEqual(linked.redundant(self.catalog, self.profile), [(SAME, "defender.pua")])
+        data = self.ok("set_rules", items=[{"id": "printing.spooler-automatic", "enabled": False}])
+        self.assertIn({"id": SAME, "enabled": False, "reason": "covered by defender.pua"}, data["changes"])
+        self.assertFalse(self.profile.is_enabled(SAME))
+
+    def test_a_linked_policy_switches_the_built_in_rule(self) -> None:
+        self.import_templates()
+        expected = Resolver(self.catalog).set_rule(self.profile.copy(), "defender.pua", False)
+        data = self.ok("set_rules", items=[{"id": SAME, "enabled": False}])
+        self.assertEqual(data["changes"], change_rows(expected))
+        self.assertFalse(self.profile.is_enabled("defender.pua"))
+        data = self.ok("set_rules", items=[{"id": SAME, "enabled": True}])
+        self.assertEqual([c["id"] for c in data["changes"]], ["defender.pua"])  # the reviewed built-in rule is used
+        self.assertFalse(self.profile.is_enabled(SAME))
+
+    def test_a_covered_policy_already_on_needs_no_change(self) -> None:
+        self.import_templates()
+        data = self.ok("set_rules", items=[{"id": SAME, "enabled": True}])
+        self.assertEqual(data["changes"], [])
+        self.assertFalse(self.profile.is_enabled(SAME))
+
+    def test_schema(self) -> None:
+        self.refused("set_rules", "invalid_arguments", items=[])
+        self.refused("set_rules", "invalid_arguments", items=[{"id": "defender.pua"}])
+        self.refused("set_rules", "invalid_arguments", items=[{"id": "defender.pua", "enabled": "yes"}])
+        self.refused("set_rules", "invalid_arguments", items=[{"id": "defender.pua", "enabled": True}] * 201)
+        self.refused("set_rules", "invalid_arguments")
+
+
+class SetGroupTest(McpToolsTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.mode = MODE_EDIT
+
+    def test_off_and_on_equal_the_resolver(self) -> None:
+        for action in ("off", "on"):
+            with self.subTest(action=action):
+                expected = Resolver(self.catalog).set_group(self.profile.copy(), "printing", action == "on")
+                data = self.ok("set_group", id="printing", action=action)
+                self.assertEqual(data, {"id": "printing", "action": action, "changes": change_rows(expected), "dirty": True, "issues_errors": 0})
+        self.assertTrue(all(self.profile.is_enabled(r.id) for r in self.catalog.rules_in_group("printing")))
+
+    def test_defaults_equal_reset_group(self) -> None:
+        self.ok("set_group", id="defender", action="off")
+        expected = Resolver(self.catalog).reset_group(self.profile.copy(), "defender")
+        self.assertTrue(expected)
+        data = self.ok("set_group", id="defender", action="defaults")
+        self.assertEqual(data["changes"], change_rows(expected))
+        for rule in self.catalog.rules_in_group("defender"):
+            self.assertEqual(self.profile.is_enabled(rule.id), rule.default, rule.id)
+
+    def test_an_imported_group_is_only_switched_off(self) -> None:
+        info = self.import_templates()
+        group = "admx." + info.id
+        for action in ("on", "defaults"):
+            with self.subTest(action=action):
+                self.assertEqual(self.refused("set_group", "refused", id=group, action=action)["id"], group)
+        self.assertFalse(any(self.profile.is_enabled(r) for r in self.catalog.rules if is_imported(r)))
+        self.profile.rules[TOGGLE].enabled = True
+        data = self.ok("set_group", id=group, action="off")
+        self.assertEqual([c["id"] for c in data["changes"]], [TOGGLE])
+        self.assertFalse(self.profile.is_enabled(TOGGLE))
+
+    def test_unknown_group_and_bad_action(self) -> None:
+        self.assertEqual(self.refused("set_group", "unknown_id", id="nope", action="on")["id"], "nope")
+        self.refused("set_group", "invalid_arguments", id="printing", action="toggle")
+        self.refused("set_group", "invalid_arguments", id="printing")
+        self.assertFalse(self.workspace.dirty)
+
+
+class SetParamTest(McpToolsTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.mode = MODE_EDIT
+
+    def test_stores_a_good_value(self) -> None:
+        data = self.ok("set_param", id=INT_RULE, name=INT_PARAM, value=9)
+        self.assertEqual(data, {"id": INT_RULE, "name": INT_PARAM, "value": 9, "dirty": True})
+        self.assertEqual(self.profile.param(self.catalog, INT_RULE, INT_PARAM), 9)
+        self.assertTrue(self.workspace.dirty)
+
+    def test_the_default_clears_the_override(self) -> None:
+        self.ok("set_param", id=INT_RULE, name=INT_PARAM, value=9)
+        default = self.catalog.rules[INT_RULE].params[INT_PARAM].default
+        self.ok("set_param", id=INT_RULE, name=INT_PARAM, value=default)
+        self.assertNotIn(INT_PARAM, self.profile.rules[INT_RULE].params)
+
+    def test_rejects_a_bad_type(self) -> None:
+        for value in ("9", True, [9], 9.5):
+            with self.subTest(value=value):
+                data = self.refused("set_param", "invalid_arguments", id=INT_RULE, name=INT_PARAM, value=value)
+                self.assertTrue(data["message"])
+        self.assertEqual(self.profile.rules[INT_RULE].params, {})
+        self.assertFalse(self.workspace.dirty)
+
+    def test_rejects_an_out_of_range_int(self) -> None:
+        definition = self.catalog.rules[INT_RULE].params[INT_PARAM]
+        for value in (definition.min - 1, definition.max + 1):
+            with self.subTest(value=value):
+                data = self.refused("set_param", "invalid_arguments", id=INT_RULE, name=INT_PARAM, value=value)
+                self.assertIn("out of range", data["message"])
+                self.assertEqual((data["id"], data["name"]), (INT_RULE, INT_PARAM))
+        self.assertEqual(self.profile.rules[INT_RULE].params, {})
+
+    def test_rejects_an_unknown_parameter_or_rule(self) -> None:
+        data = self.refused("set_param", "invalid_arguments", id=INT_RULE, name="nope", value=1)
+        self.assertEqual(data["params"], list(self.catalog.rules[INT_RULE].params))
+        self.assertEqual(self.refused("set_param", "unknown_id", id="no.such", name="x", value=1)["id"], "no.such")
+
+    def test_enum_values(self) -> None:
+        allowed = [v for v, _ in self.catalog.rules["defender.cloud"].params["block_level"].values]
+        data = self.refused("set_param", "invalid_arguments", id="defender.cloud", name="block_level", value="loud")
+        self.assertEqual(data["values"], allowed)
+        self.ok("set_param", id="defender.cloud", name="block_level", value=allowed[-1])
+        self.assertEqual(self.profile.param(self.catalog, "defender.cloud", "block_level"), allowed[-1])
+
+    def test_string_values_are_stripped_and_checked(self) -> None:
+        data = self.ok("set_param", id="default-user.region", name="geo_id", value="  244 ")
+        self.assertEqual(data["value"], "244")
+        self.assertEqual(self.profile.param(self.catalog, "default-user.region", "geo_id"), "244")
+        self.refused("set_param", "invalid_arguments", id="default-user.region", name="geo_id", value="a]]>b")
+        self.refused("set_param", "invalid_arguments", id="default-user.region", name="geo_id", value=244)
+        self.refused("set_param", "invalid_arguments", id="default-user.region", name="geo_id", value="x" * 4001)
+
+    def test_a_value_that_introduces_a_validation_error_is_rolled_back(self) -> None:
+        from winkickoff.mcp import workspace as workspace_module
+
+        real = workspace_module.validate_profile
+        calls: list[int] = []
+
+        def after_the_change(profile: Profile, catalog: Any, keyboards: Any = None) -> list[Issue]:
+            calls.append(1)
+            issues = real(profile, catalog, keyboards)
+            return issues + ([Issue("error", INT_RULE, "introduced by the test")] if len(calls) > 1 else [])
+
+        with mock.patch.object(workspace_module, "validate_profile", after_the_change):
+            data = self.refused("set_param", "validation_failed", id=INT_RULE, name=INT_PARAM, value=9)
+        self.assertEqual(len(calls), 2)
+        self.assertIn("introduced by the test", data["message"])
+        self.assertEqual((data["id"], data["name"]), (INT_RULE, INT_PARAM))
+        self.assertEqual(self.profile.rules[INT_RULE].params, {})  # restored
+        self.assertFalse(self.workspace.dirty)
+
+    def test_list_parameter_of_an_imported_policy(self) -> None:
+        self.import_templates()
+        data = self.ok("set_param", id=HASLIST, name="items", value=[" a.example ", "", "b.example"])
+        self.assertEqual(data["value"], ["a.example", "b.example"])
+        self.assertEqual(self.profile.param(self.catalog, HASLIST, "items"), ["a.example", "b.example"])
+        data = self.refused("set_param", "invalid_arguments", id=HASLIST, name="items", value=["x]]>y"])
+        self.assertIn("line 1", data["message"])
+        self.refused("set_param", "invalid_arguments", id=HASLIST, name="items", value="a.example")
+        self.refused("set_param", "invalid_arguments", id=HASLIST, name="items", value=[1])
+        self.assertEqual(self.profile.param(self.catalog, HASLIST, "items"), ["a.example", "b.example"])
+        data = self.refused("set_param", "invalid_arguments", id=LINES, name="text", value=[])  # required
+        self.assertIn("cannot be empty", data["message"])
+        self.refused("set_param", "invalid_arguments", id=HASLIST, name="items", value=["x" * 2001, "y" * 2001])  # joined 4000
+
+    def test_schema(self) -> None:
+        self.refused("set_param", "invalid_arguments", id=INT_RULE, name=INT_PARAM)
+        self.refused("set_param", "invalid_arguments", id=INT_RULE, name="", value=1)
+        self.refused("set_param", "invalid_arguments", id=INT_RULE, name=INT_PARAM, value={"a": 1})
+        self.refused("set_param", "invalid_arguments", id=INT_RULE, name=INT_PARAM, value=None)
+
+
+class ProfileInfoTest(McpToolsTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.mode = MODE_EDIT
+
+    def test_strips_control_and_invisible_characters(self) -> None:
+        data = self.ok("set_profile_info", name=" Ka" + chr(7) + "sa" + chr(0x200B) + " ", author="me" + chr(1) + chr(0x202E),
+                       comment="line 1\r\nline 2" + chr(0xFEFF))
+        self.assertEqual(data, {"name": "Kasa", "author_text": "me", "comment_text": "line 1\nline 2", "dirty": True})
+        self.assertEqual((self.profile.name, self.profile.author, self.profile.comment), ("Kasa", "me", "line 1\nline 2"))
+        self.assertTrue(self.workspace.dirty)
+
+    def test_refuses_an_empty_name(self) -> None:
+        self.refused("set_profile_info", "invalid_arguments", name="")
+        data = self.refused("set_profile_info", "invalid_arguments", name=chr(7) + " ")
+        self.assertIn("empty", data["message"])
+        self.assertEqual(self.profile.name, "Office")
+        self.assertFalse(self.workspace.dirty)
+
+    def test_a_partial_update_keeps_the_other_fields(self) -> None:
+        comment = self.profile.comment
+        data = self.ok("set_profile_info", author="me")
+        self.assertEqual((data["name"], data["author_text"], data["comment_text"]), ("Office", "me", comment))
+        self.assertEqual((self.profile.name, self.profile.comment), ("Office", comment))
+
+    def test_long_texts_are_refused_by_the_schema(self) -> None:
+        self.refused("set_profile_info", "invalid_arguments", name="n" * 81)
+        self.refused("set_profile_info", "invalid_arguments", comment="c" * 2001)
+
+
+class LoadProfileTest(McpToolsTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.mode = MODE_EDIT
+
+    def test_refuses_when_dirty_without_force(self) -> None:
+        self.ok("set_rules", items=[{"id": "defender.pua", "enabled": False}])
+        self.refused("load_profile", "unsaved_changes", name="strict")
+        self.assertFalse(self.workspace.profile.is_enabled("defender.pua"))  # nothing replaced
+        self.assertTrue(self.workspace.dirty)
+
+    def test_force_drops_the_changes(self) -> None:
+        self.ok("set_rules", items=[{"id": "defender.pua", "enabled": False}])
+        strict, _ = Profile.load(ROOT / "profiles" / "preset-strict.json", self.catalog)
+        data = self.ok("load_profile", name="strict", force=True)
+        self.assertEqual(data, {"name": "strict", "file": display_path(ROOT / "profiles" / "preset-strict.json", self.paths.root),
+                                "warnings": [], "forced": True})
+        self.assertEqual(self.workspace.profile.to_dict(self.catalog), strict.to_dict(self.catalog))
+        self.assertFalse(self.workspace.dirty)
+        self.assertEqual(self.ok("get_status")["profile"]["name"], strict.name)
+
+    def test_loads_when_clean(self) -> None:
+        data = self.ok("load_profile", name="laptop")
+        self.assertEqual((data["name"], data["forced"]), ("laptop", False))
+        self.assertEqual(self.ok("get_status")["profile"]["dirty"], False)
+
+    def test_loads_a_saved_user_profile(self) -> None:
+        other = self.office_profile()
+        other.name = "Cash desk"
+        other.save(self.paths.profiles / "Каса.json", self.catalog)
+        data = self.ok("load_profile", name="Каса")
+        self.assertEqual(data["file"], str(Path("profiles") / "Каса.json"))
+        self.assertEqual(self.workspace.profile.name, "Cash desk")
+
+    def test_unknown_and_refused_names(self) -> None:
+        self.assertEqual(self.refused("load_profile", "unknown_id", name="nope")["name"], "nope")
+        self.refused("load_profile", "name_refused", name="preset-x")
+        self.refused("load_profile", "name_refused", name="..")
+        self.refused("load_profile", "invalid_arguments", name="")
+        self.assertEqual(self.workspace.profile.name, "Office")
+
+    def test_a_damaged_file_is_load_failed(self) -> None:
+        (self.paths.profiles / "bad.json").write_text("[1, 2]", encoding="utf-8")
+        data = self.refused("load_profile", "load_failed", name="bad")
+        self.assertIn("ValueError", data["message"])  # the exception class, never the text of the file
+        self.assertEqual(self.workspace.profile.name, "Office")
+
+
+class ShowItemTest(McpToolsTestCase):
+    def test_headless_has_no_window(self) -> None:
+        self.mode = MODE_EDIT
+        for item in ("r:defender.pua", "g:defender", "data:accounts"):
+            with self.subTest(item=item):
+                self.assertEqual(self.ok("show_item", item=item), {"shown": False, "reason": "no window"})
+        self.refused("show_item", "invalid_arguments", item="defender.pua")
+        self.refused("show_item", "invalid_arguments", item="data:secrets")
+
+
+# --------------------------------------------------------------------------- files tools
+
+
+class SaveProfileTest(McpToolsTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.mode = MODE_FILES
+
+    def test_writes_a_new_file_that_loads_back_equal(self) -> None:
+        self.ok("set_rules", items=[{"id": "defender.pua", "enabled": False}])
+        self.ok("set_param", id=INT_RULE, name=INT_PARAM, value=9)
+        path = self.paths.profiles / "Каса.json"
+        data = self.ok("save_profile", name="Каса")
+        self.assertEqual(data, {"file": display_path(path, self.paths.root), "dirty": False})
+        self.assertEqual([p.name for p in self.paths.profiles.iterdir()], ["Каса.json"])
+        self.assertFalse(self.workspace.dirty)
+        loaded, warnings = Profile.load(path, self.catalog)
+        self.assertEqual(warnings, [])
+        self.assertEqual(loaded.to_dict(self.catalog), self.workspace.profile.to_dict(self.catalog))
+        self.assertEqual((loaded.name, loaded.is_enabled("defender.pua"), loaded.param(self.catalog, INT_RULE, INT_PARAM)), ("Каса", False, 9))
+        self.assertEqual(self.ok("get_status")["profile"], {"name": "Каса", "file": str(Path("profiles") / "Каса.json"), "dirty": False,
+                                                            "enabled": len(loaded.enabled_ids()), "total": len(self.catalog.rules)})
+
+    def test_never_replaces_an_existing_file(self) -> None:
+        path = self.paths.profiles / "Каса.json"
+        self.ok("save_profile", name="Каса")
+        before = path.read_bytes()
+        self.ok("set_rules", items=[{"id": "defender.pua", "enabled": False}])
+        self.assertEqual(self.refused("save_profile", "exists", name="Каса")["name"], "Каса")
+        self.assertEqual(path.read_bytes(), before)
+        self.assertTrue(self.workspace.dirty)
+
+    def test_refuses_names(self) -> None:
+        refused = ("preset-x", "Preset-Office", "..", "CON", "com1.json", "a/b", "a\\b", "name.", " name", chr(0x301) + "abc",
+                   "a" + chr(0x338) + "b", "x" + chr(0x200B) + "y", "a" * 81)
+        for name in refused:
+            with self.subTest(name=name):
+                result = self.call("save_profile", name=name)
+                self.assertTrue(result["isError"])
+                self.assertIn(result["structuredContent"]["error"], ("name_refused", "invalid_arguments"))
+        self.assertEqual(list(self.paths.profiles.iterdir()), [])
+
+    def test_accepted_names(self) -> None:
+        for name in ("Каса", "Профіль офісу", "Office 2026", "kasa.v2"):
+            with self.subTest(name=name):
+                self.assertIsNone(check_name(name))
+                self.assertEqual(self.ok("save_profile", name=name)["file"], str(Path("profiles") / (name + ".json")))
+        self.assertEqual(len(list(self.paths.profiles.iterdir())), 4)
+
+    def test_the_file_holds_the_password_the_result_does_not(self) -> None:
+        self.attach(self.secret_profile())
+        data = self.ok("save_profile", name="secret")
+        self.assertNotIn(SECRET_PASSWORD, json.dumps(data))
+        text = (self.paths.profiles / "secret.json").read_text(encoding="utf-8")
+        self.assertIn(SECRET_PASSWORD, text)  # a profile file keeps its passwords, as the window writes it
+        self.assertIn(SECRET_KEY, text)
+
+
+class WriteAnswerFileTest(McpToolsTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.mode = MODE_FILES
+
+    def test_writes_the_build_of_the_open_profile(self) -> None:
+        expected = self.build(self.profile)
+        reference = self.tmp / "expected.xml"
+        write_answer_file(expected, reference)
+        target = self.paths.output / "Каса.xml"
+        data = self.ok("write_answer_file", name="Каса")
+        self.assertEqual(target.read_bytes(), reference.read_bytes())
+        self.assertEqual([p.name for p in self.paths.output.iterdir()], ["Каса.xml"])
+        self.assertEqual((data["file"], data["rules"], data["powershell_checked"]),
+                         (display_path(target, self.paths.root), len(expected.rule_ids), False))
+        self.assertEqual(data["issues"][-1], {"level": "info", "target": "powershell", "message": POWERSHELL_NOTE, "doc": None})
+        self.assertIn("autounattend.xml", data["note"])
+        self.assertFalse(self.workspace.dirty)
+
+    def test_refuses_an_existing_file(self) -> None:
+        (self.paths.output / "one.xml").write_bytes(b"keep")
+        self.assertEqual(self.refused("write_answer_file", "exists", name="one")["name"], "one")
+        self.assertEqual((self.paths.output / "one.xml").read_bytes(), b"keep")
+
+    def test_refuses_when_validation_has_errors(self) -> None:
+        self.profile.install["time_zone"] = ""
+        data = self.refused("write_answer_file", "validation_failed", name="two")
+        self.assertTrue(data["errors"])
+        self.assertEqual(list(self.paths.output.iterdir()), [])
+
+    def test_refuses_names(self) -> None:
+        for name in ("preset-x", "..", "CON", "a/b", "name."):
+            with self.subTest(name=name):
+                self.refused("write_answer_file", "name_refused", name=name)
+        self.assertEqual(list(self.paths.output.iterdir()), [])
+
+    def test_the_real_build_holds_the_secrets_the_result_does_not(self) -> None:
+        self.attach(self.secret_profile())
+        data = self.ok("write_answer_file", name="secret")
+        text = json.dumps(data, ensure_ascii=False)
+        self.assertNotIn(SECRET_PASSWORD, text)
+        self.assertNotIn(SECRET_KEY, text)
+        written = (self.paths.output / "secret.xml").read_text(encoding="utf-8")
+        self.assertIn(SECRET_PASSWORD, written)  # the file is the real answer file, as the window's Build writes it
+        self.assertIn(SECRET_KEY, written)
+
+
+# --------------------------------------------------------------------------- secrets and forbidden functions
+
+
+class SecretsTest(McpToolsTestCase):
+    def test_no_secret_leaves_any_tool(self) -> None:
+        self.attach(self.secret_profile())
+        self.mode = MODE_FILES
+        args = representative("mcp-secret")
+        first = [n for n in args if self.tools.specs[n].mode == MODE_READ]
+        then = [n for n in args if self.tools.specs[n].mode != MODE_READ and n != "load_profile"]
+        self.assertEqual(set(first + then + ["load_profile"]), set(self.tools.specs))
+        texts: list[str] = []
+        with self.assertLogs("winkickoff.mcp", level="DEBUG") as captured:
+            for name in first + then:
+                texts.append(json.dumps(self.ok(name, **args[name]), ensure_ascii=False))
+            for part in PARTS:
+                texts.append(json.dumps(self.call("preview_build", part=part), ensure_ascii=False))
+            texts.append(json.dumps(self.ok("diff_profile", name="mcp-secret"), ensure_ascii=False))  # the saved copy, secrets inside
+            texts.append(json.dumps(self.ok("get_profile"), ensure_ascii=False))
+            texts.append(json.dumps(self.ok("get_messages"), ensure_ascii=False))
+            texts.append(json.dumps(self.ok("load_profile", **args["load_profile"]), ensure_ascii=False))
+            for entry in self.registry.listing():
+                texts.append(json.dumps(self.read_resource(entry["uri"]), ensure_ascii=False))
+            for uri in self.template_uris():
+                texts.append(json.dumps(self.read_resource(uri), ensure_ascii=False))
+            self.assertIsNone(self.server.handle({"jsonrpc": "2.0", "method": "notifications/unknown"}, self.session))  # one log line
+        self.assertIn(SECRET_PASSWORD, (self.paths.profiles / "mcp-secret.json").read_text(encoding="utf-8"))  # the secret was there
+        self.assertGreater(len(texts), 30)
+        for text in texts + [str(entry) for entry in self.journal.entries()] + captured.output:
+            self.assertNotIn(SECRET_PASSWORD, text)
+            self.assertNotIn(SECRET_KEY, text)
+        self.assertEqual(len(self.journal.entries()), self.seq + 1)  # one row per message, the notification included
+
+
+class ForbiddenTest(McpToolsTestCase):
+    TARGETS = ("winkickoff.core.apply.launch_elevated", "winkickoff.core.apply.run_audit", "winkickoff.core.pscheck.check_scripts",
+               "winkickoff.core.admx.save_import", "winkickoff.core.admx.delete_import", "winkickoff.core.admx.rename_import",
+               "winkickoff.core.admx.read_templates", "winkickoff.core.settings.Settings.save", "os.startfile", "shutil.rmtree",
+               "os.remove", "pathlib.Path.unlink")
+
+    def test_forbidden_functions_unreachable(self) -> None:
+        self.mode = MODE_FILES
+        called: list[str] = []
+
+        def trap(target: str) -> Any:
+            def fail(*_args: Any, **_kwargs: Any) -> None:
+                called.append(target)
+                raise RuntimeError(f"{target} must not be reachable through MCP")
+
+            return fail
+
+        with contextlib.ExitStack() as stack:
+            for target in self.TARGETS:
+                stack.enter_context(mock.patch(target, side_effect=trap(target), create=target == "os.startfile"))
+            for name, arguments in representative("forbidden").items():
+                with self.subTest(tool=name):
+                    self.ok(name, **arguments)
+            for entry in self.registry.listing():
+                self.read_resource(entry["uri"])
+            for uri in self.template_uris():
+                self.read_resource(uri)
+        self.assertEqual(called, [])
+        self.assertEqual([p.name for p in self.paths.output.iterdir()], ["forbidden.xml"])
+
+
+# --------------------------------------------------------------------------- names and texts
+
+
+class NamesTest(unittest.TestCase):
+    def test_check_name_accepts(self) -> None:
+        for name in ("Каса", "Профіль офісу", "Office 2026", "kasa.v2", "a", "x" * 80):
+            with self.subTest(name=name):
+                self.assertIsNone(check_name(name))
+
+    def test_check_name_refuses(self) -> None:
+        refused = ("", "..", "a/b", "a\\b", "CON", "con", "com1.json", "LPT9", "name.", " name", "name ", ".name", "a..b",
+                   chr(0x301) + "abc", "a" + chr(0x338) + "b", "x" + chr(0x200B) + "y", "a" + chr(7) + "b", "a" * 81, 5)
+        for name in refused:
+            with self.subTest(name=name):
+                self.assertIsNotNone(check_name(name))
+
+    def test_clean_text_strips_and_truncates(self) -> None:
+        self.assertEqual(clean_text("a" + chr(7) + "b" + chr(0x200B) + "c" + chr(0x202E) + chr(0xFEFF)), "abc")
+        self.assertEqual(clean_text("x\r\ny\rz\tw"), "x\ny\nz\tw")
+        self.assertTrue(clean_text("a" * 500, 10).endswith("[truncated]"))
+        self.assertEqual(clean_text(None), "")
+
+
+if __name__ == "__main__":
+    unittest.main()

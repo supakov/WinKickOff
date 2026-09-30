@@ -14,7 +14,8 @@ disabling of dependent rules, stores the selection in a JSON profile and builds 
 | [04-testing.md](04-testing.md) | `unittest`, semantic golden against v0.2, per-module tests, checklists |
 | [05-plan.md](05-plan.md) | Stages, dependencies, estimate, milestones |
 | [06-critical-review-v0.1.md](06-critical-review-v0.1.md) | Why revision 0.1 did not meet the requirements and what was changed |
-| [todo/](todo/README.md) | Tasks T01-T17 with statuses |
+| [07-mcp-server.md](07-mcp-server.md) | MCP server (task T22): protocol subset, HTTP and stdio transports, token ownership, modes, the bridge to the window, tools, resources, redaction, limits, headless operation, tests |
+| [todo/](todo/README.md) | Tasks T01-T22 with statuses |
 
 Technologies fixed by the customer: Python 3.14, tkinter from the standard library, Windows
 only, a portable application without installation and without ties to system paths.

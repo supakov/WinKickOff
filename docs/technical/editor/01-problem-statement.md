@@ -137,7 +137,7 @@ Scenarios:
 | Privileges | No administrator rights |
 | Launch | One exe plus the `_internal` folder (onedir); startup within 2 seconds; the rule catalog is read at startup (up to 200 rules in 0.2 s) |
 | Size | Up to 40 MB |
-| Offline operation | No internet access |
+| Offline operation | No internet access; the optional MCP server (1.2) listens on 127.0.0.1 only, when the user starts it |
 | Encodings | UTF-8; XML without BOM, CRLF; profiles in UTF-8 |
 | Logs | `logs/winkickoff.log`, rotation at 1 MB, three files |
 | Errors | Clear text for the user, stack trace to the log; the application does not crash because of a bad profile or rule |

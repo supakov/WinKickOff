@@ -95,6 +95,17 @@ a warning with the risk text.
   one rule; toggling a node changes the profile and redraws the dependents; a parameter in the panel
   changes the profile. The tests are marked and skipped without a display (`tk.TclError`).
 
+### mcp (task T22)
+
+`tests/test_mcp_protocol.py` (JSON-RPC parsing, the schema checker, redaction, the journal, the handshake and every
+method of `McpServer.handle` on a `HeadlessWorkspace`), `test_mcp_tools.py` (every tool in every mode, secrets never
+leave any tool or resource, the forbidden functions are unreachable, no tool takes a path), `test_mcp_transports.py`
+(stdio in memory, the command line, the HTTP transport on 127.0.0.1 port 0 with `http.client`, which the tests may
+import), `test_mcp_window.py` (the bridge and the menu on a withdrawn window, the monitor), `test_mcp_settings.py`.
+Rules: loopback port 0 only, no PowerShell, no server outside `unittest` on the customer's PC, log assertions through
+`assertLogs("winkickoff.mcp")` and never through the log file, two `-X importtime` subprocesses prove that a headless
+start never imports tkinter.
+
 ## 4. Portability checklist and acceptance test
 
 Unchanged from revision 0.1 (sections 4 and 5 of the old document): a clean VM, launch from

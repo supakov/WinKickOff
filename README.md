@@ -7,7 +7,7 @@ where the computers are used by non-professionals and the organisation is under 
 The goal: Windows hardened and updatable from the first boot, without configuring every PC by hand and
 without third-party programs.
 
-State on 30.09.2026: version 1.1.0-rc.4 (release candidate; import of ADMX policy templates, including policies with lists of values; Back and Forward; imported policies follow the built-in rules). Installation from a built answer file has been
+State on 30.09.2026: version 1.2.0-rc.1 (release candidate; MCP server for AI clients, read-only by default; import of ADMX policy templates, including policies with lists of values; Back and Forward; imported policies follow the built-in rules). Installation from a built answer file has been
 confirmed by the customer on real hardware. Downloads: the GitHub releases of the repository (portable zip,
 no installation, no administrator rights).
 
@@ -15,7 +15,7 @@ no installation, no administrator rights).
 
 | Tool | What it does |
 |---|---|
-| Editor (`WinKickOff/`) | Every installation rule in a searchable tree with descriptions; dependent rules are disabled automatically; profiles and presets; the output is `autounattend.xml` built from the selection only; interface in English with Russian and Ukrainian translations (more languages are added as files), light, dark, Latte and Matrix colour themes; optional import of ADMX policy templates (Windows, Edge, Chrome, Office) as a subtree of selectable policies |
+| Editor (`WinKickOff/`) | Every installation rule in a searchable tree with descriptions; dependent rules are disabled automatically; profiles and presets; the output is `autounattend.xml` built from the selection only; interface in English with Russian and Ukrainian translations (more languages are added as files), light, dark, Latte and Matrix colour themes; optional import of ADMX policy templates (Windows, Edge, Chrome, Office) as a subtree of selectable policies; an MCP server (stdio and HTTP on 127.0.0.1, read-only by default) for AI clients such as Claude Code and Claude Desktop |
 | This PC (menu of the editor) | Read-only check of an installed Windows; apply the selected rules or return them to Windows defaults, with a backup and rollback |
 | Validate-Unattend (`tools/Validate-Unattend.ps1`) | Static check of any answer file against the limits of Windows Setup (36 checks), read-only |
 
@@ -48,7 +48,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 
 - The starter accounts Admin and User are created without passwords: passwords and groups are assigned by a
   separate project after installation. A password entered in the editor is stored in the file in plain text.
 - The tools change nothing on the computer they run on unless the user explicitly applies or returns rules
-  through the This PC menu: the editor writes only into its own folder, the checker only reads the file.
+  through the This PC menu: the editor writes only into its own folder, the checker only reads the file. The MCP
+  server is off by default, accepts connections only from this computer, is read-only until the user switches the
+  mode, never runs PowerShell or applies anything, and never returns passwords or product keys.
 
 ## Documentation
 

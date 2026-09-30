@@ -226,6 +226,11 @@ class BuildResult:
     warnings: list[str] = field(default_factory=list)
 
 
+def write_answer_file(result: BuildResult, path: Path) -> None:
+    """The answer file as Windows Setup reads it: UTF-8 without BOM, the CRLF text of the build as it is."""
+    path.write_bytes(result.xml.encode("utf-8"))
+
+
 class Renderer:
     def __init__(self, catalog: Catalog, templates_dir: Path, keyboards: list[dict[str, Any]]) -> None:
         self.catalog = catalog

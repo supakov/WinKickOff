@@ -56,6 +56,7 @@ portable build these folders are inside `_internal`.
 | [Safety](safety.md) | What you must do before using the file on work computers, and which decisions were made deliberately |
 | [This PC](this-pc.md) | Checking an already installed Windows and applying selected rules without reinstalling, rollback |
 | [Policy templates (ADMX)](admx.md) | Importing the administrative templates of Windows, Edge, Chrome, Office and building any of their policies |
+| [MCP server](mcp.md) | Access of AI assistants (Claude Code, Claude Desktop) to the catalog and the open profile: modes, token, connection, monitor |
 | [Rule list](rules.md) | All installation rules by group: what each one does, whether it is enabled in "Office", risks |
 
 ## In short

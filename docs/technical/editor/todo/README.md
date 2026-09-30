@@ -29,6 +29,7 @@ Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in t
 | [T19](T19-admx-import.md) | Import of policy templates (ADMX, ADML) as a subtree of selectable rules | 7 | T18 | done (1.1.0-rc.1: menu ADMX, store admx/, rules, links to built-in rules; 1.1.0-rc.2: list and multiText elements) |
 | [T20](T20-navigation-and-shared-imports.md) | Back and Forward; rename, update and shared policies of imported templates | 7 | T19 | done (1.1.0-rc.3) |
 | [T21](T21-linked-built-in-rules.md) | Imported policies follow the built-in rules that set the same values | 7 | T20 | done (1.1.0-rc.4) |
+| [T22](T22-mcp-server.md) | MCP server inside the editor: stdio and HTTP, read-only by default | 8 | T21 | in-progress (code, tests and documentation written; acceptance with real clients pending) |
 
 Rules for the implementer of any task:
 

@@ -20,6 +20,10 @@ FORBIDDEN = (
 )
 # the only module that may read the registry: themes.py reads the Windows light or dark mode, nothing else
 REGISTRY_READERS = {"themes.py"}
+# the only module that may listen on a socket: the MCP loopback listener, off by default, started by the user (T22)
+NETWORK_MODULES = {"httpserver.py"}
+LISTENER = re.compile(r"(?:from|import) (?:http\.server|socketserver)|from socket import")
+MCP_PACKAGE = PACKAGE / "mcp"
 WINREG = re.compile(r"\bwinreg\b")
 CYRILLIC = re.compile("[" + chr(0x0400) + "-" + chr(0x04FF) + "]")
 DASHES = re.compile("[" + chr(0x2013) + chr(0x2014) + "]")  # built from code points: the source must not contain them
@@ -40,6 +44,30 @@ class SourceRulesTest(unittest.TestCase):
                 self.assertIsNone(pattern.search(text), f"{path.name}: forbidden pattern {pattern.pattern}")
             if path.name not in REGISTRY_READERS:
                 self.assertIsNone(WINREG.search(text), f"{path.name}: registry access outside {REGISTRY_READERS}")
+            if path.name not in NETWORK_MODULES:
+                self.assertIsNone(LISTENER.search(text), f"{path.name}: a network listener outside {NETWORK_MODULES}")
+            self.assertNotRegex(text, r"0\.0\.0\.0|bind\(\s*\(\s*\"\"", f"{path.name}: the MCP server binds 127.0.0.1 only")
+
+    def test_mcp_server_stays_on_loopback_and_off_tkinter(self) -> None:
+        """The listener binds the literal 127.0.0.1; the mcp package, the dispatcher and startup never import tkinter;
+        only cli.py prints (stdout of a stdio server carries protocol messages)."""
+        listener = (MCP_PACKAGE / "httpserver.py").read_text(encoding="utf-8")
+        self.assertIn('HOST = "127.0.0.1"', listener)
+        self.assertIn("super().__init__((HOST, port), McpHandler)", listener)
+        headless = [*MCP_PACKAGE.glob("*.py"), PACKAGE / "core" / "startup.py", PACKAGE / "__main__.py", PACKAGE / "mcp_main.py"]
+        for path in headless:
+            text = path.read_text(encoding="utf-8")
+            self.assertNotRegex(text, r"(?:import|from) tkinter", f"{path.name}: tkinter in a headless module")
+            if path.name != "cli.py":
+                self.assertNotIn("print(", text, f"{path.name}: print outside cli.py")
+
+    def test_every_dialog_of_the_window_is_counted(self) -> None:
+        """Dialogs go through MainWindow._dialog(), which counts modal states for the MCP bridge (is_busy)."""
+        for path in (PACKAGE / "ui").glob("*.py"):
+            text = path.read_text(encoding="utf-8")
+            for match in re.finditer(r"(?<![\w.])(messagebox|filedialog|simpledialog)\.\w+\(", text):
+                line = text[:match.start()].rsplit("\n", 1)[-1] + match.group(0)
+                self.assertIn("_dialog(", line, f"{path.name}: a dialog outside _dialog(): {line.strip()}")
 
     def test_code_and_comments_are_english(self) -> None:
         # 30.09.2026: English is the source language; Russian and Ukrainian live in the translation files

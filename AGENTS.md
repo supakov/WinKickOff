@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 30.09.2026 (release 1.1.0-rc.4: imported policies follow the built-in rules with the same values, T21).
+Last update: 30.09.2026 (1.2.0-rc.1: MCP server with stdio and HTTP transports, read-only by default, T22).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -18,7 +18,8 @@ where the PCs are used by non-professionals and the organisation is under consta
 are security and updatability, no cosmetics and no third-party programs. Its tools: the editor (Python 3.14,
 tkinter, portable) that shows every installation rule in a searchable tree, disables dependent rules
 automatically and assembles `autounattend.xml` from the selection only, the answer file checker
-`tools/Validate-Unattend.ps1`, and the check, apply and return-to-defaults scripts for a running Windows.
+`tools/Validate-Unattend.ps1`, the check, apply and return-to-defaults scripts for a running Windows, and since 1.2 an
+MCP server (stdio and HTTP on 127.0.0.1, read-only by default) through which AI clients read the catalog and the profile.
 The hand-written answer file v0.2 the catalog grew from is kept in the documentation appendices as the reference.
 
 ## 2. What to read first
@@ -55,7 +56,7 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
 │   │   ├── reference/             reference: a card for every installation parameter (20 files; 18 browsers, 19 more privacy)
 │   │   └── editor/                WinKickOff specification: problem, architecture, data model, testing,
 │   │       │                      plan (days, milestones), review of revision 0.1
-│   │       └── todo/              tasks T01-T21 with status (README.md is the index)
+│   │       └── todo/              tasks T01-T22 with status (README.md is the index)
 │   ├── user/                      USER DOCUMENTATION: ru (source), uk, en; the same files in each language
 │   ├── releases/                  release notes v<version>.md (ru, uk, en), used by the release job
 │   └── appendices/                APPENDICES, frozen, Russian: README describes them
@@ -66,12 +67,16 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
 └── WinKickOff/                    EDITOR 1.1.0-rc.4 AND RULE CATALOG 0.5
     ├── README.md                  developer README: run, test, structure; links to user docs
     ├── pyproject.toml             requires-python >= 3.14, no runtime dependencies
-    ├── winkickoff/                package: app.py (start), core/ (paths, log, catalog, deps, profile, resources,
-    │                              render, validate, verify, actions_parser, importer, pscheck, settings, i18n, themes,
-    │                              apply, admx),
-    │                              ui/ (main_window: tree, search, description, parameters, profiles, build;
+    ├── winkickoff/                package: __main__.py (dispatcher: window or headless MCP), app.py (window start,
+    │                              owns the MCP service), mcp_main.py (console entry of WinKickOff-mcp.exe),
+    │                              core/ (paths, log, catalog, deps, profile, resources, render, validate, verify,
+    │                              actions_parser, importer, pscheck, settings, i18n, themes, apply, admx, linked, startup),
+    │                              mcp/ (MCP server: jsonrpc, schema, redact, journal, workspace, bridge, tools, resources,
+    │                              protocol, stdio, httpserver, service, cli; errors),
+    │                              ui/ (main_window: tree, search, description, parameters, profiles, build, MCP menu;
     │                              data_forms: install, accounts, languages; checkimages: check box images;
-    │                              winmenus: theme colours around drop-down menus)
+    │                              winmenus: theme colours around drop-down menus; mcp_workspace: the window as the MCP
+    │                              workspace; mcp_window: the MCP monitor)
     ├── rules/                     RULE CATALOG in English: groups.toml (36 groups), 00-16-*.toml (251 rules),
     │                              lang/ru.toml and lang/uk.toml (translations; a new file adds a language)
     ├── templates/                 runtime with slots: autounattend.template.xml, Setup-System, Setup-User, Post-OOBE,
@@ -81,9 +86,10 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
     ├── profiles/                  presets Office (= catalog defaults), Strict, Laptop, memstechtips, README
     ├── tests/                     unittest: catalog, resolver, profile, render, build against v0.2, validation,
     │                              import, presets, PowerShell, settings, portability, window smoke test, docs,
-    │                              translations, themes, ADMX import;
+    │                              translations, themes, ADMX import, MCP server (test_mcp_*.py);
     │                              v02_actions.py holds the v0.2 reference profile (V02_DIFFERENCES)
-    └── tools/                     make_presets.py, make_rule_docs.py, run-tests.ps1, build.ps1 (portable zip),
+    └── tools/                     make_presets.py, make_rule_docs.py, run-tests.ps1, build.ps1 (portable zip,
+                                   two executables from WinKickOff.spec),
                                    make_browser_rules.py (generates rules/14-browsers.toml),
                                    memstechtips.py (maps Appendix A onto the catalog for make_presets.py)
 ```
@@ -170,6 +176,17 @@ console window; agents do not run it on the customer's PC, since it opens the wi
 ```powershell
 cd WinKickOff
 python -m winkickoff
+```
+
+MCP server without a window (task T22; the stdio server needs `python.exe`, never `pythonw.exe`; agents never start a
+server on the customer's PC outside `unittest`, the tests bind only 127.0.0.1 port 0):
+
+```powershell
+cd WinKickOff
+python -m winkickoff --mcp stdio --mode read --profile office
+python -m winkickoff --mcp http --port 0 --token <32 to 64 characters>
+python -m winkickoff --mcp-config stdio
+python -m winkickoff --version
 ```
 
 Find em and en dashes in the whole tree (PowerShell; an empty output means none):
@@ -280,6 +297,19 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
   (`Catalog.aliases`, `placements()`), with the tree item id `r:<rule>@<group>`. Code that takes a rule from a tree
   item uses `rule_of()` of `ui/main_window.py`, never `item[2:]`, and This PC gets canonical `r:<rule>` items.
   `import.json` `renamed: true` keeps a name given by the user when the import is updated in place.
+- MCP server (T22, `winkickoff/mcp/`, design in `docs/technical/editor/todo/T22-mcp-server.md`, description in
+  `docs/technical/editor/07-mcp-server.md`): protocol 2025-06-18 on JSON-RPC 2.0, hand-written on the standard library;
+  the HTTP listener binds the literal 127.0.0.1 (`tests/test_sources.py` allows `http.server` in `mcp/httpserver.py`
+  only), needs the bearer token of `settings.mcp_token`, checks Host and Origin and answers every request with JSON.
+  The mode (`read`, `edit`, `files`) is never persisted: every start is `read`. Nothing through MCP ever runs
+  PowerShell, applies, audits, deletes, replaces or imports; passwords and product keys are redacted, and
+  `tests/test_mcp_tools.py` proves both. Threads: server threads never touch tkinter or the Profile; every call goes
+  through `mcp/bridge.py`, pumped by the window from an `after()` timer; dialogs are counted by `MainWindow._dialog()`
+  so writes are refused with `window_busy` while a dialog is open. The window's settings object is the only writer of
+  `settings.json` (the service saves the token through `window.save_settings`); headless processes never write it and
+  log into `logs/mcp-<transport>-<pid>.log`. `winkickoff/__main__.py` dispatches `--mcp` before importing `app.py`, so a
+  stdio server never loads tkinter. The portable build has a console `WinKickOff-mcp.exe` for stdio next to
+  `WinKickOff.exe` (`WinKickOff/tools/WinKickOff.spec`, CI only).
 - Built-in rules and imported policies (T21, `core/linked.py`): a policy whose registry writes an enabled built-in
   rule already covers is shown checked (tag `linked`) but stays off in the profile; the window uses `_rule_on()`
   for images and group counts, never `profile.is_enabled()` alone. An equal policy switches the built-in rule.
@@ -302,17 +332,18 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Answer file checker | Done, 36 checks, 0 errors on v0.2 | 25.09.2026 | `tools/Validate-Unattend.ps1` |
 | GitHub repository | Renamed to WinKickOff; the local clone and `origin/main` match; CI in GitHub Actions | 26.09.2026 | https://github.com/supakov/WinKickOff |
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
-| Editor tasks | T01-T12, T14, T16-T21 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 30.09.2026 | `docs/technical/editor/todo/` |
+| Editor tasks | T01-T12, T14, T16-T22 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 30.09.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.5: 251 rules, 36 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer 15), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.5 adds the parameter type `list` and the action `reg-list` (runtime Set-RegList, Test-RegList), the rules themselves are those of 0.4 | 30.09.2026 | `WinKickOff/rules/` |
-| Editor code | 1.1.0-rc.4 (import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 236 tests | 30.09.2026 | `WinKickOff/` |
+| Editor code | 1.2.0-rc.1 (MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 236 tests | 30.09.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply (rules on are applied, rules off return to Windows defaults) and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 29.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |
 | Documentation split | T16 done: technical in English, user documentation in ru, uk, en; since T18 the catalog is English with complete ru and uk translations | 30.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
 | GitHub issues | #1 "Web Browsers debloat" done: section "Browsers" (Edge, Chrome, Brave), 46 rules off by default, card 18. #2 "memstechtips profile" done: preset of 60 rules computed from Appendix A, report of what is added, contradicted and not transferable. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md`, `WinKickOff/profiles/preset-memstechtips.json`, `docs/technical/memstechtips-profile.md` |
-| Release candidate | 1.1.0-rc.4 (imported policies follow the built-in rules), after 1.1.0-rc.3 (Back and Forward, shared imports), 1.1.0-rc.2 (lists of values), 1.1.0-rc.1 (import of ADMX templates) and 1.0.0-rc.1 to rc.4 of 26.09-30.09.2026: tag and GitHub release built by CI | 30.09.2026 | `docs/releases/v1.1.0-rc.4.md` |
+| Release candidate | 1.1.0-rc.4 published (imported policies follow the built-in rules); the code is 1.2.0-rc.1 (MCP server) with notes ready, its tag waits for the customer; earlier 1.1.0-rc.3 (Back and Forward, shared imports), 1.1.0-rc.2 (lists of values), 1.1.0-rc.1 (import of ADMX templates) and 1.0.0-rc.1 to rc.4 of 26.09-30.09.2026: tag and GitHub release built by CI | 30.09.2026 | `docs/releases/v1.1.0-rc.4.md`, `docs/releases/v1.2.0-rc.1.md` |
 | Imported ADMX templates | T19 done: ADMX menu, store `admx/` next to the program, policies as rules with parameters, links to built-in rules; since 1.1.0-rc.2 list and multi-line elements too (20 of 3552 policies of this Windows skipped); acceptance of lists on This PC in a VM pending; T20 (1.1.0-rc.3): an import of an imported folder asks to update it or add a tree, a policy in several trees has one check mark, trees can be renamed; Back and Forward in the window; T21 (1.1.0-rc.4): an imported policy follows the built-in rule that sets the same values | 30.09.2026 | `WinKickOff/winkickoff/core/admx.py`, `docs/user/*/admx.md` |
 | Customer list MoreOptions | Done: BitLocker off in every preset; 57 rules on by default (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Edge AI and sign-in, Gallery hidden), This PC folders as options off by default; corrections in card 19 | 28.09.2026 | `docs/technical/reference/19-more-privacy.md` |
+| MCP server | T22 done in code: stdio and HTTP transports, 18 tools, resources, modes read/edit/files, monitor, second executable in CI; acceptance with real clients (Claude Code, Claude Desktop) in a VM pending | 30.09.2026 | `WinKickOff/winkickoff/mcp/`, `docs/user/*/mcp.md` |
 | Tuning of preset defaults | Awaited from the customer | | `WinKickOff/tools/make_presets.py`, rule defaults |
 
 Open questions to the customer: `docs/appendices/D-requirements-draft/02-constructor-requirements-draft.md`,

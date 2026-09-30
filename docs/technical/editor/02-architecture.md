@@ -36,6 +36,13 @@ WinKickOff/
       i18n.py                translations: languages found from files, English fallback
       themes.py              colour themes from resources/themes, following the Windows light or dark mode
       admx.py                policy templates (ADMX, ADML) imported into admx/<id>/ and turned into rules
+      linked.py              imported policies that follow a built-in rule with the same registry values
+      startup.py             the profile a session starts with (shared by the window and the headless MCP server)
+    mcp/                     MCP server (task T22, see 07-mcp-server.md): jsonrpc, schema, redact, journal,
+                             workspace, bridge, tools, resources, protocol, stdio, httpserver (the only listener,
+                             127.0.0.1), service, cli
+    __main__.py              dispatcher: --mcp, --mcp-config and --version run without tkinter
+    mcp_main.py              console entry of WinKickOff-mcp.exe (a stdio server)
     ui/
       main_window.py         window, menu, three areas, hotkeys
       rule_tree.py           tree with check boxes, search, filter

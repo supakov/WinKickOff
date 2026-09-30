@@ -10,8 +10,9 @@ User documentation (how to work with the program): [Русский](../docs/user
 [Українська](../docs/user/uk/README.md), [English](../docs/user/en/README.md).
 Specification, architecture, data model and plan: [`../docs/technical/editor/`](../docs/technical/editor/README.md).
 
-State on 30.09.2026: version 1.1.0-rc.4 (import of ADMX templates, including policies with lists of values and
-multi-line text; Back and Forward; imported policies follow the built-in rules). The catalog 0.5 (251 rules, 36 groups) carries every action of the
+State on 30.09.2026: version 1.2.0-rc.1 (MCP server: stdio and HTTP on 127.0.0.1, read-only by default; import of ADMX
+templates, including policies with lists of values and multi-line text; Back and Forward; imported policies follow
+the built-in rules). The catalog 0.5 (251 rules, 36 groups) carries every action of the
 hand-written answer file v0.2, the Edge, Chrome and Brave policies, the AI, telemetry, Office and OneDrive rules of
 the customer's list and the File Explorer folders; the generator, the checks, four presets, profiles, data forms,
 import, the build from the window and the This PC menu work. The source language is English; languages and
@@ -28,7 +29,8 @@ answer file in a VM first. Open tasks: `../docs/technical/editor/todo/`.
 ## Commands
 
 Run from sources (or double-click `../Start-WinKickOff.cmd`, which checks for Python 3.14 with tkinter and
-starts the window without a console):
+starts the window without a console); `python -m winkickoff --mcp stdio` runs the MCP server without a window,
+`python -m winkickoff --mcp-config stdio` prints the client configuration:
 
 ```powershell
 cd WinKickOff
@@ -67,10 +69,13 @@ PyInstaller from the internet, so it never runs on the customer's work PC.
 | User profiles | `profiles/<name>.json` | no |
 | Built answer files | `output/` (default) | no |
 | Program log | `logs/winkickoff.log` | no |
-| Settings: window size, last profile, recent files, language, theme, imported templates shown | `settings.json` | no |
+| Settings: window size, last profile, recent files, language, theme, imported templates shown, MCP port, access token and autostart | `settings.json` | no |
+| Logs of MCP servers started without a window | `logs/mcp-stdio-<pid>.log`, `logs/mcp-http-<pid>.log` | no |
 | Imported policy templates (ADMX menu) | `admx/<id>/` | no |
 
-The program writes nothing outside its folder and never goes online. The PowerShell syntax check runs
+The program writes nothing outside its folder and never connects to the internet. The optional MCP server accepts
+connections only from this computer, on 127.0.0.1, when the user starts it, and is read-only by default (menu MCP,
+`docs/user/<lang>/mcp.md`). The PowerShell syntax check runs
 `powershell.exe` only to parse files in the temporary folder `logs/tmp/`.
 
 ## Structure
@@ -104,7 +109,8 @@ section 3.
 ## Project rules
 
 - No dependencies beyond the standard library in the application.
-- No writes outside the program folder; no network access.
+- No writes outside the program folder; no network access except the MCP listener on 127.0.0.1 (`winkickoff/mcp/httpserver.py`)
+  that the user starts.
 - No em or en dashes in code, data, strings or documents.
 - Code, comments and catalog texts in English; a new interface string needs its ru and uk translation.
 - Catalog and template changes are checked with `python -m unittest` before a commit.

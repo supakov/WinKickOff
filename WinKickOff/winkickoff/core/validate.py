@@ -110,7 +110,8 @@ def list_problem(value: Any, pairs: bool = False) -> str | None:
     return None
 
 
-def _check_param(rule: Any, param: Any, value: Any) -> str | None:
+def check_param(rule: Any, param: Any, value: Any) -> str | None:
+    """Why a parameter value is not acceptable (text in the interface language), or None."""
     title = catalog_texts().param(rule, param)
     if param.type == "list":
         problem = list_problem(value, param.pairs)
@@ -171,7 +172,7 @@ def validate_profile(profile: Profile, catalog: Catalog, keyboards: list[dict[st
         for pname, param in rule.params.items():
             if is_imported(rule.id) and not enabled:
                 continue  # an imported policy without a check mark is not configured: its values do not matter
-            problem = _check_param(rule, param, profile.param(catalog, rule.id, pname))
+            problem = check_param(rule, param, profile.param(catalog, rule.id, pname))
             if problem:
                 issues.append(Issue("error", rule.id, tr("\"{0}\": {1}", title, problem), rule.doc))
         if enabled:

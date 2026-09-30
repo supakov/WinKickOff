@@ -50,14 +50,19 @@ from winkickoff.core.importer import IMPORTED_NAME, ImportFailed, import_xml
 from winkickoff.core.paths import AppPaths, display_path
 from winkickoff.core.profile import Profile
 from winkickoff.core.pscheck import PsCheckResult, check_scripts
-from winkickoff.core.render import BuildResult, Renderer, RenderError, render_action, substitute
+from winkickoff.core.render import BuildResult, Renderer, RenderError, render_action, substitute, write_answer_file
 from winkickoff.core.resources import Resources
 from winkickoff.core.settings import Settings
+from winkickoff.mcp import MODE_READ, MODES
+from winkickoff.mcp.errors import ToolError
+from winkickoff.mcp.service import McpService
+from winkickoff.mcp.workspace import POWERSHELL_NOTE, apply_group_action, apply_rule_states, change_param
 from winkickoff.core.themes import Theme, available_themes, resolve_theme
 from winkickoff.core.validate import Issue, has_errors, list_problem, validate_catalog, validate_profile, validate_xml
 from winkickoff.core.verify import rollback_steps, verify_steps
 from winkickoff.ui.checkimages import make_check_images
 from winkickoff.ui.data_forms import AccountsForm, InstallForm, LanguagesForm
+from winkickoff.ui.mcp_workspace import WindowWorkspace, install_pump
 from winkickoff.ui.winmenus import MenuMargins, colorref
 
 log = logging.getLogger(__name__)
@@ -66,6 +71,7 @@ WORKFLOW_NODE = "info:workflow"
 PRESET_NAMES = (N_("Office"), N_("Strict"), N_("Laptop"))  # preset names are English data; shown through tr()
 HISTORY_LIMIT = 50  # nodes kept for Back
 GROUP_LIST_LIMIT = 300  # rules listed in the description of a group; imported branches hold thousands
+MODE_TITLES = (N_("Read only"), N_("Read and change the open profile"), N_("Change and create files"))
 THEME_NAMES = (N_("Light"), N_("Dark"), N_("Latte"), N_("Matrix"))  # names of the bundled themes; shown through tr()
 DATA_NODES: tuple[tuple[str, str], ...] = (
     ("data:install", N_("Installation: edition, key, time zone")),
@@ -149,10 +155,18 @@ def _profile_name(path: Path) -> str:
 
 
 class MainWindow(tk.Tk):
+    MODE_TITLES = MODE_TITLES
+
     def __init__(self, paths: AppPaths, catalog: Catalog, profile: Profile, resources: Resources,
-                 settings: Settings | None = None) -> None:
+                 settings: Settings | None = None, service: McpService | None = None) -> None:
         super().__init__()
         self.paths = paths
+        self.service = service  # the MCP service of the process; None makes the window inert for MCP (tests)
+        self._modal = 0  # open dialogs (native ones set no Tk grab); the MCP bridge refuses writes meanwhile
+        self._files_confirmed = False
+        self.mcp_pump_id: str | None = None
+        self.mcp_monitor: Any = None
+        self.last_load_warnings: list[str] = []
         self.settings = settings if settings is not None else Settings.load(paths.settings_file)
         self.restart_state: dict[str, Any] | None = None
         self._busy = False
@@ -194,6 +208,10 @@ class MainWindow(tk.Tk):
         self.select_node(WORKFLOW_NODE)
         self._windows_frame()
         self.set_status(tr("Rule catalog {0}: {1} rules in {2} groups. Profile: {3}.", catalog.version, len(catalog.rules), len(catalog.groups), tr(profile.name)))
+        if service is not None:
+            service.attach(WindowWorkspace(self))
+            install_pump(self, service.bridge)
+        self.refresh_mcp_status()
 
     # ----------------------------------------------------------------- style and layout
 
@@ -421,6 +439,7 @@ class MainWindow(tk.Tk):
         self.tree_menu = tk.Menu(self, tearoff=False)
         self._fill_pc_menu(self.tree_menu)
         self._build_admx_menu(self._top_menu("ADMX"))
+        self._build_mcp_menu(self._top_menu("MCP"))
         help_menu = self._top_menu(tr("Help"))
         help_menu.add_command(label=tr("Workflow"), command=lambda: self.select_node(WORKFLOW_NODE))
         help_menu.add_command(label=tr("User documentation"), command=lambda: self.open_doc(user_docs(self.paths.docs_root)))
@@ -471,7 +490,13 @@ class MainWindow(tk.Tk):
 
     def _build_body(self) -> None:
         self.status_var = tk.StringVar()
-        ttk.Label(self, textvariable=self.status_var, anchor=tk.W, padding=(8, 3)).pack(side=tk.BOTTOM, fill=tk.X)
+        status_bar = ttk.Frame(self)
+        status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        self.mcp_status_var = tk.StringVar(value=tr("MCP: off"))
+        mcp_label = ttk.Label(status_bar, textvariable=self.mcp_status_var, anchor=tk.E, padding=(8, 3), style="Note.TLabel")
+        mcp_label.pack(side=tk.RIGHT)
+        mcp_label.bind("<Double-Button-1>", lambda _e: self.open_mcp_monitor())
+        ttk.Label(status_bar, textvariable=self.status_var, anchor=tk.W, padding=(8, 3)).pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         vertical = ttk.PanedWindow(self, orient=tk.VERTICAL)
         vertical.pack(fill=tk.BOTH, expand=True)
@@ -777,7 +802,7 @@ class MainWindow(tk.Tk):
         if found is None or self.profile.is_enabled(rule_id):
             return None
         if self.profile.is_enabled(found.rule):  # shown as on because of the built-in rule: switch that rule off
-            if not found.equal and not messagebox.askyesno(APP_NAME, tr(
+            if not found.equal and not self._dialog(messagebox.askyesno, APP_NAME, tr(
                     "This policy is set by the built-in rule \"{0}\", which also sets other values. Switch the built-in rule off?",
                     self.rule_title(found.rule)), parent=self):
                 return []
@@ -1311,7 +1336,7 @@ class MainWindow(tk.Tk):
     def confirm_discard(self) -> bool:
         if not self.dirty:
             return True
-        answer = messagebox.askyesnocancel(APP_NAME, tr("Profile \"{0}\" has been changed. Save changes?", tr(self.profile.name)), parent=self)
+        answer = self._dialog(messagebox.askyesnocancel, APP_NAME, tr("Profile \"{0}\" has been changed. Save changes?", tr(self.profile.name)), parent=self)
         if answer is None:
             return False
         if answer:
@@ -1333,14 +1358,17 @@ class MainWindow(tk.Tk):
         self.select_node(current)
         self.show_issues([Issue("info", "profile", w) for w in (warnings or [])])
 
-    def load_profile_file(self, path: Path) -> bool:
-        if not self.confirm_discard():
+    def load_profile_file(self, path: Path, confirm: bool = True) -> bool:
+        """Open a profile file; confirm=False skips the "Save changes?" question and the error box (the MCP bridge)."""
+        if confirm and not self.confirm_discard():
             return False
         try:
             profile, warnings = Profile.load(path, self.catalog)
         except (OSError, ValueError) as exc:
-            messagebox.showerror(APP_NAME, tr("Could not open the profile:\n{0}\n\n{1}", path, exc), parent=self)
+            if confirm:
+                self._dialog(messagebox.showerror, APP_NAME, tr("Could not open the profile:\n{0}\n\n{1}", path, exc), parent=self)
             return False
+        self.last_load_warnings = list(warnings)
         self.set_profile(profile, dirty=False, warnings=warnings)
         if not self._is_preset(path):
             self.remember_file(path)
@@ -1366,7 +1394,7 @@ class MainWindow(tk.Tk):
     def open_recent(self, item: str) -> bool:
         path = Settings.resolve(item, self.paths.root)
         if not path.exists():
-            messagebox.showerror(APP_NAME, tr("File not found and removed from the recent list:\n{0}", path), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("File not found and removed from the recent list:\n{0}", path), parent=self)
             self.settings.forget(path, self.paths.root)
             self.settings.save(self.paths.settings_file)
             self._rebuild_recent_menu()
@@ -1376,7 +1404,7 @@ class MainWindow(tk.Tk):
         return self.load_profile_file(path)
 
     def open_profile_dialog(self) -> None:
-        name = filedialog.askopenfilename(parent=self, title=tr("Open profile"), initialdir=str(self.paths.profiles),
+        name = self._dialog(filedialog.askopenfilename, parent=self, title=tr("Open profile"), initialdir=str(self.paths.profiles),
                                           filetypes=[(tr("WinKickOff profile"), "*.json"), (tr("All files"), "*.*")])
         if name:
             self.load_profile_file(Path(name))
@@ -1387,7 +1415,7 @@ class MainWindow(tk.Tk):
         try:
             self.profile.save(self.profile.path, self.catalog)
         except OSError as exc:
-            messagebox.showerror(APP_NAME, tr("Could not save the profile:\n{0}", exc), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("Could not save the profile:\n{0}", exc), parent=self)
             return False
         self.dirty = False
         self.update_title()
@@ -1399,32 +1427,36 @@ class MainWindow(tk.Tk):
         suggested = re.sub(r'[\\/:*?"<>|]', "_", self.profile.name) or "profile"
         if self._is_preset(self.profile.path):
             suggested += tr(" (mine)")
-        name = filedialog.asksaveasfilename(parent=self, title=tr("Save profile as"), initialdir=str(self.paths.profiles),
+        name = self._dialog(filedialog.asksaveasfilename, parent=self, title=tr("Save profile as"), initialdir=str(self.paths.profiles),
                                             initialfile=f"{suggested}.json", defaultextension=".json",
                                             filetypes=[(tr("WinKickOff profile"), "*.json")])
         if not name:
             return False
         path = Path(name)
         if path.name.startswith("preset-"):
-            messagebox.showerror(APP_NAME, tr("The names preset-*.json are reserved for presets. Choose a different name."), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("The names preset-*.json are reserved for presets. Choose a different name."), parent=self)
             return False
-        self.profile.name = path.stem
         try:
-            self.profile.save(path, self.catalog)
+            self.save_profile_to(path)
         except OSError as exc:
-            messagebox.showerror(APP_NAME, tr("Could not save the profile:\n{0}", exc), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("Could not save the profile:\n{0}", exc), parent=self)
             return False
+        return True
+
+    def save_profile_to(self, path: Path) -> None:
+        """Save the open profile under a new name (the tail of Save as; the MCP files mode uses it too)."""
+        self.profile.name = path.stem
+        self.profile.save(path, self.catalog)
         self.dirty = False
         self.refresh_profile_choices()
         self.update_title()
         self.remember_file(path)
         self.set_status(tr("Profile saved: {0}", path))
-        return True
 
     # ----------------------------------------------------------------- comparison
 
     def compare_with_file(self) -> None:
-        name = filedialog.askopenfilename(parent=self, title=tr("Compare with profile"), initialdir=str(self.paths.profiles),
+        name = self._dialog(filedialog.askopenfilename, parent=self, title=tr("Compare with profile"), initialdir=str(self.paths.profiles),
                                           filetypes=[(tr("WinKickOff profile"), "*.json"), (tr("All files"), "*.*")])
         if name:
             self.show_comparison(Path(name))
@@ -1469,7 +1501,7 @@ class MainWindow(tk.Tk):
         try:
             other, _warnings = Profile.load(path, self.catalog)
         except (OSError, ValueError) as exc:
-            messagebox.showerror(APP_NAME, tr("Could not open the profile:\n{0}\n\n{1}", path, exc), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("Could not open the profile:\n{0}\n\n{1}", path, exc), parent=self)
             return None
         rows = self.comparison_rows(other)
         window = tk.Toplevel(self)
@@ -1507,7 +1539,7 @@ class MainWindow(tk.Tk):
     def import_from_xml(self) -> None:
         if not self.confirm_discard():
             return
-        name = filedialog.askopenfilename(parent=self, title=tr("Open profile from autounattend.xml"),
+        name = self._dialog(filedialog.askopenfilename, parent=self, title=tr("Open profile from autounattend.xml"),
                                           filetypes=[(tr("Answer file"), "*.xml"), (tr("All files"), "*.*")])
         if name:
             self.import_file(Path(name))
@@ -1519,7 +1551,7 @@ class MainWindow(tk.Tk):
             text = path.read_text(encoding="utf-8")
             profile, warnings = import_xml(text, self.catalog, self.resources.keyboards)
         except (OSError, UnicodeDecodeError, ImportFailed) as exc:
-            messagebox.showerror(APP_NAME, tr("Could not restore the profile:\n{0}", exc), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("Could not restore the profile:\n{0}", exc), parent=self)
             return False
         by_actions = profile.name == IMPORTED_NAME
         if by_actions:
@@ -1577,8 +1609,21 @@ class MainWindow(tk.Tk):
         return issues
 
     def write_build(self, result: BuildResult, path: Path) -> None:
-        path.write_bytes(result.xml.encode("utf-8"))
+        write_answer_file(result, path)
         self._last_output = path
+
+    def write_answer_file_to(self, path: Path) -> tuple[BuildResult, list[Issue]]:
+        """Check without PowerShell and write the answer file (the MCP files mode); refused when there are errors."""
+        result, issues = self.run_checks(with_powershell=False)
+        if result is None or has_errors(issues):
+            self.show_issues(issues)
+            raise ToolError("validation_failed", "the profile has errors; run check_profile",
+                            {"errors": [i.message for i in issues if i.level == "error"]})
+        self.write_build(result, path)
+        issues = issues + [Issue("info", "powershell", tr(POWERSHELL_NOTE))]
+        self.show_issues(issues + [Issue("info", "build", tr("Saved: {0} ({1} rules)", path, len(result.rule_ids)))])
+        self.set_status(tr("Built: {0}", path))
+        return result, issues
 
     def set_busy(self, busy: bool, text: str = "") -> None:
         """While a background check runs, Check and Build are unavailable (buttons and F7, F9)."""
@@ -1629,10 +1674,10 @@ class MainWindow(tk.Tk):
         if result is None or has_errors(issues):
             count = sum(1 for i in issues if i.level == "error")
             self.set_status(tr("Build stopped: {0} errors", count))
-            messagebox.showerror(APP_NAME, tr("Build stopped: {0} errors. See the list at the bottom of the window; double-click an item to go to the error.", count), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("Build stopped: {0} errors. See the list at the bottom of the window; double-click an item to go to the error.", count), parent=self)
             return
         initial_dir = self._last_output.parent if self._last_output else self.paths.output
-        name = filedialog.asksaveasfilename(parent=self, title=tr("Save answer file"), initialdir=str(initial_dir),
+        name = self._dialog(filedialog.asksaveasfilename, parent=self, title=tr("Save answer file"), initialdir=str(initial_dir),
                                             initialfile="autounattend.xml", defaultextension=".xml",
                                             filetypes=[(tr("Windows answer file"), "*.xml")])
         if not name:
@@ -1642,12 +1687,12 @@ class MainWindow(tk.Tk):
         try:
             self.write_build(result, path)
         except OSError as exc:
-            messagebox.showerror(APP_NAME, tr("Could not write the file:\n{0}", exc), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("Could not write the file:\n{0}", exc), parent=self)
             return
         note = "" if path.name.lower() == "autounattend.xml" else tr("\n\nWarning: Windows Setup looks only for a file named autounattend.xml.")
         self.show_issues(issues + [Issue("info", "build", tr("Saved: {0} ({1} rules)", path, len(result.rule_ids)))])
         self.set_status(tr("Built: {0}", path))
-        if messagebox.askyesno(
+        if self._dialog(messagebox.askyesno, 
             APP_NAME,
             tr("File saved:\n{0}\n\nRules enabled: {1}.\nCopy it to the root of a USB drive with the Windows 11 installation image and boot the PC from it.{2}\n\nOpen the folder containing the file?", path, len(result.rule_ids), note),
             parent=self,
@@ -1675,7 +1720,7 @@ class MainWindow(tk.Tk):
 
     def toggle_allow_apply(self) -> None:
         wanted = bool(self.allow_apply_var.get())
-        if wanted and not messagebox.askyesno(APP_NAME, tr(
+        if wanted and not self._dialog(messagebox.askyesno, APP_NAME, tr(
                 "Allow applying rules to this computer?\n\nThe apply script changes the registry, services "
                 "and Windows components. Test it on a test computer or a virtual machine first. App "
                 "removal and PowerShell steps cannot be rolled back automatically. Applying always starts "
@@ -1697,7 +1742,7 @@ class MainWindow(tk.Tk):
     def _apply_items(self) -> list[str]:
         items = ["r:" + rule_of(i) if i.startswith("r:") else i for i in self.tree.selection() if i.startswith(("r:", "g:"))]
         if not items:
-            messagebox.showinfo(APP_NAME, tr("Select a rule or a group in the tree."), parent=self)
+            self._dialog(messagebox.showinfo, APP_NAME, tr("Select a rule or a group in the tree."), parent=self)
         return items
 
     def _plan_issues(self, plan: ApplyPlan) -> list[Issue]:
@@ -1732,7 +1777,7 @@ class MainWindow(tk.Tk):
         if plan.not_configured:
             reasons.append(tr("{0} imported policies without a check mark are not configured and stay as they are", plan.not_configured))
         more = tr("\n... and {0} more", len(plan.excluded) - 8) if len(plan.excluded) > 8 else ""
-        messagebox.showinfo(APP_NAME, tr("There is nothing in the selection to apply to this computer.") + "\n\n"
+        self._dialog(messagebox.showinfo, APP_NAME, tr("There is nothing in the selection to apply to this computer.") + "\n\n"
                             + "\n".join(reasons) + more, parent=self)
         self.set_status(tr("The selection has no rules that can be applied to a running system"))
 
@@ -1823,14 +1868,14 @@ class MainWindow(tk.Tk):
         if plan.empty:
             self._nothing_to_apply(plan)
             return None
-        name = filedialog.askdirectory(parent=self, title=tr("Folder for the apply scripts"), initialdir=str(self.paths.output))
+        name = self._dialog(filedialog.askdirectory, parent=self, title=tr("Folder for the apply scripts"), initialdir=str(self.paths.output))
         if not name:
             return None
         folder = Path(name) / time.strftime("apply-%Y%m%d-%H%M%S")
         try:
             self._write_apply_folder(folder, plan)
         except OSError as exc:
-            messagebox.showerror(APP_NAME, tr("The scripts were not written:\n{0}", exc), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("The scripts were not written:\n{0}", exc), parent=self)
             return None
         self.set_status(tr("Apply scripts saved: {0} (rules: {1})", folder, len(plan.rules) + len(plan.reverts)))
         return folder
@@ -1855,14 +1900,14 @@ class MainWindow(tk.Tk):
         if any(p.reboot for p in plan.rules) or any(p.reboot for p in plan.reverts):
             text += "\n\n" + tr("A restart is needed after applying.")
         text += "\n\n" + tr("Windows will ask to confirm administrator rights. The previous values are saved for rollback (Undo-Apply.ps1).")
-        if not messagebox.askyesno(APP_NAME, text, icon=messagebox.WARNING, default=messagebox.NO, parent=self):
+        if not self._dialog(messagebox.askyesno, APP_NAME, text, icon=messagebox.WARNING, default=messagebox.NO, parent=self):
             return False
         folder = self.paths.logs / time.strftime("apply-%Y%m%d-%H%M%S")
         try:
             script = self._write_apply_folder(folder, plan)
             apply_module.launch_elevated(script)
         except (OSError, RuntimeError) as exc:
-            messagebox.showerror(APP_NAME, tr("Applying was not started:\n{0}", exc), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("Applying was not started:\n{0}", exc), parent=self)
             return False
         self.set_status(tr("The apply script was started; log and backup: {0}", folder))
         return True
@@ -1923,14 +1968,14 @@ class MainWindow(tk.Tk):
             text += "\n\n" + tr("Not returned completely (apps, scripts, values with an unknown default): {0}.",
                                 "; ".join(partial[:8]) + ("..." if len(partial) > 8 else ""))
         text += "\n\n" + tr("Windows will ask to confirm administrator rights. The previous values are saved for rollback (Undo-Apply.ps1).")
-        if not messagebox.askyesno(APP_NAME, text, icon=messagebox.WARNING, default=messagebox.NO, parent=self):
+        if not self._dialog(messagebox.askyesno, APP_NAME, text, icon=messagebox.WARNING, default=messagebox.NO, parent=self):
             return False
         folder = self.paths.logs / time.strftime("revert-%Y%m%d-%H%M%S")
         try:
             script = self._write_revert_folder(folder, plan)
             apply_module.launch_elevated(script)
         except (OSError, RuntimeError) as exc:
-            messagebox.showerror(APP_NAME, tr("The return was not started:\n{0}", exc), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("The return was not started:\n{0}", exc), parent=self)
             return False
         self.set_status(tr("The return-to-defaults script is running; log and backup: {0}", folder))
         return True
@@ -1942,7 +1987,7 @@ class MainWindow(tk.Tk):
         try:
             os.startfile(folder)  # type: ignore[attr-defined]
         except OSError as exc:
-            messagebox.showerror(APP_NAME, tr("Could not open the folder:\n{0}", exc), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("Could not open the folder:\n{0}", exc), parent=self)
 
     # ----------------------------------------------------------------- misc
 
@@ -2014,18 +2059,18 @@ class MainWindow(tk.Tk):
         if system:
             folder = admx_module.system_folder()
         else:
-            chosen = filedialog.askdirectory(parent=self, mustexist=True,
+            chosen = self._dialog(filedialog.askdirectory, parent=self, mustexist=True,
                                              title=tr("Folder with ADMX templates and their language folders"))
             if not chosen:
                 return
             folder = Path(chosen)
         if not folder.is_dir() or not any(folder.glob("*.admx")):
-            messagebox.showerror(APP_NAME, tr("There are no ADMX templates in {0}.", folder), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("There are no ADMX templates in {0}.", folder), parent=self)
             return
         replace = None
         existing = admx_module.find_imports(self.paths.admx, folder)
         if existing:
-            answer = messagebox.askyesnocancel(APP_NAME, tr(
+            answer = self._dialog(messagebox.askyesnocancel, APP_NAME, tr(
                 "The templates of {0} are already imported as \"{1}\".\n\n"
                 "Yes: update that import; its tree and the choices in profiles stay.\n"
                 "No: add one more tree; the policies it shares with the other are shown in both with one check mark.\n"
@@ -2061,13 +2106,13 @@ class MainWindow(tk.Tk):
     def finish_import(self, folder: Path, system: bool, outcome: dict[str, Any],
                       replace: admx_module.ImportInfo | None = None) -> None:
         if "error" in outcome:
-            messagebox.showerror(APP_NAME, tr("The templates were not imported:\n{0}", outcome["error"]), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("The templates were not imported:\n{0}", outcome["error"]), parent=self)
             return
         data = outcome["data"]
         try:
             info = admx_module.save_import(self.paths.admx, folder, data, system=system, replace=replace)
         except OSError as exc:
-            messagebox.showerror(APP_NAME, tr("The imported templates were not saved:\n{0}", exc), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("The imported templates were not saved:\n{0}", exc), parent=self)
             return
         issues = [Issue("info", "", tr("Not imported: {0} policies with {1}", count, reason)) for reason, count in admx_module.skip_summary(data)]
         issues += [Issue("warning", "", tr("Template file not read: {0}", problem)) for problem in data.get("problems", [])[:50]]
@@ -2079,13 +2124,13 @@ class MainWindow(tk.Tk):
 
     def rename_templates(self, import_id: str, name: str) -> None:
         """A name of the user's choice for an imported tree; an update of the import keeps it."""
-        new = simpledialog.askstring(APP_NAME, tr("New name of the imported tree:"), initialvalue=name, parent=self)
+        new = self._dialog(simpledialog.askstring, APP_NAME, tr("New name of the imported tree:"), initialvalue=name, parent=self)
         if new is None or " ".join(new.split()) == name:
             return
         try:
             info = admx_module.rename_import(self.paths.admx, import_id, new)
         except (OSError, admx_module.AdmxError) as exc:
-            messagebox.showerror(APP_NAME, tr("The name was not changed:\n{0}", exc), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("The name was not changed:\n{0}", exc), parent=self)
             return
         shown = import_id in self.settings.admx
         self._restart("g:" + IMPORTED_PREFIX + import_id if shown else None, status=tr("Imported tree renamed: \"{0}\"", info.name))
@@ -2100,13 +2145,13 @@ class MainWindow(tk.Tk):
         self._restart("g:" + IMPORTED_PREFIX + import_id if shown else None)
 
     def delete_templates(self, import_id: str, name: str) -> None:
-        if not messagebox.askyesno(APP_NAME, tr("Delete the imported templates \"{0}\" from the program folder? Profiles "
+        if not self._dialog(messagebox.askyesno, APP_NAME, tr("Delete the imported templates \"{0}\" from the program folder? Profiles "
                                                 "keep the choices made in them.", name), parent=self):
             return
         try:
             admx_module.delete_import(self.paths.admx, import_id)
         except (OSError, admx_module.AdmxError) as exc:
-            messagebox.showerror(APP_NAME, tr("The imported templates were not deleted:\n{0}", exc), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("The imported templates were not deleted:\n{0}", exc), parent=self)
             return
         self.settings.admx = [i for i in self.settings.admx if i != import_id]
         self.save_settings()
@@ -2121,7 +2166,201 @@ class MainWindow(tk.Tk):
         margins = getattr(self, "menu_margins", None)
         if margins is not None:
             margins.stop()  # the hook of this window ends with it (a language or theme change builds a new window)
+        if self.mcp_pump_id is not None:
+            try:
+                self.after_cancel(self.mcp_pump_id)
+            except tk.TclError:
+                pass
+            self.mcp_pump_id = None
+        if self.service is not None:
+            self.service.detach()  # queued calls wait for the next window or time out
         super().destroy()
+
+    # ----------------------------------------------------------------- MCP server (task T22)
+
+    def _dialog(self, show: Any, *args: Any, **kwargs: Any) -> Any:
+        """Every message box and file dialog of the window goes through here, so is_busy() knows about them."""
+        self._modal += 1
+        try:
+            return show(*args, **kwargs)
+        finally:
+            self._modal -= 1
+
+    def is_busy(self) -> bool:
+        """A background job, an open dialog or a Tk grab: MCP writes are refused meanwhile, reads go on."""
+        try:
+            grabbed = self.grab_current() is not None
+        except tk.TclError:
+            grabbed = False
+        return self._busy or self._modal > 0 or grabbed
+
+    def current_item(self) -> str:
+        return self._current_item
+
+    def current_issues(self) -> list[Issue]:
+        return list(self._issues)
+
+    def apply_rule_states(self, items: list[tuple[str, bool]]) -> tuple[list[Change], list[tuple[str, str]]]:
+        """Switch rules as clicks in the tree would, without dialogs: one refresh for the whole list."""
+        changes, refused = apply_rule_states(self.catalog, self.profile, self.resolver, items)
+        if changes:
+            self._apply_changes(changes, {c.rule_id for c in changes if c.reason == "user"})
+            self.show_item(self._current_item)
+        return changes, refused
+
+    def apply_group_action(self, group_id: str, action: str) -> list[Change]:
+        changes = apply_group_action(self.catalog, self.profile, self.resolver, group_id, action)
+        if changes:
+            self._apply_changes(changes, {r.id for r in self.catalog.rules_in_group(group_id)})
+            self.show_item(self._current_item)
+        return changes
+
+    def set_param_value(self, rule_id: str, name: str, value: Any) -> Any:
+        stored = change_param(self.catalog, self.profile, self.resources, rule_id, name, value)
+        self.mark_dirty()
+        self.refresh_marks()
+        rule = self.catalog.rules[rule_id]
+        self.set_status(f"{self.rule_title(rule_id)}: {self.param_title(rule, rule.params[name])} = "
+                        f"{self._param_display(rule, rule.params[name], stored)}")
+        if self._current_item == "r:" + rule_id:
+            self.show_item(self._current_item)
+        return stored
+
+    def set_profile_info(self, name: str | None, author: str | None, comment: str | None) -> None:
+        if name is not None:
+            self.profile.name = name
+        if author is not None:
+            self.profile.author = author
+        if comment is not None:
+            self.profile.comment = comment
+        self.mark_dirty()
+        self.update_title()
+        self.set_status(tr("Profile name and notes changed"))
+
+    def _build_mcp_menu(self, menu: tk.Menu) -> None:
+        """Start and stop the HTTP server, the mode, the monitor, client configuration, the token, autostart."""
+        state = tk.NORMAL if self.service is not None else tk.DISABLED
+        self.mcp_running_var = tk.BooleanVar(value=bool(self.service is not None and self.service.running))
+        menu.add_checkbutton(label=tr("Server running (HTTP, this computer only)"), variable=self.mcp_running_var,
+                             command=self.toggle_mcp_server, state=state)
+        menu.add_separator()
+        self.mcp_mode_var = tk.StringVar(value=self.service.mode if self.service is not None else MODE_READ)
+        for mode, title in zip(MODES, MODE_TITLES):
+            menu.add_radiobutton(label=tr(title), value=mode, variable=self.mcp_mode_var,
+                                 command=lambda m=mode: self.change_mcp_mode(m), state=state)
+        menu.add_separator()
+        menu.add_command(label=tr("Monitor..."), command=self.open_mcp_monitor, state=state)
+        menu.add_command(label=tr("Copy client configuration (stdio)"), command=lambda: self.copy_mcp_config("stdio"), state=state)
+        menu.add_command(label=tr("Copy client configuration (HTTP)"), command=lambda: self.copy_mcp_config("http"), state=state)
+        menu.add_command(label=tr("New access token"), command=self.rotate_mcp_token, state=state)
+        menu.add_separator()
+        self.mcp_autostart_var = tk.BooleanVar(value=self.settings.mcp_autostart)
+        menu.add_checkbutton(label=tr("Start the server with the program (read only)"), variable=self.mcp_autostart_var,
+                             command=lambda: self.set_mcp_autostart(bool(self.mcp_autostart_var.get())), state=state)
+        menu.add_command(label=tr("Documentation"), command=lambda: self.open_doc(user_docs(self.paths.docs_root).replace("README.md", "mcp.md")))
+        self.mcp_menu = menu
+
+    def toggle_mcp_server(self) -> None:
+        if self.mcp_running_var.get():
+            self.start_mcp_server()
+        else:
+            self.stop_mcp_server()
+
+    def start_mcp_server(self) -> bool:
+        if self.service is None:
+            return False
+        try:
+            port = self.service.start_http(self.settings.mcp_port)
+        except OSError as exc:
+            log.error("mcp server did not start: %s", exc)
+            self.refresh_mcp_status()
+            self._dialog(messagebox.showerror, APP_NAME, tr("The MCP server did not start: port {0} is used by another program. Choose another port in the monitor.",
+                                                             self.settings.mcp_port), parent=self)
+            return False
+        self.set_status(tr("MCP server started on http://127.0.0.1:{0}/mcp, mode: {1}", port, tr(MODE_TITLES[MODES.index(self.service.mode)])))
+        self.refresh_mcp_status()
+        return True
+
+    def stop_mcp_server(self) -> None:
+        if self.service is None:
+            return
+        self.service.stop()
+        self.set_status(tr("MCP server stopped"))
+        self.refresh_mcp_status()
+
+    def change_mcp_mode(self, mode: str) -> None:
+        if self.service is None:
+            return
+        if mode == "files" and not self._files_confirmed:
+            if not self._dialog(messagebox.askyesno, APP_NAME, tr("Clients will be able to create profiles and answer files inside the program folder. Existing files are never replaced. Continue?"),
+                                icon=messagebox.WARNING, default=messagebox.NO, parent=self):
+                self.mcp_mode_var.set(self.service.mode)
+                return
+            self._files_confirmed = True
+        self.service.set_mode(mode)
+        self.mcp_mode_var.set(mode)
+        self.set_status(tr("MCP mode: {0}", tr(MODE_TITLES[MODES.index(mode)])))
+        self.refresh_mcp_status()
+
+    def set_mcp_autostart(self, value: bool) -> None:
+        self.settings.mcp_autostart = value
+        self.save_settings()
+        self.mcp_autostart_var.set(value)
+
+    def rotate_mcp_token(self) -> None:
+        if self.service is None:
+            return
+        if not self._dialog(messagebox.askyesno, APP_NAME, tr("Clients configured with the old token stop working. Continue?"), parent=self):
+            return
+        self.service.rotate_token()
+        self.set_status(tr("New access token generated; the server was stopped"))
+        self.refresh_mcp_status()
+
+    def copy_mcp_token(self) -> None:
+        if self.service is None:
+            return
+        self.clipboard_clear()
+        self.clipboard_append(self.service.ensure_token())
+        self.set_status(tr("Access token copied to the clipboard"))
+
+    def copy_mcp_config(self, kind: str) -> None:
+        if self.service is None:
+            return
+        if kind == "http" and not self.service.running:
+            self.set_status(tr("Start the server first: the configuration needs the port"))
+            return
+        if kind == "http":
+            self.service.ensure_token()
+        self.clipboard_clear()
+        self.clipboard_append(self.service.client_config(kind))
+        self.set_status(tr("Configuration with the access token copied to the clipboard") if kind == "http"
+                        else tr("Client configuration (stdio) copied to the clipboard"))
+
+    def open_mcp_monitor(self) -> None:
+        if self.service is None:
+            return
+        from winkickoff.ui.mcp_window import McpMonitor
+
+        if self.mcp_monitor is None or not self.mcp_monitor.winfo_exists():
+            self.mcp_monitor = McpMonitor(self)
+        self.mcp_monitor.show()
+
+    def refresh_mcp_status(self) -> None:
+        """The status bar segment, the menu variables and the monitor follow the service."""
+        if self.service is None:
+            self.mcp_status_var.set(tr("MCP: off"))
+            return
+        status = self.service.status()
+        if status.running:
+            self.mcp_status_var.set(tr("MCP: 127.0.0.1:{0}, {1}, {2} requests, last {3}", status.port,
+                                       tr(MODE_TITLES[MODES.index(status.mode)]), status.requests, status.last_time or "-"))
+        else:
+            self.mcp_status_var.set(tr("MCP: off"))
+        if hasattr(self, "mcp_running_var"):
+            self.mcp_running_var.set(status.running)
+            self.mcp_mode_var.set(status.mode)
+        if self.mcp_monitor is not None and self.mcp_monitor.winfo_exists():
+            self.mcp_monitor.refresh_state()
 
     def save_settings(self) -> None:
         if self.state() == "normal":

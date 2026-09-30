@@ -39,3 +39,5 @@ Windows Settings (the language section); this rule does not touch any other syst
 The program changes nothing on the computer it runs on: it does not write to the registry, does not install
 services and does not connect to the internet. All its files (profiles, built files, log, settings) are kept
 in its own folder.
+The MCP server (the "MCP" menu) is off by default; when on, it accepts connections only from this computer, only
+with the access token and only for reading until you change the mode yourself.

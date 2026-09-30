@@ -1,6 +1,7 @@
 # WinKickOff: tests, the answer file checker and the portable build on every push to main and every pull
 # request; a tag v<version> (for example v1.0.0-rc.1) also publishes a GitHub release with the zip.
 # The build needs PyInstaller from the internet, so it runs here (or in a VM), never on the customer's PC.
+# The build (tools\WinKickOff.spec) has two executables; the smoke test starts WinKickOff-mcp.exe on a copy.
 name: build
 
 on:
@@ -45,6 +46,8 @@ jobs:
           }
 
       - name: Unit tests
+        env:
+          WINKICKOFF_HTTP_TESTS: "1"
         run: python -m unittest discover -s tests -v
 
       - name: Answer file checker (v0.2 reference)
@@ -52,6 +55,30 @@ jobs:
 
       - name: Portable build
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tools\build.ps1 -SkipTests
+
+      # The stdio server of the second executable answers one initialize message. It runs on a copy of the
+      # build: an exe creates profiles\, output\, logs\ and settings.json next to itself, and nothing of that
+      # may appear in dist\WinKickOff, which build.ps1 has already zipped.
+      - name: Smoke test of WinKickOff-mcp.exe
+        run: |
+          $dist = (Resolve-Path 'dist\WinKickOff').Path
+          foreach ($name in 'WinKickOff.exe', 'WinKickOff-mcp.exe', '_internal') {
+            if (-not (Test-Path (Join-Path $dist $name))) { throw "$name is missing in $dist" }
+          }
+          $smoke = Join-Path $env:RUNNER_TEMP 'smoke'
+          if (Test-Path $smoke) { Remove-Item -Path $smoke -Recurse -Force }
+          Copy-Item -Path $dist -Destination $smoke -Recurse
+          $exe = Join-Path $smoke 'WinKickOff-mcp.exe'
+          $line = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}'
+          $answer = @($line | & $exe --profile office) -join "`n"
+          $code = $LASTEXITCODE
+          Write-Host "exit code $code; answer: $($answer.Substring(0, [Math]::Min(400, $answer.Length)))"
+          if ($code -ne 0) { throw "WinKickOff-mcp.exe exited with $code" }
+          if ($answer -notmatch '"protocolVersion"') { throw "the initialize answer has no protocolVersion" }
+          foreach ($name in 'logs', 'profiles', 'output', 'settings.json') {
+            if (Test-Path (Join-Path $dist $name)) { throw "$name appeared in $dist (the exe ran inside dist)" }
+          }
+          Write-Host "WinKickOff-mcp.exe answered from $smoke; $dist is clean"
 
       - uses: actions/upload-artifact@v4
         with:
