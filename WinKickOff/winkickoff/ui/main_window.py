@@ -20,7 +20,7 @@ import threading
 import time
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 from tkinter import font as tkfont
 from typing import Any
 
@@ -63,6 +63,7 @@ log = logging.getLogger(__name__)
 
 WORKFLOW_NODE = "info:workflow"
 PRESET_NAMES = (N_("Office"), N_("Strict"), N_("Laptop"))  # preset names are English data; shown through tr()
+HISTORY_LIMIT = 50  # nodes kept for Back
 GROUP_LIST_LIMIT = 300  # rules listed in the description of a group; imported branches hold thousands
 THEME_NAMES = (N_("Light"), N_("Dark"), N_("Latte"), N_("Matrix"))  # names of the bundled themes; shown through tr()
 DATA_NODES: tuple[tuple[str, str], ...] = (
@@ -123,6 +124,11 @@ WORKFLOW = [
 ]
 
 
+def rule_of(item: str) -> str:
+    """The rule id of a tree item: "r:<rule>", or "r:<rule>@<group>" where one more imported tree shows the rule."""
+    return item[2:].split("@", 1)[0]
+
+
 def user_docs(docs_root: Path | None = None) -> str:
     """The user documentation in the interface language (docs/user/<code>/README.md), English when a language
     has no documentation."""
@@ -165,6 +171,8 @@ class MainWindow(tk.Tk):
         self._last_output: Path | None = None
         self._issues: list[Issue] = []
         self._current_item = WORKFLOW_NODE
+        self._history: list[str] = []  # nodes left by links, messages and clicks (Back)
+        self._future: list[str] = []  # nodes left by Back (Forward)
         self.forms: dict[str, InstallForm | AccountsForm | LanguagesForm] = {}
 
         self.geometry(self.settings.geometry or "1260x800")
@@ -431,6 +439,10 @@ class MainWindow(tk.Tk):
         if not imports:
             menu.add_command(label=tr("No imported templates yet"), state=tk.DISABLED)
         menu.add_separator()
+        rename = tk.Menu(menu, tearoff=False)
+        for info in imports:
+            rename.add_command(label=info.name, command=lambda i=info.id, n=info.name: self.rename_templates(i, n))
+        menu.add_cascade(label=tr("Rename imported templates"), menu=rename, state=tk.NORMAL if imports else tk.DISABLED)
         delete = tk.Menu(menu, tearoff=False)
         for info in imports:
             delete.add_command(label=info.name, command=lambda i=info.id, n=info.name: self.delete_templates(i, n))
@@ -494,6 +506,15 @@ class MainWindow(tk.Tk):
 
         self.right = ttk.Frame(horizontal, padding=(3, 2, 8, 0))
         horizontal.add(self.right, weight=3)
+        nav = ttk.Frame(self.right)
+        nav.pack(side=tk.TOP, fill=tk.X, pady=(0, 4))
+        self.back_button = ttk.Button(nav, text=chr(0x2190) + " " + tr("Back"), command=self.go_back)
+        self.back_button.pack(side=tk.LEFT)
+        self.forward_button = ttk.Button(nav, text=tr("Forward") + " " + chr(0x2192), command=self.go_forward)
+        self.forward_button.pack(side=tk.LEFT, padx=(4, 0))
+        ttk.Label(nav, text=tr("Alt+Left, Alt+Right"), style="Note.TLabel").pack(side=tk.LEFT, padx=(10, 0))
+        self.back_button.state(["disabled"])
+        self.forward_button.state(["disabled"])
         self.detail_view = ttk.Frame(self.right)
         self.text_frame = ttk.Frame(self.detail_view)
         self.text_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
@@ -538,6 +559,8 @@ class MainWindow(tk.Tk):
         self.bind("<F9>", lambda _e: self.build())
         self.bind("<Control-KeyPress>", self._on_ctrl_key)
         self.bind("<Escape>", lambda _e: self.clear_search())
+        self.bind("<Alt-Left>", lambda _e: (self.go_back(), "break")[1])
+        self.bind("<Alt-Right>", lambda _e: (self.go_forward(), "break")[1])
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def _on_ctrl_key(self, event: tk.Event) -> str | None:  # type: ignore[type-arg]
@@ -587,7 +610,8 @@ class MainWindow(tk.Tk):
             self._insert_groups(item, group.id, visible)
             for rule in self.catalog.rules_in_group(group.id, recursive=False):
                 if visible is None or rule.id in visible:
-                    self.tree.insert(item, tk.END, iid="r:" + rule.id, text=" " + self.rule_title(rule.id), image=self._rule_image(rule), tags=self._rule_tags(rule))
+                    iid = "r:" + rule.id if rule.group == group.id else f"r:{rule.id}@{group.id}"
+                    self.tree.insert(item, tk.END, iid=iid, text=" " + self.rule_title(rule.id), image=self._rule_image(rule), tags=self._rule_tags(rule))
 
     def _rule_image(self, rule: Rule) -> tk.PhotoImage:
         return self.images["on" if self.profile.is_enabled(rule.id) else "off"]
@@ -642,7 +666,7 @@ class MainWindow(tk.Tk):
     def refresh_marks(self) -> None:
         for item in self._all_items():
             if item.startswith("r:"):
-                rule = self.catalog.rules[item[2:]]
+                rule = self.catalog.rules[rule_of(item)]
                 self.tree.item(item, image=self._rule_image(rule), tags=self._rule_tags(rule))
             elif item.startswith("g:"):
                 self.tree.item(item, text=self._group_text(item[2:]), image=self._group_image(item[2:]))
@@ -669,6 +693,8 @@ class MainWindow(tk.Tk):
         if not item:
             return None
         element = str(self.tree.identify_element(event.x, event.y))
+        if "indicator" not in element:  # the "+" only opens the branch; anything else shows the node
+            self._remember(item)
         if "image" in element and (item.startswith("r:") or item.startswith("g:")):
             self.tree.selection_set(item)
             self.tree.focus(item)
@@ -705,7 +731,7 @@ class MainWindow(tk.Tk):
 
     def toggle_item(self, item: str) -> list[Change]:
         if item.startswith("r:"):
-            rule_id = item[2:]
+            rule_id = rule_of(item)
             changes = self.resolver.set_rule(self.profile, rule_id, not self.profile.is_enabled(rule_id))
             scope = {rule_id}
         elif item.startswith("g:"):
@@ -819,7 +845,7 @@ class MainWindow(tk.Tk):
             return
         self._show_panel(None)
         if item.startswith("r:"):
-            rule = self.catalog.rules[item[2:]]
+            rule = self.catalog.rules[rule_of(item)]
             self._write_detail(self._rule_parts(rule))
             self._build_params(rule)
         elif item.startswith("g:"):
@@ -879,6 +905,9 @@ class MainWindow(tk.Tk):
         if origin is not None:
             parts += [("h2", tr("Source")), ("", tr("Policy {0} of the template {1}", origin.policy, origin.file)),
                       ("muted", tr("Imported templates \"{0}\" from {1}", origin.import_name, origin.folder))]
+            trees = list(dict.fromkeys(self.group_title(".".join(g.split(".")[:2])) for g in self.catalog.placements(rule.id)))
+            if len(trees) > 1:
+                parts.append(("muted", tr("Shown in the imported trees: {0}; one check mark for all of them", "; ".join(trees))))
         else:
             parts += [("h2", tr("More details")), (f"link:doc:{rule.doc}", tr("Reference entry: ") + rule.doc)]
         return parts
@@ -939,7 +968,47 @@ class MainWindow(tk.Tk):
         if target.startswith("doc:"):
             self.open_doc(target[4:])
         else:
+            self._remember(target)
             self.select_node(target)
+
+    # ----------------------------------------------------------------- Back and Forward
+
+    def _remember(self, target: str) -> None:
+        """Keep the node shown now for Back before another one is shown (a link, a message, a click in the tree)."""
+        current = self._current_item
+        if not current or target == current:
+            return
+        if not self._history or self._history[-1] != current:
+            self._history.append(current)
+            del self._history[:-HISTORY_LIMIT]
+        self._future.clear()
+        self._update_nav()
+
+    def _can_show(self, item: str) -> bool:
+        if item == WORKFLOW_NODE or item.startswith("data:"):
+            return True
+        if item.startswith("g:"):
+            return item[2:] in self.catalog.groups
+        return item.startswith("r:") and rule_of(item) in self.catalog.rules
+
+    def _step(self, source: list[str], target: list[str]) -> None:
+        while source:
+            item = source.pop()
+            if self._can_show(item) and item != self._current_item:
+                target.append(self._current_item)
+                self.select_node(item)
+                break
+        self._update_nav()
+
+    def go_back(self) -> None:
+        self._step(self._history, self._future)
+
+    def go_forward(self) -> None:
+        self._step(self._future, self._history)
+
+    def _update_nav(self) -> None:
+        self.back_button.state(["!disabled"] if self._history else ["disabled"])
+        self.forward_button.state(["!disabled"] if self._future else ["disabled"])
 
     def open_doc(self, doc: str) -> None:
         """Open a card of the reference in the program Windows associates with .md files."""
@@ -972,6 +1041,9 @@ class MainWindow(tk.Tk):
         ]
         if is_imported(group_id):
             buttons = buttons[1:2]  # imported policies are switched on one by one
+            if group_id.count(".") == 1:  # the root of an imported tree: "admx.<import id>"
+                import_id = group_id[len(IMPORTED_PREFIX):]
+                buttons.append((tr("Rename..."), lambda: self.rename_templates(import_id, self.group_title(group_id))))
         for text, command in buttons:
             ttk.Button(self.params_frame, text=text, command=command).pack(side=tk.LEFT, padx=(0, 6))
 
@@ -1127,14 +1199,18 @@ class MainWindow(tk.Tk):
             return
         issue = self._issues[int(selection[0][1:])]
         target = issue.target
+        item = ""
         if target in self.catalog.rules:
-            self.select_node("r:" + target)
+            item = "r:" + target
         elif target.startswith("accounts"):
-            self.select_node("data:accounts")
+            item = "data:accounts"
         elif target.startswith("languages"):
-            self.select_node("data:languages")
+            item = "data:languages"
         elif target.startswith("install"):
-            self.select_node("data:install")
+            item = "data:install"
+        if item:
+            self._remember(item)
+            self.select_node(item)
 
     # ----------------------------------------------------------------- profiles
 
@@ -1559,7 +1635,7 @@ class MainWindow(tk.Tk):
         return self.settings.allow_apply
 
     def _apply_items(self) -> list[str]:
-        items = [i for i in self.tree.selection() if i.startswith("r:") or i.startswith("g:")]
+        items = ["r:" + rule_of(i) if i.startswith("r:") else i for i in self.tree.selection() if i.startswith(("r:", "g:"))]
         if not items:
             messagebox.showinfo(APP_NAME, tr("Select a rule or a group in the tree."), parent=self)
         return items
@@ -1886,6 +1962,17 @@ class MainWindow(tk.Tk):
         if not folder.is_dir() or not any(folder.glob("*.admx")):
             messagebox.showerror(APP_NAME, tr("There are no ADMX templates in {0}.", folder), parent=self)
             return
+        replace = None
+        existing = admx_module.find_imports(self.paths.admx, folder)
+        if existing:
+            answer = messagebox.askyesnocancel(APP_NAME, tr(
+                "The templates of {0} are already imported as \"{1}\".\n\n"
+                "Yes: update that import; its tree and the choices in profiles stay.\n"
+                "No: add one more tree; the policies it shares with the other are shown in both with one check mark.\n"
+                "Cancel: do not import.", folder, existing[-1].name), parent=self)
+            if answer is None:
+                return
+            replace = existing[-1] if answer else None
         codes = list(available_languages(self.paths.resources, self.paths.rules))
         outcome: dict[str, Any] = {}
         progress = {"done": 0, "total": 0}
@@ -1907,26 +1994,41 @@ class MainWindow(tk.Tk):
                 self.after(150, poll)
                 return
             self.set_busy(False)
-            self.finish_import(folder, system, outcome)
+            self.finish_import(folder, system, outcome, replace)
 
         self.after(150, poll)
 
-    def finish_import(self, folder: Path, system: bool, outcome: dict[str, Any]) -> None:
+    def finish_import(self, folder: Path, system: bool, outcome: dict[str, Any],
+                      replace: admx_module.ImportInfo | None = None) -> None:
         if "error" in outcome:
             messagebox.showerror(APP_NAME, tr("The templates were not imported:\n{0}", outcome["error"]), parent=self)
             return
         data = outcome["data"]
         try:
-            info = admx_module.save_import(self.paths.admx, folder, data, system=system)
+            info = admx_module.save_import(self.paths.admx, folder, data, system=system, replace=replace)
         except OSError as exc:
             messagebox.showerror(APP_NAME, tr("The imported templates were not saved:\n{0}", exc), parent=self)
             return
         issues = [Issue("info", "", tr("Not imported: {0} policies with {1}", count, reason)) for reason, count in admx_module.skip_summary(data)]
         issues += [Issue("warning", "", tr("Template file not read: {0}", problem)) for problem in data.get("problems", [])[:50]]
-        self.settings.admx = [*self.settings.admx, info.id]
+        self.settings.admx = [i for i in self.settings.admx if i != info.id] + [info.id]
         self.save_settings()
-        self._restart("g:" + IMPORTED_PREFIX + info.id, issues,
-                      tr("Imported templates \"{0}\": {1} policies, {2} skipped", info.name, info.policies, info.skipped))
+        text = tr("Imported templates \"{0}\" updated: {1} policies, {2} skipped", info.name, info.policies, info.skipped) if replace \
+            else tr("Imported templates \"{0}\": {1} policies, {2} skipped", info.name, info.policies, info.skipped)
+        self._restart("g:" + IMPORTED_PREFIX + info.id, issues, text)
+
+    def rename_templates(self, import_id: str, name: str) -> None:
+        """A name of the user's choice for an imported tree; an update of the import keeps it."""
+        new = simpledialog.askstring(APP_NAME, tr("New name of the imported tree:"), initialvalue=name, parent=self)
+        if new is None or " ".join(new.split()) == name:
+            return
+        try:
+            info = admx_module.rename_import(self.paths.admx, import_id, new)
+        except (OSError, admx_module.AdmxError) as exc:
+            messagebox.showerror(APP_NAME, tr("The name was not changed:\n{0}", exc), parent=self)
+            return
+        shown = import_id in self.settings.admx
+        self._restart("g:" + IMPORTED_PREFIX + import_id if shown else None, status=tr("Imported tree renamed: \"{0}\"", info.name))
 
     def show_templates(self, import_id: str, shown: bool) -> None:
         """Show or hide a saved import; the choice is remembered for the next start."""

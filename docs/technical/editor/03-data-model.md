@@ -321,6 +321,15 @@ phase `default-user`. Level `optional`, default off, no `doc`; `Catalog.origins`
 policy), `Catalog.same_values()` the rules of the other kind that write the same (scope, key, value name); a list
 meets every value of its key, so a list policy that clears a key links to the built-in rules writing into it.
 
+Several imports (T20): a policy is one rule, owned by the first import loaded (`settings.admx` order); the
+imports loaded later show it too, as an alias (`Catalog.aliases`: rule id to more groups, `placements()`), so it
+has one check mark and one set of parameters everywhere. The tree gives an alias its own item id
+`r:<rule id>@<group id>` (`main_window.rule_of()` reads the rule id); group counts and group actions include the
+aliases. An import of a folder that is already imported asks whether to update that import in place (same id,
+`save_import(replace=...)`, files written through a temporary file) or to add a tree. `import.json` may hold
+`renamed: true`: the name was given by the user (`rename_import`, at most 120 characters, no control characters)
+and survives an update; a generated name follows the date of the update.
+
 Behaviour that differs from built-in rules: an imported policy without a check mark is "not configured" (not
 written to the profile, not validated, not reverted by "Apply the selection now"); "Return to Windows defaults"
 takes it only when it is selected itself; the check box of an imported group only switches off; the validator

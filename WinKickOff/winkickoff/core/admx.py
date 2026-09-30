@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import platform
 import re
 import shutil
@@ -543,12 +544,14 @@ class ImportInfo:
     cultures: tuple[str, ...]
     policies: int
     skipped: int
+    renamed: bool = False  # the user gave the name; an update of the import keeps it
+
+
+MAX_NAME = 120
 
 
 def system_folder() -> Path:
     """PolicyDefinitions of this Windows (read only)."""
-    import os
-
     return Path(os.environ.get("SystemRoot") or os.environ.get("WINDIR") or "C:\\Windows") / "PolicyDefinitions"
 
 
@@ -560,24 +563,62 @@ def new_import_id(admx_root: Path, kind: str, now: datetime) -> str:
     return candidate
 
 
-def save_import(admx_root: Path, folder: Path, data: dict[str, Any], *, system: bool, now: datetime | None = None) -> ImportInfo:
-    """Keep an import in admx_root/<id>/ (the program folder) and return its description."""
+def _write_file(path: Path, text: str) -> None:
+    """Through a temporary file in the same folder, so an interrupted update never leaves half a file."""
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_bytes(text.encode("utf-8"))
+    os.replace(tmp, path)
+
+
+def _meta(info: ImportInfo, files: int) -> str:
+    meta = {"format": FORMAT_VERSION, "id": info.id, "name": info.name, "renamed": info.renamed, "folder": info.folder,
+            "created": info.created, "windows": info.windows, "cultures": list(info.cultures), "policies": info.policies,
+            "skipped": info.skipped, "files": files}
+    return (json.dumps(meta, ensure_ascii=False, indent=2) + "\n").replace("\n", "\r\n")
+
+
+def same_folder(a: str | Path, b: str | Path) -> bool:
+    try:
+        return os.path.normcase(str(Path(a).resolve())) == os.path.normcase(str(Path(b).resolve()))
+    except OSError:
+        return False
+
+
+def find_imports(admx_root: Path, folder: Path) -> list[ImportInfo]:
+    """Saved imports of the same folder, oldest first."""
+    return [info for info in list_imports(admx_root) if same_folder(info.folder, folder)]
+
+
+def save_import(admx_root: Path, folder: Path, data: dict[str, Any], *, system: bool, now: datetime | None = None,
+                replace: ImportInfo | None = None) -> ImportInfo:
+    """Keep an import in admx_root/<id>/ (the program folder) and return its description. With replace, that import
+    is updated in place: same id (so the tree and the profiles keep working), a name the user gave is kept."""
     now = now or datetime.now()
     kind = "system" if system else "folder"
-    import_id = new_import_id(admx_root, kind, now)
+    import_id = replace.id if replace is not None else new_import_id(admx_root, kind, now)
     windows = platform.version() if system else ""
     label = f"PolicyDefinitions {windows}" if system and windows else folder.name or str(folder)
-    info = ImportInfo(import_id, f"{label}, {now:%Y-%m-%d %H:%M}", str(folder), now.isoformat(timespec="seconds"), windows,
-                      tuple(data.get("cultures", [])), len(data.get("policies", [])), len(data.get("skipped", [])))
+    name = replace.name if replace is not None and replace.renamed else f"{label}, {now:%Y-%m-%d %H:%M}"
+    info = ImportInfo(import_id, name, str(folder), now.isoformat(timespec="seconds"), windows, tuple(data.get("cultures", [])),
+                      len(data.get("policies", [])), len(data.get("skipped", [])), replace is not None and replace.renamed)
     target = admx_root / import_id
-    target.mkdir(parents=True, exist_ok=False)
-    meta = {"format": FORMAT_VERSION, "id": info.id, "name": info.name, "folder": info.folder, "created": info.created,
-            "windows": info.windows, "cultures": list(info.cultures), "policies": info.policies, "skipped": info.skipped,
-            "files": data.get("files", 0)}
-    (target / META_FILE).write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\r\n")
-    (target / DATA_FILE).write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    log.info("templates imported from %s as %s: %d policies, %d skipped", folder, import_id, info.policies, info.skipped)
+    target.mkdir(parents=True, exist_ok=replace is not None)
+    _write_file(target / DATA_FILE, json.dumps(data, ensure_ascii=False, separators=(",", ":")))
+    _write_file(target / META_FILE, _meta(info, int(data.get("files", 0))))
+    log.info("templates imported from %s as %s%s: %d policies, %d skipped", folder, import_id,
+             " (updated)" if replace is not None else "", info.policies, info.skipped)
     return info
+
+
+def rename_import(admx_root: Path, import_id: str, name: str) -> ImportInfo:
+    """Give an import a name of the user's choice (the title of its tree)."""
+    name = " ".join(name.split())
+    if not name or len(name) > MAX_NAME or set(name) & set(_CONTROL):
+        raise AdmxError(f"bad name {name!r}")
+    info, data = load_import(admx_root, import_id)
+    renamed = ImportInfo(info.id, name, info.folder, info.created, info.windows, info.cultures, info.policies, info.skipped, True)
+    _write_file(admx_root / import_id / META_FILE, _meta(renamed, int(data.get("files", 0))))
+    return renamed
 
 
 def _info(meta: dict[str, Any]) -> ImportInfo:
@@ -586,7 +627,7 @@ def _info(meta: dict[str, Any]) -> ImportInfo:
         raise AdmxError(f"unsupported import {import_id!r}")
     return ImportInfo(import_id, str(meta.get("name", import_id)), str(meta.get("folder", "")), str(meta.get("created", "")),
                       str(meta.get("windows", "")), tuple(str(c) for c in meta.get("cultures", [])),
-                      int(meta.get("policies", 0)), int(meta.get("skipped", 0)))
+                      int(meta.get("policies", 0)), int(meta.get("skipped", 0)), meta.get("renamed") is True)
 
 
 def list_imports(admx_root: Path) -> list[ImportInfo]:
@@ -751,12 +792,13 @@ class ImportedPart:
     groups: dict[str, Group] = field(default_factory=dict)
     rules: dict[str, Rule] = field(default_factory=dict)
     origins: dict[str, RuleOrigin] = field(default_factory=dict)
-    duplicates: int = 0
+    aliases: dict[str, list[str]] = field(default_factory=dict)  # rules of imports loaded before, shown here too
+    shared: int = 0  # policies of this import that are already rules
 
 
 def catalog_part(info: ImportInfo, data: dict[str, Any], language: str, taken: set[str], order: int = 10000) -> ImportedPart:
-    """Groups and rules of one import in the interface language; rule ids in taken (the catalog and imports
-    loaded before) are left out and counted."""
+    """Groups and rules of one import in the interface language. A policy that is already a rule (taken: rules
+    of the imports loaded before) is shown in this tree too, as an alias of that rule: one check mark for both."""
     part = ImportedPart()
     root = f"{IMPORTED_PREFIX}{info.id}"
     categories: dict[str, dict[str, Any]] = data.get("categories", {})
@@ -793,10 +835,14 @@ def catalog_part(info: ImportInfo, data: dict[str, Any], language: str, taken: s
         while rule_id in ids:
             rule_id, index = f"{base}-{index}", index + 1
         ids.add(rule_id)
-        if rule_id in taken:
-            part.duplicates += 1
-            continue
         side = "user" if policy.get("class") == "User" else "machine"
+        if rule_id in taken:
+            group = group_for(side, policy.get("category", ""))
+            for shown in (rule_id, rule_id + ".off"):
+                if shown in taken:
+                    part.aliases.setdefault(shown, []).append(group)
+            part.shared += 1
+            continue
         try:
             rules = policy_rules(policy, rule_id, group_for(side, policy.get("category", "")), language, f"admx:{info.id}")
         except (KeyError, TypeError, ValueError) as exc:
@@ -806,9 +852,10 @@ def catalog_part(info: ImportInfo, data: dict[str, Any], language: str, taken: s
         for rule in rules:
             part.rules[rule.id] = rule
             part.origins[rule.id] = origin
-    counts = tr("{0} policies as {1} rules; {2} skipped", info.policies, len(part.rules), info.skipped)
-    if part.duplicates:
-        counts += tr("; {0} are already in the catalog or in another import", part.duplicates)
+    counts = tr("{0} policies as {1} rules; {2} skipped", info.policies, len(part.rules) + len(part.aliases), info.skipped)
+    if part.shared:
+        counts += tr("; {0} of the policies are also in another imported tree loaded earlier, with one check mark for both",
+                     part.shared)
     older = sum(1 for item in data.get("skipped", []) if item.get("reason") in LEGACY_SKIPS)
     if older:
         counts += tr("; {0} policies with lists were skipped by an earlier version of WinKickOff, import the templates "
@@ -824,6 +871,7 @@ def with_imports(base: Catalog, admx_root: Path, import_ids: Iterable[str], lang
     groups: dict[str, Group] = {}
     rules: dict[str, Rule] = {}
     origins: dict[str, RuleOrigin] = {}
+    aliases: dict[str, list[str]] = {}
     for index, import_id in enumerate(dict.fromkeys(import_ids)):
         try:
             info, data = load_import(admx_root, import_id)
@@ -834,9 +882,11 @@ def with_imports(base: Catalog, admx_root: Path, import_ids: Iterable[str], lang
         groups.update(part.groups)
         rules.update(part.rules)
         origins.update(part.origins)
+        for rule_id, group_ids in part.aliases.items():
+            aliases.setdefault(rule_id, []).extend(group_ids)
     if not rules and not groups:
         return base, problems
-    return merge(base, groups, rules, origins), problems
+    return merge(base, groups, rules, origins, aliases), problems
 
 
 def skip_summary(data: dict[str, Any]) -> list[tuple[str, int]]:

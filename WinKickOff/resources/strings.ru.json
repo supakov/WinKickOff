@@ -418,7 +418,6 @@
  "On": "Вкл.",
  "Off": "Выкл.",
  "{0} policies as {1} rules; {2} skipped": "{0} политик как {1} правил; пропущено {2}",
- "; {0} are already in the catalog or in another import": "; {0} уже есть в каталоге или в другом импорте",
  "Imported from {0} on {1}: {2}. Languages: {3}.": "Импортировано из {0} {1}: {2}. Языки: {3}.",
  "Imported templates {0} were not loaded: {1}": "Импортированные шаблоны {0} не загружены: {1}",
  "{0} policies of imported templates that are not loaded were kept: {1}. Load the templates in the ADMX menu to use them.": "Сохранено {0} политик из незагруженных импортированных шаблонов: {1}. Чтобы работать с ними, загрузите шаблоны в меню ADMX.",
@@ -470,5 +469,17 @@
  "The values of the list in \"{0}\" were replaced: they can be restored if the previous values are known": "Значения списка в \"{0}\" заменялись: вернуть их можно, если известны прежние значения",
  "empty list": "пустой список",
  "one item per line, as name=value": "по одному элементу в строке, в виде имя=значение",
- "one item per line": "по одному элементу в строке"
+ "one item per line": "по одному элементу в строке",
+ "; {0} of the policies are also in another imported tree loaded earlier, with one check mark for both": "; {0} политик есть и в другом импортированном дереве, загруженном раньше, галка у них общая",
+ "Imported templates \"{0}\" updated: {1} policies, {2} skipped": "Импортированные шаблоны «{0}» обновлены: политик {1}, пропущено {2}",
+ "New name of the imported tree:": "Новое имя импортированного дерева:",
+ "Rename imported templates": "Переименовать импортированные шаблоны",
+ "The templates of {0} are already imported as \"{1}\".\n\nYes: update that import; its tree and the choices in profiles stay.\nNo: add one more tree; the policies it shares with the other are shown in both with one check mark.\nCancel: do not import.": "Шаблоны из {0} уже импортированы как «{1}».\n\nДа: обновить этот импорт; его дерево и выбор в профилях сохранятся.\nНет: добавить ещё одно дерево; общие с первым политики будут в обоих с одной галкой.\nОтмена: не импортировать.",
+ "Imported tree renamed: \"{0}\"": "Импортированное дерево переименовано: «{0}»",
+ "Back": "Назад",
+ "The name was not changed:\n{0}": "Имя не изменено:\n{0}",
+ "Forward": "Вперёд",
+ "Alt+Left, Alt+Right": "Alt+Влево, Alt+Вправо",
+ "Shown in the imported trees: {0}; one check mark for all of them": "Показывается в импортированных деревьях: {0}; галка у всех общая",
+ "Rename...": "Переименовать..."
 }

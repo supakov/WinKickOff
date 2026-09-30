@@ -19,6 +19,14 @@ The import is kept in the `admx` folder next to the program (in the portable bui
 is available at later starts in the same "ADMX" menu: the check mark at the name of an import shows or hides its
 branch, and "Delete imported templates" removes an import from the program folder.
 
+The name of a branch can be changed: the "Rename..." button at the bottom when the root of the branch is selected,
+or "Rename imported templates" in the "ADMX" menu. A name of your own is kept when the import is updated.
+
+When the folder is already imported, the program asks what to do: "Yes" updates the earlier import (its branch
+and the choices in profiles stay, handy after a Windows update), "No" adds one more branch. A policy found in
+several branches is one and the same policy: its check mark and parameters are shared, and a check mark in one
+branch shows in all of them.
+
 ## Language
 
 Policy names and descriptions come only from the ADML files in the language of the program interface; when there

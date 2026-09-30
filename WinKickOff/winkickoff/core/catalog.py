@@ -182,14 +182,16 @@ class RuleOrigin:
 
 class Catalog:
     """Groups and rules. A catalog is not changed after it is built, so the indexes below are computed once;
-    imported templates make a new catalog (merge())."""
+    imported templates make a new catalog (merge()). A rule belongs to its group and may also be shown in more
+    groups (aliases): the same policy in several imported trees is one rule with one state."""
 
     def __init__(self, groups: dict[str, Group], rules: dict[str, Rule], version: str,
-                 origins: dict[str, RuleOrigin] | None = None) -> None:
+                 origins: dict[str, RuleOrigin] | None = None, aliases: dict[str, list[str]] | None = None) -> None:
         self.groups = groups
         self.rules = rules  # insertion order = catalog order
         self.version = version
         self.origins: dict[str, RuleOrigin] = dict(origins or {})
+        self.aliases: dict[str, list[str]] = {rid: list(gids) for rid, gids in (aliases or {}).items() if rid in rules}
         self._required_by: dict[str, list[str]] = {rule_id: [] for rule_id in rules}
         for rule in rules.values():
             for req in rule.requires:
@@ -205,6 +207,12 @@ class Catalog:
         self._direct: dict[str, list[Rule]] = {}
         for rule in rules.values():
             self._direct.setdefault(rule.group, []).append(rule)
+        for rule_id, group_ids in self.aliases.items():
+            for group_id in group_ids:
+                self._direct.setdefault(group_id, []).append(rules[rule_id])
+        for group_id, members in self._direct.items():
+            if is_imported(group_id):  # an imported tree lists its own and shared policies by title
+                members.sort(key=lambda rule: (rule.title.lower(), rule.id))
         self._in_group: dict[str, list[Rule]] = {}
         self._values: dict[tuple[str, str, str], list[str]] | None = None
         self._keys: dict[tuple[str, str], list[str]] = {}
@@ -231,10 +239,14 @@ class Catalog:
             return list(self._direct.get(group_id, ()))
         found = self._in_group.get(group_id)
         if found is None:
-            found = [rule for gid in [group_id, *self.descendant_groups(group_id)] for rule in self._direct.get(gid, ())]
-            found.sort(key=lambda rule: self._position[rule.id])
+            unique = {rule.id: rule for gid in [group_id, *self.descendant_groups(group_id)] for rule in self._direct.get(gid, ())}
+            found = sorted(unique.values(), key=lambda rule: self._position[rule.id])
             self._in_group[group_id] = found
         return list(found)
+
+    def placements(self, rule_id: str) -> list[str]:
+        """Groups that show the rule: its own group first, then the aliases."""
+        return [self.rules[rule_id].group, *self.aliases.get(rule_id, ())]
 
     def required_by(self, rule_id: str) -> list[str]:
         return list(self._required_by.get(rule_id, ()))
@@ -598,9 +610,13 @@ def registry_values(rule: Rule) -> set[tuple[str, str, str]]:
     return found
 
 
-def merge(base: Catalog, groups: dict[str, Group], rules: dict[str, Rule], origins: dict[str, RuleOrigin]) -> Catalog:
+def merge(base: Catalog, groups: dict[str, Group], rules: dict[str, Rule], origins: dict[str, RuleOrigin],
+          aliases: dict[str, list[str]] | None = None) -> Catalog:
     """The base catalog with more groups and rules (imported templates) after its own."""
-    return Catalog({**base.groups, **groups}, {**base.rules, **rules}, base.version, {**base.origins, **origins})
+    joined = {rid: list(gids) for rid, gids in base.aliases.items()}
+    for rule_id, group_ids in (aliases or {}).items():
+        joined.setdefault(rule_id, []).extend(group_ids)
+    return Catalog({**base.groups, **groups}, {**base.rules, **rules}, base.version, {**base.origins, **origins}, joined)
 
 
 _HEADING_RE = re.compile(r"^#{1,6}\s+(.*?)\s*#*\s*$")

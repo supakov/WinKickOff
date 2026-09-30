@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 30.09.2026 (release 1.1.0-rc.2: ADMX policies with lists of values and multi-line text, catalog 0.5, T19).
+Last update: 30.09.2026 (T20 after release 1.1.0-rc.2: Back and Forward, rename, update and shared policies of imports).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -55,7 +55,7 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
 │   │   ├── reference/             reference: a card for every installation parameter (20 files; 18 browsers, 19 more privacy)
 │   │   └── editor/                WinKickOff specification: problem, architecture, data model, testing,
 │   │       │                      plan (days, milestones), review of revision 0.1
-│   │       └── todo/              tasks T01-T19 with status (README.md is the index)
+│   │       └── todo/              tasks T01-T20 with status (README.md is the index)
 │   ├── user/                      USER DOCUMENTATION: ru (source), uk, en; the same files in each language
 │   ├── releases/                  release notes v<version>.md (ru, uk, en), used by the release job
 │   └── appendices/                APPENDICES, frozen, Russian: README describes them
@@ -276,6 +276,10 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
   and its group check box only switches off. Template files are untrusted input (no DTD, size limits, unsafe
   characters refused, `ps_quote` doubles typographic single quotes). Tests read the templates of this Windows
   (`C:\Windows\PolicyDefinitions`) read-only; nothing is written outside temporary folders.
+- Several imports (T20): a policy is one rule, owned by the first loaded import; later trees show it as an alias
+  (`Catalog.aliases`, `placements()`), with the tree item id `r:<rule>@<group>`. Code that takes a rule from a tree
+  item uses `rule_of()` of `ui/main_window.py`, never `item[2:]`, and This PC gets canonical `r:<rule>` items.
+  `import.json` `renamed: true` keeps a name given by the user when the import is updated in place.
 - Lists of values (1.1.0-rc.2, catalog 0.5): a `list` element becomes a parameter of type `list` and a `reg-list`
   action, a `multiText` element a `list` parameter in a `reg` action of kind MultiString. `Set-RegList` gets names and
   values as two arrays that pair up by position (the generator computes the names: items, prefix and number, or
@@ -295,7 +299,7 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Answer file checker | Done, 36 checks, 0 errors on v0.2 | 25.09.2026 | `tools/Validate-Unattend.ps1` |
 | GitHub repository | Renamed to WinKickOff; the local clone and `origin/main` match; CI in GitHub Actions | 26.09.2026 | https://github.com/supakov/WinKickOff |
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
-| Editor tasks | T01-T12, T14, T16-T19 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 30.09.2026 | `docs/technical/editor/todo/` |
+| Editor tasks | T01-T12, T14, T16-T20 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 30.09.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.5: 251 rules, 36 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer 15), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.5 adds the parameter type `list` and the action `reg-list` (runtime Set-RegList, Test-RegList), the rules themselves are those of 0.4 | 30.09.2026 | `WinKickOff/rules/` |
 | Editor code | 1.1.0-rc.2 (import of ADMX templates with lists of values, T19): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 236 tests | 30.09.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
@@ -304,7 +308,7 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Documentation split | T16 done: technical in English, user documentation in ru, uk, en; since T18 the catalog is English with complete ru and uk translations | 30.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
 | GitHub issues | #1 "Web Browsers debloat" done: section "Browsers" (Edge, Chrome, Brave), 46 rules off by default, card 18. #2 "memstechtips profile" done: preset of 60 rules computed from Appendix A, report of what is added, contradicted and not transferable. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md`, `WinKickOff/profiles/preset-memstechtips.json`, `docs/technical/memstechtips-profile.md` |
 | Release candidate | 1.1.0-rc.2 (ADMX policies with lists of values), after 1.1.0-rc.1 (import of ADMX templates) and 1.0.0-rc.1 to rc.4 of 26.09-30.09.2026: tag and GitHub release built by CI | 30.09.2026 | `docs/releases/v1.1.0-rc.2.md` |
-| Imported ADMX templates | T19 done: ADMX menu, store `admx/` next to the program, policies as rules with parameters, links to built-in rules; since 1.1.0-rc.2 list and multi-line elements too (20 of 3552 policies of this Windows skipped); acceptance of lists on This PC in a VM pending | 30.09.2026 | `WinKickOff/winkickoff/core/admx.py`, `docs/user/*/admx.md` |
+| Imported ADMX templates | T19 done: ADMX menu, store `admx/` next to the program, policies as rules with parameters, links to built-in rules; since 1.1.0-rc.2 list and multi-line elements too (20 of 3552 policies of this Windows skipped); acceptance of lists on This PC in a VM pending; T20 (not released yet): an import of an imported folder asks to update it or add a tree, a policy in several trees has one check mark, trees can be renamed; Back and Forward in the window | 30.09.2026 | `WinKickOff/winkickoff/core/admx.py`, `docs/user/*/admx.md` |
 | Customer list MoreOptions | Done: BitLocker off in every preset; 57 rules on by default (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Edge AI and sign-in, Gallery hidden), This PC folders as options off by default; corrections in card 19 | 28.09.2026 | `docs/technical/reference/19-more-privacy.md` |
 | Tuning of preset defaults | Awaited from the customer | | `WinKickOff/tools/make_presets.py`, rule defaults |
 

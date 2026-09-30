@@ -10,6 +10,7 @@ import json
 import re
 import tempfile
 import unittest
+from unittest import mock
 from datetime import datetime
 from pathlib import Path
 
@@ -327,14 +328,22 @@ class CatalogPartTest(AdmxTestCase):
         self.assertIn(SAME, catalog.same_values("defender.pua"))
         self.assertEqual(catalog.same_values(TOGGLE), [])
 
-    def test_a_second_import_of_the_same_templates_adds_no_duplicates(self) -> None:
+    def test_a_second_import_shows_the_same_policies_with_one_state(self) -> None:
         info, _ = self.imported()
         data = admx.read_templates(self.templates, ["en"])
         second = admx.save_import(self.store, self.templates, data, system=False, now=datetime(2026, 9, 30, 12, 0, 0))
         self.assertNotEqual(second.id, info.id)
         catalog, _ = admx.with_imports(self.base, self.store, [info.id, second.id], "en")
-        self.assertEqual(sum(1 for r in catalog.rules if r == TOGGLE), 1)
-        self.assertIn("already", catalog.groups["admx." + second.id].summary)
+        first_tree = {r.id for r in catalog.rules_in_group("admx." + info.id)}
+        second_tree = {r.id for r in catalog.rules_in_group("admx." + second.id)}
+        self.assertEqual(first_tree, second_tree)  # the second tree is complete, not empty
+        self.assertIn(PAIR + ".off", second_tree)
+        self.assertEqual(catalog.rules[TOGGLE].group.split(".")[1], info.id)  # one rule, owned by the first import
+        self.assertEqual(len(catalog.placements(TOGGLE)), 2)
+        self.assertTrue(catalog.placements(TOGGLE)[1].startswith("admx." + second.id + "."))
+        self.assertIn("one check mark for both", catalog.groups["admx." + second.id].summary)
+        # a rule is counted once, whatever the number of trees that show it
+        self.assertEqual(len([r for r in catalog.rules_in_group("admx." + second.id) if r.id == TOGGLE]), 1)
 
 
 class StoreTest(AdmxTestCase):
@@ -354,6 +363,26 @@ class StoreTest(AdmxTestCase):
         self.assertEqual(len(problems), 1)
         admx.delete_import(self.store, info.id)
         self.assertEqual(admx.list_imports(self.store), [])
+
+    def test_update_in_place_and_rename(self) -> None:
+        info, _ = self.imported()
+        self.assertEqual([i.id for i in admx.find_imports(self.store, self.templates)], [info.id])
+        self.assertEqual(admx.find_imports(self.store, self.tmp), [])
+        renamed = admx.rename_import(self.store, info.id, "  Office   templates ")
+        self.assertEqual((renamed.name, renamed.renamed), ("Office templates", True))
+        self.assertEqual(admx.list_imports(self.store)[0].name, "Office templates")
+        for bad in ("", "   ", "x" * (admx.MAX_NAME + 1), "a" + chr(7) + "b"):
+            with self.assertRaises(admx.AdmxError):
+                admx.rename_import(self.store, info.id, bad)
+        data = admx.read_templates(self.templates, ["en"])
+        updated = admx.save_import(self.store, self.templates, data, system=False, now=datetime(2026, 10, 1, 9, 0, 0),
+                                   replace=renamed)
+        self.assertEqual((updated.id, updated.name, updated.renamed), (info.id, "Office templates", True))
+        self.assertEqual(updated.created, "2026-10-01T09:00:00")
+        self.assertEqual([i.id for i in admx.list_imports(self.store)], [info.id])  # no second folder
+        plain = admx.save_import(self.store, self.templates, data, system=False, now=datetime(2026, 10, 2, 9, 0, 0),
+                                 replace=admx.ImportInfo(info.id, "old", "", "", "", (), 0, 0))
+        self.assertEqual(plain.name, "templates, 2026-10-02 09:00")  # a generated name follows the date
 
 
 class UseTest(AdmxTestCase):
@@ -631,7 +660,7 @@ except Exception:  # noqa: BLE001
 
 @unittest.skipUnless(TK_OK, "Tk is not available")
 class WindowTest(AdmxTestCase):
-    def window(self):  # type: ignore[no-untyped-def]
+    def window(self, twice: bool = False):  # type: ignore[no-untyped-def]
         from winkickoff.ui.main_window import MainWindow
 
         base = self.tmp / "app"
@@ -641,10 +670,13 @@ class WindowTest(AdmxTestCase):
             folder.mkdir(parents=True)
         data = admx.read_templates(self.templates, ["en", "ru", "uk"])
         info = admx.save_import(paths.admx, self.templates, data, system=False, now=datetime(2026, 9, 30, 12, 0, 0))
-        catalog, _ = admx.with_imports(self.base, paths.admx, [info.id], "en")
+        ids = [info.id]
+        if twice:  # the same templates imported again as one more tree
+            ids.append(admx.save_import(paths.admx, self.templates, data, system=False, now=datetime(2026, 9, 30, 12, 5, 0)).id)
+        catalog, _ = admx.with_imports(self.base, paths.admx, ids, "en")
         profile = Profile.from_catalog(catalog)
         win = MainWindow(paths, catalog, profile, Resources.load(paths.resources),
-                         Settings(language="en", theme="light", admx=[info.id]))
+                         Settings(language="en", theme="light", admx=ids))
         win.withdraw()
 
         def close() -> None:
@@ -720,6 +752,71 @@ class WindowTest(AdmxTestCase):
         profile = win.restart_state["profile"]
         hidden, _ = profile.rebind(self.base)
         self.assertIn(TOGGLE, hidden.unknown)
+
+    def test_a_policy_in_two_trees_has_one_check_mark(self) -> None:
+        win, _, _ = self.window(twice=True)
+        second = win.settings.admx[1]
+        alias = next(i for i in win._all_items() if i.startswith(f"r:{TOGGLE}@admx.{second}."))
+        win.toggle_item(alias)
+        self.assertTrue(win.profile.is_enabled(TOGGLE))
+        for item in ("r:" + TOGGLE, alias):  # both trees show the new state
+            self.assertEqual(str(win.tree.item(item, "image")[0]), str(win.images["on"]))
+        self.assertEqual(win._group_counts("admx." + second)[0], 1)
+        win.show_item(alias)
+        self.assertIn("Shown in the imported trees", self.detail(win))
+        win.tree.selection_set(alias)
+        self.assertEqual(win._apply_items(), ["r:" + TOGGLE])  # This PC works on the rule, wherever it is shown
+
+    def test_import_of_the_same_folder_asks_first(self) -> None:
+        from winkickoff.ui import main_window as mw
+
+        win, info, paths = self.window()
+        with (mock.patch.object(mw.filedialog, "askdirectory", return_value=str(self.templates)),
+              mock.patch.object(mw.messagebox, "askyesnocancel", return_value=None) as ask):
+            win.import_templates(False)
+        ask.assert_called_once()
+        self.assertIn("already imported", ask.call_args[0][1])
+        self.assertFalse(win._busy)  # Cancel: nothing is read
+        self.assertIsNone(win.restart_state)
+        data = admx.read_templates(self.templates, ["en"])
+        win.finish_import(self.templates, False, {"data": data}, admx.find_imports(paths.admx, self.templates)[-1])
+        self.assertEqual([i.id for i in admx.list_imports(paths.admx)], [info.id])  # updated, not added
+        self.assertEqual(win.restart_state["item"], "g:admx." + info.id)
+        self.assertIn("updated", win.restart_state["status"])
+
+    def test_rename_from_the_tree(self) -> None:
+        from winkickoff.ui import main_window as mw
+
+        win, info, paths = self.window()
+        win.select_node("g:admx." + info.id)
+        texts = [str(b.cget("text")) for b in win.params_frame.winfo_children()]
+        self.assertIn("Rename...", texts)
+        self.assertNotIn("Enable all", texts)
+        with mock.patch.object(mw.simpledialog, "askstring", return_value="Test tree"):
+            win.rename_templates(info.id, win.group_title("admx." + info.id))
+        self.assertEqual(admx.list_imports(paths.admx)[0].name, "Test tree")
+        self.assertEqual(win.restart_state["item"], "g:admx." + info.id)
+
+    def test_back_and_forward(self) -> None:
+        from winkickoff.ui.main_window import WORKFLOW_NODE
+
+        win, info, _ = self.window()
+        self.assertTrue(win.back_button.instate(["disabled"]))
+        win.follow_link("r:" + SAME)
+        win.follow_link("r:defender.pua")
+        self.assertEqual(win._current_item, "r:defender.pua")
+        win.go_back()
+        self.assertEqual(win._current_item, "r:" + SAME)
+        win.go_back()
+        self.assertEqual(win._current_item, WORKFLOW_NODE)
+        self.assertTrue(win.back_button.instate(["disabled"]))
+        self.assertFalse(win.forward_button.instate(["disabled"]))
+        win.go_forward()
+        self.assertEqual(win._current_item, "r:" + SAME)
+        win.follow_link("g:admx." + info.id)  # a new jump forgets the way forward
+        self.assertTrue(win.forward_button.instate(["disabled"]))
+        win.go_back()
+        self.assertEqual(win._current_item, "r:" + SAME)
 
 
 if __name__ == "__main__":

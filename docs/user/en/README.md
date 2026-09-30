@@ -27,6 +27,10 @@ folder, or in the `WinKickOff` folder run:
 python -m winkickoff
 ```
 
+The links in the description of a rule lead to other rules; the "Back" and "Forward" buttons above the
+description (or Alt+Left and Alt+Right) go along the history of these jumps, as in a browser. The history keeps
+jumps by links, by messages at the bottom of the window and clicks in the tree.
+
 ## Language and appearance
 
 The main language of the program is English; the Russian and Ukrainian translations are separate files, and
