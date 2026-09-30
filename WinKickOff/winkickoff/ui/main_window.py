@@ -911,6 +911,8 @@ class MainWindow(tk.Tk):
             ("", self.rule_text(rule, "summary")),
         ]
         found = linked.link(self.catalog, self.profile, rule.id)
+        if found is not None and rule.id in self._covered and not enabled:
+            params = dict(found.params)  # the values the built-in rule writes, not the unused ones of the policy
         if found is not None and self.profile.is_enabled(found.rule):
             parts.append(("changed", tr("Set by the built-in rule \"{0}\", which is on: this check mark follows it, and the "
                                         "policy is not written separately.", self.rule_title(found.rule))))

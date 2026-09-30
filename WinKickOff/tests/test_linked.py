@@ -151,7 +151,9 @@ class WindowTest(LinkedTestCase):
         self.assertEqual((self.image(PUA), win.profile.is_enabled(PUA)), ("on", False))  # shown on, not written twice
         self.assertIn("linked", win.tree.item("r:" + PUA, "tags"))
         win.show_item("r:" + PUA)
-        self.assertIn("Set by the built-in rule", win.detail.get("1.0", "end"))
+        text = win.detail.get("1.0", "end")
+        self.assertIn("Set by the built-in rule", text)
+        self.assertIn("-Name 'PUAProtection' -Type DWord -Value 1", text)  # what is written: the value of the built-in rule
         win.show_item("r:" + OPTION)
         texts = [str(w.cget("text")) for w in win.params_frame.winfo_children()]
         self.assertTrue(any("come from the built-in rule" in text for text in texts))
