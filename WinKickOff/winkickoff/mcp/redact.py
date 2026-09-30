@@ -180,7 +180,7 @@ def safe_child(folder: Path, name: str, suffix: str) -> Path:
     base = folder.resolve()
     if folder.is_symlink() or _is_reparse_point(folder):
         raise ToolError("name_refused", "the target folder is a link", {"name": name})
-    target = base / (normalised + suffix)
+    target = folder / (normalised + suffix)  # in the caller's form of the folder path (resolve() may shorten names)
     if target.resolve().parent != base:
         raise ToolError("name_refused", "the name leaves the folder", {"name": name})
     if target.is_symlink() or _is_reparse_point(target):
