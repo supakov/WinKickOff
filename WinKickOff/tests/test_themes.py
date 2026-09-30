@@ -21,6 +21,12 @@ from winkickoff.core.settings import Settings
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _underline(value: object) -> int:
+    """The underline option as a number: Tk 8.6 says -1 for none, Tk 9 (the CI build) an empty string."""
+    text = str(value).strip()
+    return int(text) if text.lstrip("-").isdigit() else -1
+
+
 class ThemeFilesTest(unittest.TestCase):
     def test_bundled_themes(self) -> None:
         found = themes.available_themes(ROOT / "resources")
@@ -108,7 +114,7 @@ class WindowThemeTest(unittest.TestCase):
             bar = win.nametowidget(win.cget("menu"))  # type: ignore[attr-defined]
             cascades = [i for i in range(bar.index("end") + 1) if bar.type(i) == "cascade"]
             self.assertEqual([bar.entrycget(i, "label") for i in cascades], labels)
-            self.assertEqual([int(bar.entrycget(i, "underline")) for i in cascades], [0, 0, 0, 0, 5, 0])
+            self.assertEqual([_underline(bar.entrycget(i, "underline")) for i in cascades], [0, 0, 0, 0, 5, 0])
             self.assertEqual(win.menu_buttons, [])  # type: ignore[attr-defined]
             return
         self.assertEqual(win.cget("menu"), "")  # type: ignore[attr-defined]
@@ -118,10 +124,11 @@ class WindowThemeTest(unittest.TestCase):
         for button in buttons:
             self.assertEqual(str(button.cget("background")).lower(), colors["background"].lower())
             self.assertEqual(str(button.cget("foreground")).lower(), colors["foreground"].lower())
-            self.assertEqual(int(button.cget("underline")), -1)  # letters are underlined only while Alt is held
+            self.assertEqual(_underline(button.cget("underline")), -1)  # letters are underlined only while Alt is held
         win._show_access_keys(True)  # type: ignore[attr-defined]
-        self.assertEqual([int(b.cget("underline")) for b in buttons], [0, 0, 0, 0, 5, 0])
+        self.assertEqual([_underline(b.cget("underline")) for b in buttons], [0, 0, 0, 0, 5, 0])
         win._show_access_keys(False)  # type: ignore[attr-defined]
+        self.assertEqual({_underline(b.cget("underline")) for b in buttons}, {-1})
         if sys.platform == "win32":
             self.assertTrue(win.menu_margins.active)  # type: ignore[attr-defined]
         with mock.patch.object(win, "_post_menu", return_value="break") as post:

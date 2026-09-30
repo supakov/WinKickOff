@@ -294,7 +294,7 @@ class MainWindow(tk.Tk):
             used.add(label[underline].lower())  # Alt + this letter opens the menu
         if isinstance(self.menu_bar, tk.Menu):
             menu = tk.Menu(self.menu_bar, tearoff=False)
-            self.menu_bar.add_cascade(label=label, menu=menu, underline=underline)
+            self.menu_bar.add_cascade(label=label, menu=menu, **({"underline": underline} if underline >= 0 else {}))
             return menu
         c = self.theme.colors
         button = tk.Menubutton(self.menu_bar, text=label, relief=tk.FLAT, borderwidth=0,
@@ -306,6 +306,7 @@ class MainWindow(tk.Tk):
         button.pack(side=tk.LEFT)
         menu = tk.Menu(button, tearoff=False)  # Tk requires the menu of a menu button to be its child
         button.configure(menu=menu)
+        self._no_underline = button.cget("underline")  # Tk's "none": -1 in Tk 8.6, an empty string in Tk 9
         self.menu_buttons.append(button)
         self._menu_underlines.append(underline)
         return menu
@@ -330,7 +331,7 @@ class MainWindow(tk.Tk):
     def _show_access_keys(self, show: bool) -> None:
         """Underline the access letters of the menu buttons while Alt is held, as Windows does in its menu bar."""
         for button, underline in zip(self.menu_buttons, self._menu_underlines):
-            button.configure(underline=underline if show else -1)
+            button.configure(underline=underline if show and underline >= 0 else self._no_underline)
 
     def _build_menu(self) -> None:
         self._access_keys: set[str] = set()
