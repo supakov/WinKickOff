@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 30.09.2026 (1.1.0-rc.1: import of ADMX policy templates as a subtree of selectable rules, T19).
+Last update: 30.09.2026 (release 1.1.0-rc.1: import of ADMX policy templates as a subtree of selectable rules, T19).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -160,8 +160,8 @@ checker and `WinKickOff/tools/build.ps1`, the zip is an artifact of the run. A r
 (`test_docs.py` checks it), push, then push the tag; the job publishes the release (a prerelease for `-rc`):
 
 ```bash
-git tag -a v1.0.0-rc.4 -m "WinKickOff 1.0.0-rc.4"
-git push origin v1.0.0-rc.4
+git tag -a v1.1.0-rc.1 -m "WinKickOff 1.1.0-rc.1"
+git push origin v1.1.0-rc.1
 ```
 
 Run the editor from sources (`Start-WinKickOff.cmd` in the root does the same with a double click, without a
@@ -296,7 +296,7 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |
 | Documentation split | T16 done: technical in English, user documentation in ru, uk, en; since T18 the catalog is English with complete ru and uk translations | 30.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
 | GitHub issues | #1 "Web Browsers debloat" done: section "Browsers" (Edge, Chrome, Brave), 46 rules off by default, card 18. #2 "memstechtips profile" done: preset of 60 rules computed from Appendix A, report of what is added, contradicted and not transferable. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md`, `WinKickOff/profiles/preset-memstechtips.json`, `docs/technical/memstechtips-profile.md` |
-| Release candidate | 1.0.0-rc.4 published (after rc.1 of 26.09.2026, rc.2 of 28.09.2026 and rc.3 of 29.09.2026); the code is 1.1.0-rc.1 with notes ready, its tag waits for the customer | 30.09.2026 | `docs/releases/v1.0.0-rc.4.md`, `docs/releases/v1.1.0-rc.1.md` |
+| Release candidate | 1.1.0-rc.1 (import of ADMX templates), after 1.0.0-rc.1 to rc.4 of 26.09-30.09.2026: tag and GitHub release built by CI | 30.09.2026 | `docs/releases/v1.1.0-rc.1.md` |
 | Imported ADMX templates | T19 done: ADMX menu, store `admx/` next to the program, policies as rules with parameters, links to built-in rules; list and multi-line elements not supported yet | 30.09.2026 | `WinKickOff/winkickoff/core/admx.py`, `docs/user/*/admx.md` |
 | Customer list MoreOptions | Done: BitLocker off in every preset; 57 rules on by default (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Edge AI and sign-in, Gallery hidden), This PC folders as options off by default; corrections in card 19 | 28.09.2026 | `docs/technical/reference/19-more-privacy.md` |
 | Tuning of preset defaults | Awaited from the customer | | `WinKickOff/tools/make_presets.py`, rule defaults |
