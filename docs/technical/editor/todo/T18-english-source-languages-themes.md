@@ -27,8 +27,8 @@ The customer's list of 29.09.2026:
   interface language (`GetUserDefaultUILanguage`), otherwise English; every gap (file, rule, field, string)
   falls back to English with a log line for a broken file. Search also matches the translated title, summary
   and tags.
-- `core/themes.py` and `resources/themes/{light,dark,matrix}.json`: `native` keeps the vista look and recolours
-  texts and marks, `clam` takes every colour (Dark and Matrix); missing or bad colours fall back to the light
+- `core/themes.py` and `resources/themes/{light,dark,latte,matrix}.json`: `native` keeps the vista look and recolours
+  texts and marks, `clam` takes every colour (Dark, Latte, Matrix); missing or bad colours fall back to the light
   palette, a broken file is skipped; `""` follows `AppsUseLightTheme` (read only). A dark theme also gets a dark
   title bar (`DwmSetWindowAttribute`, attribute 20, then 19 for older builds). Check box images are drawn in
   the theme colours. Menus "Language" and "Theme" start with "As in Windows"; the choice is stored in
@@ -45,6 +45,12 @@ The customer's list of 29.09.2026:
 
 ## Open points
 
-- The themes are checked by tests and by building the window; how Dark and Matrix look on the customer's
-  screens (contrast of the tree, the menus) is to be judged by the customer.
-- The native Windows menu bar keeps the system colours in every theme (tkinter cannot recolour it on Windows).
+- The themes are checked by tests and by screenshots of the window with an open menu; how they look on the
+  customer's screens is to be judged by the customer.
+
+30.09.2026, first bug report: the menu bar stayed white in every theme. Windows paints its native menu bar in
+system colours only, so coloured themes now get a row of menu buttons in the theme colours (Alt + underlined
+letter, F10), and `ui/winmenus.py` repaints the light 2 px margin around drop-down menus (WinEvent hook of this
+thread, `SetMenuInfo`); a 1 px grey outline drawn by Windows remains. Menus of the Matrix theme now use its
+font (on Windows menus take the system font unless `*Menu.font` is set). The same day the customer asked for
+a beige, coffee and milk theme: `latte.json`.

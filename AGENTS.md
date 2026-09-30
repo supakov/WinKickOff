@@ -70,13 +70,14 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
     │                              render, validate, verify, actions_parser, importer, pscheck, settings, i18n, themes,
     │                              apply),
     │                              ui/ (main_window: tree, search, description, parameters, profiles, build;
-    │                              data_forms: install, accounts, languages; checkimages: check box images)
+    │                              data_forms: install, accounts, languages; checkimages: check box images;
+    │                              winmenus: theme colours around drop-down menus)
     ├── rules/                     RULE CATALOG in English: groups.toml (36 groups), 00-16-*.toml (251 rules),
     │                              lang/ru.toml and lang/uk.toml (translations; a new file adds a language)
     ├── templates/                 runtime with slots: autounattend.template.xml, Setup-System, Setup-User, Post-OOBE,
     │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.4
     ├── resources/                 keyboards.json, timezones.json, strings.ru.json and strings.uk.json (interface
-    │                              translations), themes/ (light, dark, matrix colour themes)
+    │                              translations), themes/ (light, dark, latte, matrix colour themes)
     ├── profiles/                  presets Office (= catalog defaults), Strict, Laptop, memstechtips, README
     ├── tests/                     unittest: catalog, resolver, profile, render, build against v0.2, validation,
     │                              import, presets, PowerShell, settings, portability, window smoke test, docs,
@@ -258,7 +259,9 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
   `colors` (keys of `LIGHT_COLORS` in `core/themes.py`); a new file adds a theme. The setting `theme` `""`
   follows the Windows light or dark mode: `core/themes.py` is the only module allowed to read the registry
   (`AppsUseLightTheme`, read only), no module may write it. A language or theme change rebuilds the window
-  with the open profile.
+  with the open profile. Windows paints the native menu bar in system colours only: coloured themes (`clam`) get
+  a row of menu buttons, and `ui/winmenus.py` repaints the margin of drop-down menus through a WinEvent hook of
+  this thread; everything is per window and per process, system-wide calls are forbidden by `test_sources.py`.
 - T15 scripts: tests only generate and parse Apply, Undo and Audit scripts; `run_audit` is exercised with a harmless
   script and `launch_elevated` is always mocked. Never run an apply or an audit on the customer's PC from an agent.
 - Catalog 0.3: the country moved into the parameters of rule `default-user.region` (string `"241"`), the field
@@ -278,7 +281,7 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
 | Editor tasks | T01-T12, T14, T16-T18 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 30.09.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.4: 251 rules, 36 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer 15), Windows defaults for return, integrity and v0.2 coverage confirmed by tests | 28.09.2026 | `WinKickOff/rules/` |
-| Editor code | 1.0.0-rc.3: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Matrix, as in Windows) found from files; 206 tests | 30.09.2026 | `WinKickOff/` |
+| Editor code | 1.0.0-rc.3: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 206 tests | 30.09.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply (rules on are applied, rules off return to Windows defaults) and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 29.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |

@@ -56,12 +56,13 @@ from winkickoff.core.validate import Issue, has_errors, validate_catalog, valida
 from winkickoff.core.verify import rollback_steps, verify_steps
 from winkickoff.ui.checkimages import make_check_images
 from winkickoff.ui.data_forms import AccountsForm, InstallForm, LanguagesForm
+from winkickoff.ui.winmenus import MenuMargins
 
 log = logging.getLogger(__name__)
 
 WORKFLOW_NODE = "info:workflow"
 PRESET_NAMES = (N_("Office"), N_("Strict"), N_("Laptop"))  # preset names are English data; shown through tr()
-THEME_NAMES = (N_("Light"), N_("Dark"), N_("Matrix"))  # names of the bundled themes; shown through tr()
+THEME_NAMES = (N_("Light"), N_("Dark"), N_("Latte"), N_("Matrix"))  # names of the bundled themes; shown through tr()
 DATA_NODES: tuple[tuple[str, str], ...] = (
     ("data:install", N_("Installation: edition, key, time zone")),
     ("data:accounts", N_("Accounts")),
@@ -176,7 +177,7 @@ class MainWindow(tk.Tk):
         self.refresh_profile_choices()
         self.update_title()
         self.select_node(WORKFLOW_NODE)
-        self._dark_title_bar(self.theme.dark)
+        self._windows_dark_mode(self.theme.dark)
         self.set_status(tr("Rule catalog {0}: {1} rules in {2} groups. Profile: {3}.", catalog.version, len(catalog.rules), len(catalog.groups), tr(profile.name)))
 
     # ----------------------------------------------------------------- style and layout
@@ -195,6 +196,7 @@ class MainWindow(tk.Tk):
                     tkfont.nametofont(name).configure(family=self.theme.font)
                 except tk.TclError:
                     pass
+            self.option_add("*Menu.font", "TkMenuFont")  # on Windows menus take the system font, not TkMenuFont
         base = tkfont.nametofont("TkDefaultFont")
         family = base.actual("family")
         size = int(base.actual("size")) or 9
@@ -257,25 +259,98 @@ class MainWindow(tk.Tk):
                              insertbackground=c["field_foreground"] or c["foreground"],
                              selectbackground=c["select"] or c["field"], selectforeground=c["select_foreground"] or c["foreground"])
 
-    def _dark_title_bar(self, dark: bool) -> None:
-        """A dark title bar for dark themes (DwmSetWindowAttribute on this window only; Windows 10 20H1+)."""
-        if not dark or sys.platform != "win32":
+    def _windows_dark_mode(self, dark: bool) -> None:
+        """Dark window frame and menu frames for dark themes. Both calls affect only this program while it runs:
+        DwmSetWindowAttribute on this window, and the preferred app mode of this process, which makes Windows draw
+        the borders of drop-down menus dark (uxtheme ordinals 135 SetPreferredAppMode and 136 FlushMenuThemes,
+        undocumented but stable since Windows 10 1903). Nothing is written to the system."""
+        if sys.platform != "win32":
             return
         try:
             import ctypes
 
-            self.update_idletasks()
-            hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
-            value = ctypes.c_int(1)
-            for attribute in (20, 19):  # DWMWA_USE_IMMERSIVE_DARK_MODE; 19 on builds before 20H1
-                if ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, attribute, ctypes.byref(value), ctypes.sizeof(value)) == 0:
-                    break
+            if sys.getwindowsversion().build >= 18362:
+                uxtheme = ctypes.windll.uxtheme
+                uxtheme[135](2 if dark else 0)  # ForceDark or Default
+                uxtheme[136]()
+            if dark:
+                self.update_idletasks()
+                hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
+                value = ctypes.c_int(1)
+                for attribute in (20, 19):  # DWMWA_USE_IMMERSIVE_DARK_MODE; 19 on builds before 20H1
+                    if ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, attribute, ctypes.byref(value), ctypes.sizeof(value)) == 0:
+                        break
         except (AttributeError, OSError):
             pass
 
+    def _top_menu(self, label: str) -> tk.Menu:
+        """A menu of the menu bar. Windows draws its own menu bar in system colours only, so a coloured theme gets a
+        row of menu buttons instead; their drop-down menus are drawn by Tk in the theme colours either way."""
+        used = self._access_keys
+        starts = [i for i, ch in enumerate(label) if ch.isalpha() and (i == 0 or not label[i - 1].isalpha())]
+        order = starts + [i for i in range(len(label)) if i not in starts]  # first letters of words first
+        underline = next((i for i in order if label[i].isalpha() and label[i].lower() not in used), -1)
+        if underline >= 0:
+            used.add(label[underline].lower())  # Alt + this letter opens the menu
+        if isinstance(self.menu_bar, tk.Menu):
+            menu = tk.Menu(self.menu_bar, tearoff=False)
+            self.menu_bar.add_cascade(label=label, menu=menu, underline=underline)
+            return menu
+        c = self.theme.colors
+        button = tk.Menubutton(self.menu_bar, text=label, relief=tk.FLAT, borderwidth=0,
+                               highlightthickness=0, padx=8, pady=3, indicatoron=False,
+                               background=c["background"], foreground=c["foreground"],
+                               activebackground=c["select"] or c["button_active"] or c["background"],
+                               activeforeground=c["select_foreground"] or c["foreground"],
+                               disabledforeground=c["disabled"])
+        button.pack(side=tk.LEFT)
+        menu = tk.Menu(button, tearoff=False)  # Tk requires the menu of a menu button to be its child
+        button.configure(menu=menu)
+        self.menu_buttons.append(button)
+        self._menu_underlines.append(underline)
+        return menu
+
+    def _on_alt_key(self, event: tk.Event) -> str | None:  # type: ignore[type-arg]
+        """Alt + the underlined letter opens that menu; the Latin letter is also found by its key code, so it works
+        whichever keyboard layout is active."""
+        chars = {event.char.lower()} if event.char else set()
+        if 0x41 <= event.keycode <= 0x5A:
+            chars.add(chr(event.keycode).lower())
+        for button, underline in zip(self.menu_buttons, self._menu_underlines):
+            if underline >= 0 and button.cget("text")[underline].lower() in chars:
+                return self._post_menu(button)
+        return None
+
+    def _post_menu(self, button: tk.Menubutton) -> str:
+        self._show_access_keys(False)
+        self.tk.call("tk::MbPost", str(button))  # the same calls as Tk's own keyboard traversal
+        self.tk.call("tk::MenuFirstEntry", button.cget("menu"))
+        return "break"
+
+    def _show_access_keys(self, show: bool) -> None:
+        """Underline the access letters of the menu buttons while Alt is held, as Windows does in its menu bar."""
+        for button, underline in zip(self.menu_buttons, self._menu_underlines):
+            button.configure(underline=underline if show else -1)
+
     def _build_menu(self) -> None:
-        menubar = tk.Menu(self)
-        file_menu = tk.Menu(menubar, tearoff=False)
+        self._access_keys: set[str] = set()
+        self.menu_buttons: list[tk.Menubutton] = []
+        self._menu_underlines: list[int] = []
+        if self.theme.base == "native" or not self.color("background"):
+            self.menu_bar: tk.Menu | tk.Frame = tk.Menu(self, tearoff=False)
+            self.menu_margins = MenuMargins("")
+        else:
+            self.menu_bar = tk.Frame(self, background=self.color("background"))
+            self.menu_bar.pack(side=tk.TOP, fill=tk.X)
+            self.menu_margins = MenuMargins(self.color("background"))
+            for key in ("Alt_L", "Alt_R"):
+                self.bind(f"<KeyPress-{key}>", lambda _e: self._show_access_keys(True), add="+")
+                self.bind(f"<KeyRelease-{key}>", lambda _e: self._show_access_keys(False), add="+")
+            self.bind("<FocusOut>", lambda _e: self._show_access_keys(False), add="+")
+            # on Windows Tk binds Alt + letter and F10 only inside a focused menu button, so the window does it
+            self.bind("<Alt-KeyPress>", self._on_alt_key, add="+")
+            self.bind("<KeyPress-F10>", lambda e: self._post_menu(self.menu_buttons[0]) if self.menu_buttons else None, add="+")
+        file_menu = self._top_menu(tr("File"))
         presets = tk.Menu(file_menu, tearoff=False)
         for path in sorted((self.paths.data / "profiles").glob("preset-*.json")):
             presets.add_command(label=tr(_profile_name(path)), command=lambda p=path: self.load_profile_file(p))
@@ -291,45 +366,40 @@ class MainWindow(tk.Tk):
         file_menu.add_command(label=tr("Save profile as..."), command=self.save_profile_as)
         file_menu.add_separator()
         file_menu.add_command(label=tr("Exit"), command=self.on_close)
-        menubar.add_cascade(label=tr("File"), menu=file_menu)
-        build_menu = tk.Menu(menubar, tearoff=False)
+        build_menu = self._top_menu(tr("Build"))
         build_menu.add_command(label=tr("Check"), accelerator="F7", command=self.check)
         build_menu.add_command(label=tr("Build autounattend.xml..."), accelerator="F9", command=self.build)
         build_menu.add_command(label=tr("Open output folder"), command=self.open_output_folder)
         build_menu.add_separator()
         build_menu.add_command(label=tr("Check rule catalog"), command=self.check_catalog)
-        menubar.add_cascade(label=tr("Build"), menu=build_menu)
-        view_menu = tk.Menu(menubar, tearoff=False)
+        view_menu = self._top_menu(tr("Language"))
         # "" follows the Windows language; the others are every translation file found (native names, never translated)
         self.language_var = tk.StringVar(value=self.settings.language)
         view_menu.add_radiobutton(label=tr("As in Windows"), value="", variable=self.language_var, command=lambda: self.change_language(""))
         view_menu.add_separator()
         for code, name in available_languages(self.paths.resources, self.paths.rules).items():
             view_menu.add_radiobutton(label=name, value=code, variable=self.language_var, command=lambda c=code: self.change_language(c))
-        menubar.add_cascade(label=tr("Language"), menu=view_menu)
-        theme_menu = tk.Menu(menubar, tearoff=False)
+        theme_menu = self._top_menu(tr("Theme"))
         self.theme_var = tk.StringVar(value=self.settings.theme)
         theme_menu.add_radiobutton(label=tr("As in Windows"), value="", variable=self.theme_var, command=lambda: self.change_theme(""))
         theme_menu.add_separator()
         for theme_id, theme in available_themes(self.paths.resources).items():
             theme_menu.add_radiobutton(label=tr(theme.name), value=theme_id, variable=self.theme_var,
                                        command=lambda t=theme_id: self.change_theme(t))
-        menubar.add_cascade(label=tr("Theme"), menu=theme_menu)
-        self.pc_menu = tk.Menu(menubar, tearoff=False)
+        self.pc_menu = self._top_menu(tr("This PC"))
         self._fill_pc_menu(self.pc_menu)
         self.pc_menu.add_separator()
         self.allow_apply_var = tk.BooleanVar(value=self.settings.allow_apply)
         self.pc_menu.add_checkbutton(label=tr("Allow applying on this PC"), variable=self.allow_apply_var,
                                      command=self.toggle_allow_apply)
-        menubar.add_cascade(label=tr("This PC"), menu=self.pc_menu)
         self.tree_menu = tk.Menu(self, tearoff=False)
         self._fill_pc_menu(self.tree_menu)
-        help_menu = tk.Menu(menubar, tearoff=False)
+        help_menu = self._top_menu(tr("Help"))
         help_menu.add_command(label=tr("Workflow"), command=lambda: self.select_node(WORKFLOW_NODE))
         help_menu.add_command(label=tr("User documentation"), command=lambda: self.open_doc(user_docs(self.paths.docs_root)))
         help_menu.add_command(label=tr("About"), command=self.about)
-        menubar.add_cascade(label=tr("Help"), menu=help_menu)
-        self.config(menu=menubar)
+        if isinstance(self.menu_bar, tk.Menu):
+            self.config(menu=self.menu_bar)
 
     def _build_toolbar(self) -> None:
         bar = ttk.Frame(self, padding=(8, 6, 8, 4))
@@ -1687,6 +1757,12 @@ class MainWindow(tk.Tk):
         if self.confirm_discard():
             self.save_settings()
             self.destroy()
+
+    def destroy(self) -> None:
+        margins = getattr(self, "menu_margins", None)
+        if margins is not None:
+            margins.stop()  # the hook of this window ends with it (a language or theme change builds a new window)
+        super().destroy()
 
     def save_settings(self) -> None:
         if self.state() == "normal":

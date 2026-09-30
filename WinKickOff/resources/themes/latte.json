@@ -1,0 +1,30 @@
+{
+  "name": "Latte",
+  "base": "clam",
+  "dark": false,
+  "font": "",
+  "colors": {
+    "background": "#efe4d2",
+    "foreground": "#3e2c1f",
+    "field": "#fbf6ee",
+    "field_foreground": "#3e2c1f",
+    "select": "#8c5e3c",
+    "select_foreground": "#fff8ef",
+    "border": "#c8b394",
+    "button": "#e3d2b8",
+    "button_foreground": "#3e2c1f",
+    "button_active": "#d6bf9c",
+    "heading": "#e3d2b8",
+    "disabled": "#9d8a74",
+    "muted": "#76614d",
+    "link": "#8a4b1c",
+    "changed": "#6e3b16",
+    "error": "#a4262c",
+    "warning": "#8a5a00",
+    "risky": "#a33a2a",
+    "check_border": "#7a624a",
+    "check_on": "#8c5e3c",
+    "check_off": "#fbf6ee",
+    "check_mark": "#fff8ef"
+  }
+}

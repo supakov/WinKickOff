@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 from winkickoff.core import i18n, themes
@@ -22,7 +24,9 @@ ROOT = Path(__file__).resolve().parents[1]
 class ThemeFilesTest(unittest.TestCase):
     def test_bundled_themes(self) -> None:
         found = themes.available_themes(ROOT / "resources")
-        self.assertEqual(list(found), ["light", "dark", "matrix"])
+        self.assertEqual(list(found), ["light", "dark", "latte", "matrix"])
+        self.assertFalse(found["latte"].dark)
+        self.assertEqual(found["latte"].base, "clam")
         self.assertEqual(found["light"].base, "native")
         self.assertTrue(found["dark"].dark and found["matrix"].dark)
         self.assertEqual(found["matrix"].font, "Consolas")
@@ -75,7 +79,7 @@ class WindowThemeTest(unittest.TestCase):
             catalog = load_catalog(paths.rules, docs_root=paths.docs_root)
             resources = Resources.load(paths.resources)
             i18n.set_language("en", paths.resources, paths.rules)
-            for theme_id in ("light", "dark", "matrix"):
+            for theme_id in ("light", "dark", "latte", "matrix"):
                 with self.subTest(theme=theme_id):
                     profile, _ = Profile.load(ROOT / "profiles" / "preset-office.json", catalog)
                     win = MainWindow(paths, catalog, profile, resources, Settings(language="en", theme=theme_id))
@@ -85,13 +89,47 @@ class WindowThemeTest(unittest.TestCase):
                         field = win.theme.colors["field"]
                         if field:
                             self.assertEqual(str(win.detail.cget("background")).lower(), field.lower())
+                        self._check_menu_bar(win)
+                        margins = win.menu_margins
                         win.change_theme("dark" if theme_id != "dark" else "light")
                         self.assertIsNotNone(win.restart_state)
+                        self.assertFalse(margins.active)  # the menu hook ends with the window
                     finally:
                         try:
                             win.destroy()
                         except tk.TclError:
                             pass
+
+    def _check_menu_bar(self, win: object) -> None:
+        """Light keeps the Windows menu bar; a coloured theme draws its own, since Windows paints its menu bar in
+        system colours only. Alt + an underlined letter opens a menu whatever the keyboard layout."""
+        labels = ["File", "Build", "Language", "Theme", "This PC", "Help"]
+        if win.theme.base == "native":  # type: ignore[attr-defined]
+            bar = win.nametowidget(win.cget("menu"))  # type: ignore[attr-defined]
+            cascades = [i for i in range(bar.index("end") + 1) if bar.type(i) == "cascade"]
+            self.assertEqual([bar.entrycget(i, "label") for i in cascades], labels)
+            self.assertEqual([int(bar.entrycget(i, "underline")) for i in cascades], [0, 0, 0, 0, 5, 0])
+            self.assertEqual(win.menu_buttons, [])  # type: ignore[attr-defined]
+            return
+        self.assertEqual(win.cget("menu"), "")  # type: ignore[attr-defined]
+        buttons = win.menu_buttons  # type: ignore[attr-defined]
+        self.assertEqual([b.cget("text") for b in buttons], labels)
+        colors = win.theme.colors  # type: ignore[attr-defined]
+        for button in buttons:
+            self.assertEqual(str(button.cget("background")).lower(), colors["background"].lower())
+            self.assertEqual(str(button.cget("foreground")).lower(), colors["foreground"].lower())
+            self.assertEqual(int(button.cget("underline")), -1)  # letters are underlined only while Alt is held
+        win._show_access_keys(True)  # type: ignore[attr-defined]
+        self.assertEqual([int(b.cget("underline")) for b in buttons], [0, 0, 0, 0, 5, 0])
+        win._show_access_keys(False)  # type: ignore[attr-defined]
+        if sys.platform == "win32":
+            self.assertTrue(win.menu_margins.active)  # type: ignore[attr-defined]
+        with mock.patch.object(win, "_post_menu", return_value="break") as post:
+            self.assertEqual(win._on_alt_key(SimpleNamespace(char="", keycode=0x48)), "break")  # type: ignore[attr-defined]
+            post.assert_called_with(buttons[5])  # H: Help, by key code (another layout active)
+            win._on_alt_key(SimpleNamespace(char="p", keycode=0x50))  # type: ignore[attr-defined]
+            post.assert_called_with(buttons[4])  # P: This PC
+            self.assertIsNone(win._on_alt_key(SimpleNamespace(char="q", keycode=0x51)))  # type: ignore[attr-defined]
 
 
 if __name__ == "__main__":

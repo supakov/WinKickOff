@@ -94,7 +94,7 @@ English is the source language of the code, the interface and the catalog. A tra
 `rules/lang/<code>.toml` (rule, parameter, option and group texts, extra search tags, `_language`). Either file
 alone adds the language to the "Language" menu; anything missing is shown in English. Bundled: `ru`, `uk`.
 A colour theme is `resources/themes/<id>.json` (`name`, `base` `native` or `clam`, `dark`, `font`, `colors`);
-bundled: `light`, `dark`, `matrix`. The empty setting (the menu item "As in Windows") follows the Windows
+bundled: `light`, `dark`, `latte`, `matrix`. The empty setting (the menu item "As in Windows") follows the Windows
 interface language and the Windows light or dark mode. Details: `../docs/technical/editor/03-data-model.md`,
 section 3.
 

@@ -15,6 +15,8 @@ FORBIDDEN = (
     re.compile(r"APPDATA|PROGRAMDATA|LOCALAPPDATA"),
     re.compile(r"\bwinreg\.(SetValue|SetValueEx|CreateKey|CreateKeyEx|DeleteKey|DeleteKeyEx|DeleteValue|SaveKey|LoadKey)\b"),
     re.compile(r"\bimport (requests|urllib|http\.client|socket)\b"),
+    # system-wide appearance: colours, parameters and hooks outside this program (themes stay inside the window)
+    re.compile(r"\b(SetSysColors|SystemParametersInfo\w*|SetWindowsHookEx\w*|RegSetValue\w*|RegCreateKey\w*)\b"),
 )
 # the only module that may read the registry: themes.py reads the Windows light or dark mode, nothing else
 REGISTRY_READERS = {"themes.py"}

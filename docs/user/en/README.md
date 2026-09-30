@@ -31,7 +31,8 @@ python -m winkickoff
 The main language of the program is English; the Russian and Ukrainian translations are separate files, and
 the program finds every available language by itself. By default it uses the Windows language when there is a
 translation for it, otherwise English. The language is changed in the "Language" menu, the colour scheme in
-the "Theme" menu: "As in Windows" (light or dark, as set in Windows), "Light", "Dark" and the playful "Matrix".
+the "Theme" menu: "As in Windows" (light or dark, as set in Windows), "Light", "Dark", the beige and coffee
+"Latte" and the playful "Matrix".
 The program remembers the choice and keeps the open profile when switching.
 
 Adding a language needs no change to the program: a file `strings.<code>.json` in the `resources` folder (for

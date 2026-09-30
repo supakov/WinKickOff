@@ -53,7 +53,7 @@ WinKickOff/
     VERSION                        catalog and runtime version (0.3)
   resources/
     strings.<code>.json                interface translations keyed by the English text (ru, uk)
-    themes/<id>.json                   colour themes (light, dark, matrix)
+    themes/<id>.json                   colour themes (light, dark, latte, matrix)
     keyboards.json, timezones.json     reference data
   profiles/
     preset-office.json, preset-strict.json

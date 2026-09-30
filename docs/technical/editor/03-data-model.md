@@ -174,9 +174,15 @@ open profile, including unsaved changes.
 `base` is the ttk theme (`native` keeps the Windows look and only recolours texts, `clam` takes every colour),
 `dark` gives the window a dark title bar, `font` optionally replaces the font family. Missing colours come
 from the built-in light palette (`core/themes.py` `LIGHT_COLORS`), bad values are ignored with a log line, a
-broken file is skipped. Bundled: `light` (the previous look), `dark`, `matrix`. The setting `theme` in
+broken file is skipped. Bundled: `light` (the previous look), `dark`, `latte`, `matrix`. The setting `theme` in
 `settings.json`: `""` follows Windows (read-only `AppsUseLightTheme`), otherwise a theme id. The window is
 rebuilt on a change, like for the language.
+
+Windows paints its own menu bar in system colours only, so a theme with `base = "clam"` gets a row of menu
+buttons in the theme colours instead (access letters underlined while Alt is held, Alt + letter and F10 open
+the menus); the drop-down menus are drawn by Tk in the theme colours, and `ui/winmenus.py` repaints the 2 px
+margin Windows leaves around them (a WinEvent hook of this thread, `SetMenuInfo` `MIM_BACKGROUND`). Nothing
+outside the program changes; `tests/test_sources.py` forbids system-wide calls such as `SetSysColors`.
 
 ## 4. Profile: `profiles/<имя>.json`
 
