@@ -184,7 +184,7 @@ the menus); the drop-down menus are drawn by Tk in the theme colours, and `ui/wi
 margin Windows leaves around them (a WinEvent hook of this thread, `SetMenuInfo` `MIM_BACKGROUND`). Nothing
 outside the program changes; `tests/test_sources.py` forbids system-wide calls such as `SetSysColors`.
 
-## 4. Profile: `profiles/<имя>.json`
+## 4. Profile: `profiles/<name>.json`
 
 ```json
 {

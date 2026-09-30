@@ -59,7 +59,7 @@ while keeping sharing functional.
   which any host on the network can answer, including an attacker.
 - Expected effect: Responder-class tools stop receiving hashes from these PCs through LLMNR.
 - Cross-links: name resolution for workgroup computers keeps working through NetBIOS
-  (left enabled, see below) and mDNS (Windows 10 1703+, answers `имя.local`). If NetBIOS is
+  (left enabled, see below) and mDNS (Windows 10 1703+, answers `name.local`). If NetBIOS is
   turned off as well, only mDNS and the router's DNS remain.
 - Version differences: the policy exists since Windows Vista. In Windows 11 24H2 Microsoft declared LLMNR deprecated
   in favor of mDNS; disabling it follows that direction.
@@ -87,7 +87,7 @@ while keeping sharing functional.
 
 - Value: `$true`.
 - What it does: for each profile `DomainProfile`, `PrivateProfile`, `PublicProfile` in
-  `HKLM\SOFTWARE\Policies\Microsoft\WindowsFirewall\<профиль>`:
+  `HKLM\SOFTWARE\Policies\Microsoft\WindowsFirewall\<profile>`:
   - `EnableFirewall = 1`;
   - `DefaultInboundAction = 1` (block inbound connections not allowed by rules);
   - `DefaultOutboundAction = 0` (outbound connections are allowed);

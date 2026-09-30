@@ -134,12 +134,12 @@ when LSA protection is enabled.
   $p.AttackSurfaceReductionRules_Ids | % { "$_ = " + $p.AttackSurfaceReductionRules_Actions[[array]::IndexOf($p.AttackSurfaceReductionRules_Ids,$_)] }
   ```
 - Rollback: delete `Def\...\ASR\Rules\<GUID>` for a specific rule, or the whole `ASR` key.
-  Exclusions for individual files: `Add-MpPreference -AttackSurfaceReductionOnlyExclusions <путь>`.
+  Exclusions for individual files: `Add-MpPreference -AttackSurfaceReductionOnlyExclusions <path>`.
 
 ## ControlledFolderAccess
 
 - Value: `0` (off). Allowed: `1` block, `2` audit.
-- What it does: `Def\Windows Defender Exploit Guard\Controlled Folder Access\EnableControlledFolderAccess = <значение>`.
+- What it does: `Def\Windows Defender Exploit Guard\Controlled Folder Access\EnableControlledFolderAccess = <value>`.
 - Expected effect with 1: writing to Documents, Pictures, Desktop and other protected folders
   is allowed only to applications on the Microsoft trusted list or added manually. Ransomware
   launched by the user cannot damage the documents.

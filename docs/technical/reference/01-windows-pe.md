@@ -41,7 +41,7 @@ there is no 32-bit Windows 11.
 
 ## Compatibility check bypass (LabConfig)
 
-Five `reg.exe add "HKLM\SYSTEM\Setup\LabConfig" /v <имя> /t REG_DWORD /d 1 /f` commands,
+Five `reg.exe add "HKLM\SYSTEM\Setup\LabConfig" /v <name> /t REG_DWORD /d 1 /f` commands,
 run in WinPE before copying starts.
 
 | Order | Value | What it disables |

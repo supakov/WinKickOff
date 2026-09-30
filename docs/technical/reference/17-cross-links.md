@@ -36,7 +36,7 @@
 | DisableSMB1 | none | old MFPs and NAS | SMB1-only devices |
 | RequireSMBSigning | none | old MFPs and NAS, NTLM relay | devices without SMB2 signing |
 | DisableLLMNR | NetBIOS or mDNS for names | responder attacks | none |
-| DisableNetBIOS (off) | mDNS, DNS | when enabled: `\\ИМЯ` without DNS | old shortcuts to shared folders |
+| DisableNetBIOS (off) | mDNS, DNS | when enabled: `\\NAME` without DNS | old shortcuts to shared folders |
 | FirewallOnWithLogging | network profile | inbound by default, log | file sharing requires the private profile (not set) |
 | DisableAutoRun | none | USB flash drives, discs, phones | none |
 | ScriptFilesOpenInNotepad | not overridden by HKCU | .js/.vbs/.hta on double-click | installers that launch .vbs through the shell |

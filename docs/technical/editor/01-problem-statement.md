@@ -16,7 +16,7 @@ Give the administrator of a small organization a tool that:
 6. runs from a flash drive on any Windows PC without installation and without administrator rights.
 
 Outcome: changing the organization's policy means editing a profile in the tree, not editing PowerShell code;
-the v0.2 file becomes one of the profiles ("Office") rather than the only template.
+the v0.2 file becomes a profile (the base of "Office") rather than the only template.
 
 ## 2. Users and scenarios
 
@@ -28,7 +28,7 @@ the v0.2 file becomes one of the profiles ("Office") rather than the only templa
 
 Scenarios:
 
-1. New profile from the "Office" preset (equal to v0.2) or from "Strict".
+1. New profile from the "Office" preset (the catalog defaults: v0.2 with the later changes) or from "Strict".
 2. Find a rule by any word (title, tag, registry key), disable it with one click, see
    in the status bar what was disabled along with it.
 3. Change a rule parameter (for example, minutes until lock) in the description panel.
@@ -55,8 +55,9 @@ Scenarios:
 - The catalog is consistent: identifiers are unique, `requires` and `conflicts` point to existing
   rules, there are no cycles, groups exist, each action has a valid type and the required fields,
   each rule has a summary, an effect and a reference link. This is verified by a test and by the "Check rule catalog" command.
-- Coverage: with the "Office" preset, the set of catalog actions includes every action of the v0.2 file
-  with the same values (semantic golden).
+- Coverage: with the v0.2 reference profile (the catalog defaults with the differences listed in
+  `tests/v02_actions.py`), the set of catalog actions includes every action of the v0.2 file with the same
+  values (semantic golden).
 
 ### 3.2 Dependencies
 
@@ -159,7 +160,7 @@ Scenarios:
 ## 6. Acceptance criteria
 
 1. The rule catalog passes the integrity verification; semantic golden: each v0.2 action
-   is present in the catalog with the same value under the "Office" preset.
+   is present in the catalog with the same value under the v0.2 reference profile.
 2. Disabling any rule in the interface disables all dependent rules; enabling one enables the required ones;
    tests on the resolver and a UI smoke test.
 3. A file built from the "Office" preset passes `tools/Validate-Unattend.ps1` and contains exactly

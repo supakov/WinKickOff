@@ -31,7 +31,7 @@ runs malicious code: a USB flash drive, a script attachment, a downloaded file.
   the default value of the key `HKLM\SOFTWARE\Classes\<ProgId>\Shell\Open\Command` is replaced with
   `"%SystemRoot%\System32\notepad.exe" "%1"` (type REG_EXPAND_SZ).
 - Expected effect: double-clicking a `.js`, `.jse`, `.vbs`, `.vbe`, `.wsf`, `.wsh`, `.hta` file
-  (including one disguised as a document: `счёт.pdf.js`) opens its text in Notepad instead of
+  (including one disguised as a document: `invoice.pdf.js`) opens its text in Notepad instead of
   running it. This closes the classic "archive with a script inside" phishing scenario.
 - Cross-links:
   - `cscript.exe file.vbs`, `wscript.exe file.vbs`, `mshta.exe file.hta` from the command line and from

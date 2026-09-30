@@ -15,7 +15,7 @@ command line, under which user, what PowerShell did. Out of the box Windows logs
      accepts only localized names; GUIDs do not depend on the language.
   3. `auditpol.exe /set /subcategory:{0CCE922C-...} /success:disable /failure:disable`: process
      termination is not logged (noise).
-  4. `wevtutil.exe sl <журнал> /ms:<байты>`: log sizes: Security 256 MB, System 64 MB,
+  4. `wevtutil.exe sl <log> /ms:<bytes>`: log sizes: Security 256 MB, System 64 MB,
      Application 64 MB, `Microsoft-Windows-PowerShell/Operational` 128 MB (defaults 20 MB and 15 MB).
 
 | GUID | Subcategory | What it provides |

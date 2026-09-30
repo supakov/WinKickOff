@@ -9,7 +9,7 @@ state of the machine: tests read project files and write only to the test's temp
 | Level | What it verifies | Where it runs |
 |---|---|---|
 | Catalog | Integrity of `rules/*.toml`: unique ids, existing groups and dependencies, no cycles, valid action types and required fields, filled-in descriptions, links to existing reference files | Everywhere |
-| Semantic golden | Each action of the v0.2 file is present in the catalog under the "Office" preset with the same value | Everywhere |
+| Semantic golden | Each action of the v0.2 file is present in the catalog under the v0.2 reference profile with the same value | Everywhere |
 | Resolver | Disable and enable cascade, conflicts, group operations, application order | Everywhere |
 | Profile | Loading, saving, completeness, migration, `unknown`, comparison | Everywhere |
 | Generator | Determinism; only enabled rules in the output; correct order; parameter substitution; escaping; 259 limit; well-formed XML | Everywhere |
@@ -26,8 +26,9 @@ state of the machine: tests read project files and write only to the test's temp
    `Invoke-Exe` and reduces them to tuples `("reg", path, name, kind, value)`, `("reg-remove", path, name)`,
    `("service", name, start)`, `("exe", file, args)`. The values of `$Config.X` and `$du` are substituted
    with the known v0.2 defaults.
-2. The catalog with the "Office" preset is expanded into the same kind of tuple set (default parameters,
-   `DU:` is replaced the same way).
+2. The catalog with the v0.2 reference profile (`reference_profile()`: the catalog defaults with
+   `V02_DIFFERENCES` and `V02_PARAMS`, because the defaults have moved on since 26.09.2026) is expanded into
+   the same kind of tuple set (`DU:` is replaced the same way).
 3. Assertion: the v0.2 set is a subset of the catalog set; each missing item is reported
    together with the expected rule. Actions of type `ps` are compared by normalized text
    for known fragments (NetFx3, SMB1, apps, profile hive, Post-OOBE task).
@@ -81,8 +82,8 @@ a warning with the risk text.
 ### core/importer.py
 
 - Importing XML with an embedded profile returns an equal profile.
-- Importing a v0.2 file without an embedded profile yields a profile equal to the "Office" preset in its rules
-  (via action matching); unmatched actions are listed.
+- Importing a v0.2 file without an embedded profile yields a profile equal to the v0.2 reference profile in its
+  rules (via action matching); unmatched actions are listed.
 
 ### core/pscheck.py
 

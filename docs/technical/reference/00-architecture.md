@@ -54,7 +54,7 @@ whether the user can change it and how to roll it back.
 | Registry policy (`Policies\...`) | `Set-Reg -Path "$Pol\..."` | Immediately or after a reboot, like a GPO | No: the item is greyed out, labelled «управляется организацией» (managed by your organization) | Delete the value |
 | Ordinary HKLM registry value | `Set-Reg -Path 'HKLM:\SYSTEM\...'` | Usually after a reboot | Yes, if the UI has an item for it | Restore the default value |
 | Value in the default profile (DU) | `Set-Reg -Path "$du\..."` | When each new profile is created | Yes, it is the user's personal setting | Change it in HKCU or in the Default hive |
-| Service startup type | `Set-ServiceStart` (writes `Start` to the registry) | After a reboot | Yes, via services.msc | `sc config <имя> start= <тип>` |
+| Service startup type | `Set-ServiceStart` (writes `Start` to the registry) | After a reboot | Yes, via services.msc | `sc config <name> start= <type>` |
 | Command-line utilities | `Invoke-Exe 'auditpol.exe' ...`, `net.exe`, `wevtutil.exe`, `schtasks.exe`, `dism.exe` | Immediately | Depends on the utility | The reverse command |
 | DISM and Appx cmdlets | `Disable-WindowsOptionalFeature`, `Remove-WindowsCapability`, `Remove-AppxProvisionedPackage` | Immediately (some after a reboot) | Via «Дополнительные компоненты» (Optional features) and the Store | Install it back |
 | Active Setup | Key `HKLM\...\Active Setup\Installed Components\{GUID}` | Once, at each user's first sign-in | No | Delete the key (new users), delete the HKCU copy (to run again) |
@@ -74,7 +74,7 @@ are listed in the cards.
 | `C:\ProgramData\Unattend\Scripts\Post-OOBE.task.xml` | Scheduled task definition | Same |
 | `C:\ProgramData\Unattend\config.json` | Snapshot of `$Config` for Post-OOBE.ps1 and for auditing | Same |
 | `C:\ProgramData\Unattend\Logs\Setup-System.log` | Machine log: every registry write with an OK/WARN/ERROR result | Same |
-| `C:\ProgramData\Unattend\Logs\Setup-User.<имя>.log` | First sign-in log, one file per user | Same |
+| `C:\ProgramData\Unattend\Logs\Setup-User.<name>.log` | First sign-in log, one file per user | Same |
 | `C:\ProgramData\Unattend\Logs\Post-OOBE.log` | Cleanup log, including errors carried over from specialize | Same |
 | `C:\Windows\Temp\ua.err` | Temporary error file of the specialize wrappers; deleted by Post-OOBE.ps1 | until cleanup |
 | `C:\Windows\Panther\unattend.xml`, `unattend-original.xml` | Copies of the answer file left by Setup; deleted by Post-OOBE.ps1 | until cleanup |

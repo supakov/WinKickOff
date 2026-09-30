@@ -82,4 +82,4 @@ Component `Microsoft-Windows-Shell-Setup` in specialize.
   events with the wrong time are hard to correlate during an investigation.
 - Version differences: the identifier is the same in all versions; list: `tzutil /l`.
 - Verification: `tzutil /g`.
-- Rollback: `tzutil /s "<другой пояс>"`.
+- Rollback: `tzutil /s "<other time zone>"`.

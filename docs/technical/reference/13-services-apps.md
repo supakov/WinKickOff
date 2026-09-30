@@ -20,7 +20,7 @@ The `RetailDemo` service (retail store demo mode) gets startup type 4. It is nee
   on triggers. Store games that use Xbox Live do not work: acceptable on work PCs.
 - Version differences: `XboxGipSvc` since Windows 10 1709. No changes in 24H2.
 - Verification: `Get-Service Xbl*, XboxNetApiSvc, XboxGipSvc | Select Name, StartType` → Disabled.
-- Rollback: `Set-Service <имя> -StartupType Manual`; delete `AllowGameDVR`.
+- Rollback: `Set-Service <name> -StartupType Manual`; delete `AllowGameDVR`.
 
 Known inconsistency in version 0.2: `MapsBroker` (downloading offline maps for the «Карты» (Maps) app)
 is disabled inside the `RemoveBloatApps` condition when `RemoveXboxServices = $true`, although logically

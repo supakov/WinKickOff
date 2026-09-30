@@ -22,7 +22,7 @@ The notation `DU` = `HKU\UnattendDefault` (after sign-in: `HKCU`).
 
 | Key (relative to DU) | Value | Effect | Version differences |
 |---|---|---|---|
-| `Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\HideFileExt` | 0 | File extensions are visible: `счёт.pdf.exe` will not pass itself off as a PDF. The main security setting of this section | All versions; default is 1 |
+| `Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\HideFileExt` | 0 | File extensions are visible: `invoice.pdf.exe` will not pass itself off as a PDF. The main security setting of this section | All versions; default is 1 |
 | `...\Explorer\Advanced\ShowSyncProviderNotifications` | 0 | No OneDrive and Microsoft 365 advertising in File Explorer | Win10 1607+ |
 | `Control Panel\International\Geo\Nation` | 241 | Region "Ukraine" (GeoID) | All |
 | `Control Panel\International\Geo\Name` | UA | Same, two-letter code (Windows 10 1803+ reads it first) | 1803+ |

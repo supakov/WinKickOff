@@ -54,7 +54,7 @@ is skipped only if all four are set; otherwise OOBE asks for whatever is missing
 ### UserLocale
 
 - Value: `uk-UA`.
-- What it does: the regional format: dates `дд.мм.рррр`, 24-hour time, comma as the decimal separator,
+- What it does: the regional format: dates `dd.MM.yyyy`, 24-hour time, comma as the decimal separator,
   currency ₴, Monday as the first day of the week.
 - Expected effect: Excel, accounting programs and File Explorer show dates and numbers in the Ukrainian format.
 - Cross-links: the region (country) is set separately in the default profile (`Geo\Nation=241`, section 14).

@@ -1,9 +1,9 @@
 """Documentation of the repository: languages, structure, generated rule lists, links, dashes.
 
-- docs/technical is English: Cyrillic only inside «UI names», inline code and fenced code;
+- docs/technical is English: Cyrillic only inside «quoted names» (Windows labels, data), inline code and fenced code;
 - docs/user/{ru,uk,en} have the same files with the same headings structure;
 - docs/user/<lang>/rules.md equals what tools/make_rule_docs.py generates now;
-- the catalog translations rules/lang/{uk,en}.toml are complete;
+- the catalog translations rules/lang/{ru,uk}.toml are complete (English is the source);
 - every relative Markdown link resolves, including #anchors;
 - no em or en dash anywhere in our texts.
 """

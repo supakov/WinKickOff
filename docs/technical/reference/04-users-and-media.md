@@ -25,7 +25,7 @@ The `$Config` section in `Setup-System.ps1`, groups "Users" and "Installation me
 - What it does:
   1. `net.exe accounts /maxpwage:unlimited`: the maximum password age for all local
      accounts is removed (the default is 42 days).
-  2. `Set-LocalUser -Name <имя> -PasswordNeverExpires $true`: the «Срок действия пароля не ограничен»
+  2. `Set-LocalUser -Name <name> -PasswordNeverExpires $true`: the «Срок действия пароля не ограничен»
      (Password never expires) flag on the Admin and User accounts themselves.
 - Expected effect: Windows will never show "Your password has expired and must be changed". For empty
   passwords this is critical: a non-professional user will not understand what is being asked of them.
@@ -47,7 +47,7 @@ The `$Config` section in `Setup-System.ps1`, groups "Users" and "Installation me
 - Where applied: `Setup-System.ps1` section 0, specialize, SYSTEM.
 - What it does: goes through all ready drives looking for a `sources\sxs` folder with `.cab` files inside (the installation
   media: USB, DVD, an ISO mounted by Ventoy). If found:
-  `dism.exe /Online /Enable-Feature /FeatureName:NetFx3 /All /LimitAccess /Source:<путь> /NoRestart /Quiet`.
+  `dism.exe /Online /Enable-Feature /FeatureName:NetFx3 /All /LimitAccess /Source:<path> /NoRestart /Quiet`.
   If not found: a WARN is written to the log and the feature is not enabled.
 - Expected effect: .NET Framework 3.5 (including 2.0 and 3.0) is available right after installation without
   internet access. It is needed by old accounting software, bank client applications and old versions of digital signature key drivers.

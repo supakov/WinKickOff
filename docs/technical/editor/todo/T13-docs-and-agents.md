@@ -16,7 +16,7 @@ User instructions in the build, an up-to-date project map, an acceptance install
    the installation media, what to verify after installation (link to the checklist in the root README), where the logs are,
    limitations (plain-text passwords, SmartScreen on the exe).
 2. Update `docs/technical/editor/README.md` and the root `AGENTS.md` (structure, commands, status).
-3. Acceptance installation in a VM with a file from the build; report `docs/04-acceptance-<дата>.md`.
+3. Acceptance installation in a VM with a file from the build; report `docs/04-acceptance-<date>.md`.
 
 ## Acceptance criteria
 

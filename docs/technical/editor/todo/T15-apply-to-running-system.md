@@ -44,7 +44,7 @@ Tests never apply anything; functional verification is done only in a virtual ma
    rights are not required. In the window: "Check the selection on this PC" for a rule or a branch, the result shown in the tree
    as icons and in the list at the bottom.
 3. Apply script `Apply-*.ps1`: the `Setup-System.runtime.ps1` runtime in apply mode
-   (`Set-Reg`, `Remove-Reg`, `Set-ServiceStart` write the previous value to `backup-<время>.json`
+   (`Set-Reg`, `Remove-Reg`, `Set-ServiceStart` write the previous value to `backup-<time>.json`
    before the change), only the blocks from the plan, a log in a folder next to the script, `exit 0` as in the installation.
 4. Rollback script `Undo-Apply.ps1`: restoring from a `backup-*.json` file; a fixed runtime
    in `templates/`, without rule logic.

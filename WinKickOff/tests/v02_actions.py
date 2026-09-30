@@ -6,7 +6,7 @@ The semantic golden tests compare normalised action tuples: every registry write
 service start type, command, component and app of Setup-System.ps1 v0.2 must be present in the
 catalog with the same value. The parser itself lives in the application (the importer uses it).
 
-v0.2 is frozen, the catalog defaults (and so the «Офис» (Office) preset) move on. reference_profile()
+v0.2 is frozen, the catalog defaults (and so the "Office" preset) move on. reference_profile()
 restores v0.2 from the defaults: V02_DIFFERENCES lists every rule whose default differs from v0.2.
 A new rule that is on by default must be added here as off, otherwise the import and coverage tests fail.
 """
@@ -24,7 +24,7 @@ V02 = REPO / "docs" / "appendices" / "B-autounattend-v0.2" / "autounattend.xml"
 
 # rule id -> state in v0.2, for every rule whose catalog default differs from v0.2
 V02_DIFFERENCES: dict[str, bool] = {
-    # 26.09.2026, commit d33fc41: the «Офис» (Office) preset chosen in the repository
+    # 26.09.2026, commit d33fc41: the "Office" preset chosen in the repository
     "update.other-microsoft-products": True,
     "asr.usb-untrusted": True,
     **{rule_id: False for rule_id in (

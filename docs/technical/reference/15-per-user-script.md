@@ -25,12 +25,12 @@ Section 11 of `Setup-System.ps1` registers the mechanism; the script itself is e
   at their next sign-in (a way to deliver a new version of the settings).
 - Version differences: none.
 - Verification: `Get-ItemProperty 'HKCU:\Software\Microsoft\Active Setup\Installed Components\{7A6C3F5E-2B1D-4C8E-9F0A-5D3E6B7C8D91}'`
-  after sign-in; log `C:\ProgramData\Unattend\Logs\Setup-User.<имя>.log`.
+  after sign-in; log `C:\ProgramData\Unattend\Logs\Setup-User.<name>.log`.
 - Rollback: delete the key in HKLM (new users will not get it); delete the copy in HKCU (to run it again).
 
 ## What Setup-User.ps1 does
 
-Log: `C:\ProgramData\Unattend\Logs\Setup-User.<имя пользователя>.log`. A separate file for each user,
+Log: `C:\ProgramData\Unattend\Logs\Setup-User.<user name>.log`. A separate file for each user,
 because a file created in ProgramData by the first user does not give write access to the second one.
 
 ### Step 1. Pinning the display language
