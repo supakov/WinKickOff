@@ -481,5 +481,10 @@
  "Forward": "Вперед",
  "Alt+Left, Alt+Right": "Alt+Ліворуч, Alt+Праворуч",
  "Shown in the imported trees: {0}; one check mark for all of them": "Показується в імпортованих деревах: {0}; позначка в усіх спільна",
- "Rename...": "Перейменувати..."
+ "Rename...": "Перейменувати...",
+ "set by the built-in rule \"{}\"": "задано вбудованим правилом «{}»",
+ "Set by the built-in rule \"{0}\", which is on: this check mark follows it, and the policy is not written separately.": "Задано вбудованим правилом «{0}», воно увімкнене: позначка тут іде за ним, окремо політика не записується.",
+ "This policy is set by the built-in rule \"{0}\", which also sets other values. Switch the built-in rule off?": "Цю політику задає вбудоване правило «{0}», яке задає й інші значення. Вимкнути вбудоване правило?",
+ "The built-in rule \"{0}\" sets the same: checking this policy switches that rule on.": "Вбудоване правило «{0}» задає те саме: позначка цієї політики вмикає це правило.",
+ "The values come from the built-in rule while it is on; to set them separately, switch that rule off.": "Поки вбудоване правило увімкнене, значення беруться з нього; щоб задати їх окремо, вимкніть це правило."
 }

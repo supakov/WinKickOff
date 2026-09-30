@@ -57,7 +57,20 @@ mostly in English.
 
 When a policy writes the same registry value as a built-in rule, its description has a section "Built into the
 catalog" with a link to that rule, and the built-in rule has a section "Also in imported templates". Prefer the
-built-in rule: it is reviewed and documented. When both are on, the check warns about it.
+built-in rule: it is reviewed and documented.
+
+When a built-in rule is on and writes everything the policy writes (with some value of the policy), the check mark
+of the policy follows that rule: the policy is shown checked (in the link colour), its description says "Set by
+the built-in rule", and it is not written into the answer file separately. Its parameters come from the built-in
+rule meanwhile.
+
+- When the policy writes exactly what the built-in rule writes, it is one setting: the check mark of the policy
+  switches the built-in rule itself on and off.
+- When the policy sets only part of the values of the built-in rule, unchecking the policy asks whether to switch
+  the whole built-in rule off.
+- When the policy was switched on by itself and then the built-in rule that writes the same is switched on, the
+  policy's own check mark goes off by itself, so that the value is not written twice; the messages at the bottom
+  show it.
 
 ## What is not imported
 

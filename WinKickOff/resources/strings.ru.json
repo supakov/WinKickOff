@@ -481,5 +481,10 @@
  "Forward": "Вперёд",
  "Alt+Left, Alt+Right": "Alt+Влево, Alt+Вправо",
  "Shown in the imported trees: {0}; one check mark for all of them": "Показывается в импортированных деревьях: {0}; галка у всех общая",
- "Rename...": "Переименовать..."
+ "Rename...": "Переименовать...",
+ "set by the built-in rule \"{}\"": "задано встроенным правилом «{}»",
+ "Set by the built-in rule \"{0}\", which is on: this check mark follows it, and the policy is not written separately.": "Задано встроенным правилом «{0}», оно включено: галка здесь следует за ним, отдельно политика не записывается.",
+ "This policy is set by the built-in rule \"{0}\", which also sets other values. Switch the built-in rule off?": "Эту политику задаёт встроенное правило «{0}», которое задаёт и другие значения. Выключить встроенное правило?",
+ "The built-in rule \"{0}\" sets the same: checking this policy switches that rule on.": "Встроенное правило «{0}» задаёт то же самое: галка у этой политики включает это правило.",
+ "The values come from the built-in rule while it is on; to set them separately, switch that rule off.": "Пока встроенное правило включено, значения берутся из него; чтобы задать их отдельно, выключите это правило."
 }

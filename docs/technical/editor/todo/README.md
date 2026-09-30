@@ -28,6 +28,7 @@ Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in t
 | [T18](T18-english-source-languages-themes.md) | English source language; languages and colour themes as files | 6 | T14 | done (English code and catalog, ru and uk files, Light, Dark, Latte, Matrix, as in Windows) |
 | [T19](T19-admx-import.md) | Import of policy templates (ADMX, ADML) as a subtree of selectable rules | 7 | T18 | done (1.1.0-rc.1: menu ADMX, store admx/, rules, links to built-in rules; 1.1.0-rc.2: list and multiText elements) |
 | [T20](T20-navigation-and-shared-imports.md) | Back and Forward; rename, update and shared policies of imported templates | 7 | T19 | done (1.1.0-rc.3) |
+| [T21](T21-linked-built-in-rules.md) | Imported policies follow the built-in rules that set the same values | 7 | T20 | done (after 1.1.0-rc.3, not released yet) |
 
 Rules for the implementer of any task:
 

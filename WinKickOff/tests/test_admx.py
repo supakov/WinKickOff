@@ -757,11 +757,13 @@ class WindowTest(AdmxTestCase):
         win, _, _ = self.window(twice=True)
         second = win.settings.admx[1]
         alias = next(i for i in win._all_items() if i.startswith(f"r:{TOGGLE}@admx.{second}."))
+        before = [win._group_counts("admx." + import_id)[0] for import_id in win.settings.admx]
         win.toggle_item(alias)
         self.assertTrue(win.profile.is_enabled(TOGGLE))
         for item in ("r:" + TOGGLE, alias):  # both trees show the new state
             self.assertEqual(str(win.tree.item(item, "image")[0]), str(win.images["on"]))
-        self.assertEqual(win._group_counts("admx." + second)[0], 1)
+        after = [win._group_counts("admx." + import_id)[0] for import_id in win.settings.admx]
+        self.assertEqual(after, [count + 1 for count in before])  # both trees count it once
         win.show_item(alias)
         self.assertIn("Shown in the imported trees", self.detail(win))
         win.tree.selection_set(alias)

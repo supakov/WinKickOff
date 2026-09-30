@@ -43,6 +43,7 @@ from winkickoff.core.apply import (
 )
 from winkickoff.core import admx as admx_module
 from winkickoff.core import apply as apply_module
+from winkickoff.core import linked
 from winkickoff.core.deps import Change, Resolver
 from winkickoff.core.i18n import SOURCE_LANGUAGE, N_, available_languages, catalog_texts, language, tr
 from winkickoff.core.importer import IMPORTED_NAME, ImportFailed, import_xml
@@ -172,6 +173,9 @@ class MainWindow(tk.Tk):
         self._issues: list[Issue] = []
         self._current_item = WORKFLOW_NODE
         self._history: list[str] = []  # nodes left by links, messages and clicks (Back)
+        # imported policies that share a value with a built-in rule, and those an enabled built-in rule sets now
+        self._overlapping = [rid for rid in catalog.rules if is_imported(rid) and catalog.same_values(rid)]
+        self._covered: set[str] = set()
         self._future: list[str] = []  # nodes left by Back (Forward)
         self.forms: dict[str, InstallForm | AccountsForm | LanguagesForm] = {}
 
@@ -496,6 +500,7 @@ class MainWindow(tk.Tk):
         self.tree.tag_configure("changed", foreground=self.color("changed"))
         self.tree.tag_configure("risky", foreground=self.color("risky"))
         self.tree.tag_configure("info", foreground=self.color("changed"))
+        self.tree.tag_configure("linked", foreground=self.color("link"))
         self.tree.bind("<Button-1>", self._on_tree_click)
         self.tree.bind("<Double-Button-1>", self._on_tree_double)
         self.tree.bind("<space>", self._on_space)
@@ -528,6 +533,7 @@ class MainWindow(tk.Tk):
         self.detail.tag_configure("h2", font=self.font_h2, spacing1=10, spacing3=2)
         self.detail.tag_configure("mono", font=self.font_mono, lmargin1=12, lmargin2=12)
         self.detail.tag_configure("muted", foreground=self.color("muted"))
+        self.detail.tag_configure("changed", foreground=self.color("changed"))
         self.detail.tag_configure("risk", foreground=self.color("risky"))
         self.detail.tag_configure("link", foreground=self.color("link"), underline=True)
         self.detail.tag_bind("link", "<Enter>", lambda _e: self.detail.configure(cursor="hand2"))
@@ -592,6 +598,7 @@ class MainWindow(tk.Tk):
 
     def rebuild_tree(self, visible: set[str] | None = None) -> None:
         """Build the tree from the catalog. With visible, only those rules (and their groups) are shown, expanded."""
+        self._update_covered()
         self.tree.delete(*self.tree.get_children(""))
         if visible is None:
             self.tree.insert("", tk.END, iid=WORKFLOW_NODE, text="  " + tr("Workflow"), tags=("info",))
@@ -613,13 +620,22 @@ class MainWindow(tk.Tk):
                     iid = "r:" + rule.id if rule.group == group.id else f"r:{rule.id}@{group.id}"
                     self.tree.insert(item, tk.END, iid=iid, text=" " + self.rule_title(rule.id), image=self._rule_image(rule), tags=self._rule_tags(rule))
 
+    def _update_covered(self) -> None:
+        self._covered = {rid for rid in self._overlapping if linked.covering(self.catalog, self.profile, rid) is not None}
+
+    def _rule_on(self, rule: Rule) -> bool:
+        """On in the profile, or an imported policy that an enabled built-in rule sets (core/linked.py)."""
+        return self.profile.is_enabled(rule.id) or rule.id in self._covered
+
     def _rule_image(self, rule: Rule) -> tk.PhotoImage:
-        return self.images["on" if self.profile.is_enabled(rule.id) else "off"]
+        return self.images["on" if self._rule_on(rule) else "off"]
 
     def _rule_tags(self, rule: Rule) -> tuple[str, ...]:
         tags: list[str] = []
         enabled = self.profile.is_enabled(rule.id)
-        if not enabled:
+        if rule.id in self._covered and not enabled:
+            tags.append("linked")  # the check mark comes from a built-in rule
+        elif not enabled:
             tags.append("off")
         if rule.level == "risky":
             tags.append("risky")
@@ -629,7 +645,7 @@ class MainWindow(tk.Tk):
 
     def _group_counts(self, group_id: str) -> tuple[int, int]:
         rules = self.catalog.rules_in_group(group_id)
-        return sum(1 for r in rules if self.profile.is_enabled(r.id)), len(rules)
+        return sum(1 for r in rules if self._rule_on(r)), len(rules)
 
     def _group_image(self, group_id: str) -> tk.PhotoImage:
         on, total = self._group_counts(group_id)
@@ -664,6 +680,7 @@ class MainWindow(tk.Tk):
         return items
 
     def refresh_marks(self) -> None:
+        self._update_covered()
         for item in self._all_items():
             if item.startswith("r:"):
                 rule = self.catalog.rules[rule_of(item)]
@@ -732,11 +749,15 @@ class MainWindow(tk.Tk):
     def toggle_item(self, item: str) -> list[Change]:
         if item.startswith("r:"):
             rule_id = rule_of(item)
-            changes = self.resolver.set_rule(self.profile, rule_id, not self.profile.is_enabled(rule_id))
-            scope = {rule_id}
+            follow = self._toggle_linked(rule_id)
+            if follow is not None:  # the check mark belongs to a built-in rule
+                changes, scope = follow, {c.rule_id for c in follow if c.reason == "user"}
+            else:
+                changes = self.resolver.set_rule(self.profile, rule_id, not self.profile.is_enabled(rule_id))
+                scope = {rule_id}
         elif item.startswith("g:"):
             on, total = self._group_counts(item[2:])
-            if is_imported(item[2:]) and on == 0:
+            if is_imported(item[2:]) and not any(self.profile.is_enabled(r.id) for r in self.catalog.rules_in_group(item[2:])):
                 # thousands of policies, some in pairs that exclude each other: never switch them on all at once
                 self.set_status(tr("Imported policies are switched on one by one; the check box of their group only switches them off"))
                 return []
@@ -744,10 +765,34 @@ class MainWindow(tk.Tk):
             scope = {r.id for r in self.catalog.rules_in_group(item[2:])}
         else:
             return []
+        changes = changes + self._drop_redundant()
         self._apply_changes(changes, scope)
         if self._current_item == item or item.startswith("r:"):
             self.show_item(item)
         return changes
+
+    def _toggle_linked(self, rule_id: str) -> list[Change] | None:
+        """An imported policy linked to a built-in rule: its check mark switches that rule; None when it has its own."""
+        found = linked.link(self.catalog, self.profile, rule_id)
+        if found is None or self.profile.is_enabled(rule_id):
+            return None
+        if self.profile.is_enabled(found.rule):  # shown as on because of the built-in rule: switch that rule off
+            if not found.equal and not messagebox.askyesno(APP_NAME, tr(
+                    "This policy is set by the built-in rule \"{0}\", which also sets other values. Switch the built-in rule off?",
+                    self.rule_title(found.rule)), parent=self):
+                return []
+            return self.resolver.set_rule(self.profile, found.rule, False)
+        if found.equal:  # the same setting: the reviewed built-in rule is used instead
+            return self.resolver.set_rule(self.profile, found.rule, True)
+        return None
+
+    def _drop_redundant(self) -> list[Change]:
+        """Switch off imported policies that an enabled built-in rule now writes anyway (no value written twice)."""
+        dropped = []
+        for rule_id, other in linked.redundant(self.catalog, self.profile):
+            self.profile.rules[rule_id].enabled = False
+            dropped.append(Change(rule_id, False, "covered by " + other))
+        return dropped
 
     def _reason_text(self, change: Change) -> str:
         reason = change.reason
@@ -755,6 +800,7 @@ class MainWindow(tk.Tk):
             ("requires ", tr("requires \"{}\", which is disabled")),
             ("required by ", tr("needed by \"{}\"")),
             ("conflicts with ", tr("conflicts with \"{}\"")),
+            ("covered by ", tr("set by the built-in rule \"{}\"")),
         ):
             if reason.startswith(prefix):
                 other = reason[len(prefix):]
@@ -860,10 +906,17 @@ class MainWindow(tk.Tk):
         enabled = self.profile.is_enabled(rule.id)
         parts: list[tuple[str, str]] = [
             ("h1", self.rule_title(rule.id)),
-            ("muted", tr("{0}   |   level: {1}   |   {2}   |   {3}", tr("Enabled") if enabled else tr("Disabled"),
+            ("muted", tr("{0}   |   level: {1}   |   {2}   |   {3}", tr("Enabled") if self._rule_on(rule) else tr("Disabled"),
                          tr(LEVEL_TITLES.get(rule.level, rule.level)), tr(PHASE_TITLES.get(rule.phase, rule.phase)), rule.id)),
             ("", self.rule_text(rule, "summary")),
         ]
+        found = linked.link(self.catalog, self.profile, rule.id)
+        if found is not None and self.profile.is_enabled(found.rule):
+            parts.append(("changed", tr("Set by the built-in rule \"{0}\", which is on: this check mark follows it, and the "
+                                        "policy is not written separately.", self.rule_title(found.rule))))
+        elif found is not None and found.equal:
+            parts.append(("changed", tr("The built-in rule \"{0}\" sets the same: checking this policy switches that rule on.",
+                                        self.rule_title(found.rule))))
         origin = self.catalog.origins.get(rule.id)
         same = self.catalog.same_values(rule.id) if self.catalog.origins else []
         if same:
@@ -926,7 +979,7 @@ class MainWindow(tk.Tk):
         parts.append(("h2", tr("Rules in this group")))
         rules = self.catalog.rules_in_group(group_id)
         for rule in rules[:GROUP_LIST_LIMIT]:
-            mark = "[x]" if self.profile.is_enabled(rule.id) else "[ ]"
+            mark = "[x]" if self._rule_on(rule) else "[ ]"
             parts.append((f"link:r:{rule.id}", f"{mark} {self.rule_title(rule.id)}"))
         if len(rules) > GROUP_LIST_LIMIT:
             parts.append(("muted", tr("... and {0} more: open the branches or use the search", len(rules) - GROUP_LIST_LIMIT)))
@@ -1062,6 +1115,11 @@ class MainWindow(tk.Tk):
         if not rule.params:
             return
         self.params_frame.configure(text=tr("Rule parameters"))
+        if rule.id in self._covered and not self.profile.is_enabled(rule.id):
+            self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
+            ttk.Label(self.params_frame, style="Note.TLabel", text=tr(
+                "The values come from the built-in rule while it is on; to set them separately, switch that rule off.")).pack(anchor=tk.W)
+            return
         self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
         for row, param in enumerate(rule.params.values()):
             sticky = tk.NW if param.type == "list" else tk.W

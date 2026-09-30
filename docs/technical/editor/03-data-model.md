@@ -330,6 +330,15 @@ aliases. An import of a folder that is already imported asks whether to update t
 `renamed: true`: the name was given by the user (`rename_import`, at most 120 characters, no control characters)
 and survives an update; a generated name follows the date of the update.
 
+Built-in rules and imported policies (T21, `core/linked.py`): an imported policy is linked to a built-in rule
+when everything it writes (`registry_writes`: registry values only), with its current parameters or with one value
+of its first enum or bool parameter, is also written by the rule (`equal` when the sets are the same). While the
+rule is on, the policy is covered: the window shows it checked with the tag `linked`, counts it in its groups and
+shows a note instead of its parameters; the profile keeps it off, so the build and This PC write the value once.
+Toggling a covered policy switches the rule off (a question first when not equal); toggling an equal policy that
+is off switches the rule on. After every toggle, enabled policies whose writes an enabled rule already covers are
+switched off (`redundant`, change reason `covered by <rule>`).
+
 Behaviour that differs from built-in rules: an imported policy without a check mark is "not configured" (not
 written to the profile, not validated, not reverted by "Apply the selection now"); "Return to Windows defaults"
 takes it only when it is selected itself; the check box of an imported group only switches off; the validator
