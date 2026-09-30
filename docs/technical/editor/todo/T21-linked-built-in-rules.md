@@ -1,6 +1,6 @@
 # T21. Imported policies follow the built-in rules that set the same values
 
-Status: done (30.09.2026), after release 1.1.0-rc.3, not released yet. Stage 7. Dependencies: T20.
+Status: done (30.09.2026), version 1.1.0-rc.4. Stage 7. Dependencies: T20.
 
 ## Goal
 
