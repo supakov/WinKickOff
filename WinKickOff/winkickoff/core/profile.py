@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from winkickoff.core.catalog import Catalog
+from winkickoff.core.catalog import Catalog, is_imported
 from winkickoff.core.i18n import tr
 
 FORMAT_VERSION = 2
@@ -152,19 +152,18 @@ class Profile:
     # ----------------------------------------------------------------- serialisation
 
     def to_dict(self, catalog: Catalog | None = None) -> dict[str, Any]:
+        """Imported policies are written only when they are on or have parameters: an imported policy without a
+        check mark is "not configured", and thousands of them would only bloat the file."""
         order = catalog.order if catalog is not None else list(self.rules)
         ordered_rules: dict[str, Any] = {}
-        for rule_id in order:
+        for rule_id in [*order, *self.rules]:  # then rules not in the catalog order (another catalog)
             state = self.rules.get(rule_id)
-            if state is None:
+            if state is None or rule_id in ordered_rules or (is_imported(rule_id) and not state.enabled and not state.params):
                 continue
             entry: dict[str, Any] = {"enabled": state.enabled}
             if state.params:
                 entry["params"] = dict(state.params)
             ordered_rules[rule_id] = entry
-        for rule_id, state in self.rules.items():  # rules not in catalog order (should not happen)
-            if rule_id not in ordered_rules:
-                ordered_rules[rule_id] = {"enabled": state.enabled, **({"params": state.params} if state.params else {})}
         return {
             "format_version": self.format_version,
             "catalog_version": self.catalog_version,
@@ -187,13 +186,18 @@ class Profile:
         if fmt != FORMAT_VERSION:
             warnings.append(tr("profile format {0}, expected {1}: default values were applied to missing items", fmt, FORMAT_VERSION))
         raw_rules = data.get("rules", {}) if isinstance(data.get("rules"), dict) else {}
+        stored_unknown = data.get("unknown") if isinstance(data.get("unknown"), dict) else {}
+        # rules kept in "unknown" come back when their catalog part is there again (templates loaded again)
+        returning = {rid: entry for rid, entry in stored_unknown.items() if rid in catalog.rules and isinstance(entry, dict)}
+        raw_rules = {**returning, **raw_rules}
+        stored_unknown = {rid: entry for rid, entry in stored_unknown.items() if rid not in returning}
         rules: dict[str, RuleState] = {}
         new_rules: list[str] = []
         for rule in catalog.rules.values():
             entry = raw_rules.get(rule.id)
             if entry is None:
                 rules[rule.id] = RuleState(enabled=rule.default)
-                if raw_rules:
+                if raw_rules and not is_imported(rule.id):  # an imported policy not in the file is "not configured"
                     new_rules.append(rule.id)
                 continue
             params: dict[str, Any] = {}
@@ -208,9 +212,14 @@ class Profile:
             shown = ", ".join(new_rules[:12]) + (", ..." if len(new_rules) > 12 else "")
             warnings.append(tr("new catalog rules: {0}, of them on by default {1}: {2}", len(new_rules), enabled, shown))
         unknown = {rid: entry for rid, entry in raw_rules.items() if rid not in catalog.rules}
-        if unknown:
-            warnings.append(tr("rules missing from the catalog were saved to 'unknown': ") + ", ".join(sorted(unknown)))
-        stored_unknown = data.get("unknown") if isinstance(data.get("unknown"), dict) else {}
+        own = sorted(rid for rid in unknown if not is_imported(rid))
+        if own:
+            warnings.append(tr("rules missing from the catalog were saved to 'unknown': ") + ", ".join(own))
+        policies = sorted(rid for rid in unknown if is_imported(rid))
+        if policies:
+            shown = ", ".join(policies[:8]) + (", ..." if len(policies) > 8 else "")
+            warnings.append(tr("{0} policies of imported templates that are not loaded were kept: {1}. Load the templates "
+                               "in the ADMX menu to use them.", len(policies), shown))
         unknown = {**stored_unknown, **unknown}
         install = dict(DEFAULT_INSTALL)
         install.update({k: v for k, v in (data.get("install") or {}).items() if k in DEFAULT_INSTALL})
@@ -237,6 +246,13 @@ class Profile:
             accounts=accounts,
             unknown=unknown,
         )
+        return profile, warnings
+
+    def rebind(self, catalog: Catalog) -> tuple[Profile, list[str]]:
+        """The same profile for another catalog (templates loaded or unloaded): states of rules that are not in it
+        are kept in "unknown" and come back when the rules do."""
+        profile, warnings = Profile.from_dict(self.to_dict(), catalog)
+        profile.path = self.path
         return profile, warnings
 
     @classmethod

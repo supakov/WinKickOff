@@ -51,6 +51,7 @@ portable build these folders are inside `_internal`.
 | [Installation and checks](install-and-check.md) | Preparing the USB drive, what Windows Setup will ask, how to check the result and where to find the logs |
 | [Safety](safety.md) | What you must do before using the file on work computers, and which decisions were made deliberately |
 | [This PC](this-pc.md) | Checking an already installed Windows and applying selected rules without reinstalling, rollback |
+| [Policy templates (ADMX)](admx.md) | Importing the administrative templates of Windows, Edge, Chrome, Office and building any of their policies |
 | [Rule list](rules.md) | All installation rules by group: what each one does, whether it is enabled in "Office", risks |
 
 ## In short

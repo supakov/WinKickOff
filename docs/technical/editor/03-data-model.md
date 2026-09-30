@@ -215,9 +215,11 @@ the frame (attribute 20), which older builds understand.
 ```
 
 - `rules` lists all rules of the catalog (completeness is needed for comparing profiles and so
-  that a new catalog rule is noticeable on load).
+  that a new catalog rule is noticeable on load), except imported policies (`admx.*`, section 8): only those that
+  are on or have parameters are written, an absent one is "not configured" and is not reported as new.
 - `params` is present only for rules with parameters; a missing parameter = the default value.
-- Rules from an old profile that are not in the catalog are moved to `unknown` and are not lost.
+- Rules from an old profile that are not in the catalog are moved to `unknown` and are not lost; when such a
+  rule is in the catalog again (templates loaded again), its state comes back from `unknown`.
 - Passwords are in plain text; profiles with a password are marked in the recent list.
 
 ## 5. Reference data
@@ -248,3 +250,47 @@ third-party one), the import parses the actions from the scripts and matches the
 - Catalog 0.4 (26.09.2026): the optional action field `default`, the rule `apps.remove.onedrive`, new defaults
   (browser policies, `update.other-microsoft-products`, `asr.usb-untrusted`, `uac.admin-always-notify`). Profiles
   of 0.3 load with a warning; their saved rule states are kept, new rules get the defaults (one message).
+- Editor 1.1.0 (30.09.2026, T19): imported policy templates (section 8); the catalog and profile formats did not
+  change, the prefix `admx.` of rule and group ids is reserved for them.
+
+## 8. Imported policy templates (ADMX, ADML): `admx/<id>/`
+
+`core/admx.py` reads every `*.admx` of a folder (the ADMX menu: `%SystemRoot%\PolicyDefinitions` or a chosen
+folder) and the ADML files of the cultures that match the languages of the program (`en-US` always first). The
+result is kept next to the settings, in the writable program folder:
+
+- `admx/<id>/import.json`: `{format, id, name, folder, created, windows, cultures, policies, skipped, files}`;
+  the id is `system-YYYYMMDD-HHMMSS` or `folder-...`, the name is generated ("PolicyDefinitions 10.0.26200,
+  2026-09-30 13:05"; the folder name for a chosen folder).
+- `admx/<id>/policies.json`: the policies as records: file, namespace, name, class, category, the texts of every
+  kept culture (title, explain, supported), the writes of the Enabled and Disabled states (`{key, name, kind,
+  value}`, kind `delete` for a removal) and the elements (`{param, type, key, name, kind, default, min, max,
+  values, label, required}`); categories with their parents; skipped policies with a reason code.
+- `settings.json` `admx`: the imports shown in the tree; they are merged into the catalog at start
+  (`with_imports`, `catalog.merge`) in the interface language, so every text of the subtree comes from ADML.
+
+Conversion of a policy (`policy_rules`):
+
+| Policy | Rules |
+|---|---|
+| one value, Enabled and Disabled of the same kind | one rule, enum parameter `state` (Enabled or Disabled value) |
+| elements or value lists | rule of the Enabled state, elements as parameters (`decimal` int with min and max, `longDecimal` QWord, `text` string or ExpandString, `boolean` bool or a two-value enum, `enum` enum) |
+| the Disabled state writes values | plus the rule `<id>.off`, the two rules conflict |
+| `list`, `multiText`, value lists inside an option or a check box, values over the signed DWORD range, unsafe characters | skipped with a reason |
+
+Ids: rule `admx.<namespace>.<policy>` in lower case (other characters become `-`), so a profile keeps its choice
+across imports of the same templates; groups `admx.<import id>`, `.machine` or `.user`, `.c<n>` per category,
+`.none` without a category. Machine and Both policies write `HKLM:\` in phase `specialize`, User policies `DU:\` in
+phase `default-user`. Level `optional`, default off, no `doc`; `Catalog.origins` holds the source (import, file,
+policy), `Catalog.same_values()` the rules of the other kind that write the same (scope, key, value name).
+
+Behaviour that differs from built-in rules: an imported policy without a check mark is "not configured" (not
+written to the profile, not validated, not reverted by "Apply the selection now"); "Return to Windows defaults"
+takes it only when it is selected itself; the check box of an imported group only switches off; the validator
+warns when an imported policy and a built-in rule with the same value are both on.
+
+Untrusted input: documents with a DTD or entities are refused (the parser does not resolve entities anyway), a
+file is at most 16 MB and a folder at most 3000 templates, files are decoded by their BOM; keys and value names
+with control characters, `"`, backquote, `$` or typographic quotes and strings with control characters,
+typographic quotes or `]]>` skip the policy, because the DU path is a double-quoted PowerShell string and the
+scripts are CDATA sections. `ps_quote` doubles the typographic single quotes as well.

@@ -39,6 +39,11 @@ class AppPaths:
     def settings_file(self) -> Path:
         return self.root / "settings.json"
 
+    @property
+    def admx(self) -> Path:
+        """Imported policy templates (core/admx.py), next to the settings; created on the first import."""
+        return self.root / "admx"
+
 
 def app_paths(*, create: bool = True) -> AppPaths:
     """Resolve the application folders.

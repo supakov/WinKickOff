@@ -2,8 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 30.09.2026 (release 1.0.0-rc.4: English source language, languages and colour themes as files;
-English UI names in the technical documentation).
+Last update: 30.09.2026 (1.1.0-rc.1: import of ADMX policy templates as a subtree of selectable rules, T19).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -56,7 +55,7 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
 │   │   ├── reference/             reference: a card for every installation parameter (20 files; 18 browsers, 19 more privacy)
 │   │   └── editor/                WinKickOff specification: problem, architecture, data model, testing,
 │   │       │                      plan (days, milestones), review of revision 0.1
-│   │       └── todo/              tasks T01-T18 with status (README.md is the index)
+│   │       └── todo/              tasks T01-T19 with status (README.md is the index)
 │   ├── user/                      USER DOCUMENTATION: ru (source), uk, en; the same files in each language
 │   ├── releases/                  release notes v<version>.md (ru, uk, en), used by the release job
 │   └── appendices/                APPENDICES, frozen, Russian: README describes them
@@ -64,12 +63,12 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
 │       ├── B-autounattend-v0.2/   our hand-written answer file v0.2 (the reference) and its README: history, VM checklist
 │       ├── C-critical-review/     review of the original and the critic's report on v0.2 (docx)
 │       └── D-requirements-draft/  first requirements draft; section 6 holds open questions to the customer
-└── WinKickOff/                    EDITOR 1.0.0-rc.4 AND RULE CATALOG 0.4
+└── WinKickOff/                    EDITOR 1.1.0-rc.1 AND RULE CATALOG 0.4
     ├── README.md                  developer README: run, test, structure; links to user docs
     ├── pyproject.toml             requires-python >= 3.14, no runtime dependencies
     ├── winkickoff/                package: app.py (start), core/ (paths, log, catalog, deps, profile, resources,
     │                              render, validate, verify, actions_parser, importer, pscheck, settings, i18n, themes,
-    │                              apply),
+    │                              apply, admx),
     │                              ui/ (main_window: tree, search, description, parameters, profiles, build;
     │                              data_forms: install, accounts, languages; checkimages: check box images;
     │                              winmenus: theme colours around drop-down menus)
@@ -82,7 +81,7 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
     ├── profiles/                  presets Office (= catalog defaults), Strict, Laptop, memstechtips, README
     ├── tests/                     unittest: catalog, resolver, profile, render, build against v0.2, validation,
     │                              import, presets, PowerShell, settings, portability, window smoke test, docs,
-    │                              translations, themes;
+    │                              translations, themes, ADMX import;
     │                              v02_actions.py holds the v0.2 reference profile (V02_DIFFERENCES)
     └── tools/                     make_presets.py, make_rule_docs.py, run-tests.ps1, build.ps1 (portable zip),
                                    make_browser_rules.py (generates rules/14-browsers.toml),
@@ -271,6 +270,12 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 - Catalog 0.3: the country moved into the parameters of rule `default-user.region` (string `"241"`), the field
   `iso_language` was removed; old profiles are migrated on load with a warning.
 - Nothing in the repository depends on the name of the local folder of a clone.
+- Imported policy templates (T19, 1.1.0): `core/admx.py` turns ADMX policies into rules `admx.<namespace>.<policy>`
+  kept in `admx/<id>/` next to the program (runtime folder, not versioned). The prefix `admx.` is reserved; such a rule
+  without a check mark is "not configured": not written to the profile, not validated, not reverted by an apply,
+  and its group check box only switches off. Template files are untrusted input (no DTD, size limits, unsafe
+  characters refused, `ps_quote` doubles typographic single quotes). Tests read the templates of this Windows
+  (`C:\Windows\PolicyDefinitions`) read-only; nothing is written outside temporary folders.
 
 ## 7. Work status
 
@@ -283,15 +288,16 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Answer file checker | Done, 36 checks, 0 errors on v0.2 | 25.09.2026 | `tools/Validate-Unattend.ps1` |
 | GitHub repository | Renamed to WinKickOff; the local clone and `origin/main` match; CI in GitHub Actions | 26.09.2026 | https://github.com/supakov/WinKickOff |
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
-| Editor tasks | T01-T12, T14, T16-T18 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 30.09.2026 | `docs/technical/editor/todo/` |
+| Editor tasks | T01-T12, T14, T16-T19 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 30.09.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.4: 251 rules, 36 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer 15), Windows defaults for return, integrity and v0.2 coverage confirmed by tests | 28.09.2026 | `WinKickOff/rules/` |
-| Editor code | 1.0.0-rc.4: generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 206 tests | 30.09.2026 | `WinKickOff/` |
+| Editor code | 1.1.0-rc.1 (import of ADMX templates, T19): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 206 tests | 30.09.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply (rules on are applied, rules off return to Windows defaults) and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 29.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |
 | Documentation split | T16 done: technical in English, user documentation in ru, uk, en; since T18 the catalog is English with complete ru and uk translations | 30.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
 | GitHub issues | #1 "Web Browsers debloat" done: section "Browsers" (Edge, Chrome, Brave), 46 rules off by default, card 18. #2 "memstechtips profile" done: preset of 60 rules computed from Appendix A, report of what is added, contradicted and not transferable. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md`, `WinKickOff/profiles/preset-memstechtips.json`, `docs/technical/memstechtips-profile.md` |
-| Release candidate | 1.0.0-rc.4 (after rc.1 of 26.09.2026, rc.2 of 28.09.2026 and rc.3 of 29.09.2026): tag and GitHub release built by CI | 30.09.2026 | `docs/releases/v1.0.0-rc.4.md` |
+| Release candidate | 1.0.0-rc.4 published (after rc.1 of 26.09.2026, rc.2 of 28.09.2026 and rc.3 of 29.09.2026); the code is 1.1.0-rc.1 with notes ready, its tag waits for the customer | 30.09.2026 | `docs/releases/v1.0.0-rc.4.md`, `docs/releases/v1.1.0-rc.1.md` |
+| Imported ADMX templates | T19 done: ADMX menu, store `admx/` next to the program, policies as rules with parameters, links to built-in rules; list and multi-line elements not supported yet | 30.09.2026 | `WinKickOff/winkickoff/core/admx.py`, `docs/user/*/admx.md` |
 | Customer list MoreOptions | Done: BitLocker off in every preset; 57 rules on by default (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Edge AI and sign-in, Gallery hidden), This PC folders as options off by default; corrections in card 19 | 28.09.2026 | `docs/technical/reference/19-more-privacy.md` |
 | Tuning of preset defaults | Awaited from the customer | | `WinKickOff/tools/make_presets.py`, rule defaults |
 

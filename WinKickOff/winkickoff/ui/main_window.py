@@ -25,7 +25,7 @@ from tkinter import font as tkfont
 from typing import Any
 
 from winkickoff import APP_NAME, APP_VERSION
-from winkickoff.core.catalog import Action, Catalog, Group, Param, Rule
+from winkickoff.core.catalog import IMPORTED_PREFIX, Action, Catalog, Group, Param, Rule, is_imported
 from winkickoff.core.apply import (
     ApplyPlan,
     RevertPlan,
@@ -41,6 +41,7 @@ from winkickoff.core.apply import (
     status_title,
     write_script,
 )
+from winkickoff.core import admx as admx_module
 from winkickoff.core import apply as apply_module
 from winkickoff.core.deps import Change, Resolver
 from winkickoff.core.i18n import SOURCE_LANGUAGE, N_, available_languages, catalog_texts, language, tr
@@ -62,6 +63,7 @@ log = logging.getLogger(__name__)
 
 WORKFLOW_NODE = "info:workflow"
 PRESET_NAMES = (N_("Office"), N_("Strict"), N_("Laptop"))  # preset names are English data; shown through tr()
+GROUP_LIST_LIMIT = 300  # rules listed in the description of a group; imported branches hold thousands
 THEME_NAMES = (N_("Light"), N_("Dark"), N_("Latte"), N_("Matrix"))  # names of the bundled themes; shown through tr()
 DATA_NODES: tuple[tuple[str, str], ...] = (
     ("data:install", N_("Installation: edition, key, time zone")),
@@ -405,12 +407,33 @@ class MainWindow(tk.Tk):
                                      command=self.toggle_allow_apply)
         self.tree_menu = tk.Menu(self, tearoff=False)
         self._fill_pc_menu(self.tree_menu)
+        self._build_admx_menu(self._top_menu("ADMX"))
         help_menu = self._top_menu(tr("Help"))
         help_menu.add_command(label=tr("Workflow"), command=lambda: self.select_node(WORKFLOW_NODE))
         help_menu.add_command(label=tr("User documentation"), command=lambda: self.open_doc(user_docs(self.paths.docs_root)))
         help_menu.add_command(label=tr("About"), command=self.about)
         if isinstance(self.menu_bar, tk.Menu):
             self.config(menu=self.menu_bar)
+
+    def _build_admx_menu(self, menu: tk.Menu) -> None:
+        """Imported policy templates (core/admx.py): import, show or hide the saved imports, delete them."""
+        menu.add_command(label=tr("Import the templates of this Windows"), command=lambda: self.import_templates(True))
+        menu.add_command(label=tr("Import templates from a folder..."), command=lambda: self.import_templates(False))
+        menu.add_separator()
+        imports = admx_module.list_imports(self.paths.admx)
+        self.import_vars: dict[str, tk.BooleanVar] = {}
+        for info in imports:
+            var = tk.BooleanVar(value=info.id in self.settings.admx)
+            self.import_vars[info.id] = var
+            menu.add_checkbutton(label=tr("{0} ({1} policies)", info.name, info.policies), variable=var,
+                                 command=lambda i=info.id: self.show_templates(i, self.import_vars[i].get()))
+        if not imports:
+            menu.add_command(label=tr("No imported templates yet"), state=tk.DISABLED)
+        menu.add_separator()
+        delete = tk.Menu(menu, tearoff=False)
+        for info in imports:
+            delete.add_command(label=info.name, command=lambda i=info.id, n=info.name: self.delete_templates(i, n))
+        menu.add_cascade(label=tr("Delete imported templates"), menu=delete, state=tk.NORMAL if imports else tk.DISABLED)
 
     def _build_toolbar(self) -> None:
         bar = ttk.Frame(self, padding=(8, 6, 8, 4))
@@ -686,7 +709,11 @@ class MainWindow(tk.Tk):
             scope = {rule_id}
         elif item.startswith("g:"):
             on, total = self._group_counts(item[2:])
-            changes = self.resolver.set_group(self.profile, item[2:], on != total)
+            if is_imported(item[2:]) and on == 0:
+                # thousands of policies, some in pairs that exclude each other: never switch them on all at once
+                self.set_status(tr("Imported policies are switched on one by one; the check box of their group only switches them off"))
+                return []
+            changes = self.resolver.set_group(self.profile, item[2:], on != total and not is_imported(item[2:]))
             scope = {r.id for r in self.catalog.rules_in_group(item[2:])}
         else:
             return []
@@ -809,10 +836,19 @@ class MainWindow(tk.Tk):
             ("muted", tr("{0}   |   level: {1}   |   {2}   |   {3}", tr("Enabled") if enabled else tr("Disabled"),
                          tr(LEVEL_TITLES.get(rule.level, rule.level)), tr(PHASE_TITLES.get(rule.phase, rule.phase)), rule.id)),
             ("", self.rule_text(rule, "summary")),
-            ("h2", tr("What it does technically")),
         ]
+        origin = self.catalog.origins.get(rule.id)
+        same = self.catalog.same_values(rule.id) if self.catalog.origins else []
+        if same:
+            parts.append(("h2", tr("Built into the catalog") if origin else tr("Also in imported templates")))
+            parts.append(("muted", tr("These built-in rules set the same registry values; they are reviewed and documented, prefer them.")
+                          if origin else tr("These imported policies set the same registry values as this rule.")))
+            parts += [(f"link:r:{other}", "    " + self._rule_link_text(other)) for other in same]
+        parts.append(("h2", tr("What it does technically")))
         parts += [("mono", self._action_text(action, params)) for action in rule.actions]
-        parts += [("h2", tr("Effect")), ("", self.rule_text(rule, "effect"))]
+        effect = self.rule_text(rule, "effect")
+        if effect:  # an imported policy may have no more than its summary
+            parts += [("h2", tr("Effect")), ("", effect)]
         if rule.risk:
             parts += [("h2", tr("Risks and side effects")), ("risk", self.rule_text(rule, "risk"))]
         if rule.versions:
@@ -839,7 +875,11 @@ class MainWindow(tk.Tk):
         else:
             parts.append(("muted", tr("Generated from the rule's actions:")))
             parts += [("mono", step) for step in rollback_steps(rule, params)]
-        parts += [("h2", tr("More details")), (f"link:doc:{rule.doc}", tr("Reference entry: ") + rule.doc)]
+        if origin is not None:
+            parts += [("h2", tr("Source")), ("", tr("Policy {0} of the template {1}", origin.policy, origin.file)),
+                      ("muted", tr("Imported templates \"{0}\" from {1}", origin.import_name, origin.folder))]
+        else:
+            parts += [("h2", tr("More details")), (f"link:doc:{rule.doc}", tr("Reference entry: ") + rule.doc)]
         return parts
 
     def _rule_link_text(self, rule_id: str) -> str:
@@ -854,9 +894,12 @@ class MainWindow(tk.Tk):
         if summary:
             parts.append(("", summary))
         parts.append(("h2", tr("Rules in this group")))
-        for rule in self.catalog.rules_in_group(group_id):
+        rules = self.catalog.rules_in_group(group_id)
+        for rule in rules[:GROUP_LIST_LIMIT]:
             mark = "[x]" if self.profile.is_enabled(rule.id) else "[ ]"
             parts.append((f"link:r:{rule.id}", f"{mark} {self.rule_title(rule.id)}"))
+        if len(rules) > GROUP_LIST_LIMIT:
+            parts.append(("muted", tr("... and {0} more: open the branches or use the search", len(rules) - GROUP_LIST_LIMIT)))
         return parts
 
     def _action_text(self, action: Action, params: dict[str, Any]) -> str:
@@ -920,11 +963,14 @@ class MainWindow(tk.Tk):
         self._clear_params()
         self.params_frame.configure(text=tr("Whole group"))
         self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
-        for text, command in (
+        buttons = [
             (tr("Enable all"), lambda: self._group_action(group_id, True)),
             (tr("Disable all"), lambda: self._group_action(group_id, False)),
             (tr("Catalog defaults"), lambda: self._group_reset(group_id)),
-        ):
+        ]
+        if is_imported(group_id):
+            buttons = buttons[1:2]  # imported policies are switched on one by one
+        for text, command in buttons:
             ttk.Button(self.params_frame, text=text, command=command).pack(side=tk.LEFT, padx=(0, 6))
 
     def _group_action(self, group_id: str, enabled: bool) -> None:
@@ -1503,11 +1549,15 @@ class MainWindow(tk.Tk):
                 notes.append(tr("restart needed"))
             level = "warning" if returning.skipped else "info"
             issues.append(Issue(level, returning.rule.id, tr("will be returned to Windows defaults") + ": " + "; ".join(notes)))
+        if plan.not_configured:
+            issues.append(Issue("info", "", tr("{0} imported policies without a check mark are not configured and stay as they are", plan.not_configured)))
         return issues
 
     def _nothing_to_apply(self, plan: ApplyPlan) -> None:
         """Say plainly why nothing happens, instead of a line in the status bar only."""
         reasons = [f"{self.rule_title(rule.id)}: {tr(reason)}" for rule, reason in plan.excluded[:8]]
+        if plan.not_configured:
+            reasons.append(tr("{0} imported policies without a check mark are not configured and stay as they are", plan.not_configured))
         more = tr("\n... and {0} more", len(plan.excluded) - 8) if len(plan.excluded) > 8 else ""
         messagebox.showinfo(APP_NAME, tr("There is nothing in the selection to apply to this computer.") + "\n\n"
                             + "\n".join(reasons) + more, parent=self)
@@ -1656,6 +1706,8 @@ class MainWindow(tk.Tk):
                 notes.append(tr("restart needed"))
             level = "warning" if planned.skipped else "info"
             issues.append(Issue(level, planned.rule.id, tr("will be returned to Windows defaults") + (": " + "; ".join(notes) if notes else "")))
+        if plan.not_configured:
+            issues.append(Issue("info", "", tr("{0} imported policies of the selected groups stay as they are: select them one by one to return them to Windows defaults", plan.not_configured)))
         return issues
 
     def _write_revert_folder(self, folder: Path, plan: RevertPlan) -> Path:
@@ -1763,6 +1815,103 @@ class MainWindow(tk.Tk):
         self.update_title()
         item = str(state.get("item") or WORKFLOW_NODE)
         self.select_node(item if self.tree.exists(item) else WORKFLOW_NODE)
+        if state.get("issues"):
+            self.show_issues(list(state["issues"]))
+        if state.get("status"):
+            self.set_status(str(state["status"]))
+
+    def show_problems(self, problems: list[str]) -> None:
+        """Problems found while the window was prepared (imported templates that were not loaded)."""
+        self.show_issues([Issue("warning", "", problem) for problem in problems])
+        self.set_status(problems[0])
+
+    # ----------------------------------------------------------------- imported templates (ADMX)
+
+    def _restart(self, item: str | None = None, issues: list[Issue] | None = None, status: str = "") -> None:
+        """Rebuild the window with another catalog (templates shown or hidden), keeping the open profile."""
+        self.restart_state = {"profile": self.profile, "dirty": self.dirty, "item": item or self._current_item,
+                              "issues": issues or [], "status": status}
+        self.destroy()
+
+    def import_templates(self, system: bool) -> None:
+        """Read ADMX and ADML files in a background thread, keep them in admx/ and show them as a new subtree.
+        Only reading: the templates of this Windows are its PolicyDefinitions folder."""
+        if self._busy:
+            return
+        if system:
+            folder = admx_module.system_folder()
+        else:
+            chosen = filedialog.askdirectory(parent=self, mustexist=True,
+                                             title=tr("Folder with ADMX templates and their language folders"))
+            if not chosen:
+                return
+            folder = Path(chosen)
+        if not folder.is_dir() or not any(folder.glob("*.admx")):
+            messagebox.showerror(APP_NAME, tr("There are no ADMX templates in {0}.", folder), parent=self)
+            return
+        codes = list(available_languages(self.paths.resources, self.paths.rules))
+        outcome: dict[str, Any] = {}
+        progress = {"done": 0, "total": 0}
+
+        def work() -> None:
+            try:
+                outcome["data"] = admx_module.read_templates(folder, codes, progress=lambda done, total: progress.update(done=done, total=total))
+            except Exception as exc:  # noqa: BLE001 - reported to the user, never lost in the thread
+                outcome["error"] = exc
+
+        thread = threading.Thread(target=work, name="admx", daemon=True)
+        self.set_busy(True, tr("Reading templates from {0}...", folder))
+        thread.start()
+
+        def poll() -> None:
+            if thread.is_alive():
+                if progress["total"]:
+                    self.set_status(tr("Reading templates: {0} of {1}", progress["done"], progress["total"]))
+                self.after(150, poll)
+                return
+            self.set_busy(False)
+            self.finish_import(folder, system, outcome)
+
+        self.after(150, poll)
+
+    def finish_import(self, folder: Path, system: bool, outcome: dict[str, Any]) -> None:
+        if "error" in outcome:
+            messagebox.showerror(APP_NAME, tr("The templates were not imported:\n{0}", outcome["error"]), parent=self)
+            return
+        data = outcome["data"]
+        try:
+            info = admx_module.save_import(self.paths.admx, folder, data, system=system)
+        except OSError as exc:
+            messagebox.showerror(APP_NAME, tr("The imported templates were not saved:\n{0}", exc), parent=self)
+            return
+        issues = [Issue("info", "", tr("Not imported: {0} policies with {1}", count, reason)) for reason, count in admx_module.skip_summary(data)]
+        issues += [Issue("warning", "", tr("Template file not read: {0}", problem)) for problem in data.get("problems", [])[:50]]
+        self.settings.admx = [*self.settings.admx, info.id]
+        self.save_settings()
+        self._restart("g:" + IMPORTED_PREFIX + info.id, issues,
+                      tr("Imported templates \"{0}\": {1} policies, {2} skipped", info.name, info.policies, info.skipped))
+
+    def show_templates(self, import_id: str, shown: bool) -> None:
+        """Show or hide a saved import; the choice is remembered for the next start."""
+        wanted = [i for i in self.settings.admx if i != import_id] + ([import_id] if shown else [])
+        if wanted == self.settings.admx:
+            return
+        self.settings.admx = wanted
+        self.save_settings()
+        self._restart("g:" + IMPORTED_PREFIX + import_id if shown else None)
+
+    def delete_templates(self, import_id: str, name: str) -> None:
+        if not messagebox.askyesno(APP_NAME, tr("Delete the imported templates \"{0}\" from the program folder? Profiles "
+                                                "keep the choices made in them.", name), parent=self):
+            return
+        try:
+            admx_module.delete_import(self.paths.admx, import_id)
+        except (OSError, admx_module.AdmxError) as exc:
+            messagebox.showerror(APP_NAME, tr("The imported templates were not deleted:\n{0}", exc), parent=self)
+            return
+        self.settings.admx = [i for i in self.settings.admx if i != import_id]
+        self.save_settings()
+        self._restart(status=tr("Imported templates \"{0}\" deleted", name))
 
     def on_close(self) -> None:
         if self.confirm_discard():

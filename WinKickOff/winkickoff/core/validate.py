@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from winkickoff.core.catalog import Catalog, CatalogError, heading_anchors, load_catalog
+from winkickoff.core.catalog import Catalog, CatalogError, heading_anchors, is_imported, load_catalog
 from winkickoff.core.i18n import catalog_texts, tr
 from winkickoff.core.profile import Profile
 from winkickoff.core.render import EDITION_KEYS
@@ -24,6 +24,7 @@ RESERVED_ACCOUNT_NAMES = frozenset(
 )
 _BAD_NAME_CHARS = re.compile(r'[\\/\[\]:;|=,+*?<>"@]')
 _KEY_RE = re.compile(r"^[A-Z0-9]{5}(-[A-Z0-9]{5}){4}$")
+_CONTROL_RE = re.compile("[" + chr(0) + "-" + chr(31) + chr(127) + "]")  # not allowed inside the scripts and XML
 _LOCALE_RE = re.compile(r"^[a-z]{2,3}(-[A-Za-z]{4})?(-[A-Z]{2})?$")
 _INPUT_LOCALE_ITEM = re.compile(r"^([0-9A-Fa-f]{4}:[0-9A-Fa-f]{8}|[a-z]{2,3}(-[A-Za-z]{2,4})?(-[A-Z]{2})?)$")
 U = "{urn:schemas-microsoft-com:unattend}"
@@ -95,8 +96,10 @@ def _check_param(rule: Any, param: Any, value: Any) -> str | None:
     elif param.type == "bool":
         if not isinstance(value, bool):
             return tr("'{0}' must be yes or no", title)
-    elif param.type == "string" and not str(value).strip():
+    elif param.type == "string" and param.required and not str(value).strip():
         return tr("'{0}' cannot be empty", title)
+    elif param.type == "string" and (_CONTROL_RE.search(str(value)) or "]]>" in str(value)):
+        return tr("'{0}' contains characters that cannot be written into the script", title)
     return None
 
 
@@ -132,6 +135,8 @@ def validate_profile(profile: Profile, catalog: Catalog, keyboards: list[dict[st
         title = catalog_texts().rule(rule, "title")
         enabled = profile.is_enabled(rule.id)
         for pname, param in rule.params.items():
+            if is_imported(rule.id) and not enabled:
+                continue  # an imported policy without a check mark is not configured: its values do not matter
             problem = _check_param(rule, param, profile.param(catalog, rule.id, pname))
             if problem:
                 issues.append(Issue("error", rule.id, tr("\"{0}\": {1}", title, problem), rule.doc))
@@ -144,6 +149,13 @@ def validate_profile(profile: Profile, catalog: Catalog, keyboards: list[dict[st
                     issues.append(Issue("error", rule.id, tr("\"{0}\" conflicts with \"{1}\", which is enabled", title, catalog_texts().rule(catalog.rules[other], "title")), rule.doc))
             if rule.level == "risky":
                 issues.append(Issue("warning", rule.id, tr("Risky rule \"{0}\" is enabled: {1}", title, catalog_texts().rule(rule, "risk") or catalog_texts().rule(rule, "effect")), rule.doc))
+            if is_imported(rule.id):
+                for other in catalog.same_values(rule.id):
+                    if profile.is_enabled(other):
+                        issues.append(Issue("warning", rule.id, tr(
+                            "Imported policy \"{0}\" sets the same registry value as the built-in rule \"{1}\", and both are "
+                            "on: the value is written twice and the one applied later wins. Keep one of them.",
+                            title, catalog_texts().rule(catalog.rules[other], "title"))))
         elif rule.level == "baseline":
             issues.append(Issue("warning", rule.id, tr("Baseline rule \"{0}\" is disabled", title), rule.doc))
     encryption = catalog.rules.get(DEVICE_ENCRYPTION_RULE)

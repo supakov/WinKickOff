@@ -62,9 +62,16 @@ class RenderError(ValueError):
 # --------------------------------------------------------------------------- actions
 
 
+# PowerShell takes the typographic single quotes for quotes too; each is doubled like the ASCII one
+_PS_SINGLE_QUOTES = ("'", chr(0x2018), chr(0x2019), chr(0x201A), chr(0x201B))
+
+
 def ps_quote(text: str) -> str:
     """Single-quoted PowerShell literal (the only quoting used for catalog strings)."""
-    return "'" + str(text).replace("'", "''") + "'"
+    value = str(text)
+    for quote in _PS_SINGLE_QUOTES:
+        value = value.replace(quote, quote + quote)
+    return "'" + value + "'"
 
 
 def substitute(value: Any, params: dict[str, Any]) -> Any:

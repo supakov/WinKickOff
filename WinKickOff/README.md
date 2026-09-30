@@ -10,7 +10,7 @@ User documentation (how to work with the program): [Русский](../docs/user
 [Українська](../docs/user/uk/README.md), [English](../docs/user/en/README.md).
 Specification, architecture, data model and plan: [`../docs/technical/editor/`](../docs/technical/editor/README.md).
 
-State on 30.09.2026: version 1.0.0-rc.4. The catalog 0.4 (251 rules, 36 groups) carries every action of the
+State on 30.09.2026: version 1.1.0-rc.1 (import of ADMX templates). The catalog 0.4 (251 rules, 36 groups) carries every action of the
 hand-written answer file v0.2, the Edge, Chrome and Brave policies, the AI, telemetry, Office and OneDrive rules of
 the customer's list and the File Explorer folders; the generator, the checks, four presets, profiles, data forms,
 import, the build from the window and the This PC menu work. The source language is English; languages and
@@ -66,7 +66,8 @@ PyInstaller from the internet, so it never runs on the customer's work PC.
 | User profiles | `profiles/<name>.json` | no |
 | Built answer files | `output/` (default) | no |
 | Program log | `logs/winkickoff.log` | no |
-| Settings: window size, last profile, recent files, language, theme | `settings.json` | no |
+| Settings: window size, last profile, recent files, language, theme, imported templates shown | `settings.json` | no |
+| Imported policy templates (ADMX menu) | `admx/<id>/` | no |
 
 The program writes nothing outside its folder and never goes online. The PowerShell syntax check runs
 `powershell.exe` only to parse files in the temporary folder `logs/tmp/`.

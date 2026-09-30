@@ -10,7 +10,8 @@ from tkinter import messagebox
 
 from winkickoff import APP_NAME, APP_VERSION
 from winkickoff.core.catalog import Catalog, CatalogError, load_catalog
-from winkickoff.core.i18n import set_language, tr
+from winkickoff.core.admx import with_imports
+from winkickoff.core.i18n import language, set_language, tr
 from winkickoff.core.log import setup_logging
 from winkickoff.core.paths import AppPaths, app_paths
 from winkickoff.core.profile import Profile
@@ -75,7 +76,7 @@ def initial_profile(paths: AppPaths, catalog: Catalog, settings: Settings | None
 
 def create_app(*, withdraw: bool = False, state: dict[str, object] | None = None) -> tk.Tk:
     """Build the Tk application; withdraw=True keeps the window hidden (tests).
-    state carries the open profile across a restart of the window (language change)."""
+    state carries the open profile across a restart of the window (language, theme or templates changed)."""
     _enable_dpi_awareness()
     paths = app_paths()
     setup_logging(paths)
@@ -88,20 +89,31 @@ def create_app(*, withdraw: bool = False, state: dict[str, object] | None = None
         raise
     settings = Settings.load(paths.settings_file)
     set_language(settings.language, paths.resources, paths.rules)
-    profile = state["profile"] if state else initial_profile(paths, catalog, settings)
+    catalog, problems = with_imports(catalog, paths.admx, settings.admx, language())  # texts from ADML, in this language
+    for problem in problems:
+        log.warning("%s", problem)
+    if state:
+        profile, warnings = state["profile"].rebind(catalog)  # type: ignore[attr-defined]
+        for warning in warnings:
+            log.info("profile after a restart: %s", warning)
+    else:
+        profile = initial_profile(paths, catalog, settings)
 
     from winkickoff.ui.main_window import MainWindow  # imported late: tkinter window only when needed
 
     root = MainWindow(paths, catalog, profile, resources, settings)  # type: ignore[arg-type]
     if state:
         root.restore_state(state)
+    if problems:
+        root.show_problems(problems)
     if withdraw:
         root.withdraw()
     return root
 
 
 def run() -> None:
-    """Run the window; a language change closes it and a new one opens with the same profile."""
+    """Run the window; a change of the language, theme or loaded templates closes it and a new one opens with the
+    same profile."""
     state = None
     while True:
         root = create_app(state=state)

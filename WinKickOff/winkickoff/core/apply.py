@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from winkickoff.core.catalog import DEFAULT_ABSENT, DEFAULT_UNKNOWN, Action, Catalog, Rule
+from winkickoff.core.catalog import DEFAULT_ABSENT, DEFAULT_UNKNOWN, Action, Catalog, Rule, is_imported
 from winkickoff.core.deps import Resolver
 from winkickoff.core.i18n import N_, tr
 from winkickoff.core.profile import Profile
@@ -78,6 +78,7 @@ class ApplyPlan:
     rules: list[PlannedRule] = field(default_factory=list)
     reverts: list[PlannedRevert] = field(default_factory=list)
     excluded: list[tuple[Rule, str]] = field(default_factory=list)  # (rule, reason as N_ text)
+    not_configured: int = 0  # imported policies without a check mark: left as they are
 
     @property
     def rule_ids(self) -> list[str]:
@@ -92,6 +93,7 @@ class ApplyPlan:
 class RevertPlan:
     rules: list[PlannedRevert] = field(default_factory=list)
     excluded: list[tuple[Rule, str]] = field(default_factory=list)
+    not_configured: int = 0  # imported policies selected only through a group: returned one by one
 
     @property
     def rule_ids(self) -> list[str]:
@@ -180,8 +182,10 @@ def plan_apply(catalog: Catalog, profile: Profile, items: list[str]) -> ApplyPla
             continue
         types = {a.type for a in rule.actions}
         plan.rules.append(PlannedRule(rule, wanted[rule_id], bool(types & IRREVERSIBLE_TYPES), _needs_reboot(rule)))
-    # rules that are off in the profile: back to the values of a clean Windows, with the rules that require them
-    off = [rule_id for rule_id in selected if not profile.is_enabled(rule_id)]
+    # rules that are off in the profile: back to the values of a clean Windows, with the rules that require them;
+    # an imported policy without a check mark is "not configured" and stays as it is
+    off = [rule_id for rule_id in selected if not profile.is_enabled(rule_id) and not is_imported(rule_id)]
+    plan.not_configured = sum(1 for rule_id in selected if not profile.is_enabled(rule_id) and is_imported(rule_id))
     returning = _with_dependents(catalog, off, keep=lambda r: not profile.is_enabled(r))
     for rule_id in catalog.order:
         if rule_id not in returning:
@@ -295,9 +299,14 @@ def _revert_line(action: Action, step: tuple[str, Any], params: dict[str, Any]) 
 
 def plan_revert(catalog: Catalog, items: list[str]) -> RevertPlan:
     """Return the selected rules, and the rules that require them, to the values of a clean Windows.
-    The profile does not matter: the rules may have come from an installation or an earlier apply."""
+    The profile does not matter: the rules may have come from an installation or an earlier apply. Imported
+    policies are returned only when selected one by one: a group of templates holds thousands of them."""
     plan = RevertPlan()
-    wanted = _with_dependents(catalog, selected_rules(catalog, items))  # id -> dependent
+    chosen = {item[2:] for item in items if item.startswith("r:")}
+    selected = selected_rules(catalog, items)
+    plan.not_configured = sum(1 for rule_id in selected if is_imported(rule_id) and rule_id not in chosen)
+    selected = [rule_id for rule_id in selected if not is_imported(rule_id) or rule_id in chosen]
+    wanted = _with_dependents(catalog, selected)  # id -> dependent
     for rule_id in catalog.order:
         if rule_id not in wanted:
             continue

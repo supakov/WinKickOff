@@ -136,12 +136,12 @@ class WindowThemeTest(unittest.TestCase):
     def _check_menu_bar(self, win: object) -> None:
         """Light keeps the Windows menu bar; a coloured theme draws its own, since Windows paints its menu bar in
         system colours only. Alt + an underlined letter opens a menu whatever the keyboard layout."""
-        labels = ["File", "Build", "Language", "Theme", "This PC", "Help"]
+        labels = ["File", "Build", "Language", "Theme", "This PC", "ADMX", "Help"]
         if win.theme.base == "native":  # type: ignore[attr-defined]
             bar = win.nametowidget(win.cget("menu"))  # type: ignore[attr-defined]
             cascades = [i for i in range(bar.index("end") + 1) if bar.type(i) == "cascade"]
             self.assertEqual([bar.entrycget(i, "label") for i in cascades], labels)
-            self.assertEqual([_underline(bar.entrycget(i, "underline")) for i in cascades], [0, 0, 0, 0, 5, 0])
+            self.assertEqual([_underline(bar.entrycget(i, "underline")) for i in cascades], [0, 0, 0, 0, 5, 0, 0])
             self.assertEqual(win.menu_buttons, [])  # type: ignore[attr-defined]
             return
         self.assertEqual(win.cget("menu"), "")  # type: ignore[attr-defined]
@@ -153,16 +153,18 @@ class WindowThemeTest(unittest.TestCase):
             self.assertEqual(str(button.cget("foreground")).lower(), colors["foreground"].lower())
             self.assertEqual(_underline(button.cget("underline")), -1)  # letters are underlined only while Alt is held
         win._show_access_keys(True)  # type: ignore[attr-defined]
-        self.assertEqual([_underline(b.cget("underline")) for b in buttons], [0, 0, 0, 0, 5, 0])
+        self.assertEqual([_underline(b.cget("underline")) for b in buttons], [0, 0, 0, 0, 5, 0, 0])
         win._show_access_keys(False)  # type: ignore[attr-defined]
         self.assertEqual({_underline(b.cget("underline")) for b in buttons}, {-1})
         if sys.platform == "win32":
             self.assertTrue(win.menu_margins.active)  # type: ignore[attr-defined]
         with mock.patch.object(win, "_post_menu", return_value="break") as post:
             self.assertEqual(win._on_alt_key(SimpleNamespace(char="", keycode=0x48)), "break")  # type: ignore[attr-defined]
-            post.assert_called_with(buttons[5])  # H: Help, by key code (another layout active)
+            post.assert_called_with(buttons[6])  # H: Help, by key code (another layout active)
             win._on_alt_key(SimpleNamespace(char="p", keycode=0x50))  # type: ignore[attr-defined]
             post.assert_called_with(buttons[4])  # P: This PC
+            win._on_alt_key(SimpleNamespace(char="a", keycode=0x41))  # type: ignore[attr-defined]
+            post.assert_called_with(buttons[5])  # A: ADMX
             self.assertIsNone(win._on_alt_key(SimpleNamespace(char="q", keycode=0x51)))  # type: ignore[attr-defined]
 
 

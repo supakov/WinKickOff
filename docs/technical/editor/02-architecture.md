@@ -35,6 +35,7 @@ WinKickOff/
       pscheck.py             syntax verification via powershell.exe, if available
       i18n.py                translations: languages found from files, English fallback
       themes.py              colour themes from resources/themes, following the Windows light or dark mode
+      admx.py                policy templates (ADMX, ADML) imported into admx/<id>/ and turned into rules
     ui/
       main_window.py         window, menu, three areas, hotkeys
       rule_tree.py           tree with check boxes, search, filter

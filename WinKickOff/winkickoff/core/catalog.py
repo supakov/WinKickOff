@@ -55,6 +55,12 @@ DEFAULT_UNKNOWN = "unknown"
 
 _ID_RE = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*$")
 _PLACEHOLDER_RE = re.compile(r"\{([a-z_][a-z0-9_]*)\}")
+IMPORTED_PREFIX = "admx."  # rules and groups made from policy templates (core/admx.py); never used by rules/*.toml
+
+
+def is_imported(item_id: str) -> bool:
+    """A rule or group made from an imported policy template."""
+    return item_id.startswith(IMPORTED_PREFIX)
 
 
 class CatalogError(ValueError):
@@ -76,6 +82,7 @@ class Param:
     min: int | None = None
     max: int | None = None
     values: tuple[tuple[Any, str], ...] = ()
+    required: bool = True  # a string may be empty only when False (optional text of an imported policy)
 
 
 @dataclass(frozen=True)
@@ -154,44 +161,88 @@ class Group:
     source: str = ""
 
 
+@dataclass(frozen=True)
+class RuleOrigin:
+    """Where an imported rule comes from: a policy of an ADMX template."""
+
+    import_id: str
+    import_name: str
+    folder: str
+    file: str
+    policy: str
+
+
 class Catalog:
-    def __init__(self, groups: dict[str, Group], rules: dict[str, Rule], version: str) -> None:
+    """Groups and rules. A catalog is not changed after it is built, so the indexes below are computed once;
+    imported templates make a new catalog (merge())."""
+
+    def __init__(self, groups: dict[str, Group], rules: dict[str, Rule], version: str,
+                 origins: dict[str, RuleOrigin] | None = None) -> None:
         self.groups = groups
         self.rules = rules  # insertion order = catalog order
         self.version = version
+        self.origins: dict[str, RuleOrigin] = dict(origins or {})
         self._required_by: dict[str, list[str]] = {rule_id: [] for rule_id in rules}
         for rule in rules.values():
             for req in rule.requires:
                 # unknown targets are reported by _check(); do not fail here
                 self._required_by.setdefault(req, []).append(rule.id)
         self._search: dict[str, str] = {rule.id: rule.search_text() for rule in rules.values()}
+        self._position = {rule_id: index for index, rule_id in enumerate(rules)}
+        self._children: dict[str | None, list[Group]] = {}
+        for group in groups.values():
+            self._children.setdefault(group.parent, []).append(group)
+        for siblings in self._children.values():
+            siblings.sort(key=lambda g: (g.order, g.id))
+        self._direct: dict[str, list[Rule]] = {}
+        for rule in rules.values():
+            self._direct.setdefault(rule.group, []).append(rule)
+        self._in_group: dict[str, list[Rule]] = {}
+        self._values: dict[tuple[str, str, str], list[str]] | None = None
 
     @property
     def order(self) -> list[str]:
         return list(self.rules)
 
     def children(self, parent: str | None) -> list[Group]:
-        found = [g for g in self.groups.values() if g.parent == parent]
-        return sorted(found, key=lambda g: (g.order, g.id))
+        return list(self._children.get(parent, ()))
 
     def descendant_groups(self, group_id: str) -> list[str]:
         result: list[str] = []
         stack = [group_id]
         while stack:
             current = stack.pop()
-            for child in self.children(current):
+            for child in self._children.get(current, ()):
                 result.append(child.id)
                 stack.append(child.id)
         return result
 
     def rules_in_group(self, group_id: str, *, recursive: bool = True) -> list[Rule]:
-        wanted = {group_id}
-        if recursive:
-            wanted.update(self.descendant_groups(group_id))
-        return [rule for rule in self.rules.values() if rule.group in wanted]
+        if not recursive:
+            return list(self._direct.get(group_id, ()))
+        found = self._in_group.get(group_id)
+        if found is None:
+            found = [rule for gid in [group_id, *self.descendant_groups(group_id)] for rule in self._direct.get(gid, ())]
+            found.sort(key=lambda rule: self._position[rule.id])
+            self._in_group[group_id] = found
+        return list(found)
 
     def required_by(self, rule_id: str) -> list[str]:
         return list(self._required_by.get(rule_id, ()))
+
+    def same_values(self, rule_id: str) -> list[str]:
+        """Rules of the other kind (built-in for an imported rule, imported for a built-in one) that write or
+        remove a registry value this rule writes or removes, in catalog order."""
+        if self._values is None:
+            self._values = {}
+            for rule in self.rules.values():
+                for key in registry_values(rule):
+                    self._values.setdefault(key, []).append(rule.id)
+        imported = is_imported(rule_id)
+        found: set[str] = set()
+        for key in registry_values(self.rules[rule_id]):
+            found.update(other for other in self._values.get(key, ()) if is_imported(other) != imported)
+        return sorted(found, key=lambda other: self._position[other])
 
     def search(self, query: str) -> list[str]:
         """Rule ids whose search text contains every word of the query (case-insensitive)."""
@@ -249,7 +300,7 @@ def _load_groups(path: Path) -> dict[str, Group]:
     groups: dict[str, Group] = {}
     for raw in data.get("group", []):
         group_id = _require_str(raw, "id", path.name)
-        if not _ID_RE.match(group_id):
+        if not _ID_RE.match(group_id) or is_imported(group_id):
             raise CatalogError(f"bad group id '{group_id}'", file=path.name)
         if group_id in groups:
             raise CatalogError(f"duplicate group id '{group_id}'", file=path.name)
@@ -377,6 +428,8 @@ def _parse_rule(raw: dict[str, Any], file: str, position: int) -> Rule:
     rule_id = _require_str(raw, "id", file)
     if not _ID_RE.match(rule_id):
         raise CatalogError("rule id must be lowercase words joined by '.' or '-'", file=file, rule_id=rule_id)
+    if is_imported(rule_id):
+        raise CatalogError(f"the prefix '{IMPORTED_PREFIX}' is reserved for imported templates", file=file, rule_id=rule_id)
     phase = _require_str(raw, "phase", file, rule_id)
     if phase not in PHASES:
         raise CatalogError(f"unknown phase '{phase}'", file=file, rule_id=rule_id)
@@ -482,6 +535,25 @@ def _check_cycles(catalog: Catalog) -> None:
 
 def iter_actions(catalog: Catalog, rule_ids: Iterable[str]) -> list[Action]:
     return [action for rule_id in rule_ids for action in catalog.rules[rule_id].actions]
+
+
+def registry_values(rule: Rule) -> set[tuple[str, str, str]]:
+    """(scope, key, value name) of every registry value a rule writes or removes, in lower case; the scope is
+    "machine" for HKLM and "user" for HKCU and the default user profile (DU)."""
+    found: set[tuple[str, str, str]] = set()
+    for action in rule.actions:
+        if action.type not in ("reg", "reg-remove"):
+            continue
+        path = str(action.fields.get("path", ""))
+        scope = "machine" if path.upper().startswith("HKLM:\\") else "user"
+        key = path.split(":\\", 1)[-1].strip("\\").lower()
+        found.add((scope, key, str(action.fields.get("name", "")).lower()))
+    return found
+
+
+def merge(base: Catalog, groups: dict[str, Group], rules: dict[str, Rule], origins: dict[str, RuleOrigin]) -> Catalog:
+    """The base catalog with more groups and rules (imported templates) after its own."""
+    return Catalog({**base.groups, **groups}, {**base.rules, **rules}, base.version, {**base.origins, **origins})
 
 
 _HEADING_RE = re.compile(r"^#{1,6}\s+(.*?)\s*#*\s*$")

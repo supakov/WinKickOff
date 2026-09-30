@@ -18,6 +18,7 @@ dist/
 **/output/
 **/logs/
 settings.json
+WinKickOff/admx/
 
 # Profiles may contain passwords: only presets are versioned
 WinKickOff/profiles/*.json
