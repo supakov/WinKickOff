@@ -20,7 +20,8 @@ them without knowing the registry.
 ## How to start the program
 
 If you received the program as a folder containing `WinKickOff.exe`, run that file. If you received the
-source code, you need Python 3.14 for Windows; in the `WinKickOff` folder, run:
+source code, you need Python 3.14 for Windows: double-click `Start-WinKickOff.cmd` in the root of the project
+folder, or in the `WinKickOff` folder run:
 
 ```powershell
 python -m winkickoff

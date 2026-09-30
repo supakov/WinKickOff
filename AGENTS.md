@@ -44,6 +44,7 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
 (repository root)
 ├── AGENTS.md                      this file
 ├── README.md                      the toolkit: purpose, tools, quick start, user docs, builds
+├── Start-WinKickOff.cmd           starts the editor from the sources (py launcher, Python 3.14+, no console)
 ├── .gitignore, .gitattributes     what is not versioned; files are stored byte for byte (CRLF)
 ├── .github/workflows/build.yml    CI: tests, checker, portable build on every push; a tag v<version> publishes a release
 ├── tools/
@@ -164,7 +165,8 @@ git tag -a v1.0.0-rc.4 -m "WinKickOff 1.0.0-rc.4"
 git push origin v1.0.0-rc.4
 ```
 
-Run the editor from sources:
+Run the editor from sources (`Start-WinKickOff.cmd` in the root does the same with a double click, without a
+console window; agents do not run it on the customer's PC, since it opens the window on the customer's screen):
 
 ```powershell
 cd WinKickOff

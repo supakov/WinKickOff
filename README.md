@@ -24,7 +24,8 @@ Passwords and groups of the accounts are assigned by a separate project of the c
 ## Quick start
 
 Portable build: unzip `WinKickOff-<version>.zip` from a release and run `WinKickOff.exe`. From sources,
-Python 3.14 for Windows is needed (standard library only):
+Python 3.14 for Windows is needed (standard library only): double-click `Start-WinKickOff.cmd` in the repository
+root, or run
 
 ```powershell
 cd WinKickOff

@@ -26,7 +26,8 @@ answer file in a VM first. Open tasks: `../docs/technical/editor/todo/`.
 
 ## Commands
 
-Run from sources:
+Run from sources (or double-click `../Start-WinKickOff.cmd`, which checks for Python 3.14 with tkinter and
+starts the window without a console):
 
 ```powershell
 cd WinKickOff

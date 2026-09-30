@@ -18,7 +18,8 @@ WinKickOff собирает файл `autounattend.xml` для автомати�
 ## Как запустить программу
 
 Если программа получена папкой с файлом `WinKickOff.exe`, запустите этот файл. Если получены исходные
-тексты, нужен Python 3.14 для Windows; в папке `WinKickOff` выполните:
+тексты, нужен Python 3.14 для Windows: дважды щёлкните `Start-WinKickOff.cmd` в корне папки проекта или в папке
+`WinKickOff` выполните:
 
 ```powershell
 python -m winkickoff
