@@ -343,7 +343,10 @@ dashes `rg -n "[\x{2013}\x{2014}]" -g '!docs/appendices/**' /projects`, MCP conn
   the tool error `write_failed`; `fit_text` cuts a preview by its serialised size; HTTP refuses a signed
   `Content-Length`, caps handler threads (`MAX_CONNECTIONS`) and drains at most 64 KB for an unauthenticated request;
   `service.stop()` marks the `McpServer` closed and closes the bridge; the token is copied through
-  `ui/clipboard.py` with the Windows exclusion formats; HTTP tests bind loopback port 0 on every run (no gate).
+  `ui/clipboard.py` with the Windows exclusion formats and never as a plain copy on Windows (a busy clipboard means
+  nothing is copied; while waiting it delivers the messages sent to the thread, because Tk renders its own clipboard
+  text on request and a viewer such as the clipboard history waits for that); HTTP tests bind loopback port 0 on every
+  run (no gate).
 - The pi agent container (`pi-agent/`, added by a team member on 01.10.2026; the MCP connection to the window works,
   the acceptance test of its README is pending). pi has MCP built in since 0.99.0 (`builtin:mcp`): it reads
   `~/.pi/agent/mcp.json` in the format "Copy client configuration (HTTP)" produces, so no extension is installed; the
@@ -384,7 +387,7 @@ dashes `rg -n "[\x{2013}\x{2014}]" -g '!docs/appendices/**' /projects`, MCP conn
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
 | Editor tasks | T01-T12, T14, T16-T22 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 30.09.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.5: 251 rules, 36 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer 15), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.5 adds the parameter type `list` and the action `reg-list` (runtime Set-RegList, Test-RegList), the rules themselves are those of 0.4 | 30.09.2026 | `WinKickOff/rules/` |
-| Editor code | 1.2.0-rc.1 (MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 650 tests | 01.10.2026 | `WinKickOff/` |
+| Editor code | 1.2.0-rc.1 (MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 651 tests | 01.10.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply (rules on are applied, rules off return to Windows defaults) and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 29.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |

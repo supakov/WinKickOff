@@ -538,5 +538,6 @@
  "(none)": "(немає)",
  "all transports": "усі транспорти",
  "PowerShell syntax not checked (use Check in the window)": "Синтаксис PowerShell не перевірено (натисніть «Перевірити» у вікні)",
- "The MCP server did not start: port {0} is used by another program. Clients configured for this port may already have sent the access token to that program. Choose another port in the monitor and generate a new access token (MCP menu).": "Сервер MCP не запущено: порт {0} зайнятий іншою програмою. Клієнти, налаштовані на цей порт, могли вже надіслати тій програмі токен доступу. Виберіть інший порт у моніторі та створіть новий токен доступу (меню «MCP»)."
+ "The MCP server did not start: port {0} is used by another program. Clients configured for this port may already have sent the access token to that program. Choose another port in the monitor and generate a new access token (MCP menu).": "Сервер MCP не запущено: порт {0} зайнятий іншою програмою. Клієнти, налаштовані на цей порт, могли вже надіслати тій програмі токен доступу. Виберіть інший порт у моніторі та створіть новий токен доступу (меню «MCP»).",
+ "The clipboard is busy, nothing was copied. Try again.": "Буфер обміну зайнятий, нічого не скопійовано. Спробуйте ще раз."
 }

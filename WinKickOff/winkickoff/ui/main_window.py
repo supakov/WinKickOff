@@ -2332,8 +2332,10 @@ class MainWindow(tk.Tk):
     def copy_mcp_token(self) -> None:
         if self.service is None:
             return
-        copy_secret(self, self.service.ensure_token())  # kept out of the clipboard history and the cloud clipboard
-        self.set_status(tr("Access token copied to the clipboard"))
+        if copy_secret(self, self.service.ensure_token()):  # kept out of the clipboard history and the cloud clipboard
+            self.set_status(tr("Access token copied to the clipboard"))
+        else:
+            self.set_status(tr("The clipboard is busy, nothing was copied. Try again."))
 
     def copy_mcp_config(self, kind: str) -> None:
         if self.service is None:
@@ -2343,8 +2345,10 @@ class MainWindow(tk.Tk):
             return
         if kind == "http":
             self.service.ensure_token()
-            copy_secret(self, self.service.client_config(kind))
-            self.set_status(tr("Configuration with the access token copied to the clipboard"))
+            if copy_secret(self, self.service.client_config(kind)):
+                self.set_status(tr("Configuration with the access token copied to the clipboard"))
+            else:
+                self.set_status(tr("The clipboard is busy, nothing was copied. Try again."))
             return
         self.clipboard_clear()
         self.clipboard_append(self.service.client_config(kind))
