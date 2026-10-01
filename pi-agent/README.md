@@ -5,7 +5,9 @@ WinKickOff repository mounted at `/projects`. The agent works on the code and th
 WinKickOff MCP server, and nothing is sent to a cloud model: the model runs on a llama.cpp server of the same machine.
 
 State on 01.10.2026: the image was added by a team member; the connection to the MCP server of the WinKickOff window
-works; the full acceptance test (section 8) has not been done yet.
+works. The CI job `pi-agent-container` builds the image on every push and runs `check_container.py` in it: the tests,
+the dash check and pi's connection to headless WinKickOff servers over stdio and HTTP pass. The steps of the acceptance
+test (section 8) that need the window and the model have not been done yet.
 
 ## 1. Contents of this folder
 
@@ -14,6 +16,7 @@ works; the full acceptance test (section 8) has not been done yet.
 | `Dockerfile` | The image: Ubuntu 26.04, Python 3.14, Node.js 22, git, ripgrep, pi from npm |
 | `AGENTS.md` | Instructions for the agent in the container; pi loads them after step 3 of section 4 |
 | `README.md` | This file: build, setup, connection to WinKickOff, tests, security, known issues |
+| `check_container.py` | Checks of the image (section 6): the tools, the tests and the dash check as the agent runs them, WinKickOff's headless commands, pi's MCP connection over stdio and HTTP. CI runs it; a person can run it in the container |
 
 The repository map for every agent is the root [`AGENTS.md`](../AGENTS.md); pi loads it by itself, because it reads
 the `AGENTS.md` of every folder from `/` down to its working folder.
@@ -40,8 +43,8 @@ Container winkickoff-pi (--network=host, so 127.0.0.1 is the host's loopback)
 - A local OpenAI-compatible model server, for example llama.cpp `llama-server` on port 8088. Its context size (`-c`)
   must not be smaller than `contextWindow` in `models.json`.
 - WinKickOff 1.2.0-rc.1 or later: the MCP server of the window (menu "MCP"), or the stdio server inside the container.
-- pi 0.99.0 or later. MCP is built into pi since 0.99.0 (29.09.2026), so no extension is needed; the image installs
-  the newest pi at build time, so an image built before that date has no MCP and must be rebuilt.
+- pi 0.99.0 or later. MCP is built into pi since 0.99.0 (29.09.2026), so no extension is needed. The image installs
+  the tested pi 0.99.2; another version: `podman build --build-arg PI_VERSION=x.y.z ...`, then run section 6.
 
 An agent never builds or runs this image on the customer's work PC: building pulls images and packages and changes the
 machine. A person does it on their own machine or in a virtual machine (root `AGENTS.md`, rule 1).
@@ -52,11 +55,10 @@ From the repository root:
 
 ```bash
 podman build -t winkickoff-pi:local ./pi-agent/
-podman run -it --rm --name winkickoff-pi -e PI_TELEMETRY=0 -v .:/projects:rw,Z,U -v pi-winkickoff:/home/pi/.pi --network=host --userns=keep-id winkickoff-pi:local
+podman run -it --rm --name winkickoff-pi -v .:/projects:rw,Z,U -v pi-winkickoff:/home/pi/.pi --network=host --userns=keep-id winkickoff-pi:local
 ```
 
-`-e PI_TELEMETRY=0` is not in the comments of the `Dockerfile`: with a new volume pi starts before `settings.json`
-exists and could send its install ping to `pi.dev`, and the variable overrides the setting.
+The image sets `PI_TELEMETRY=0`, so even the first start with a new volume sends no install ping to `pi.dev`.
 
 The container starts `pi` in `/projects`. A second shell in the running container: `podman exec -it winkickoff-pi sh`.
 The volume `pi-winkickoff` keeps everything under `/home/pi/.pi` between runs, so the setup below is done once. Run
@@ -111,7 +113,8 @@ these commands in that second shell (or inside pi, prefixed with `!!`, as the co
    ```
 
    `pi mcp list` connects to every configured server and prints its state, its tools and any error; it exits with 1
-   when a server fails, so it is the quickest connection test.
+   when a server fails, so it is the quickest connection test. `python3 /projects/pi-agent/check_container.py --quick`
+   checks the image and pi's MCP client against headless servers of its own, without touching the volume.
 
 ## 5. Connecting to WinKickOff
 
@@ -190,7 +193,8 @@ loopback of that machine.
 
 ### 5.4 What pi does with the WinKickOff tools
 
-Observed in the pi sources (0.99.2) and our server code; to be confirmed by the acceptance test.
+Read in the pi sources (0.99.2) and our server code. The CI job confirms the handshake, the sessions and the full
+tool list over stdio and HTTP; the rest is part of the acceptance test.
 
 | Topic | Behaviour |
 |---|---|
@@ -209,12 +213,16 @@ Observed in the pi sources (0.99.2) and our server code; to be confirmed by the 
 - `/projects` is the repository of the host, read-write: every change lands on the host disk at once.
 - Python 3.14 comes from Ubuntu 26.04, the version the project requires. There is no tkinter, no PowerShell and no
   Windows in the image: the tests of the window are skipped, and the PowerShell checks are not available.
-- Tests: `cd /projects/WinKickOff && python3 -m unittest discover -s tests` must end with `OK`. About 95 tests are
-  skipped: the window tests (no tkinter, no display), the PowerShell checks and a few tests of Windows behaviour.
+- Tests: `cd /projects/WinKickOff && python3 -m unittest discover -s tests` must end with `OK`. In CI on 01.10.2026:
+  651 tests, 96 skipped: the window tests (no tkinter, no display), the PowerShell checks and a few tests of Windows
+  behaviour.
   `test_docs` also fails on dashes and on text files with LF line endings. Some tests start their own MCP servers on
   `127.0.0.1` port 0 and a headless child process that writes a log into `WinKickOff/logs/`. On a mount backed by a
-  Windows disk `test_docs` and the child process tests are slow. This expectation comes from reading the code; step 16
-  of section 8 confirms it.
+  Windows disk `test_docs` and the child process tests are slow.
+- `python3 /projects/pi-agent/check_container.py` runs everything the CI job runs: the tools of the image, the tests,
+  the dash check, WinKickOff's headless commands and `pi mcp list` against a stdio server and an HTTP server it starts
+  on a free port with a random token. pi gets a temporary agent folder, so the volume and its token stay untouched;
+  no model is needed. `--quick` leaves out the tests.
 - WinKickOff itself: only `python3 -m winkickoff` with `--mcp`, `--mcp-config` or `--version` works here; without them
   it starts the window, which needs tkinter. `--profile` takes a preset id, the name of a saved profile or an absolute
   Linux path. The last profile of a Windows window is a Windows path, so a headless server here falls back to the
@@ -263,22 +271,24 @@ Run it once on the target setup and write the result into the "pi agent containe
 | 12 | "New access token" in the window, then a call | `401`; works again after the new token and `/mcp reconnect winkickoff` |
 | 13 | Ask for six WinKickOff calls in one message | Some may fail with `503`; note how pi and the model handle it |
 | 14 | Exposure `codemode` against `direct` for steps 3 to 8 | Note which one the local model handles better |
-| 15 | The stdio entry of section 5.2: `pi mcp list`, then `get_status` | `has_window` false, transport `stdio`; a log file in `WinKickOff/logs/` |
-| 16 | The tests of section 6 | The counts of passed and skipped tests |
+| 15 | The stdio entry of section 5.2: `pi mcp list`, then `get_status` | `has_window` false, transport `stdio`; a log file in `WinKickOff/logs/` (the connection itself is checked by CI) |
+| 16 | `python3 /projects/pi-agent/check_container.py` on the target machine | `All checks passed.` (CI passes it in a fresh image) |
 | 17 | The agent edits an existing file and creates a new one; check line endings and dashes with the commands of `AGENTS.md` | The edited file stays CRLF; the new one is converted |
 | 18 | `PI_OFFLINE=1` (add `-e PI_OFFLINE=1` to `podman run`) | The local model and the MCP server still work |
 
 ## 9. Notes on the image
 
-Findings of the review of 01.10.2026. None of them is applied: each needs a rebuild and a test.
+Findings of the review of 01.10.2026. The first five were applied the same day and pass in CI; the others are
+suggestions.
 
-| Finding | Effect | Suggestion |
+| Finding | Effect | State |
 |---|---|---|
-| `npm install -g @earendil-works/pi-coding-agent` has no version | Every rebuild may bring another pi; before 0.99.0 there is no MCP | Pin the tested version, for example `@0.99.2` |
-| No `--ignore-scripts` | pi's own documentation installs with it, so no package script runs as root during the build | `npm install -g --ignore-scripts ...` |
-| Node.js comes from the NodeSource script piped into `bash` as root | The build trusts a remote script; pi needs Node.js 22.19 or later | Keep it, or use a Node.js image as pi's documentation does; check the version with `node --version` |
-| No `fd-find` | pi downloads `fd` from GitHub into the volume when it needs it | Add `fd-find` to the apt packages (pi accepts `fdfind`) |
-| Telemetry is switched off by a manual step | The first start of a new volume may send the install ping before `settings.json` exists | `ENV PI_TELEMETRY=0` in the image; `ENV PI_OFFLINE=1` after step 18 of section 8 |
+| `npm install -g @earendil-works/pi-coding-agent` had no version | Every rebuild could bring another pi; before 0.99.0 there is no MCP | Applied: `ARG PI_VERSION=0.99.2` |
+| No `--ignore-scripts` | pi's own documentation installs with it, so no package script runs as root during the build | Applied |
+| No `fd-find` | pi downloaded `fd` from GitHub into the volume when it needed it | Applied (pi accepts `fdfind`) |
+| Telemetry was switched off by a manual step | The first start of a new volume could send the install ping before `settings.json` existed | Applied: `ENV PI_TELEMETRY=0`; `ENV PI_OFFLINE=1` may follow after step 18 of section 8 |
+| `FROM ubuntu:26.04` was a short name | Podman may refuse a short name or ask which registry to use | Applied: `FROM docker.io/library/ubuntu:26.04` |
+| Node.js comes from the NodeSource script piped into `bash` as root | The build trusts a remote script; pi needs Node.js 22.19 or later (CI: 22.23) | Suggestion: keep it, or use a Node.js image as pi's documentation does |
 | `/projects/specification` and `/projects/sources` | Hidden by the bind mount of the repository; WinKickOff does not use them | Remove the two folders from the `mkdir` |
 | `chmod -R 777 /projects /home/pi` | Wider than needed | With `--userns=keep-id` the volume needs only to be writable by the user |
 | No `python3-tk`, no PowerShell | Window tests skipped, no PowerShell syntax check | Intended: the window and PowerShell are checked on Windows |

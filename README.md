@@ -65,7 +65,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 
 ## Repository and builds
 
 https://github.com/supakov/WinKickOff (private). Every push to `main` runs the tests, the answer file checker
-and the portable build in GitHub Actions ([`.github/workflows/build.yml`](.github/workflows/build.yml)); a tag
+and the portable build in GitHub Actions ([`.github/workflows/build.yml`](.github/workflows/build.yml)), and on Linux
+builds the image of `pi-agent/` and runs the tests and pi's MCP connection in it; a tag
 `v<version>` also publishes a release with the zip. The program's working folders (`output/`, `logs/`,
 `settings.json`) and user profiles are not versioned.
 

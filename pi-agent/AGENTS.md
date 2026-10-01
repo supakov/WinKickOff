@@ -11,7 +11,7 @@ you. Follow the root `AGENTS.md`, and treat this file as the specification of ho
 
 | Item | Fact |
 |---|---|
-| System | Linux (Ubuntu 26.04): bash, git, ripgrep (`rg`), Python 3.14 (`python3`), Node.js, `file`. No Windows, no PowerShell, no tkinter, no display |
+| System | Linux (Ubuntu 26.04): bash, git, ripgrep (`rg`), fd (`fdfind`), Python 3.14 (`python3`), Node.js, `file`. No Windows, no PowerShell, no tkinter, no display |
 | Repository | `/projects`: the person's own copy, mounted read-write. Every change you make is on their disk at once |
 | Your home | `/home/pi/.pi`, a volume: settings, the model list, MCP entries with the access token, the session history |
 | Network | The host network. Use only the local model server and the WinKickOff MCP server |
@@ -91,9 +91,10 @@ Run them from `/projects/WinKickOff` unless the line says otherwise.
 | Dashes in the tree (from `/projects`; no output means none) | `rg -n "[\x{2013}\x{2014}]" -g '!docs/appendices/**' .` |
 | What you changed (from `/projects`) | `git status --short`, then `git diff --stat` |
 | Version of WinKickOff | `python3 -m winkickoff --version` |
+| The image and pi's MCP connection (from anywhere; `--quick` without the tests) | `python3 /projects/pi-agent/check_container.py` |
 
-The test run must end with `OK`. Skipped tests are expected here: the window tests need tkinter and a display, the
-PowerShell checks need Windows. Every failure or error is real: fix it, or report it with the output. `test_docs`
+The test run must end with `OK`. Skipped tests are expected here (96 on 01.10.2026): the window tests need tkinter
+and a display, the PowerShell checks need Windows. CI runs the same tests in this image on every push. Every failure or error is real: fix it, or report it with the output. `test_docs`
 fails on any text file with LF line endings and names the conversion command.
 
 Never run `python3 -m winkickoff` without `--mcp`, `--mcp-config` or `--version`: that starts the window, which cannot

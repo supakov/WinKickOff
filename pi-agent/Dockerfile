@@ -5,8 +5,10 @@
 # podman build -t winkickoff-pi:local ./pi-agent/
 # podman run -it --rm --name winkickoff-pi -v .:/projects:rw,Z,U -v pi-winkickoff:/home/pi/.pi --network=host --userns=keep-id winkickoff-pi:local
 # podman exec -it winkickoff-pi sh
+# Check the image and pi's MCP connection (temporary settings, the volume is not touched):
+# podman exec -it winkickoff-pi python3 /projects/pi-agent/check_container.py
 #
-# disable telemetry
+# disable telemetry (the image sets PI_TELEMETRY=0 as well)
 # !!cat > ~/.pi/agent/settings.json <<EOF
 # {
 # 	"enableInstallTelemetry":false
@@ -48,10 +50,12 @@
 # }
 # EOF
 
-FROM ubuntu:26.04
+# The full image name: Podman does not have to resolve a short name (it may refuse or ask which registry to use).
+FROM docker.io/library/ubuntu:26.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# fd-find: pi's find tool uses fd (as fdfind) and would otherwise download it from GitHub into the volume.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         bash \
@@ -62,13 +66,17 @@ RUN apt-get update && \
         python3-pip \
         python3-venv \
         ripgrep \
+        fd-find \
         file && \
     rm -rf /var/lib/apt/lists/*
 
+# The tested pi version (MCP is built in since 0.99.0); --ignore-scripts as pi's documentation installs it, so no
+# package script runs as root during the build. Another version: podman build --build-arg PI_VERSION=x.y.z ...
+ARG PI_VERSION=0.99.2
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get update && \
     apt-get install -y --no-install-recommends nodejs && \
-    npm install -g @earendil-works/pi-coding-agent && \
+    npm install -g --ignore-scripts "@earendil-works/pi-coding-agent@${PI_VERSION}" && \
     npm cache clean --force && \
     rm -rf /var/lib/apt/lists/*
 
@@ -85,6 +93,8 @@ WORKDIR /projects
 ENV HOME=/home/pi
 ENV PI_CODING_AGENT_DIR=/home/pi/.pi/agent
 ENV PI_SKIP_VERSION_CHECK=1
+# No install ping to pi.dev, not even on the first start of a new volume, before settings.json exists.
+ENV PI_TELEMETRY=0
 
 ENV XDG_CONFIG_HOME=/home/pi/.config
 ENV XDG_CACHE_HOME=/home/pi/.cache

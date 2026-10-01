@@ -2,6 +2,7 @@
 # request; a tag v<version> (for example v1.0.0-rc.1) also publishes a GitHub release with the zip.
 # The build needs PyInstaller from the internet, so it runs here (or in a VM), never on the customer's PC.
 # The build (tools\WinKickOff.spec) has two executables; the smoke test starts WinKickOff-mcp.exe on a copy.
+# A second job builds the image of pi-agent/ on Linux and runs there what the pi agent runs.
 name: build
 
 on:
@@ -83,6 +84,24 @@ jobs:
           name: WinKickOff-${{ steps.version.outputs.version }}
           path: WinKickOff/dist/WinKickOff-*.zip
           if-no-files-found: error
+
+  # The pi agent of pi-agent/ works in that image on Linux (Ubuntu 26.04, Python from apt, no tkinter, no PowerShell).
+  # Build it with Podman as people do and run pi-agent/check_container.py inside: the unit tests and the dash check
+  # exactly as the agent runs them, WinKickOff's headless commands, and pi's own MCP client against headless WinKickOff
+  # servers over stdio and HTTP (no model is needed). A release does not wait for this job.
+  pi-agent-container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        run: podman build -t winkickoff-pi:ci ./pi-agent/
+
+      - name: Checks inside the container
+        run: >-
+          podman run --rm -v "$PWD:/projects:rw,Z,U" --network=host --userns=keep-id winkickoff-pi:ci
+          python3 /projects/pi-agent/check_container.py
 
   release:
     if: github.ref_type == 'tag'

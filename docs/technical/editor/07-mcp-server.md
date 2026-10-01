@@ -564,7 +564,9 @@ is its own implementation, not the SDK: it asks for 2025-11-25 and accepts our 2
 opens no stream after the `405` to GET, sends `DELETE` on close, sends no `Origin` and builds `Host` from the URL, so
 the container must reach the server through `127.0.0.1` (`--network=host`; on a Windows host only with WSL mirrored
 networking). It runs the tool calls of one model message in parallel and never retries a tool call, so more than
-`MAX_CONCURRENT` calls at once get `503`, and it cuts a result above 20 KB for the model. Acceptance with pi is pending.
+`MAX_CONCURRENT` calls at once get `503`, and it cuts a result above 20 KB for the model. The CI job
+`pi-agent-container` builds that image and has pi 0.99.2 connect to a headless WinKickOff over stdio and over HTTP
+(`pi-agent/check_container.py`); acceptance with the window and a model is pending.
 
 The second executable: `WinKickOff.exe` is built with `--noconsole`, and in such a process `sys.stdin`, `sys.stdout`
 and `sys.stderr` are `None` unless the parent passed pipes; a protocol channel must not depend on how a client spawns
@@ -601,4 +603,5 @@ under `_dialog` and under a grab, destroy and rebuild with the same service, the
 monitor). `tests/test_mcp_settings.py` covers the three fields, `tests/test_sources.py` the rules of section 2 and
 `tests/test_mcp_transports.py` (`CliHeadlessTest`) the file list of a headless stdio session (only
 `mcp-stdio-<pid>.log`). Runner unchanged:
-`python -m unittest discover -s tests -v` in `WinKickOff/`.
+`python -m unittest discover -s tests -v` in `WinKickOff/`. CI runs the suite twice: on windows-latest, and on
+Linux inside the image of `pi-agent/` (`pi-agent/check_container.py`), where the window and PowerShell tests are skipped.

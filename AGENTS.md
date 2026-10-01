@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 01.10.2026 (pi agent container: `pi-agent/AGENTS.md` and README, tests ready for Linux, CRLF check; 1.2.0-rc.1 published).
+Last update: 01.10.2026 (pi agent container: `pi-agent/AGENTS.md` and README, image hardened, CI job `pi-agent-container`; clipboard fix; 1.2.0-rc.1 published).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -51,9 +51,11 @@ to the MCP server without a cloud model.
 ├── README.md                      the toolkit: purpose, tools, quick start, user docs, builds
 ├── Start-WinKickOff.cmd           starts the editor from the sources (py launcher, Python 3.14+, no console)
 ├── .gitignore, .gitattributes     what is not versioned; files are stored byte for byte (CRLF)
-├── .github/workflows/build.yml    CI: tests, checker, portable build on every push; a tag v<version> publishes a release
+├── .github/workflows/build.yml    CI: tests, checker, portable build on every push; a tag v<version> publishes a release;
+│                                  a Linux job builds pi-agent/ and runs check_container.py in it
 ├── pi-agent/                      Podman image of the pi coding agent with a local model: Dockerfile, AGENTS.md (the
-│                                  agent's instructions), README.md (setup, MCP connection, security, acceptance test)
+│                                  agent's instructions), README.md (setup, MCP connection, security, acceptance test),
+│                                  check_container.py (the checks CI runs in the image)
 ├── tools/
 │   └── Validate-Unattend.ps1      answer file checker (36 checks), read-only; without -Path it checks Appendix B
 ├── docs/
@@ -218,11 +220,12 @@ agent never runs them on the customer's PC):
 
 ```bash
 podman build -t winkickoff-pi:local ./pi-agent/
-podman run -it --rm --name winkickoff-pi -e PI_TELEMETRY=0 -v .:/projects:rw,Z,U -v pi-winkickoff:/home/pi/.pi --network=host --userns=keep-id winkickoff-pi:local
+podman run -it --rm --name winkickoff-pi -v .:/projects:rw,Z,U -v pi-winkickoff:/home/pi/.pi --network=host --userns=keep-id winkickoff-pi:local
 ```
 
 Inside the container (Linux, no PowerShell): tests `cd /projects/WinKickOff && python3 -m unittest discover -s tests`,
-dashes `rg -n "[\x{2013}\x{2014}]" -g '!docs/appendices/**' /projects`, MCP connection `pi mcp list`.
+dashes `rg -n "[\x{2013}\x{2014}]" -g '!docs/appendices/**' /projects`, MCP connection `pi mcp list`, everything that
+CI checks in the image `python3 /projects/pi-agent/check_container.py` (`--quick` without the tests).
 
 ## 6. Facts that are easy to lose
 
@@ -350,14 +353,17 @@ dashes `rg -n "[\x{2013}\x{2014}]" -g '!docs/appendices/**' /projects`, MCP conn
 - The pi agent container (`pi-agent/`, added by a team member on 01.10.2026; the MCP connection to the window works,
   the acceptance test of its README is pending). pi has MCP built in since 0.99.0 (`builtin:mcp`): it reads
   `~/.pi/agent/mcp.json` in the format "Copy client configuration (HTTP)" produces, so no extension is installed; the
-  image installs pi without a pinned version. The pi client asks for protocol 2025-11-25 and accepts our 2025-06-18,
+  image pins pi 0.99.2 (`ARG PI_VERSION`, `--ignore-scripts`), installs `fd-find`, sets `PI_TELEMETRY=0` and names its
+  base image in full. The pi client asks for protocol 2025-11-25 and accepts our 2025-06-18,
   keeps the session id, sends DELETE, accepts the 405 to GET, sends no Origin and takes Host from the URL (so the URL
   must say 127.0.0.1). It shows the model at most 20 KB of a result, runs the tool calls of one message in parallel
   and never retries one, so a fifth concurrent call gets our 503. Its default exposure `codemode` makes the model write
   JavaScript; the README suggests `direct`. With `--network=host` the container reaches the window only where its
   loopback is the host's: on Windows (podman machine, WSL2) only with WSL mirrored networking, a system setting; the
-  alternative is the stdio server inside the container. Ubuntu 26.04 has Python 3.14; by reading the code the tests
-  end with OK and about 95 skips there (no tkinter, no PowerShell). Made portable on 01.10.2026: the reserved device
+  alternative is the stdio server inside the container. The CI job `pi-agent-container` builds the image with Podman
+  on ubuntu-latest and runs `pi-agent/check_container.py`: Python 3.14.4, Node.js 22.23, 651 tests with 96 skipped (no
+  tkinter, no PowerShell), no dashes, and `pi mcp list` connected to a stdio and an HTTP WinKickOff with 18 tools each.
+  Made portable on 01.10.2026: the reserved device
   names are a fixed list (`os.path.isreserved` exists only on Windows), the `pythonw.exe` test runs only on Windows,
   `McpHttpServer.allow_reuse_port` is False, `test_docs.py` skips `.claude` (worktrees of agent sessions), `.venv`,
   `venv` and `node_modules`. A mounted working copy exposes `WinKickOff/settings.json` (the token), user profiles and
@@ -397,7 +403,7 @@ dashes `rg -n "[\x{2013}\x{2014}]" -g '!docs/appendices/**' /projects`, MCP conn
 | Imported ADMX templates | T19 done: ADMX menu, store `admx/` next to the program, policies as rules with parameters, links to built-in rules; since 1.1.0-rc.2 list and multi-line elements too (20 of 3552 policies of this Windows skipped); acceptance of lists on This PC in a VM pending; T20 (1.1.0-rc.3): an import of an imported folder asks to update it or add a tree, a policy in several trees has one check mark, trees can be renamed; Back and Forward in the window; T21 (1.1.0-rc.4): an imported policy follows the built-in rule that sets the same values | 30.09.2026 | `WinKickOff/winkickoff/core/admx.py`, `docs/user/*/admx.md` |
 | Customer list MoreOptions | Done: BitLocker off in every preset; 57 rules on by default (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Edge AI and sign-in, Gallery hidden), This PC folders as options off by default; corrections in card 19 | 28.09.2026 | `docs/technical/reference/19-more-privacy.md` |
 | MCP server | T22 done in code: stdio and HTTP transports, 18 tools, resources, modes read/edit/files, monitor, second executable in CI; acceptance with real clients (Claude Code, Claude Desktop) in a VM pending | 30.09.2026 | `WinKickOff/winkickoff/mcp/`, `docs/user/*/mcp.md` |
-| pi agent container | Dockerfile by a team member; the MCP connection to the window works; `pi-agent/AGENTS.md` (the agent's rules) and README (setup, networking, security, review of the image) written; tests made portable to Linux; acceptance test (README section 8) pending | 01.10.2026 | `pi-agent/` |
+| pi agent container | Dockerfile by a team member; the MCP connection to the window works; `pi-agent/AGENTS.md` (the agent's rules) and README (setup, networking, security, review of the image) written; tests made portable to Linux; image hardened (pi 0.99.2 pinned, `--ignore-scripts`, `fd-find`, `PI_TELEMETRY=0`); CI job `pi-agent-container` green (tests, dashes, pi over stdio and HTTP); acceptance with the window and the model (README section 8) pending | 01.10.2026 | `pi-agent/` |
 | Tuning of preset defaults | Awaited from the customer | | `WinKickOff/tools/make_presets.py`, rule defaults |
 
 Open questions to the customer: `docs/appendices/D-requirements-draft/02-constructor-requirements-draft.md`,
