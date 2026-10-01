@@ -2,14 +2,16 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 01.10.2026 (1.2.0-rc.1: MCP server with stdio and HTTP transports, read-only by default, T22; 43 review findings fixed).
+Last update: 01.10.2026 (pi agent container: `pi-agent/AGENTS.md` and README, tests ready for Linux, CRLF check; 1.2.0-rc.1 published).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
 after every finished task. Commit messages are in Russian (the customer reads the history), first line up to 72
 characters, no em or en dashes, and a commit made by an agent ends with the line
 `Co-Authored-By: <agent model> <noreply@anthropic.com>` (the model name of the current agent session,
-for example `Claude Opus 5.5`).
+for example `Claude Opus 5.5`). The pi agent of `pi-agent/` (a local model in a container) is the exception: it
+commits only when the person asks, ends the message with `Assisted-by: pi:<model>` and never pushes
+(`pi-agent/AGENTS.md`).
 
 ## 1. The repository in three sentences
 
@@ -21,6 +23,8 @@ automatically and assembles `autounattend.xml` from the selection only, the answ
 `tools/Validate-Unattend.ps1`, the check, apply and return-to-defaults scripts for a running Windows, and since 1.2 an
 MCP server (stdio and HTTP on 127.0.0.1, read-only by default) through which AI clients read the catalog and the profile.
 The hand-written answer file v0.2 the catalog grew from is kept in the documentation appendices as the reference.
+`pi-agent/` holds a Podman image of the pi coding agent with a local model, which works on this repository and talks
+to the MCP server without a cloud model.
 
 ## 2. What to read first
 
@@ -36,6 +40,7 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
 | Add or change an installation rule | `docs/technical/editor/03-data-model.md`, a file `WinKickOff/rules/NN-*.toml`, then `python -m unittest` in `WinKickOff/` |
 | Write or update user documentation | `docs/user/README.md`, the Russian source in `docs/user/ru/`, then the same change in `uk` and `en` |
 | Build or release | `.github/workflows/build.yml`, `WinKickOff/tools/build.ps1`, section 5 of this file |
+| You are the pi agent in the container, or you change the container | `pi-agent/AGENTS.md` (the pi agent's rules, which win over this file inside the container), then `pi-agent/README.md` |
 | See what the critic checked in v0.2 | `docs/appendices/C-critical-review/03-critic-report-v0.2.docx` (Word, at the customer's request) |
 
 ## 3. Folder structure
@@ -47,6 +52,8 @@ The hand-written answer file v0.2 the catalog grew from is kept in the documenta
 ├── Start-WinKickOff.cmd           starts the editor from the sources (py launcher, Python 3.14+, no console)
 ├── .gitignore, .gitattributes     what is not versioned; files are stored byte for byte (CRLF)
 ├── .github/workflows/build.yml    CI: tests, checker, portable build on every push; a tag v<version> publishes a release
+├── pi-agent/                      Podman image of the pi coding agent with a local model: Dockerfile, AGENTS.md (the
+│                                  agent's instructions), README.md (setup, MCP connection, security, acceptance test)
 ├── tools/
 │   └── Validate-Unattend.ps1      answer file checker (36 checks), read-only; without -Path it checks Appendix B
 ├── docs/
@@ -106,6 +113,8 @@ user profiles (all but `preset-*.json`) are not versioned.
    layout switching. Anything that changes the system is done in a virtual machine or written down as
    instructions. The only exception is a separate, explicit command of the customer for a specific action.
    The portable build installs PyInstaller, so it runs in GitHub Actions or a VM, never on the customer's PC.
+   The same holds for the image of `pi-agent/`: building and running it pulls images and packages, so a person does
+   it on their own machine; an agent never runs podman, docker or WSL commands on the customer's PC.
 2. The em dash (U+2014) and the en dash (U+2013) are forbidden in every text we create, in any language:
    documents, code, data, comments, interface strings, commit messages. Number ranges use a hyphen
    (08:00-20:00, T01-T06). Checks: `WinKickOff/tests/test_sources.py` and `test_docs.py`, and the command in section 5.
@@ -135,6 +144,12 @@ user profiles (all but `preset-*.json`) are not versioned.
    characters. Characters that must not appear in a file (such as dashes in regular expressions) are built in
    code with `chr(0x2013)` or `[char]0x2013`, never with an escape. Shell here-documents may also swallow
    doubled backslashes: edit files with backslashes through the editor tool or a script file.
+10. Text files are UTF-8 without a byte order mark and use CRLF line endings; `.gitattributes` (`* -text`) stores
+    them as they are, so a file written on Linux with LF reaches the repository like that. `test_docs.py` checks the
+    line endings of every tracked or new text file outside `docs/appendices/` (the frozen originals keep their bytes).
+    `*.ps1`, `*.cmd`, `WinKickOff/templates/*` and `WinKickOff/rules/*.toml` are pure ASCII, because Windows
+    PowerShell 5.1 reads a file without a byte order mark in the ANSI code page; Russian and Ukrainian texts live in
+    the translation files and in `docs/user/`.
 
 ## 5. Commands
 
@@ -197,6 +212,17 @@ $d = "[$([char]0x2013)$([char]0x2014)]"; Get-ChildItem -Recurse -Include *.md,*.
 ```
 
 Checks after an installation in a VM: the checklist in `docs/user/<lang>/install-and-check.md`.
+
+The pi agent container (`pi-agent/README.md`; a person runs these on their own machine from the repository root, an
+agent never runs them on the customer's PC):
+
+```bash
+podman build -t winkickoff-pi:local ./pi-agent/
+podman run -it --rm --name winkickoff-pi -e PI_TELEMETRY=0 -v .:/projects:rw,Z,U -v pi-winkickoff:/home/pi/.pi --network=host --userns=keep-id winkickoff-pi:local
+```
+
+Inside the container (Linux, no PowerShell): tests `cd /projects/WinKickOff && python3 -m unittest discover -s tests`,
+dashes `rg -n "[\x{2013}\x{2014}]" -g '!docs/appendices/**' /projects`, MCP connection `pi mcp list`.
 
 ## 6. Facts that are easy to lose
 
@@ -318,6 +344,22 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
   `Content-Length`, caps handler threads (`MAX_CONNECTIONS`) and drains at most 64 KB for an unauthenticated request;
   `service.stop()` marks the `McpServer` closed and closes the bridge; the token is copied through
   `ui/clipboard.py` with the Windows exclusion formats; HTTP tests bind loopback port 0 on every run (no gate).
+- The pi agent container (`pi-agent/`, added by a team member on 01.10.2026; the MCP connection to the window works,
+  the acceptance test of its README is pending). pi has MCP built in since 0.99.0 (`builtin:mcp`): it reads
+  `~/.pi/agent/mcp.json` in the format "Copy client configuration (HTTP)" produces, so no extension is installed; the
+  image installs pi without a pinned version. The pi client asks for protocol 2025-11-25 and accepts our 2025-06-18,
+  keeps the session id, sends DELETE, accepts the 405 to GET, sends no Origin and takes Host from the URL (so the URL
+  must say 127.0.0.1). It shows the model at most 20 KB of a result, runs the tool calls of one message in parallel
+  and never retries one, so a fifth concurrent call gets our 503. Its default exposure `codemode` makes the model write
+  JavaScript; the README suggests `direct`. With `--network=host` the container reaches the window only where its
+  loopback is the host's: on Windows (podman machine, WSL2) only with WSL mirrored networking, a system setting; the
+  alternative is the stdio server inside the container. Ubuntu 26.04 has Python 3.14; by reading the code the tests
+  end with OK and about 95 skips there (no tkinter, no PowerShell). Made portable on 01.10.2026: the reserved device
+  names are a fixed list (`os.path.isreserved` exists only on Windows), the `pythonw.exe` test runs only on Windows,
+  `McpHttpServer.allow_reuse_port` is False, `test_docs.py` skips `.claude` (worktrees of agent sessions), `.venv`,
+  `venv` and `node_modules`. A mounted working copy exposes `WinKickOff/settings.json` (the token), user profiles and
+  answer files (passwords) and `.git/hooks` (run on the host): `pi-agent/AGENTS.md` forbids them, the README suggests
+  a separate clone and a read-only `.git`. pi's `write` tool writes LF; `test_docs.py` catches it.
 - Built-in rules and imported policies (T21, `core/linked.py`): a policy whose registry writes an enabled built-in
   rule already covers is shown checked (tag `linked`) but stays off in the profile; the window uses `_rule_on()`
   for images and group counts, never `profile.is_enabled()` alone. An equal policy switches the built-in rule.
@@ -342,7 +384,7 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
 | Editor tasks | T01-T12, T14, T16-T22 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 30.09.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.5: 251 rules, 36 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer 15), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.5 adds the parameter type `list` and the action `reg-list` (runtime Set-RegList, Test-RegList), the rules themselves are those of 0.4 | 30.09.2026 | `WinKickOff/rules/` |
-| Editor code | 1.2.0-rc.1 (MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 647 tests | 01.10.2026 | `WinKickOff/` |
+| Editor code | 1.2.0-rc.1 (MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 650 tests | 01.10.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply (rules on are applied, rules off return to Windows defaults) and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 29.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |
@@ -352,6 +394,7 @@ Checks after an installation in a VM: the checklist in `docs/user/<lang>/install
 | Imported ADMX templates | T19 done: ADMX menu, store `admx/` next to the program, policies as rules with parameters, links to built-in rules; since 1.1.0-rc.2 list and multi-line elements too (20 of 3552 policies of this Windows skipped); acceptance of lists on This PC in a VM pending; T20 (1.1.0-rc.3): an import of an imported folder asks to update it or add a tree, a policy in several trees has one check mark, trees can be renamed; Back and Forward in the window; T21 (1.1.0-rc.4): an imported policy follows the built-in rule that sets the same values | 30.09.2026 | `WinKickOff/winkickoff/core/admx.py`, `docs/user/*/admx.md` |
 | Customer list MoreOptions | Done: BitLocker off in every preset; 57 rules on by default (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Edge AI and sign-in, Gallery hidden), This PC folders as options off by default; corrections in card 19 | 28.09.2026 | `docs/technical/reference/19-more-privacy.md` |
 | MCP server | T22 done in code: stdio and HTTP transports, 18 tools, resources, modes read/edit/files, monitor, second executable in CI; acceptance with real clients (Claude Code, Claude Desktop) in a VM pending | 30.09.2026 | `WinKickOff/winkickoff/mcp/`, `docs/user/*/mcp.md` |
+| pi agent container | Dockerfile by a team member; the MCP connection to the window works; `pi-agent/AGENTS.md` (the agent's rules) and README (setup, networking, security, review of the image) written; tests made portable to Linux; acceptance test (README section 8) pending | 01.10.2026 | `pi-agent/` |
 | Tuning of preset defaults | Awaited from the customer | | `WinKickOff/tools/make_presets.py`, rule defaults |
 
 Open questions to the customer: `docs/appendices/D-requirements-draft/02-constructor-requirements-draft.md`,
@@ -363,4 +406,6 @@ section 6; whether Appendix D should get a sample WinKickOff build.
 - A run or check command appeared: section 5.
 - A task was finished or started: section 7 and `docs/technical/editor/todo/README.md`.
 - A fact that affects future changes was found: section 6.
+- The pi agent container changed (`pi-agent/`): its README, its AGENTS.md when the agent's environment or rules
+  change, and the "pi agent container" row of section 7.
 - The date in the header on every change.

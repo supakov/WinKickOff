@@ -59,6 +59,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 
 - [Appendices](docs/appendices/README.md) (Russian): the original UnattendedWinstall file, our hand-written
   answer file v0.2 (the reference the WinKickOff catalog grew from), the reviews.
 - [AGENTS.md](AGENTS.md): repository map for developers and agents.
+- [pi-agent/](pi-agent/README.md): a Podman image of the pi coding agent with a local model, for work on this
+  repository and on profiles over MCP without a cloud model (its acceptance test is pending).
 
 ## Repository and builds
 

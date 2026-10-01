@@ -558,6 +558,14 @@ the user page only; `test_sources.py` forbids such names in package sources) and
 custom connectors must be reachable from the internet; it therefore drives its own headless copy of the profile, not
 the open window.
 
+pi (the coding agent of earendil-works, 0.99.0 and later, MCP built in) reads the same HTTP entry from
+`~/.pi/agent/mcp.json`; `pi-agent/` runs it in a Podman container with a local model (`pi-agent/README.md`). Its client
+is its own implementation, not the SDK: it asks for 2025-11-25 and accepts our 2025-06-18, keeps `Mcp-Session-Id`,
+opens no stream after the `405` to GET, sends `DELETE` on close, sends no `Origin` and builds `Host` from the URL, so
+the container must reach the server through `127.0.0.1` (`--network=host`; on a Windows host only with WSL mirrored
+networking). It runs the tool calls of one model message in parallel and never retries a tool call, so more than
+`MAX_CONCURRENT` calls at once get `503`, and it cuts a result above 20 KB for the model. Acceptance with pi is pending.
+
 The second executable: `WinKickOff.exe` is built with `--noconsole`, and in such a process `sys.stdin`, `sys.stdout`
 and `sys.stderr` are `None` unless the parent passed pipes; a protocol channel must not depend on how a client spawns
 the process. The portable build therefore adds the console executable `WinKickOff-mcp.exe`, built from

@@ -1,3 +1,7 @@
+# Setup, the MCP connection, security notes and the acceptance test: README.md in this folder.
+# Instructions for the agent: AGENTS.md in this folder, linked once into the volume (inside pi):
+# !!ln -sf /projects/pi-agent/AGENTS.md ~/.pi/agent/AGENTS.md
+#
 # podman build -t winkickoff-pi:local ./pi-agent/
 # podman run -it --rm --name winkickoff-pi -v .:/projects:rw,Z,U -v pi-winkickoff:/home/pi/.pi --network=host --userns=keep-id winkickoff-pi:local
 # podman exec -it winkickoff-pi sh
