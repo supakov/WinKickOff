@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 01.10.2026 (pi agent container: `pi-agent/AGENTS.md` and README, image hardened, CI job `pi-agent-container`; clipboard fix; 1.2.0-rc.1 published).
+Last update: 01.10.2026 (skill `WinKickOff/skills/winkickoff` for agents that use WinKickOff; PowerShell hint points to F9; pi agent container with CI job `pi-agent-container`; 1.2.0-rc.1 published).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -40,6 +40,7 @@ to the MCP server without a cloud model.
 | Add or change an installation rule | `docs/technical/editor/03-data-model.md`, a file `WinKickOff/rules/NN-*.toml`, then `python -m unittest` in `WinKickOff/` |
 | Write or update user documentation | `docs/user/README.md`, the Russian source in `docs/user/ru/`, then the same change in `uk` and `en` |
 | Build or release | `.github/workflows/build.yml`, `WinKickOff/tools/build.ps1`, section 5 of this file |
+| Change the skill for AI agents that use WinKickOff over MCP | `WinKickOff/skills/README.md`, then `WinKickOff/skills/winkickoff/SKILL.md` and its `references/`; `WinKickOff/tests/test_skill.py` ties it to the server |
 | You are the pi agent in the container, or you change the container | `pi-agent/AGENTS.md` (the pi agent's rules, which win over this file inside the container), then `pi-agent/README.md` |
 | See what the critic checked in v0.2 | `docs/appendices/C-critical-review/03-critic-report-v0.2.docx` (Word, at the customer's request) |
 
@@ -94,6 +95,9 @@ to the MCP server without a cloud model.
     ├── resources/                 keyboards.json, timezones.json, strings.ru.json and strings.uk.json (interface
     │                              translations), themes/ (light, dark, latte, matrix colour themes)
     ├── profiles/                  presets Office (= catalog defaults), Strict, Laptop, memstechtips, README
+    ├── skills/                    winkickoff/: the Agent Skill for AI agents that use WinKickOff over MCP (SKILL.md,
+    │                              references/tools.md, workflows.md, concepts.md); README.md: how to install it;
+    │                              shipped next to the exe in the portable build
     ├── tests/                     unittest: catalog, resolver, profile, render, build against v0.2, validation,
     │                              import, presets, PowerShell, settings, portability, window smoke test, docs,
     │                              translations, themes, ADMX import, MCP server (test_mcp_*.py);
@@ -152,6 +156,10 @@ user profiles (all but `preset-*.json`) are not versioned.
     `*.ps1`, `*.cmd`, `WinKickOff/templates/*` and `WinKickOff/rules/*.toml` are pure ASCII, because Windows
     PowerShell 5.1 reads a file without a byte order mark in the ANSI code page; Russian and Ukrainian texts live in
     the translation files and in `docs/user/`.
+11. The skill `WinKickOff/skills/winkickoff` tells AI agents that use WinKickOff how the MCP tools, error kinds,
+    modes, presets and rules behave. A change of any of them updates the skill in the same commit;
+    `WinKickOff/tests/test_skill.py` fails on a tool, error kind, rule, group or resource the skill names wrongly or
+    misses, but not on a changed behaviour, so read the skill when the behaviour changes.
 
 ## 5. Commands
 
@@ -369,6 +377,15 @@ CI checks in the image `python3 /projects/pi-agent/check_container.py` (`--quick
   `venv` and `node_modules`. A mounted working copy exposes `WinKickOff/settings.json` (the token), user profiles and
   answer files (passwords) and `.git/hooks` (run on the host): `pi-agent/AGENTS.md` forbids them, the README suggests
   a separate clone and a read-only `.git`. pi's `write` tool writes LF; `test_docs.py` catches it.
+- The PowerShell syntax check of the embedded scripts runs only in the window's "Build autounattend.xml" (F9);
+  "Check" (F7) and the MCP tools `check_profile` and `write_answer_file` skip it. Since 01.10.2026 the note that
+  `write_answer_file` returns says so (it used to send people to Check). The Office preset turns on 16 ASR rules,
+  Strict 17 (`asr.usb-untrusted`).
+- The skill `WinKickOff/skills/winkickoff` (01.10.2026) was written by a workflow: research of the Agent Skills format
+  and of the clients (Claude Code `~/.claude/skills`, Claude Desktop and claude.ai ZIP upload with a description of at
+  most 200 characters, pi `~/.pi/agent/skills` and `/skill:winkickoff`), the MCP surface from the code, the domain;
+  then three reviews (accuracy, usability with a small local model, safety) and fixes. It names tools bare
+  (`get_status`) and explains the client prefixes; it is not for editing WinKickOff code (that is this file).
 - Built-in rules and imported policies (T21, `core/linked.py`): a policy whose registry writes an enabled built-in
   rule already covers is shown checked (tag `linked`) but stays off in the profile; the window uses `_rule_on()`
   for images and group counts, never `profile.is_enabled()` alone. An equal policy switches the built-in rule.
@@ -393,7 +410,7 @@ CI checks in the image `python3 /projects/pi-agent/check_container.py` (`--quick
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
 | Editor tasks | T01-T12, T14, T16-T22 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 30.09.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.5: 251 rules, 36 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer 15), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.5 adds the parameter type `list` and the action `reg-list` (runtime Set-RegList, Test-RegList), the rules themselves are those of 0.4 | 30.09.2026 | `WinKickOff/rules/` |
-| Editor code | 1.2.0-rc.1 (MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 651 tests | 01.10.2026 | `WinKickOff/` |
+| Editor code | 1.2.0-rc.1 (MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 659 tests | 01.10.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply (rules on are applied, rules off return to Windows defaults) and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 29.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |
@@ -404,6 +421,7 @@ CI checks in the image `python3 /projects/pi-agent/check_container.py` (`--quick
 | Customer list MoreOptions | Done: BitLocker off in every preset; 57 rules on by default (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Edge AI and sign-in, Gallery hidden), This PC folders as options off by default; corrections in card 19 | 28.09.2026 | `docs/technical/reference/19-more-privacy.md` |
 | MCP server | T22 done in code: stdio and HTTP transports, 18 tools, resources, modes read/edit/files, monitor, second executable in CI; acceptance with real clients (Claude Code, Claude Desktop) in a VM pending | 30.09.2026 | `WinKickOff/winkickoff/mcp/`, `docs/user/*/mcp.md` |
 | pi agent container | Dockerfile by a team member; the MCP connection to the window works; `pi-agent/AGENTS.md` (the agent's rules) and README (setup, networking, security, review of the image) written; tests made portable to Linux; image hardened (pi 0.99.2 pinned, `--ignore-scripts`, `fd-find`, `PI_TELEMETRY=0`); CI job `pi-agent-container` green (tests, dashes, pi over stdio and HTTP); acceptance with the window and the model (README section 8) pending | 01.10.2026 | `pi-agent/` |
+| Skill for agents that use WinKickOff | `WinKickOff/skills/winkickoff` (SKILL.md, references tools, workflows, concepts) and its install README; shipped in the portable build; `test_skill.py`; user page `mcp.md` section on the skill (ru, uk, en); not yet tried with a model, Claude Desktop upload untested | 01.10.2026 | `WinKickOff/skills/` |
 | Tuning of preset defaults | Awaited from the customer | | `WinKickOff/tools/make_presets.py`, rule defaults |
 
 Open questions to the customer: `docs/appendices/D-requirements-draft/02-constructor-requirements-draft.md`,
@@ -415,6 +433,7 @@ section 6; whether Appendix D should get a sample WinKickOff build.
 - A run or check command appeared: section 5.
 - A task was finished or started: section 7 and `docs/technical/editor/todo/README.md`.
 - A fact that affects future changes was found: section 6.
+- The MCP tools, their errors, the presets or the catalog changed: the skill (`WinKickOff/skills/winkickoff`).
 - The pi agent container changed (`pi-agent/`): its README, its AGENTS.md when the agent's environment or rules
   change, and the "pi agent container" row of section 7.
 - The date in the header on every change.

@@ -103,7 +103,13 @@ these commands in that second shell (or inside pi, prefixed with `!!`, as the co
    ln -sf /projects/pi-agent/AGENTS.md ~/.pi/agent/AGENTS.md
    ```
 
-4. The MCP server entry: section 5.1 (HTTP, the open window) or 5.2 (stdio inside the container), or both.
+4. The MCP server entry: section 5.1 (HTTP, the open window) or 5.2 (stdio inside the container), or both. For work
+   on profiles over MCP, also link the skill of WinKickOff (`WinKickOff/skills/README.md`); a small model loads it
+   reliably only when the task starts with `/skill:winkickoff`:
+
+   ```bash
+   mkdir -p ~/.pi/agent/skills && ln -sf /projects/WinKickOff/skills/winkickoff ~/.pi/agent/skills/winkickoff
+   ```
 
 5. Restart pi (or type `/reload`) and check from the second shell:
 
@@ -267,7 +273,7 @@ Run it once on the target setup and write the result into the "pi agent containe
 | 8 | `set_rules` in mode read | Tool error `mode_required`; the agent reports it and does not try another way |
 | 9 | Switch the window to "Read and change the open profile"; `set_rules` `network.netbios-off` on | The tree shows the change as unsaved; a row in the monitor |
 | 10 | Open a dialog in the window, then call `set_rules` | Tool error `window_busy` |
-| 11 | Mode "Change and create files": `save_profile` `pi-test` twice; `write_answer_file` `pi-test` | `profiles/pi-test.json` created, then `exists`; `output/pi-test.xml` written; Check in the window passes |
+| 11 | Mode "Change and create files": `save_profile` `pi-test` twice; `write_answer_file` `pi-test` | `profiles/pi-test.json` created, then `exists`; `output/pi-test.xml` written; "Build autounattend.xml..." (F9) in the window on that profile reports no PowerShell error |
 | 12 | "New access token" in the window, then a call | `401`; works again after the new token and `/mcp reconnect winkickoff` |
 | 13 | Ask for six WinKickOff calls in one message | Some may fail with `503`; note how pi and the model handle it |
 | 14 | Exposure `codemode` against `direct` for steps 3 to 8 | Note which one the local model handles better |

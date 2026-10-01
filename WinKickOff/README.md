@@ -87,6 +87,8 @@ WinKickOff/
   templates/         runtime XML and PowerShell with slots (see templates/README.md)
   resources/         keyboard layouts, time zones, strings.<code>.json (interface translations), themes/
   profiles/          presets (generated from the catalog, see profiles/README.md)
+  skills/            winkickoff/: the Agent Skill for AI agents that use WinKickOff over MCP (see skills/README.md);
+                     shipped next to the exe in the portable build
   tests/             unittest
   tools/             make_presets.py (with memstechtips.py), make_rule_docs.py, make_browser_rules.py, run-tests.ps1,
                      build.ps1 (T12)

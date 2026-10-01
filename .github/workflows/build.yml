@@ -61,7 +61,7 @@ jobs:
       - name: Smoke test of WinKickOff-mcp.exe
         run: |
           $dist = (Resolve-Path 'dist\WinKickOff').Path
-          foreach ($name in 'WinKickOff.exe', 'WinKickOff-mcp.exe', '_internal') {
+          foreach ($name in 'WinKickOff.exe', 'WinKickOff-mcp.exe', '_internal', 'skills\winkickoff\SKILL.md') {
             if (-not (Test-Path (Join-Path $dist $name))) { throw "$name is missing in $dist" }
           }
           $smoke = Join-Path $env:RUNNER_TEMP 'smoke'

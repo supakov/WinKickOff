@@ -19,8 +19,8 @@ screens, account creation. After installation, the desktop opens.
 
 ## Checking the file before installation
 
-In the program window: "Check" (F7). From the project folder you can also run the validation
-utility; it only reads the file:
+In the program window: "Check" (F7); "Build autounattend.xml" (F9) also checks the PowerShell syntax of the
+embedded scripts. From the project folder you can also run the validation utility; it only reads the file:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 -Path WinKickOff\output\autounattend.xml
@@ -43,8 +43,8 @@ Test-Path C:\Windows\Panther\unattend.xml
 
 Expected result for the "Office" preset: no ERROR in the logs; the Print Spooler service is running
 and starts automatically; the Admin and User passwords never expire; the input languages are en-US, uk-UA,
-ru-UA; protection against potentially unwanted apps and network protection are turned on; there are 17 ASR
-rules; there is no `unattend.xml` file in Panther.
+ru-UA; protection against potentially unwanted apps and network protection are turned on; there are 16 ASR
+rules (17 in the "Strict" preset); there is no `unattend.xml` file in Panther.
 
 For every rule, the program has a "Check after installation" section with the
 exact command.

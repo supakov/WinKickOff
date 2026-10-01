@@ -27,7 +27,7 @@ from winkickoff.mcp.redact import check_name, safe_child
 
 log = logging.getLogger(__name__)
 PRESET_IDS = ("office", "strict", "laptop", "memstechtips")
-POWERSHELL_NOTE = N_("PowerShell syntax not checked (use Check in the window)")
+POWERSHELL_NOTE = N_("PowerShell syntax not checked: build the file in the window (F9) to check it")  # Check (F7) does not run it, only Build (F9)
 GROUP_ACTIONS = ("on", "off", "defaults")
 
 

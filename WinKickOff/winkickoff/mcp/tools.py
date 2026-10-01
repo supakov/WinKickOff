@@ -571,8 +571,8 @@ class ToolRegistry:
                      MODE_READ, _schema(), list_profiles, READ_ANNOTATIONS),
             ToolSpec("diff_profile", "Compare profiles", "Differences between the open profile and a preset or a saved profile, "
                      "by effective values.", MODE_READ, _schema({"name": name_prop}, ["name"]), diff_profile, READ_ANNOTATIONS),
-            ToolSpec("check_profile", "Check", "Validate the open profile and build the answer file in memory (the window's "
-                     "Check without the PowerShell syntax check). Nothing is written.",
+            ToolSpec("check_profile", "Check", "Validate the open profile and build the answer file in memory, as the window's "
+                     "Check does. The PowerShell syntax check runs only in the window's Build (F9). Nothing is written.",
                      MODE_READ, _schema(), check_profile, READ_ANNOTATIONS),
             ToolSpec("preview_build", "Preview the build", "The text the build would write, from a copy without secrets: "
                      "the answer file or one of the embedded scripts. Nothing is written.",

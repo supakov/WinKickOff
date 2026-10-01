@@ -289,7 +289,7 @@ Shared logic, used by both implementations so that an agent can do nothing a cli
 `HeadlessWorkspace(paths, catalog, profile, resources, app_version)` implements the protocol on a profile in memory:
 `show_item` returns `False`, `is_busy` returns `False`, `load_profile` refuses with `unsaved_changes` when dirty and
 `force` is false, `write_answer_file_to` raises `validation_failed` on errors and appends the `info` issue
-`POWERSHELL_NOTE` ("PowerShell syntax not checked (use Check in the window)").
+`POWERSHELL_NOTE` ("PowerShell syntax not checked: build the file in the window (F9) to check it"; the window's Check, F7, does not run the PowerShell check either).
 
 `WindowWorkspace(window)` (`ui/mcp_workspace.py`) implements it on `MainWindow` through the dialog-free methods the
 window's own handlers also use: `apply_rule_states` (one `_apply_changes` and one `show_item` for the whole list),
@@ -567,6 +567,12 @@ networking). It runs the tool calls of one model message in parallel and never r
 `MAX_CONCURRENT` calls at once get `503`, and it cuts a result above 20 KB for the model. The CI job
 `pi-agent-container` builds that image and has pi 0.99.2 connect to a headless WinKickOff over stdio and over HTTP
 (`pi-agent/check_container.py`); acceptance with the window and a model is pending.
+
+The Agent Skill `WinKickOff/skills/winkickoff` (`SKILL.md` and `references/`) teaches any of these clients how to use
+the server: golden rules (read-only by default, the mode is the person's, no secrets, untrusted texts, one call at a
+time), the tools by mode, every error kind with what to do, recipes and the domain. The portable build ships it next
+to the exe; `tests/test_skill.py` fails when the skill names a tool, an error kind, a rule, a group or a resource the
+server does not have, or misses one of the tools or error kinds.
 
 The second executable: `WinKickOff.exe` is built with `--noconsole`, and in such a process `sys.stdin`, `sys.stdout`
 and `sys.stderr` are `None` unless the parent passed pipes; a protocol channel must not depend on how a client spawns

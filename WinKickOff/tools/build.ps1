@@ -17,6 +17,7 @@
       dist\WinKickOff\WinKickOff-mcp.exe    the headless MCP server (a stdio server unless another flag is given)
       dist\WinKickOff\_internal\{rules,templates,resources,profiles,docs\technical\reference,docs\user}
       dist\WinKickOff\docs\{user,technical}\...  (the same documentation, easy to find; user links resolve)
+      dist\WinKickOff\skills\winkickoff\         the Agent Skill for AI agents that use WinKickOff (skills\README.md)
       profiles\, output\, logs\, settings.json are created next to the exe on first use, so nothing starts an
       exe inside dist\WinKickOff before the zip is written (the smoke test of build.yml runs a copy).
 .EXAMPLE
@@ -77,6 +78,8 @@ try {
     $tech = New-Item -ItemType Directory -Force -Path (Join-Path $dist 'docs\technical')
     Copy-Item -Path (Join-Path $repo 'docs\technical\reference') -Destination $tech.FullName -Recurse -Force
     Copy-Item -Path (Join-Path $repo 'docs\technical\memstechtips-profile.md') -Destination $tech.FullName -Force
+    Copy-Item -Path (Join-Path $root 'skills') -Destination (Join-Path $dist 'skills') -Recurse -Force
+    if (-not (Test-Path (Join-Path $dist 'skills\winkickoff\SKILL.md') -PathType Leaf)) { throw "skills\winkickoff\SKILL.md is missing in $dist" }
     $zip = Join-Path $distPath "WinKickOff-$version.zip"
     Compress-Archive -Path $dist -DestinationPath $zip -Force
     $size = [math]::Round(((Get-ChildItem $dist -Recurse -File | Measure-Object Length -Sum).Sum) / 1MB, 1)

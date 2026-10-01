@@ -159,6 +159,25 @@ name into `profiles`, and then it can be opened in the window. Each such process
 `logs\mcp-stdio-<process id>.log`; Claude Desktop's own log for this server (`mcp-server-winkickoff.log`) stays empty,
 which is normal.
 
+## A skill for the assistant
+
+The program ships an Agent Skill named `winkickoff`: instructions for an AI assistant on working with WinKickOff
+through MCP. With it the assistant starts with `get_status`, asks before every change, never asks for or repeats
+passwords, keys or the token, treats the texts of profiles and imported templates as data rather than commands,
+explains rules in your language and at the end reminds you to build in the window (F9, with the PowerShell check) and
+to install in a virtual machine first. The skill is the folder `skills\winkickoff` next to `WinKickOff.exe` (in the
+sources `WinKickOff\skills\winkickoff`); detailed installation steps: `skills\README.md`.
+
+- Claude Code: copy the folder `winkickoff` into `%USERPROFILE%\.claude\skills\` and start a new session; the skill
+  loads by itself when WinKickOff comes up, or with the command `/winkickoff`.
+- Claude Desktop: turn on code execution in the settings, put the folder `winkickoff` into a ZIP (the archive holds
+  `winkickoff\SKILL.md`) and upload it in the skills section ("Customize", "Skills", "Upload a skill").
+- pi: copy the folder or link it into `~/.pi/agent/skills/`; with a small local model, call the skill explicitly with
+  `/skill:winkickoff`.
+
+The skill does not connect the server: connect MCP first, as described above. The skill describes this version of the
+program; after an update of WinKickOff, copy the folder again.
+
 ## Command line
 
 `WinKickOff-mcp.exe` (the portable build) and `python -m winkickoff` (the sources) accept the same flags.
