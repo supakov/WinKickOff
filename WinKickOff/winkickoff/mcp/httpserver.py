@@ -31,6 +31,7 @@ _LENGTH_RE = re.compile(r"^[0-9]{1,12}$")
 
 class McpHttpServer(ThreadingHTTPServer):
     allow_reuse_address = False
+    allow_reuse_port = False  # no SO_REUSEPORT on Linux: another process must not share the port and its connections
     daemon_threads = True
     block_on_close = False
     request_queue_size = 8

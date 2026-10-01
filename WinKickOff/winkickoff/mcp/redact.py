@@ -28,7 +28,10 @@ OTHER = 400
 MAX_NAME = 80
 KEY_PLACEHOLDER = "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"  # keeps the answer file well-formed where a custom key would be
 HIDDEN = "<hidden>"
-_RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{n}" for n in range(0, 10)), *(f"LPT{n}" for n in range(0, 10))}
+# Windows device names, the superscript variants included, refused on every platform: a profile made on Linux (the pi
+# agent container) is opened on Windows later.
+_DIGITS = [str(n) for n in range(10)] + [chr(0xB9), chr(0xB2), chr(0xB3)]
+_RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{d}" for d in _DIGITS), *(f"LPT{d}" for d in _DIGITS)}
 _STRIP = "".join(chr(c) for c in list(range(0, 9)) + [11, 12] + list(range(14, 32)) + list(range(127, 160))
                  + list(range(0x200B, 0x2010)) + list(range(0x202A, 0x202F)) + list(range(0x2060, 0x2065))
                  + list(range(0x2066, 0x206A)) + [0xFEFF])
@@ -170,7 +173,7 @@ def check_name(name: Any) -> str | None:
 
 
 def _reserved_by_windows(name: str) -> bool:
-    """os.path.isreserved knows the device names of this Windows (COM0, LPT0, the superscript variants)."""
+    """os.path.isreserved (Windows only) knows the rules of this Windows beyond the list above."""
     isreserved = getattr(os.path, "isreserved", None)
     if isreserved is None:
         return False

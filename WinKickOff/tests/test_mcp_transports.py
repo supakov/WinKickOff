@@ -449,6 +449,15 @@ class CliHeadlessTest(unittest.TestCase):
             code, _ = self.headless(["--version"])
         self.assertEqual(code, 3)
 
+    def test_mcp_config_stdio_names_this_interpreter(self) -> None:
+        """Any platform (the pi agent container runs the tests on Linux): the command is the running interpreter."""
+        code, _ = self.headless(["--mcp-config", "stdio"])
+        self.assertEqual(code, 0)
+        entry = json.loads(self.stdout.getvalue())["mcpServers"]["winkickoff"]
+        self.assertEqual(entry["command"], str(Path(sys.executable)))
+        self.assertEqual(entry["args"], ["-m", "winkickoff", "--mcp", "stdio"])
+
+    @unittest.skipUnless(sys.platform == "win32", "a Windows interpreter path")
     def test_mcp_config_stdio_is_json_whose_command_is_python_exe(self) -> None:
         with mock.patch("sys.executable", "C:\\Tools\\Python\\pythonw.exe"):
             code, _ = self.headless(["--mcp-config", "stdio"])

@@ -1323,6 +1323,15 @@ class ReservedNamesTest(unittest.TestCase):
         self.assertIsNone(check_name("COMMON"))
         self.assertIsNone(check_name("Каса"))
 
+    def test_reserved_variants_without_os_path_isreserved(self) -> None:
+        """Linux has no os.path.isreserved (the pi agent container): the list alone must refuse them."""
+        from winkickoff.mcp import redact
+
+        with mock.patch.object(redact, "_reserved_by_windows", return_value=False):
+            for name in ("COM0", "LPT9", "COM¹", "LPT²", "com³"):
+                with self.subTest(name=name):
+                    self.assertEqual(check_name(name), "the name is a reserved device name")
+
 
 class NamesTest(unittest.TestCase):
     def test_check_name_accepts(self) -> None:

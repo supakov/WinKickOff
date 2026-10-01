@@ -5,13 +5,15 @@
 - docs/user/<lang>/rules.md equals what tools/make_rule_docs.py generates now;
 - the catalog translations rules/lang/{ru,uk}.toml are complete (English is the source);
 - every relative Markdown link resolves, including #anchors;
-- no em or en dash anywhere in our texts.
+- no em or en dash anywhere in our texts;
+- every text file of the repository uses CRLF line endings (the pi agent of pi-agent/ writes on Linux).
 """
 
 from __future__ import annotations
 
 import importlib.util
 import re
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -26,7 +28,12 @@ CYRILLIC = re.compile("[" + chr(0x0400) + "-" + chr(0x04FF) + "]")
 RUSSIAN_ONLY = re.compile(r"[ыЫэЭъЪёЁ]")
 DASHES = (chr(0x2013), chr(0x2014))
 LANGUAGES = ("ru", "uk", "en")  # the languages of docs/user
-SKIP_PARTS = {".git", "__pycache__", "A-unattendedwinstall", "output", "logs"}
+# .claude holds worktrees of agent sessions (copies of other branches); .venv, venv and node_modules hold third-party
+# files; none of them is part of the repository
+SKIP_PARTS = {".git", "__pycache__", "A-unattendedwinstall", "output", "logs", ".claude", ".venv", "venv", "node_modules"}
+FROZEN = "docs/appendices/"  # the originals there keep their own bytes, line endings included
+CRLF_FIX = ("python3 -c \"import pathlib,sys; [pathlib.Path(p).write_bytes(pathlib.Path(p).read_bytes()"
+            ".replace(b'\\r\\n', b'\\n').replace(b'\\n', b'\\r\\n')) for p in sys.argv[1:]]\" FILE...")
 
 
 def markdown_files() -> list[Path]:
@@ -68,6 +75,24 @@ class DocsTest(unittest.TestCase):
         files = markdown_files() + list((ROOT / "rules" / "lang").glob("*.toml"))
         bad = [str(p.relative_to(REPO)) for p in files if any(d in p.read_text(encoding="utf-8") for d in DASHES)]
         self.assertEqual(bad, [])
+
+    def test_text_files_use_crlf(self) -> None:
+        """Tracked files and new files that git does not ignore: a bare LF means a file written on Linux and not
+        converted; .gitattributes stores files as they are, so it would reach the repository like that."""
+        try:
+            listed = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], cwd=REPO,
+                                    capture_output=True, check=True, timeout=60).stdout
+        except (OSError, subprocess.SubprocessError):
+            self.skipTest("git is not available or this is not a clone")
+        bad: list[str] = []
+        for name in listed.decode("utf-8").split("\0"):
+            path = REPO / name
+            if not name or name.startswith(FROZEN) or SKIP_PARTS & set(name.split("/")) or not path.is_file():
+                continue
+            data = path.read_bytes()
+            if b"\0" not in data and b"\n" in data.replace(b"\r\n", b""):  # binary files contain zero bytes
+                bad.append(name)
+        self.assertEqual(bad, [], f"convert to CRLF: {CRLF_FIX}")
 
     def test_release_notes_of_this_version_exist(self) -> None:
         # .github/workflows/build.yml publishes a tag v<APP_VERSION> with these notes
