@@ -158,9 +158,10 @@ class SkillAgreesWithTheServerTest(unittest.TestCase):
                         self.assertTrue((ROOT.parent / "docs" / relative).is_file(), relative)
 
     def test_mode_titles_are_the_window_titles(self) -> None:
-        from winkickoff.ui.main_window import MODE_TITLES as WINDOW_TITLES
-
-        self.assertEqual(MODE_TITLES, tuple(WINDOW_TITLES))
+        # read from the source: importing the window needs tkinter, which the Linux container of pi-agent/ lacks
+        source = (ROOT / "winkickoff" / "ui" / "main_window.py").read_text(encoding="utf-8")
+        line = next(line for line in source.splitlines() if line.startswith("MODE_TITLES = "))
+        self.assertEqual(MODE_TITLES, tuple(re.findall(r'N_\("([^"]+)"\)', line)))
         for title in MODE_TITLES:
             with self.subTest(title=title):
                 self.assertIn(f'"{title}"', self.skill_md)
