@@ -10,7 +10,7 @@ User documentation (how to work with the program): [Русский](../docs/user
 [Українська](../docs/user/uk/README.md), [English](../docs/user/en/README.md).
 Specification, architecture, data model and plan: [`../docs/technical/editor/`](../docs/technical/editor/README.md).
 
-State on 30.09.2026: version 1.2.0-rc.1 (MCP server: stdio and HTTP on 127.0.0.1, read-only by default; import of ADMX
+State on 01.10.2026: version 1.2.0-rc.1 (MCP server: stdio and HTTP on 127.0.0.1, read-only by default; import of ADMX
 templates, including policies with lists of values and multi-line text; Back and Forward; imported policies follow
 the built-in rules). The catalog 0.5 (251 rules, 36 groups) carries every action of the
 hand-written answer file v0.2, the Edge, Chrome and Brave policies, the AI, telemetry, Office and OneDrive rules of
