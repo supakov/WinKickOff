@@ -13,6 +13,7 @@ from __future__ import annotations
 import http.client
 import json
 import logging
+import queue
 import socket
 import subprocess
 import sys
@@ -51,10 +52,11 @@ PASSWORD = "Kx9-SecretPassw0rd"  # the password of the test profile: it must nev
 RULE = "network.netbios-off"  # off in the Office preset, no dependencies
 HTTP_TIMEOUT = 60.0
 # A clipboard viewer in its own process, like the clipboard history of Windows: it opens the clipboard with a window
-# of its own (a clipboard opened without a window does not lock other processes out), says "open", asks for the text
-# (the owner renders it on request) and closes the clipboard.
+# of its own (a clipboard opened without a window does not lock other processes out), waiting while another viewer
+# (the real clipboard history) reads it, says "open", waits for a line on stdin, asks for the text (the owner renders
+# it on request) and closes the clipboard.
 CLIPBOARD_VIEWER = """
-import ctypes, sys
+import ctypes, sys, time
 from ctypes import wintypes
 user32 = ctypes.WinDLL("user32")
 user32.CreateWindowExW.restype = wintypes.HWND
@@ -64,10 +66,14 @@ user32.CreateWindowExW.argtypes = [wintypes.DWORD, wintypes.LPCWSTR, wintypes.LP
 user32.OpenClipboard.argtypes, user32.OpenClipboard.restype = [wintypes.HWND], wintypes.BOOL
 user32.GetClipboardData.argtypes, user32.GetClipboardData.restype = [wintypes.UINT], wintypes.HANDLE
 window = user32.CreateWindowExW(0, "STATIC", "viewer", 0, 0, 0, 0, 0, wintypes.HWND(-3), None, None, None)
-if not window or not user32.OpenClipboard(window):
-    print("busy", flush=True)
-    sys.exit(1)
+deadline = time.monotonic() + 10
+while not window or not user32.OpenClipboard(window):
+    if not window or time.monotonic() > deadline:
+        print("busy", flush=True)
+        sys.exit(1)
+    time.sleep(0.02)
 print("open", flush=True)
+sys.stdin.readline()
 text = user32.GetClipboardData(13)
 user32.CloseClipboard()
 print("read" if text else "empty", flush=True)
@@ -749,12 +755,41 @@ class WindowLifecycleTest(McpWindowTestCase):
         self.assertFalse(self.service.running)
 
 
+def stop_process(process: subprocess.Popen[str]) -> None:
+    if process.poll() is None:
+        process.kill()
+    process.wait(10)
+    for stream in (process.stdin, process.stdout):
+        if stream is not None:
+            stream.close()
+
+
 class ClipboardTest(McpWindowTestCase):
+    def next_line(self, lines: queue.Queue[str], *, pump: bool, timeout: float = 15.0) -> str:
+        """The next line of the viewer; with pump the window handles its messages meanwhile."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                return lines.get(timeout=0.02)
+            except queue.Empty:
+                if pump:
+                    self.win.update()
+        self.fail("the clipboard viewer did not answer")
+
     def clipboard(self) -> str:
         """The system clipboard as Tk sees it after its event loop ran: a Win32 copy takes the ownership from
-        Tk, which notices it (WM_DESTROYCLIPBOARD) only on the next update."""
-        self.win.update()
-        return self.win.clipboard_get()
+        Tk, which notices it (WM_DESTROYCLIPBOARD) only on the next update. Right after a copy the clipboard
+        service of Windows (and the clipboard history, where it is on) opens the clipboard for a moment, so a read
+        refused with "cannot be opened" is repeated for a few seconds."""
+        deadline = time.monotonic() + 5
+        while True:
+            self.win.update()
+            try:
+                return self.win.clipboard_get()
+            except tk.TclError as exc:
+                if "cannot be opened" not in str(exc) or time.monotonic() > deadline:
+                    raise
+            time.sleep(0.05)
 
     def test_copy_mcp_config_stdio_puts_json_into_the_clipboard(self) -> None:
         self.win.copy_mcp_config("stdio")
@@ -838,12 +873,27 @@ class ClipboardTest(McpWindowTestCase):
         self.win.clipboard_clear()
         self.win.clipboard_append("plain text")  # Tk announces CF_UNICODETEXT and renders it on request
         # the viewer is another process: threads of one process do not lock each other out of the clipboard
-        viewer = subprocess.Popen([sys.executable, "-c", CLIPBOARD_VIEWER], stdout=subprocess.PIPE, text=True)
-        self.addCleanup(viewer.kill)
-        self.assertEqual(viewer.stdout.readline().strip(), "open", "another program holds the clipboard")
+        viewer = subprocess.Popen([sys.executable, "-c", CLIPBOARD_VIEWER], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                  text=True, encoding="ascii")
+        self.addCleanup(stop_process, viewer)
+        lines: queue.Queue[str] = queue.Queue()
+
+        def read_lines() -> None:
+            try:
+                for line in viewer.stdout:  # type: ignore[union-attr]
+                    lines.put(line.strip())
+            except (OSError, ValueError):
+                pass  # the pipe was closed by the cleanup
+
+        threading.Thread(target=read_lines, name="clipboard-viewer-output", daemon=True).start()
+        # While the viewer waits for the clipboard, Tk keeps answering: the real clipboard history of this PC may be
+        # reading the text Tk has just published, and it holds the clipboard until Tk renders that text.
+        self.assertEqual(self.next_line(lines, pump=True), "open", "another program holds the clipboard")
+        viewer.stdin.write("go\n")  # type: ignore[union-attr]
+        viewer.stdin.flush()  # type: ignore[union-attr]
+        # Tk does not pump any more: copy_secret must deliver the viewer's request itself while it waits
         self.assertTrue(copy_secret(self.win, "secret-value"))
-        out, _ = viewer.communicate(timeout=10)
-        self.assertEqual(out.strip(), "read")
+        self.assertEqual(self.next_line(lines, pump=False), "read")
         excluded = ctypes.windll.user32.RegisterClipboardFormatW(EXCLUSION_FORMATS[0])
         self.assertTrue(ctypes.windll.user32.IsClipboardFormatAvailable(excluded))
         self.assertEqual(self.clipboard(), "secret-value")
