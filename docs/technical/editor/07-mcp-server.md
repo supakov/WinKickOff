@@ -53,6 +53,7 @@ All paths are under `WinKickOff/winkickoff/`.
 | `core/validate.py` | `check_param(rule, param, value)`: the parameter check the window and `change_param` share |
 | `ui/mcp_workspace.py` | `WindowWorkspace` (the `Workspace` protocol on `MainWindow`) and `install_pump` (section 8) |
 | `ui/mcp_window.py` | `McpMonitor`: state, controls, the journal table, copy actions |
+| `ui/clipboard.py` | `copy_secret`: the token (and the HTTP configuration that holds it) goes to the Win32 clipboard with the formats `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory = 0` and `CanUploadToCloudClipboard = 0`, so the clipboard history (Win+V) and the cloud clipboard keep no copy; Tk's clipboard is the fallback |
 | `ui/main_window.py` | The `MCP` menu, the status bar segment, `_dialog`, `is_busy`, the dialog-free methods, `service.detach()` and the pump id in `destroy()` |
 | `app.py` | `run()` owns the `McpService`; `create_app(service=...)` configures it, sets `on_save`, applies autostart |
 
@@ -135,8 +136,8 @@ grabbing gets nothing before authentication:
 | 5 | `MCP-Protocol-Version` is absent or one of `HEADER_VERSIONS` (the supported versions plus `2025-11-25`) | `400` |
 | 6 | Method: `POST` continues; `DELETE` ends the session named by `Mcp-Session-Id`; `GET`, `HEAD`, `OPTIONS`, `PUT` and `PATCH` are refused | `DELETE`: `204` or `404`; the others `405` with `Allow: POST, DELETE` |
 | 7 | A slot of the `BoundedSemaphore(MAX_CONCURRENT)` is free | `503` with `Retry-After: 1` |
-| 8 | No `Transfer-Encoding`; `Content-Length` present and an integer | `411`; a non-integer length `400` |
-| 9 | `Content-Length` at most `MAX_MESSAGE_BYTES`; a larger body is first drained (up to `DRAIN_LIMIT` in 64 KB chunks), so the client sees the status instead of a reset | `413` |
+| 8 | No `Transfer-Encoding`; `Content-Length` present and made of digits only (no sign, no spaces) | `411`; anything else `400` |
+| 9 | `Content-Length` at most `MAX_MESSAGE_BYTES`; a larger body is first drained (up to `DRAIN_LIMIT` in 64 KB chunks; a request that failed one of the checks above drains at most 64 KB), so the client sees the status instead of a reset | `413` |
 | 10 | `Content-Type` starts with `application/json` | `415` |
 | 11 | `Accept` absent, `*/*` or containing `application/json` | `406` |
 | 12 | The body parses with `parse_message` | `400` with a JSON-RPC body: `-32600` for an array, `-32700` for bad JSON (`id: null`) |
@@ -334,8 +335,9 @@ build not tick, reads time out with `window_timeout`, which the user page names 
 Wiring: `install_pump(window, bridge)` schedules `bridge.pump()` every 50 ms with `window.after` and stores the id in
 `window.mcp_pump_id`; a tick that ran closures calls `window.refresh_mcp_status()`. `MainWindow.destroy()` cancels the
 pump id and calls `service.detach()` before `super().destroy()`, so no callback fires on a destroyed interpreter; a
-call queued during a rebuild waits for the next window, which attaches a new `WindowWorkspace`, or times out with a
-clear error. `app.run()` creates one `McpService` for the process, passes it to every `create_app(state, service)` of
+call queued before the detach or arriving during the rebuild waits (within its deadline) for the next window, which
+attaches a new `WindowWorkspace`, or times out with a clear error; after `service.stop()` the bridge is closed and
+refuses at once. `app.run()` creates one `McpService` for the process, passes it to every `create_app(state, service)` of
 the rebuild loop and stops it in `finally` after the last window, because a daemon thread frozen at interpreter
 shutdown while holding a lock or a socket can produce a fatal error on exit. A window built with `service=None` (every
 existing test) is inert: the `MCP` menu is disabled, no pump runs, the status segment says "MCP: off".
@@ -367,22 +369,22 @@ false, destructiveHint: false, idempotentHint: false, openWorldHint: false` (the
 | `list_profiles` | read | none | `profiles: [{name, kind: "preset" or "user", title_text, modified, catalog_version, readable}]`, `unlisted`; names only, never paths |
 | `diff_profile` | read | `name` (1-80; a preset id or a saved profile name) | `other`, `differences: [{kind, key, before, after}]` from `Profile.diff` through `redact_differences` |
 | `check_profile` | read | none; the issue texts are rendered by `tr()` in the process language (`issues_language`) | `ok`, `errors`, `warnings`, `issues: [{level, target, message, doc}]`, `build: {rules, warnings}` or `null`, `issues_language`, `powershell_checked: false` |
-| `preview_build` | read | `part?` (`autounattend.xml` default, `Setup-System.ps1`, `Setup-User.ps1`, `Post-OOBE.ps1`) | The text block holds the text; `structuredContent`: `part`, `parts`, `bytes`, `truncated`, `redacted: true`, `rules`. Built with `check_and_build` from `redacted_copy(profile)` and checked with `assert_redacted_build`; `validation_failed` when the profile has errors |
-| `get_messages` | read | none | `issues`, `issues_language`: the messages panel (headless: the last check) |
-| `set_rules` | edit | `items: [{id, enabled}]` (1-200) | `changes: [{id, enabled, reason}]`, `refused: [{id, reason}]`, `dirty: true`, `issues_errors` |
-| `set_group` | edit | `id`, `action` (`on`, `off`, `defaults`) | `id`, `action`, `changes`, `dirty: true`, `issues_errors` |
-| `set_param` | edit | `id`, `name` (1-64), `value` (string, integer, boolean or array of strings; `maxLength` 4000, `maxItems` 200; the joined length of an array is capped at 4000) | `id`, `name`, `value` (as stored), `dirty: true`; `invalid_arguments` or `validation_failed` |
-| `set_profile_info` | edit | `name?` (1-80), `author?` (0-80), `comment?` (0-2000) | `name`, `author_text`, `comment_text`, `dirty: true`; control characters stripped |
+| `preview_build` | read | `part?` (`autounattend.xml` default, `Setup-System.ps1`, `Setup-User.ps1`, `Post-OOBE.ps1`) | The text block holds the text; `structuredContent`: `part`, `parts`, `bytes`, `truncated`, `redacted: true`, `rules`. The real profile is validated first (the redacted copy would hide a malformed custom key), then built with `check_and_build` from `redacted_copy(profile)` and checked with `assert_redacted_build`; `validation_failed` when the profile has errors. The text is cut by `fit_text` so that the serialised result (quotes and newlines escaped) stays under `MAX_RESULT_BYTES` |
+| `get_messages` | read | none | `issues`, `issues_language`: the messages panel (headless: the warnings of the last `load_profile` or the issues of the last `write_answer_file`); `check_profile` returns its own issues and leaves the panel alone |
+| `set_rules` | edit | `items: [{id, enabled}]` (1-200) | `changes: [{id, enabled, reason}]`, `refused: [{id, reason}]`, `dirty`, `issues_errors` |
+| `set_group` | edit | `id`, `action` (`on`, `off`, `defaults`) | `id`, `action`, `changes`, `dirty`, `issues_errors` |
+| `set_param` | edit | `id`, `name` (1-64), `value` (string, integer, boolean or array of strings; `maxLength` 4000, `maxItems` 200; the joined length of an array is capped at 4000) | `id`, `name`, `value` (as stored), `dirty` (the current value changes nothing, as in the parameter panel); `invalid_arguments` or `validation_failed` |
+| `set_profile_info` | edit | `name?` (1-80), `author?` (0-80), `comment?` (0-2000) | `name`, `author_text`, `comment_text`, `dirty` (false when nothing changed); control characters stripped |
 | `load_profile` | edit | `name`, `force?` | `name`, `file`, `warnings`, `forced`; `unsaved_changes` when the workspace is dirty and `force` is false; with `force` the unsaved changes are dropped without a dialog |
 | `show_item` | edit | `item` (`r:<rule>`, `g:<group>`, `data:accounts`, `data:languages`, `data:install`) | `shown`, `reason?` (`"no window"` headless, `"no such item"`) |
-| `save_profile` | files | `name` (1-80) | `file` (display path `profiles/<name>.json`), `dirty: false`; `name_refused` from `safe_child`, `exists` for an existing file |
-| `write_answer_file` | files | `name` (1-80) | `file` (`output/<name>.xml`), `rules`, `issues` (with the `info` issue about PowerShell), `powershell_checked: false`, `note` ("rename the file to autounattend.xml when copying it to the installation media"); `exists`, `validation_failed` |
+| `save_profile` | files | `name` (1-80) | `file` (display path `profiles/<name>.json`), `dirty: false`; `name_refused` from `safe_child` and for the preset ids (`office`, `strict`, `laptop`, `memstechtips`, which `load_profile` would resolve to the preset), `exists` for an existing file, `write_failed` (the profile keeps its previous name) |
+| `write_answer_file` | files | `name` (1-80) | `file` (`output/<name>.xml`), `rules`, `issues` (with the `info` issue about PowerShell), `powershell_checked: false`, `note` ("rename the file to autounattend.xml when copying it to the installation media"); `exists`, `validation_failed`, `write_failed` |
 
 Error kinds (`structuredContent.error`): `invalid_arguments` (with `problems` from the schema checker or a message),
 `mode_required` (`required`, `current`, `how`), `window_busy`, `window_timeout` (`pending` when a closure may still
 land), `unknown_id` (`suggestions` for rules), `name_refused` (the reason from `check_name` or `safe_child`), `exists`,
-`unsaved_changes`, `validation_failed` (`errors`), `load_failed` (the exception class only), `refused` (an imported
-group switched on), `redaction_failed`, `result_too_large` (`bytes`).
+`unsaved_changes`, `validation_failed` (`errors`), `load_failed` and `write_failed` (the exception class only, never a
+path), `refused` (an imported group switched on), `redaction_failed`, `result_too_large` (`bytes`).
 
 ## 10. Resources
 
@@ -435,10 +437,14 @@ Always on; no tool or resource returns a password or a product key.
 - `check_name(name)` accepts a profile or answer file name when, after NFC normalisation, it has 1 to 80 code points,
   every character satisfies `str.isalnum()` or is one of space, `_`, `.`, `-`, the first character is alphanumeric, the
   name ends with neither a space nor a dot, contains no `..` and no path separator, and its stem is not a reserved
-  device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9`, `LPT1`-`LPT9`). `str.isalnum()` accepts Cyrillic and every
+  device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9`, `LPT1`-`LPT9`, and whatever `os.path.isreserved` refuses for
+  the name with `.json` or `.xml`: `COM0`, `LPT0`, the superscript variants). `str.isalnum()` accepts Cyrillic and every
   other script (the customer's profiles are Cyrillic) and refuses combining marks that did not fuse under NFC, format
   characters and controls. `safe_child(folder, name, suffix)` adds the refusal of `preset-*`, resolves the target and
   requires its parent to be the resolved folder, and refuses symlinks and reparse points on the folder and on the file.
+- `profile_display(path, root)` (`mcp/workspace.py`): the profile file is reported as its path inside the program
+  folder, or as the file name alone when it lies elsewhere, so the folder layout of the user's disk never leaves the
+  machine; `list_profiles` gives names only.
 - The journal never holds argument values beyond the whitelisted scalars (section 13); the log holds tool names and
   exception class names, never argument text.
 
@@ -447,12 +453,13 @@ Always on; no tool or resource returns a password or a product key.
 | Constant | Value | Meaning |
 |---|---|---|
 | `MAX_MESSAGE_BYTES` | 1,000,000 | One stdio line or one HTTP body; more is `-32700` (stdio) or `413` (HTTP) |
-| `DRAIN_LIMIT` | 4,000,000 | Bytes of an oversized HTTP body read and discarded before the `413` |
+| `DRAIN_LIMIT` | 4,000,000 | Bytes of an oversized HTTP body read and discarded before the `413` (64 KB when the request failed a check) |
 | `BRIDGE_TIMEOUT` | 5 s | A read call waits this long for the window; also the grace period for a write that started |
 | `WRITE_TIMEOUT` | 30 s | A write call waits this long for the window |
 | `MAX_RESULT_BYTES` | 200,000 | A larger tool or resource result becomes `result_too_large`; below Claude Code's default output limit, so the server reports the overflow |
 | `DEFAULT_LIMIT`, `MAX_LIMIT` | 100, 500 | Paging of `list_rules` |
 | `MAX_CONCURRENT` | 4 | HTTP requests handled at once; more get `503` |
+| `httpserver.MAX_CONNECTIONS` | 32 | Handler threads alive at once, authenticated or not; further connections are closed unanswered |
 | `MAX_SESSIONS` | 16 | HTTP sessions; the oldest is evicted |
 | `MAX_DOC_BYTES` | 65,536 | A documentation resource is cut at this size |
 | `journal.MAX_ENTRIES` | 1000 | Entries kept in memory |
@@ -468,17 +475,21 @@ Always on; no tool or resource returns a password or a product key.
 `Journal` (`mcp/journal.py`) is a `deque(maxlen=1000)` behind a lock, memory only: nothing is written to disk, so
 `test_portable.py` keeps its exact file list and no free text from a client can end up in a file the customer might
 paste to an agent. `Entry(seq, time, transport, client, method, tool, args, ok, ms, note)`: `time` is `HH:MM:SS`,
-`transport` is `stdio` or `http`, `client` is the cleaned name and version from `initialize`, `tool` is the tool name
-or the resource URI, `args` is the rendering of `render_args`, `note` is the program's short note (`mode_required`,
+`transport` is `stdio` or `http`, `client` is the name and version from `initialize` rendered by `render_client`
+(letters, digits, space, `.`, `_`, `/`, `(`, `)`, `-`, at most 60 characters; anything else is `<client, N chars>`),
+`tool` is the tool name or the resource URI rendered by `render_uri` (`<uri, N chars>` unless it is made of safe
+characters), `args` is the rendering of `render_args`, `note` is the program's short note (`mode_required`,
 `window_busy`, `window_timeout`, `exists`, `error -32601`, `internal`, `completed after timeout`, ...). `append` returns
 the sequence number, `annotate(seq, note)` adds a note to an existing entry, `since(seq)` is what the monitor polls
 every 250 ms, `count` and `last_time` feed the status bar.
 
-`render_args(arguments)` renders booleans and integers as they are, strings as they are unless the key is one of
-`comment`, `author`, `name`, `query`, `value`, `title`, the value is longer than 60 characters or contains whitespace
-(then `<text, N chars>`), lists as `<list, N items>`, objects as `<object>`. Request and response bodies, headers and
-the token never enter the journal. `McpServer.handle` writes one entry per handled message (notifications included) in
-the same way for both transports.
+`render_args(arguments, allowed)` renders only the keys the tool's schema declares (`allowed`); any other key, or a
+key that is not an identifier, is `<unknown key, N chars>`. Booleans and integers are rendered as they are, strings as
+they are only when the key is not one of `comment`, `author`, `name`, `query`, `value`, `title` and the value matches
+`[A-Za-z0-9_.:-]{1,60}` (otherwise `<text, N chars>`), lists as `<list, N items>`, objects as `<object>`; at most 20
+parts. Request and response bodies, headers and the token never enter the journal. `McpServer.handle` writes one entry
+per handled message (notifications included) in the same way for both transports, and only after the entry exists does
+it register the `completed after timeout` note of a pending write with that entry's sequence number.
 
 ## 14. Headless operation, the dispatcher and the command line
 
@@ -565,8 +576,8 @@ All MCP tests use `unittest`, temporary folders from `tempfile.TemporaryDirector
 moved off screen), writes outside its temporary folder or binds anything but `127.0.0.1` port `0`; `launch_elevated`
 and `run_audit` are mocked on every window. Log assertions attach their own handler to the `winkickoff.mcp` logger and
 never read the file of `setup_logging`, which returns early when a handler is already installed. The HTTP tests bind
-loopback port `0`; the design keeps them behind `WINKICKOFF_HTTP_TESTS=1` until the customer confirms that a loopback
-bind raises no firewall dialog.
+loopback port `0` on every run, on the customer's PC too: a loopback bind raised no firewall dialog there (confirmed
+30.09.2026), so no environment variable gates them.
 
 The MCP test modules are `tests/test_mcp_*.py`: the JSON-RPC parsing, the schema checker and the `McpServer`
 lifecycle in memory; every tool in every mode on the real catalog, including the no-secret test (a profile with a long
@@ -579,6 +590,7 @@ never import tkinter; the command line; the HTTP transport (every check of secti
 exclusive bind on win32, stop with an open socket, stop of a never-started thread); the window integration (a service
 attached to a withdrawn `MainWindow`, requests from a helper thread while the test pumps `update()`, `window_busy`
 under `_dialog` and under a grab, destroy and rebuild with the same service, the token surviving a window rebuild, the
-monitor). `tests/test_settings.py` covers the three fields, `tests/test_sources.py` the rules of section 2 and
-`tests/test_portable.py` the file list of a headless stdio session (only `mcp-stdio-<pid>.log`). Runner unchanged:
+monitor). `tests/test_mcp_settings.py` covers the three fields, `tests/test_sources.py` the rules of section 2 and
+`tests/test_mcp_transports.py` (`CliHeadlessTest`) the file list of a headless stdio session (only
+`mcp-stdio-<pid>.log`). Runner unchanged:
 `python -m unittest discover -s tests -v` in `WinKickOff/`.

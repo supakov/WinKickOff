@@ -61,6 +61,7 @@ from winkickoff.core.themes import Theme, available_themes, resolve_theme
 from winkickoff.core.validate import Issue, has_errors, list_problem, validate_catalog, validate_profile, validate_xml
 from winkickoff.core.verify import rollback_steps, verify_steps
 from winkickoff.ui.checkimages import make_check_images
+from winkickoff.ui.clipboard import copy_secret
 from winkickoff.ui.data_forms import AccountsForm, InstallForm, LanguagesForm
 from winkickoff.ui.mcp_workspace import WindowWorkspace, install_pump
 from winkickoff.ui.winmenus import MenuMargins, colorref
@@ -1064,7 +1065,7 @@ class MainWindow(tk.Tk):
         self._future.clear()
         self._update_nav()
 
-    def _can_show(self, item: str) -> bool:
+    def can_show(self, item: str) -> bool:
         if item == WORKFLOW_NODE or item.startswith("data:"):
             return True
         if item.startswith("g:"):
@@ -1074,7 +1075,7 @@ class MainWindow(tk.Tk):
     def _step(self, source: list[str], target: list[str]) -> None:
         while source:
             item = source.pop()
-            if self._can_show(item) and item != self._current_item:
+            if self.can_show(item) and item != self._current_item:
                 target.append(self._current_item)
                 self.select_node(item)
                 break
@@ -1445,8 +1446,13 @@ class MainWindow(tk.Tk):
 
     def save_profile_to(self, path: Path) -> None:
         """Save the open profile under a new name (the tail of Save as; the MCP files mode uses it too)."""
+        previous = self.profile.name
         self.profile.name = path.stem
-        self.profile.save(path, self.catalog)
+        try:
+            self.profile.save(path, self.catalog)
+        except OSError:
+            self.profile.name = previous  # a failed save leaves the profile as it was
+            raise
         self.dirty = False
         self.refresh_profile_choices()
         self.update_title()
@@ -2216,7 +2222,9 @@ class MainWindow(tk.Tk):
         return changes
 
     def set_param_value(self, rule_id: str, name: str, value: Any) -> Any:
-        stored = change_param(self.catalog, self.profile, self.resources, rule_id, name, value)
+        stored, changed = change_param(self.catalog, self.profile, self.resources, rule_id, name, value)
+        if not changed:
+            return stored  # the current value: the parameter panel does not mark the profile dirty either
         self.mark_dirty()
         self.refresh_marks()
         rule = self.catalog.rules[rule_id]
@@ -2226,16 +2234,15 @@ class MainWindow(tk.Tk):
             self.show_item(self._current_item)
         return stored
 
-    def set_profile_info(self, name: str | None, author: str | None, comment: str | None) -> None:
-        if name is not None:
-            self.profile.name = name
-        if author is not None:
-            self.profile.author = author
-        if comment is not None:
-            self.profile.comment = comment
-        self.mark_dirty()
-        self.update_title()
-        self.set_status(tr("Profile name and notes changed"))
+    def set_profile_info(self, name: str | None, author: str | None, comment: str | None) -> tuple[str, str, str]:
+        wanted = (self.profile.name if name is None else name, self.profile.author if author is None else author,
+                  self.profile.comment if comment is None else comment)
+        if wanted != (self.profile.name, self.profile.author, self.profile.comment):
+            self.profile.name, self.profile.author, self.profile.comment = wanted
+            self.mark_dirty()
+            self.update_title()
+            self.set_status(tr("Profile name and notes changed"))
+        return wanted
 
     def _build_mcp_menu(self, menu: tk.Menu) -> None:
         """Start and stop the HTTP server, the mode, the monitor, client configuration, the token, autostart."""
@@ -2274,8 +2281,14 @@ class MainWindow(tk.Tk):
         except OSError as exc:
             log.error("mcp server did not start: %s", exc)
             self.refresh_mcp_status()
-            self._dialog(messagebox.showerror, APP_NAME, tr("The MCP server did not start: port {0} is used by another program. Choose another port in the monitor.",
-                                                             self.settings.mcp_port), parent=self)
+            # a foreign listener on the configured port may already have received the token from a configured client
+            if self._dialog(messagebox.askyesno, APP_NAME, tr(
+                    "The MCP server did not start: port {0} is used by another program. Clients configured for this port may "
+                    "already have sent the access token to that program. Choose another port in the monitor.\n\n"
+                    "Generate a new access token now?", self.settings.mcp_port), icon=messagebox.WARNING, parent=self):
+                self.service.rotate_token()
+                self.set_status(tr("New access token generated; the server was stopped"))
+                self.refresh_mcp_status()
             return False
         self.set_status(tr("MCP server started on http://127.0.0.1:{0}/mcp, mode: {1}", port, tr(MODE_TITLES[MODES.index(self.service.mode)])))
         self.refresh_mcp_status()
@@ -2319,8 +2332,7 @@ class MainWindow(tk.Tk):
     def copy_mcp_token(self) -> None:
         if self.service is None:
             return
-        self.clipboard_clear()
-        self.clipboard_append(self.service.ensure_token())
+        copy_secret(self, self.service.ensure_token())  # kept out of the clipboard history and the cloud clipboard
         self.set_status(tr("Access token copied to the clipboard"))
 
     def copy_mcp_config(self, kind: str) -> None:
@@ -2331,10 +2343,12 @@ class MainWindow(tk.Tk):
             return
         if kind == "http":
             self.service.ensure_token()
+            copy_secret(self, self.service.client_config(kind))
+            self.set_status(tr("Configuration with the access token copied to the clipboard"))
+            return
         self.clipboard_clear()
         self.clipboard_append(self.service.client_config(kind))
-        self.set_status(tr("Configuration with the access token copied to the clipboard") if kind == "http"
-                        else tr("Client configuration (stdio) copied to the clipboard"))
+        self.set_status(tr("Client configuration (stdio) copied to the clipboard"))
 
     def open_mcp_monitor(self) -> None:
         if self.service is None:

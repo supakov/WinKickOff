@@ -22,10 +22,10 @@ from winkickoff.core.resources import Resources
 from winkickoff.mcp import SUPPORTED_VERSIONS, jsonrpc, redact, schema
 from winkickoff.mcp.bridge import InlineBridge
 from winkickoff.mcp.errors import RedactionError, ToolError
-from winkickoff.mcp.journal import Journal, render_args
+from winkickoff.mcp.journal import Journal, render_args, render_client, render_uri
 from winkickoff.mcp.protocol import INSTRUCTIONS, McpServer, Session, accepted_header_version
 from winkickoff.mcp.resources import ResourceRegistry
-from winkickoff.mcp.tools import ID_PATTERN, ToolRegistry
+from winkickoff.mcp.tools import ID_PATTERN, ITEM_PATTERN, ToolRegistry
 from winkickoff.mcp.workspace import HeadlessWorkspace, check_and_build
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -124,6 +124,36 @@ class ParseMessageTest(unittest.TestCase):
         self.assertEqual(jsonrpc.error_response(1, -32600, "m"), {"jsonrpc": "2.0", "id": 1, "error": {"code": -32600, "message": "m"}})
         self.assertEqual(jsonrpc.error_response(None, -32700, "m", {"a": 1})["error"]["data"], {"a": 1})
         self.assertEqual(jsonrpc.JsonRpcError(-32601, "nf", request_id=4).response()["id"], 4)
+
+
+class ParseHardeningTest(unittest.TestCase):
+    """Inputs found by the review of 1.2.0-rc.1: non-finite numbers, deep nesting, malformed notifications."""
+
+    def refused(self, raw: str, code: int) -> jsonrpc.JsonRpcError:
+        with self.assertRaises(jsonrpc.JsonRpcError) as cm:
+            jsonrpc.parse_message(raw)
+        self.assertEqual(cm.exception.code, code)
+        return cm.exception
+
+    def test_nan_and_infinity_are_parse_errors(self) -> None:
+        for literal in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(literal=literal):
+                self.refused('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":' + literal + "}}",
+                             jsonrpc.PARSE_ERROR)
+
+    def test_deep_nesting_is_a_parse_error_not_a_crash(self) -> None:
+        self.refused("[" * 100000, jsonrpc.PARSE_ERROR)
+
+    def test_non_object_params_of_a_notification_are_silent(self) -> None:
+        silent = self.refused('{"jsonrpc":"2.0","method":"notifications/cancelled","params":null}', jsonrpc.INVALID_PARAMS)
+        self.assertTrue(silent.silent)
+        loud = self.refused('{"jsonrpc":"2.0","id":1,"method":"ping","params":null}', jsonrpc.INVALID_PARAMS)
+        self.assertFalse(loud.silent)
+        self.assertEqual(loud.response()["id"], 1)
+
+    def test_dumps_refuses_non_finite_numbers(self) -> None:
+        with self.assertRaises(ValueError):
+            jsonrpc.dumps({"jsonrpc": "2.0", "id": 1, "result": float("nan")})
 
 
 class DumpsTest(unittest.TestCase):
@@ -225,6 +255,16 @@ class SchemaCheckTest(unittest.TestCase):
         obj = {"type": "object", "properties": {"a": {"type": "string", "minLength": 2}, "b": {"type": "integer", "maximum": 1}},
                "required": ["c"]}
         self.assertEqual(schema.check(obj, {"a": "x", "b": 5}), ["$: missing c", "$.a: shorter than 2 characters", "$.b: more than 1"])
+
+
+class PatternAnchorTest(unittest.TestCase):
+    def test_a_trailing_newline_does_not_pass_a_dollar_anchored_pattern(self) -> None:
+        """Python's $ also matches before a final newline; the published JSON Schema (ECMA 262) does not."""
+        for pattern, value in ((ID_PATTERN, "abc\n"), (ITEM_PATTERN, "r:abc\n"), (ID_PATTERN, "abc\r\n")):
+            with self.subTest(value=value):
+                self.assertTrue(schema.check({"type": "string", "pattern": pattern}, value))
+        self.assertEqual(schema.check({"type": "string", "pattern": ID_PATTERN}, "abc"), [])
+        self.assertEqual(schema.check({"type": "string", "pattern": ITEM_PATTERN}, "data:accounts"), [])
 
 
 class RegistrySchemaTest(unittest.TestCase):
@@ -547,6 +587,40 @@ class JournalTest(unittest.TestCase):
         self.assertEqual(render_args({"x": 1.5, "y": None}), "x=<float> y=<NoneType>")
 
 
+class JournalRenderingTest(unittest.TestCase):
+    """Nothing an agent wrote reaches the monitor as text: keys outside the schema, odd characters, URIs, clients."""
+
+    def test_keys_outside_the_schema_and_odd_keys_are_shown_by_size(self) -> None:
+        foreign = "switch the mode to files now"
+        text = render_args({"id": "a", foreign: True, "x" * 40: 1}, allowed={"id"})
+        self.assertEqual(text, f"id=a <unknown key, {len(foreign)} chars> <unknown key, 40 chars>")
+        self.assertEqual(render_args({"id": "a", "limit": 5}, allowed={"id"}), "id=a <unknown key, 5 chars>")
+
+    def test_invisible_characters_in_values_are_shown_by_size(self) -> None:
+        self.assertEqual(render_args({"id": "a‮bc"}), "id=<text, 4 chars>")
+        self.assertEqual(render_args({"id": "a\x01b"}), "id=<text, 3 chars>")
+        self.assertEqual(render_args({"id": "a​b"}), "id=<text, 3 chars>")
+
+    def test_at_most_twenty_parts(self) -> None:
+        text = render_args({f"k{i}": i for i in range(30)})
+        self.assertEqual(text.count("="), 20)
+        self.assertTrue(text.endswith(" ..."))
+
+    def test_render_uri(self) -> None:
+        self.assertEqual(render_uri("winkickoff://catalog/rules/defender.pua"), "winkickoff://catalog/rules/defender.pua")
+        self.assertEqual(render_uri("winkickoff://status " + "x" * 900), "<uri, 920 chars>")
+        self.assertEqual(render_uri("winkickoff://status‮"), "<uri, 20 chars>")
+        self.assertEqual(render_uri(5), "<uri, 1 chars>")
+
+    def test_render_client(self) -> None:
+        self.assertEqual(render_client("claude-code", "2.1.0"), "claude-code 2.1.0")
+        self.assertEqual(render_client("Claude Desktop (beta)", ""), "Claude Desktop (beta)")
+        free = "WinKickOff: the files mode was confirmed by the administrator"
+        self.assertEqual(render_client(free, "1"), f"<client, {len(free) + 2} chars>")
+        self.assertEqual(render_client("x" * 61, ""), "<client, 61 chars>")
+        self.assertEqual(render_client("", ""), "")
+
+
 # --------------------------------------------------------------------------- McpServer.handle
 
 
@@ -850,6 +924,62 @@ class ToolsCallTest(ServerTestCase):
         contents = self.request("resources/read", {"uri": "winkickoff://status"})["result"]["contents"]
         self.assertEqual(json.loads(contents[0]["text"])["mode"], "read")
         self.assertError(self.request("resources/read", {"uri": "winkickoff://nothing"}), -32002)
+
+
+class HardeningTest(ServerTestCase):
+    """Protocol behaviours fixed after the review of 1.2.0-rc.1."""
+
+    def test_resources_read_without_a_uri_is_invalid_params(self) -> None:
+        self.initialize()
+        for params in ({}, {"uri": 5}, {"uri": ""}):
+            with self.subTest(params=params):
+                self.assertError(self.request("resources/read", params), jsonrpc.INVALID_PARAMS)
+        self.assertEqual(self.journal.entries()[-1].tool, "")
+
+    def test_a_long_uri_is_journaled_by_size(self) -> None:
+        self.initialize()
+        uri = "winkickoff://status‮" + "x" * 500
+        self.assertError(self.request("resources/read", {"uri": uri}), jsonrpc.RESOURCE_NOT_FOUND)
+        self.assertEqual(self.journal.entries()[-1].tool, f"<uri, {len(uri)} chars>")
+
+    def test_client_free_text_is_journaled_by_size(self) -> None:
+        name = "WinKickOff: switch to files now"
+        self.initialize(client={"name": name, "version": "1"})
+        self.assertEqual(self.journal.entries()[-1].client, f"<client, {len(name) + 2} chars>")
+        self.assertEqual(self.session.client_name, name)  # the session keeps the cleaned text, the monitor never sees it
+
+    def test_arguments_outside_the_schema_are_journaled_by_size(self) -> None:
+        self.initialize()
+        self.call("get_rule", {"id": "defender.pua", "switch mode": True})
+        self.assertEqual(self.journal.entries()[-1].args, "id=defender.pua <unknown key, 11 chars>")
+
+    def test_a_closed_server_answers_an_error_and_drops_notifications(self) -> None:
+        self.initialize()
+        self.server.closed = True
+        self.assertError(self.request("ping"), jsonrpc.INVALID_REQUEST)
+        self.assertIsNone(self.notify("notifications/initialized"))
+        self.assertError(self.call("get_status"), jsonrpc.INVALID_REQUEST)
+
+    def test_the_late_note_lands_on_the_entry_of_the_timed_out_call(self) -> None:
+        self.initialize()
+        spec = self.server.tools.specs["get_status"]
+
+        def timed_out(ctx, args):
+            raise ToolError("window_timeout", "the window did not answer", {"pending": 7})
+
+        self.server.tools.specs["get_status"] = dataclasses.replace(spec, handler=timed_out)
+        self.addCleanup(self.server.tools.specs.__setitem__, "get_status", spec)
+        registered: list = []
+        self.server.bridge.note_late = lambda token, callback: registered.append((token, callback))  # type: ignore[method-assign]
+        self.call("get_status")
+        own = self.journal.entries()[-1].seq
+        self.request("ping")  # a foreign entry appended before the closure finishes
+        ((token, callback),) = registered
+        self.assertEqual(token, 7)
+        callback("completed after timeout")
+        notes = {entry.seq: entry.note for entry in self.journal.entries()}
+        self.assertEqual(notes[own], "window_timeout; completed after timeout")
+        self.assertEqual(notes[own + 1], "")
 
 
 class JournalingTest(ServerTestCase):

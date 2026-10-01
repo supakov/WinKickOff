@@ -272,6 +272,13 @@ class CliArgumentsTest(unittest.TestCase):
         self.assertTrue(args.version)
         self.assertEqual(extras, [])
 
+    def test_help_exits_zero_without_the_window_path(self) -> None:
+        from winkickoff.__main__ import main
+
+        with mock.patch("sys.stdout", io.StringIO()) as out, mock.patch.dict(sys.modules, {"winkickoff.app": None}):
+            self.assertEqual(main(["--help"]), 0)  # the window module (and its error box) is never imported
+        self.assertIn("--mcp", out.getvalue())
+
     def test_defaults_mode_read_and_nothing_else(self) -> None:
         args, extras = cli.parse_args(["--mcp", "stdio"])
         self.assertEqual(args.mode, "read")
@@ -870,6 +877,20 @@ class HttpTransportTest(HttpClientCase):
         reply = self.send_headers_only({"Content-Type": "application/json", "Content-Length": "many"})
         self.assertEqual(reply.status, 400)
 
+    def test_signed_or_odd_content_length_gives_400(self) -> None:
+        for value in ("-5", "-1", "+5", "5_0", "0x10"):  # trailing spaces are stripped by every header parser
+            with self.subTest(value=value):
+                reply = self.send_headers_only({"Content-Type": "application/json", "Content-Length": value})
+                self.assertEqual(reply.status, 400)
+
+    def test_a_malformed_notification_gets_400_without_a_body(self) -> None:
+        _, session = self.initialize()
+        body = b'{"jsonrpc":"2.0","method":"notifications/cancelled","params":null}'
+        reply = self.send(body=body, session=session)
+        self.assertEqual((reply.status, reply.body), (400, b""))
+        body = b'{"jsonrpc":"2.0","method":"notifications/cancelled","params":{}}'
+        self.assertEqual(self.send(body=body, session=session).status, 202)
+
     def test_text_plain_gives_415(self) -> None:
         reply = self.send(body=b"{}", headers={"Content-Type": "text/plain"})
         self.assertEqual(reply.status, 415)
@@ -962,6 +983,37 @@ class HttpLifecycleTest(HttpClientCase):
             httpd.shutdown()
         httpd.server_close()
         thread.join(5)
+
+    def test_connections_beyond_the_cap_are_closed_unanswered(self) -> None:
+        from winkickoff.mcp.httpserver import MAX_CONNECTIONS
+
+        httpd, _ = self.start()
+        held = [httpd.connections.acquire(blocking=False) for _ in range(MAX_CONNECTIONS)]
+        self.assertTrue(all(held))
+        try:
+            with socket.create_connection(("127.0.0.1", self.port), timeout=5) as sock:
+                sock.sendall(b"POST /mcp HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\n\r\n")
+                try:
+                    data = sock.recv(100)
+                except ConnectionError:
+                    data = b""
+            self.assertEqual(data, b"")
+        finally:
+            for _ in held:
+                httpd.connections.release()
+        self.assertEqual(self.initialize()[0].status, 200)
+
+    def test_stop_marks_the_server_closed(self) -> None:
+        service, _ = make_service(self.paths, "http")
+        service.start_http(0)
+        server = service.server
+        self.assertIsNotNone(server)
+        self.assertFalse(server.closed)  # type: ignore[union-attr]
+        service.stop()
+        self.assertTrue(server.closed)  # type: ignore[union-attr]
+        session = Session(id="late", transport="http")
+        response = server.handle(request(1, "initialize", INIT_PARAMS), session)  # type: ignore[union-attr]
+        self.assertEqual(response["error"]["code"], -32600)
 
     def test_503_with_retry_after_when_every_slot_is_busy(self) -> None:
         httpd, server = self.start()

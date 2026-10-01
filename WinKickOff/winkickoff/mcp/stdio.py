@@ -31,7 +31,8 @@ def serve_stdio(reader: BinaryIO, writer: BinaryIO, server: McpServer, session: 
             try:
                 message = parse_message(text)
             except JsonRpcError as exc:
-                _write(writer, exc.response())
+                if not exc.silent:  # a malformed notification gets no answer, as JSON-RPC requires
+                    _write(writer, exc.response())
                 continue
             reply = server.handle(message, session)
             if reply is not None:

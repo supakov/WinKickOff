@@ -38,8 +38,8 @@ from winkickoff.mcp.journal import Journal  # noqa: E402
 from winkickoff.mcp.protocol import McpServer, Session  # noqa: E402
 from winkickoff.mcp.redact import HIDDEN, KEY_PLACEHOLDER, assert_redacted_build, check_name, clean_text, redacted_copy  # noqa: E402
 from winkickoff.mcp.resources import ResourceRegistry  # noqa: E402
-from winkickoff.mcp.tools import PARTS, ToolRegistry  # noqa: E402
-from winkickoff.mcp.workspace import POWERSHELL_NOTE, PRESET_IDS, HeadlessWorkspace  # noqa: E402
+from winkickoff.mcp.tools import PARTS, ToolRegistry, fit_text  # noqa: E402
+from winkickoff.mcp.workspace import POWERSHELL_NOTE, PRESET_IDS, HeadlessWorkspace, list_profile_files, profile_display  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 OFFICE = ROOT / "profiles" / "preset-office.json"
@@ -306,7 +306,8 @@ class StatusTest(McpToolsTestCase):
                          ("test", self.catalog.version, self.catalog.version))
         self.assertEqual((status["mode"], status["transport"], status["has_window"], status["language"]), ("read", "stdio", False, "en"))
         self.assertEqual(status["languages"], list(LANGUAGES))
-        self.assertEqual(status["profile"], {"name": "Office", "file": display_path(OFFICE, self.paths.root), "dirty": False,
+        # the preset lies outside the test's program folder: the file name alone, never an absolute path
+        self.assertEqual(status["profile"], {"name": "Office", "file": OFFICE.name, "dirty": False,
                                              "enabled": len(self.profile.enabled_ids()), "total": len(self.catalog.rules)})
         self.assertEqual(status["imports_shown"], [])
         self.assertIn("never returned", status["redaction"])
@@ -493,7 +494,7 @@ class RuleCardTest(McpToolsTestCase):
     def test_a_linked_policy_is_shown_covered(self) -> None:
         self.import_templates()
         card = self.ok("get_rule", id=SAME)
-        self.assertEqual(card["linked"], {"rule": "defender.pua", "equal": True, "covered": True})
+        self.assertEqual(card["linked"], {"rule": "defender.pua", "equal": True, "covered": True, "values_from_rule": True})
         self.assertTrue(card["enabled"])  # shown on through the built-in rule
         self.assertEqual(card["same_values"], ["defender.pua"])
         row = next(r for r in self.ok("list_rules", query="Same as built-in")["rules"] if r["id"] == SAME)
@@ -531,7 +532,7 @@ class ProfileTest(McpToolsTestCase):
     def test_state_fields(self) -> None:
         data = self.ok("get_profile")
         self.assertEqual((data["name"], data["file"], data["dirty"], data["enabled_count"]),
-                         ("Office", display_path(OFFICE, self.paths.root), False, len(self.profile.enabled_ids())))
+                         ("Office", OFFICE.name, False, len(self.profile.enabled_ids())))
         self.assertEqual(data["rules"]["defender.pua"], {"enabled": True})
         self.assertEqual(data["changed_from_defaults"], [])
 
@@ -972,8 +973,7 @@ class LoadProfileTest(McpToolsTestCase):
         self.ok("set_rules", items=[{"id": "defender.pua", "enabled": False}])
         strict, _ = Profile.load(ROOT / "profiles" / "preset-strict.json", self.catalog)
         data = self.ok("load_profile", name="strict", force=True)
-        self.assertEqual(data, {"name": "strict", "file": display_path(ROOT / "profiles" / "preset-strict.json", self.paths.root),
-                                "warnings": [], "forced": True})
+        self.assertEqual(data, {"name": "strict", "file": "preset-strict.json", "warnings": [], "forced": True})  # name only: the preset lies outside the program folder of the test
         self.assertEqual(self.workspace.profile.to_dict(self.catalog), strict.to_dict(self.catalog))
         self.assertFalse(self.workspace.dirty)
         self.assertEqual(self.ok("get_status")["profile"]["name"], strict.name)
@@ -1186,6 +1186,142 @@ class ForbiddenTest(McpToolsTestCase):
 
 
 # --------------------------------------------------------------------------- names and texts
+
+
+class ReviewFixesTest(McpToolsTestCase):
+    """Behaviours fixed after the adversarial review of 1.2.0-rc.1."""
+
+    def test_list_profiles_when_data_equals_root(self) -> None:
+        """Running from sources: the preset folder and the user folder are the same folder."""
+        base = self.tmp / "sources"
+        paths = AppPaths(root=base, data=base, docs_root=ROOT.parent, profiles=base / "profiles", output=base / "output",
+                         logs=base / "logs")
+        paths.profiles.mkdir(parents=True)
+        for name in PRESET_IDS:
+            (paths.profiles / f"preset-{name}.json").write_bytes((ROOT / "profiles" / f"preset-{name}.json").read_bytes())
+        self.office_profile().save(paths.profiles / "Kasa.json", self.catalog)
+        found, unlisted = list_profile_files(paths)
+        self.assertEqual(sorted((p["name"], p["kind"]) for p in found),
+                         sorted([(name, "preset") for name in PRESET_IDS] + [("Kasa", "user")]))
+        self.assertEqual(unlisted, 0)
+
+    def test_preview_accepts_product_key_mode_ask(self) -> None:
+        self.profile.install["product_key_mode"] = "ask"
+        self.assertTrue(self.ok("check_profile")["ok"])
+        data = self.ok("preview_build")
+        self.assertEqual((data["redacted"], data["truncated"]), (True, False))
+
+    def test_preview_refuses_a_malformed_custom_key_like_check_does(self) -> None:
+        self.profile.install["product_key_mode"] = "custom"
+        self.profile.install["product_key"] = "not-a-key"
+        self.assertFalse(self.ok("check_profile")["ok"])
+        data = self.refused("preview_build", "validation_failed")
+        self.assertTrue(data["errors"])
+        self.assertNotIn("not-a-key", json.dumps(data))
+
+    def test_fit_text_keeps_the_serialised_text_within_the_limit(self) -> None:
+        text = '"line with quotes"\n' * 5000  # escaping adds a byte per quote and per newline
+        fitted, truncated = fit_text(text, 20000)
+        self.assertTrue(truncated)
+        self.assertTrue(fitted.endswith("\n[truncated]"))
+        self.assertLessEqual(len(json.dumps(fitted, ensure_ascii=False).encode("utf-8")), 20000)
+        self.assertGreater(len(fitted), 10000)
+        self.assertEqual(fit_text("short", 100), ("short", False))
+        self.assertEqual(fit_text("", 100), ("", False))
+
+    def test_a_large_preview_is_truncated_not_refused(self) -> None:
+        with mock.patch("winkickoff.mcp.tools.MAX_RESULT_BYTES", 40000), mock.patch("winkickoff.mcp.protocol.MAX_RESULT_BYTES", 40000):
+            data = self.ok("preview_build", part="Setup-System.ps1")
+        self.assertTrue(data["truncated"])
+        self.assertLess(data["bytes"], 40000)
+
+    def test_set_param_with_the_current_value_keeps_the_profile_clean(self) -> None:
+        self.mode = MODE_EDIT
+        current = self.profile.param(self.catalog, INT_RULE, INT_PARAM)
+        data = self.ok("set_param", id=INT_RULE, name=INT_PARAM, value=current)
+        self.assertEqual((data["value"], data["dirty"], self.workspace.dirty), (current, False, False))
+        data = self.ok("set_param", id=INT_RULE, name=INT_PARAM, value=current + 1)
+        self.assertEqual((data["dirty"], self.workspace.dirty), (True, True))
+
+    def test_set_profile_info_without_a_change_keeps_the_profile_clean(self) -> None:
+        self.mode = MODE_EDIT
+        data = self.ok("set_profile_info")
+        self.assertEqual((data["name"], data["dirty"], self.workspace.dirty), (self.profile.name, False, False))
+        data = self.ok("set_profile_info", name=self.profile.name, author=self.profile.author)
+        self.assertFalse(data["dirty"])
+        data = self.ok("set_profile_info", comment="changed")
+        self.assertEqual((data["dirty"], self.workspace.dirty, data["comment_text"]), (True, True, "changed"))
+
+    def test_save_profile_refuses_the_preset_ids(self) -> None:
+        self.mode = MODE_FILES
+        for name in ("office", "Strict", "LAPTOP", "memstechtips"):
+            with self.subTest(name=name):
+                self.refused("save_profile", "name_refused", name=name)
+        self.assertEqual(list(self.paths.profiles.iterdir()), [])
+
+    def test_a_failed_save_is_write_failed_and_keeps_the_name(self) -> None:
+        self.mode = MODE_FILES
+        before = self.profile.name
+        with mock.patch.object(Profile, "save", side_effect=PermissionError("denied")):
+            data = self.refused("save_profile", "write_failed", name="locked")
+        self.assertEqual(data["message"], "the file could not be written: PermissionError")
+        self.assertEqual(self.profile.name, before)
+        self.assertFalse((self.paths.profiles / "locked.json").exists())
+
+    def test_a_failed_answer_file_write_is_write_failed(self) -> None:
+        self.mode = MODE_FILES
+        with mock.patch("winkickoff.mcp.workspace.write_answer_file", side_effect=OSError("disk")):
+            data = self.refused("write_answer_file", "write_failed", name="locked")
+        self.assertEqual(data["message"], "the file could not be written: OSError")
+
+    def test_a_profile_outside_the_program_folder_is_shown_by_file_name(self) -> None:
+        elsewhere = self.tmp / "Documents" / "kasa.json"
+        self.profile.path = elsewhere
+        status = self.ok("get_status")
+        self.assertEqual(status["profile"]["file"], "kasa.json")
+        self.assertEqual(self.ok("get_profile")["file"], "kasa.json")
+        self.assertNotIn("Documents", json.dumps(status))
+        self.profile.path = self.paths.profiles / "mine.json"
+        self.assertEqual(self.ok("get_status")["profile"]["file"], str(Path("profiles") / "mine.json"))
+        self.assertEqual(profile_display(None, self.paths.root), "")
+
+    def test_status_counts_covered_policies_like_list_rules(self) -> None:
+        self.import_templates()
+        self.assertTrue(self.profile.is_enabled("defender.pua"))
+        total_on = self.ok("list_rules", enabled=True, limit=500)["total"]
+        self.assertEqual(self.ok("get_status")["profile"]["enabled"], total_on)
+        self.assertEqual(self.ok("get_profile")["enabled_count"], total_on)
+        self.assertGreater(total_on, len(self.profile.enabled_ids()))
+
+    def test_the_card_of_a_covered_policy_shows_the_values_of_the_built_in_rule(self) -> None:
+        self.import_templates()
+        card = self.ok("get_rule", id=SAME)
+        self.assertEqual(card["linked"], {"rule": "defender.pua", "equal": True, "covered": True, "values_from_rule": True})
+        self.workspace.set_rules([("defender.pua", False)])
+        card = self.ok("get_rule", id=SAME)
+        self.assertEqual(card["linked"], {"rule": "defender.pua", "equal": True, "covered": False, "values_from_rule": False})
+
+    def test_headless_messages_show_the_warnings_of_the_last_load(self) -> None:
+        self.mode = MODE_EDIT
+        path = self.paths.profiles / "old.json"
+        self.office_profile().save(path, self.catalog)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["catalog_version"] = "0.1"
+        path.write_text(json.dumps(data), encoding="utf-8")
+        loaded = self.ok("load_profile", name="old")
+        self.assertTrue(loaded["warnings"])
+        messages = self.ok("get_messages")["issues"]
+        self.assertEqual([(m["level"], m["target"], m["message"]) for m in messages],
+                         [("info", "profile", warning) for warning in loaded["warnings"]])
+
+
+class ReservedNamesTest(unittest.TestCase):
+    def test_windows_reserved_variants_are_refused(self) -> None:
+        for name in ("COM0", "LPT0", "COM¹", "LPT²", "lpt³", "con.backup", "Nul"):
+            with self.subTest(name=name):
+                self.assertEqual(check_name(name), "the name is a reserved device name")
+        self.assertIsNone(check_name("COMMON"))
+        self.assertIsNone(check_name("Каса"))
 
 
 class NamesTest(unittest.TestCase):

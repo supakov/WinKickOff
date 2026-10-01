@@ -487,7 +487,6 @@
  "This policy is set by the built-in rule \"{0}\", which also sets other values. Switch the built-in rule off?": "Эту политику задаёт встроенное правило «{0}», которое задаёт и другие значения. Выключить встроенное правило?",
  "The built-in rule \"{0}\" sets the same: checking this policy switches that rule on.": "Встроенное правило «{0}» задаёт то же самое: галка у этой политики включает это правило.",
  "The values come from the built-in rule while it is on; to set them separately, switch that rule off.": "Пока встроенное правило включено, значения берутся из него; чтобы задать их отдельно, выключите это правило.",
- "The MCP server did not start: port {0} is used by another program. Choose another port in the monitor.": "Сервер MCP не запущен: порт {0} занят другой программой. Выберите другой порт в мониторе.",
  "Read only": "Только чтение",
  "Read and change the open profile": "Чтение и изменение открытого профиля",
  "Change and create files": "Изменение и создание файлов",
@@ -534,5 +533,10 @@
  "Tool": "Инструмент",
  "Arguments": "Аргументы",
  "ms": "мс",
- "Result": "Результат"
+ "Result": "Результат",
+ "The MCP server did not start: port {0} is used by another program. Clients configured for this port may already have sent the access token to that program. Choose another port in the monitor.\n\nGenerate a new access token now?": "Сервер MCP не запущен: порт {0} занят другой программой. Клиенты, настроенные на этот порт, могли уже отправить той программе токен доступа. Выберите другой порт в мониторе.\n\nСоздать новый токен доступа сейчас?",
+ "(none)": "(нет)",
+ "all transports": "все транспорты",
+ "PowerShell syntax not checked (use Check in the window)": "Синтаксис PowerShell не проверен (нажмите «Проверить» в окне)",
+ "The MCP server did not start: port {0} is used by another program. Clients configured for this port may already have sent the access token to that program. Choose another port in the monitor and generate a new access token (MCP menu).": "Сервер MCP не запущен: порт {0} занят другой программой. Клиенты, настроенные на этот порт, могли уже отправить той программе токен доступа. Выберите другой порт в мониторе и создайте новый токен доступа (меню «MCP»)."
 }

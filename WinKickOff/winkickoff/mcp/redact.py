@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import re
 import unicodedata
 import xml.etree.ElementTree as ET
@@ -27,7 +28,7 @@ OTHER = 400
 MAX_NAME = 80
 KEY_PLACEHOLDER = "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"  # keeps the answer file well-formed where a custom key would be
 HIDDEN = "<hidden>"
-_RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{n}" for n in range(1, 10)), *(f"LPT{n}" for n in range(1, 10))}
+_RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{n}" for n in range(0, 10)), *(f"LPT{n}" for n in range(0, 10))}
 _STRIP = "".join(chr(c) for c in list(range(0, 9)) + [11, 12] + list(range(14, 32)) + list(range(127, 160))
                  + list(range(0x200B, 0x2010)) + list(range(0x202A, 0x202F)) + list(range(0x2060, 0x2065))
                  + list(range(0x2066, 0x206A)) + [0xFEFF])
@@ -138,9 +139,9 @@ def assert_redacted_build(result: BuildResult) -> None:
 def public_keys() -> set[str]:
     """Values a ProductKey/Key may hold in a redacted build: empty, the placeholder, or a generic key of an
     edition (public values published by Microsoft, not secrets)."""
-    from winkickoff.core.render import EDITION_KEYS
+    from winkickoff.core import render
 
-    return {"", KEY_PLACEHOLDER, *EDITION_KEYS.values()}
+    return {"", KEY_PLACEHOLDER, getattr(render, "ASK_KEY", ""), *render.EDITION_KEYS.values()}
 
 
 def check_name(name: Any) -> str | None:
@@ -163,9 +164,20 @@ def check_name(name: Any) -> str | None:
         return "the name must not end with a space or a dot"
     if ".." in value:
         return 'the name must not contain ".."'
-    if value.split(".", 1)[0].upper() in _RESERVED:
+    if value.split(".", 1)[0].upper() in _RESERVED or _reserved_by_windows(value):
         return "the name is a reserved device name"
     return None
+
+
+def _reserved_by_windows(name: str) -> bool:
+    """os.path.isreserved knows the device names of this Windows (COM0, LPT0, the superscript variants)."""
+    isreserved = getattr(os.path, "isreserved", None)
+    if isreserved is None:
+        return False
+    try:
+        return bool(isreserved(name) or isreserved(name + ".json") or isreserved(name + ".xml"))
+    except (TypeError, ValueError):
+        return True
 
 
 def safe_child(folder: Path, name: str, suffix: str) -> Path:

@@ -487,7 +487,6 @@
  "This policy is set by the built-in rule \"{0}\", which also sets other values. Switch the built-in rule off?": "Цю політику задає вбудоване правило «{0}», яке задає й інші значення. Вимкнути вбудоване правило?",
  "The built-in rule \"{0}\" sets the same: checking this policy switches that rule on.": "Вбудоване правило «{0}» задає те саме: позначка цієї політики вмикає це правило.",
  "The values come from the built-in rule while it is on; to set them separately, switch that rule off.": "Поки вбудоване правило увімкнене, значення беруться з нього; щоб задати їх окремо, вимкніть це правило.",
- "The MCP server did not start: port {0} is used by another program. Choose another port in the monitor.": "Сервер MCP не запущено: порт {0} зайнятий іншою програмою. Виберіть інший порт у моніторі.",
  "Read only": "Лише читання",
  "Read and change the open profile": "Читання і зміна відкритого профілю",
  "Change and create files": "Зміна і створення файлів",
@@ -534,5 +533,10 @@
  "Tool": "Інструмент",
  "Arguments": "Аргументи",
  "ms": "мс",
- "Result": "Результат"
+ "Result": "Результат",
+ "The MCP server did not start: port {0} is used by another program. Clients configured for this port may already have sent the access token to that program. Choose another port in the monitor.\n\nGenerate a new access token now?": "Сервер MCP не запущено: порт {0} зайнятий іншою програмою. Клієнти, налаштовані на цей порт, могли вже надіслати тій програмі токен доступу. Виберіть інший порт у моніторі.\n\nСтворити новий токен доступу зараз?",
+ "(none)": "(немає)",
+ "all transports": "усі транспорти",
+ "PowerShell syntax not checked (use Check in the window)": "Синтаксис PowerShell не перевірено (натисніть «Перевірити» у вікні)",
+ "The MCP server did not start: port {0} is used by another program. Clients configured for this port may already have sent the access token to that program. Choose another port in the monitor and generate a new access token (MCP menu).": "Сервер MCP не запущено: порт {0} зайнятий іншою програмою. Клієнти, налаштовані на цей порт, могли вже надіслати тій програмі токен доступу. Виберіть інший порт у моніторі та створіть новий токен доступу (меню «MCP»)."
 }

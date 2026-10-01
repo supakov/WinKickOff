@@ -6,6 +6,7 @@ values); free text appears as "<text, N chars>", so nothing an agent wrote reach
 
 from __future__ import annotations
 
+import re
 import threading
 import time
 from collections import deque
@@ -71,19 +72,28 @@ class Journal:
             return self._seq
 
 
-def render_args(arguments: dict[str, Any] | None) -> str:
-    """Whitelisted scalars of the arguments for the journal: ids, names of enumerations, booleans, integers; free
-    text and everything else only by kind and size."""
+_KEY_RE = re.compile(r"^[A-Za-z0-9_]{1,32}$")
+_SCALAR_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,60}$")
+_URI_RE = re.compile(r"^[A-Za-z0-9_.:/-]{1,200}$")
+_CLIENT_RE = re.compile(r"^[A-Za-z0-9 ._/()-]{1,60}$")
+
+
+def render_args(arguments: dict[str, Any] | None, allowed: set[str] | None = None) -> str:
+    """Whitelisted scalars of the arguments for the journal: identifier keys and values (ids, enumeration names,
+    booleans, integers); free text, unknown keys and everything else only by kind and size, never as text."""
     if not arguments:
         return ""
     parts: list[str] = []
     for key, value in arguments.items():
+        if not isinstance(key, str) or not _KEY_RE.match(key) or (allowed is not None and key not in allowed):
+            parts.append(f"<unknown key, {len(str(key))} chars>")
+            continue
         if isinstance(value, bool):
             parts.append(f"{key}={'true' if value else 'false'}")
         elif isinstance(value, int):
             parts.append(f"{key}={value}")
         elif isinstance(value, str):
-            if key in FREE_TEXT_KEYS or len(value) > 60 or any(ch.isspace() for ch in value):
+            if key in FREE_TEXT_KEYS or not _SCALAR_RE.match(value):
                 parts.append(f"{key}=<text, {len(value)} chars>")
             else:
                 parts.append(f"{key}={value}")
@@ -93,4 +103,18 @@ def render_args(arguments: dict[str, Any] | None) -> str:
             parts.append(f"{key}=<object>")
         else:
             parts.append(f"{key}=<{type(value).__name__}>")
+        if len(parts) >= 20:
+            parts.append("...")
+            break
     return " ".join(parts)
+
+
+def render_uri(uri: Any) -> str:
+    """A resource URI for the journal: as it is when it is made of safe characters, else by size only."""
+    return uri if isinstance(uri, str) and _URI_RE.match(uri) else f"<uri, {len(str(uri))} chars>"
+
+
+def render_client(name: str, version: str) -> str:
+    """The client name and version for the journal: identifier-like text only."""
+    text = " ".join(part for part in (name, version) if part)
+    return text if _CLIENT_RE.match(text) else (f"<client, {len(text)} chars>" if text else "")

@@ -7,21 +7,23 @@ every change as an unsaved change in the tree.
 
 from __future__ import annotations
 
+import logging
+import tkinter as tk
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from winkickoff.core.deps import Change
 from winkickoff.core.i18n import language
-from winkickoff.core.paths import display_path
 from winkickoff.core.render import BuildResult
-from winkickoff.core.validate import Issue
+from winkickoff.core.validate import Issue, validate_profile
 from winkickoff.mcp.bridge import Bridge
 from winkickoff.mcp.errors import ToolError
-from winkickoff.mcp.workspace import Snapshot
+from winkickoff.mcp.workspace import Snapshot, profile_display
 
 if TYPE_CHECKING:
     from winkickoff.ui.main_window import MainWindow
 
+log = logging.getLogger(__name__)
 PUMP_INTERVAL_MS = 50
 
 
@@ -31,10 +33,8 @@ class WindowWorkspace:
 
     def snapshot(self) -> Snapshot:
         win = self.window
-        path = win.profile.path
         return Snapshot(win.catalog, win.profile.copy(), win.resources, win.paths, win.dirty,
-                        display_path(path, win.paths.root) if path is not None else "", win.current_item(),
-                        win.current_issues(), language())
+                        profile_display(win.profile.path, win.paths.root), win.current_item(), win.current_issues(), language())
 
     def set_rules(self, items: list[tuple[str, bool]]) -> tuple[list[Change], list[tuple[str, str]]]:
         return self.window.apply_rule_states(items)
@@ -45,8 +45,8 @@ class WindowWorkspace:
     def set_param(self, rule_id: str, name: str, value: Any) -> Any:
         return self.window.set_param_value(rule_id, name, value)
 
-    def set_profile_info(self, name: str | None, author: str | None, comment: str | None) -> None:
-        self.window.set_profile_info(name, author, comment)
+    def set_profile_info(self, name: str | None, author: str | None, comment: str | None) -> tuple[str, str, str]:
+        return self.window.set_profile_info(name, author, comment)
 
     def load_profile(self, path: Path, force: bool) -> list[str]:
         win = self.window
@@ -58,9 +58,9 @@ class WindowWorkspace:
 
     def show_item(self, item: str) -> bool:
         win = self.window
-        if not win.tree.exists(item):
+        if not win.can_show(item):
             return False
-        win.select_node(item)
+        win.select_node(item)  # clears an active search when the item is filtered out, as links in the panel do
         return True
 
     def save_profile_to(self, path: Path) -> None:
@@ -71,6 +71,13 @@ class WindowWorkspace:
 
     def current_issues(self) -> list[Issue]:
         return self.window.current_issues()
+
+    def is_dirty(self) -> bool:
+        return self.window.dirty
+
+    def error_count(self) -> int:
+        win = self.window
+        return sum(1 for i in validate_profile(win.profile, win.catalog, win.resources.keyboards) if i.level == "error")
 
     def is_busy(self) -> bool:
         return self.window.is_busy()
@@ -86,10 +93,17 @@ def install_pump(window: MainWindow, bridge: Bridge) -> None:
             bridge.pump()
         except Exception:  # noqa: BLE001 - a closure failure belongs to its future; the pump must go on
             pass
-        count = window.service.journal.count if window.service is not None else 0
-        if count != seen[0]:  # the journal grew (the server thread appends after the closure returned)
-            seen[0] = count
-            window.refresh_mcp_status()
-        window.mcp_pump_id = window.after(PUMP_INTERVAL_MS, tick)
+        try:
+            count = window.service.journal.count if window.service is not None else 0
+            if count != seen[0]:  # the journal grew (the server thread appends after the closure returned)
+                seen[0] = count
+                window.refresh_mcp_status()
+        except Exception:  # noqa: BLE001 - a widget in an odd state must not stop the pump
+            log.debug("mcp status refresh failed", exc_info=True)
+        finally:
+            try:
+                window.mcp_pump_id = window.after(PUMP_INTERVAL_MS, tick)
+            except tk.TclError:
+                pass  # the window is gone
 
     window.mcp_pump_id = window.after(PUMP_INTERVAL_MS, tick)

@@ -132,22 +132,27 @@ class McpService:
             httpd = start_http(self.settings.mcp_port if port is None else port, token, self.server)
             thread = threading.Thread(target=serve, args=(httpd,), name="mcp-http", daemon=True)
             self.httpd, self.thread = httpd, thread
+            self.bridge.reopen()
             thread.start()
             log.info("mcp http server started on %s:%d, mode %s", HOST, httpd.port, self.mode)
             return httpd.port
 
     def stop(self, join_timeout: float = 3.0) -> None:
         with self._lock:
-            httpd, thread = self.httpd, self.thread
+            httpd, thread, server = self.httpd, self.thread, self.server
             self.httpd, self.thread = None, None
         if httpd is None:
             return
-        if thread is not None and thread.is_alive() and httpd.serving.is_set():
-            httpd.shutdown()  # only when serve_forever runs: otherwise shutdown() would wait forever
+        if server is not None:
+            server.closed = True  # handler threads that outlive the stop answer an error instead of reaching the window
+        # a thread that was started enters serve_forever within milliseconds; wait for its handshake, because
+        # shutdown() before serve_forever would block forever and server_close() under it kills the thread
+        if thread is not None and thread.is_alive() and httpd.serving.wait(1.0):
+            httpd.shutdown()
         httpd.server_close()
         if thread is not None and thread.is_alive():
             thread.join(join_timeout)
-        self.bridge.fail_all(RuntimeError("server stopped"))
+        self.bridge.close()
         log.info("mcp http server stopped")
 
     def status(self) -> ServiceStatus:

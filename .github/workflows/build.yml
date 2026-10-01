@@ -46,8 +46,6 @@ jobs:
           }
 
       - name: Unit tests
-        env:
-          WINKICKOFF_HTTP_TESTS: "1"
         run: python -m unittest discover -s tests -v
 
       - name: Answer file checker (v0.2 reference)

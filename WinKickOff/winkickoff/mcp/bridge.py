@@ -43,10 +43,19 @@ class Bridge:
         self._lock = threading.Lock()
         self._late: dict[int, Item] = {}
         self._late_seq = 0
+        self._closed = False
 
     @property
     def attached(self) -> bool:
         return self._workspace is not None
+
+    def close(self) -> None:
+        """No more closures are accepted (the server stopped); queued ones fail."""
+        self._closed = True
+        self.fail_all(RuntimeError("server stopped"))
+
+    def reopen(self) -> None:
+        self._closed = False
 
     def attach(self, workspace: Workspace) -> None:
         with self._lock:
@@ -59,14 +68,15 @@ class Bridge:
     def run(self, fn: Callable[[Workspace], Any], *, writes: bool, timeout: float) -> Any:
         """Run fn on the owning thread and return its result; ToolError window_timeout when the window did not get
         to it in time (a closure that already started completes and is reported through on_late)."""
-        if not self.attached:
-            raise ToolError("window_timeout", "the editor window is not available (restarting or closed)")
-        item = Item(fn, writes, time.monotonic() + timeout)
+        if self._closed:
+            raise ToolError("window_timeout", "the server is stopped")
+        item = Item(fn, writes, time.monotonic() + timeout)  # queued even while detached: the next window serves it
         self._queue.put(item)
         try:
             return item.future.result(timeout)
         except TimeoutError:
-            pass
+            if item.future.done():  # the closure itself raised a TimeoutError (a stalled drive): not a bridge timeout
+                raise
         with item.lock:
             if item.state == QUEUED:
                 item.state = ABANDONED
@@ -75,6 +85,10 @@ class Bridge:
         try:
             return item.future.result(BRIDGE_TIMEOUT)  # it started: give the running closure a little more time
         except TimeoutError:
+            if item.future.done():
+                raise
+            if not writes:  # nothing of a read can land later; nothing to report
+                raise ToolError("window_timeout", f"the editor window did not finish in {timeout + BRIDGE_TIMEOUT:g} s") from None
             token = self._remember_late(item)
             raise ToolError("window_timeout", f"the editor window did not finish in {timeout + BRIDGE_TIMEOUT:g} s; "
                                               "the change may still land, check with get_profile",
@@ -84,6 +98,8 @@ class Bridge:
         with self._lock:
             self._late_seq += 1
             self._late[self._late_seq] = item
+            for token in [t for t, late in self._late.items() if late.state == DONE and late.on_late is None][:-16]:
+                self._late.pop(token, None)  # finished and never asked about: keep the map small
             return self._late_seq
 
     def note_late(self, token: int, callback: Callable[[str], None]) -> None:

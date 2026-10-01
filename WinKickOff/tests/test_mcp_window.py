@@ -13,6 +13,8 @@ from __future__ import annotations
 import http.client
 import json
 import logging
+import socket
+import sys
 import tempfile
 import threading
 import time
@@ -25,7 +27,7 @@ from unittest import mock
 
 try:
     import tkinter as tk
-    from tkinter import ttk
+    from tkinter import messagebox, ttk
 
     _root = tk.Tk()
     _root.destroy()
@@ -725,16 +727,22 @@ class WindowLifecycleTest(McpWindowTestCase):
 
 
 class ClipboardTest(McpWindowTestCase):
+    def clipboard(self) -> str:
+        """The system clipboard as Tk sees it after its event loop ran: a Win32 copy takes the ownership from
+        Tk, which notices it (WM_DESTROYCLIPBOARD) only on the next update."""
+        self.win.update()
+        return self.win.clipboard_get()
+
     def test_copy_mcp_config_stdio_puts_json_into_the_clipboard(self) -> None:
         self.win.copy_mcp_config("stdio")
-        entry = json.loads(self.win.clipboard_get())["mcpServers"]["winkickoff"]
+        entry = json.loads(self.clipboard())["mcpServers"]["winkickoff"]
         self.assertEqual(entry["args"], ["-m", "winkickoff", "--mcp", "stdio"])  # read mode: no --mode flag
         self.assertTrue(entry["command"].lower().endswith("python.exe"))
         self.assertEqual(entry["env"], {"PYTHONPATH": str(self.paths.root)})
         self.assertIn("stdio", self.win.status_var.get())
         self.service.set_mode(MODE_FILES)
         self.win.copy_mcp_config("stdio")
-        args = json.loads(self.win.clipboard_get())["mcpServers"]["winkickoff"]["args"]
+        args = json.loads(self.clipboard())["mcpServers"]["winkickoff"]["args"]
         self.assertEqual(args[-2:], ["--mode", "edit"])  # files never appears in a snippet
         self.assertNotIn("files", args)
 
@@ -742,12 +750,12 @@ class ClipboardTest(McpWindowTestCase):
         self.win.clipboard_clear()
         self.win.clipboard_append("untouched")
         self.win.copy_mcp_config("http")
-        self.assertEqual(self.win.clipboard_get(), "untouched")
+        self.assertEqual(self.clipboard(), "untouched")
         self.assertIn("Start the server first", self.win.status_var.get())
         self.assertTrue(self.win.start_mcp_server())
         port = self.service.status().port
         self.win.copy_mcp_config("http")
-        entry = json.loads(self.win.clipboard_get())["mcpServers"]["winkickoff"]
+        entry = json.loads(self.clipboard())["mcpServers"]["winkickoff"]
         self.assertEqual(entry, {"type": "http", "url": f"http://127.0.0.1:{port}/mcp",
                                  "headers": {"Authorization": f"Bearer {self.service.token}"}})
         self.assertIn("access token copied", self.win.status_var.get())
@@ -755,10 +763,83 @@ class ClipboardTest(McpWindowTestCase):
     def test_copy_mcp_token_generates_the_token_when_missing(self) -> None:
         self.assertEqual(self.service.token, "")
         self.win.copy_mcp_token()
-        token = self.win.clipboard_get()
+        token = self.clipboard()
         self.assertRegex(token, TOKEN_RE)
         self.assertEqual(token, self.service.token)
         self.assertEqual(json.loads(self.paths.settings_file.read_text(encoding="utf-8"))["mcp_token"], token)
+
+    @unittest.skipUnless(sys.platform == "win32", "Win32 clipboard formats")
+    def test_the_token_is_kept_out_of_the_clipboard_history(self) -> None:
+        import ctypes
+
+        from winkickoff.ui.clipboard import EXCLUSION_FORMATS
+
+        user32 = ctypes.windll.user32
+        formats = [user32.RegisterClipboardFormatW(name) for name in EXCLUSION_FORMATS]
+        self.win.copy_mcp_token()
+        self.assertEqual(self.clipboard(), self.service.token)
+        for name, fmt in zip(EXCLUSION_FORMATS, formats):
+            with self.subTest(format=name):
+                self.assertTrue(user32.IsClipboardFormatAvailable(fmt))
+        self.win.copy_mcp_config("stdio")  # plain text without the token: Tk's clipboard, no exclusion formats
+        self.assertFalse(user32.IsClipboardFormatAvailable(formats[0]))
+        self.assertTrue(self.win.start_mcp_server())
+        self.win.copy_mcp_config("http")  # holds the token: excluded again
+        self.assertIn(self.service.token, self.clipboard())
+        self.assertTrue(user32.IsClipboardFormatAvailable(formats[0]))
+
+    def test_copy_secret_falls_back_to_tk_when_win32_fails(self) -> None:
+        from winkickoff.ui import clipboard
+
+        with mock.patch.object(clipboard, "_copy_excluded", side_effect=OSError("held")):
+            self.assertFalse(clipboard.copy_secret(self.win, "fallback-text"))
+        self.assertEqual(self.clipboard(), "fallback-text")
+
+
+class ShowItemWindowTest(McpWindowTestCase):
+    def test_show_item_clears_an_active_search(self) -> None:
+        client = self.start(MODE_EDIT)
+        self.win.search_var.set("onedrive")
+        self.pump(lambda: not self.win.tree.exists("data:accounts"))  # the filtered tree holds only matching rules
+        result = self.in_thread(lambda: client.call("show_item", {"item": "data:accounts"}))
+        self.assertEqual(result["structuredContent"], {"shown": True})
+        self.assertEqual(self.win.search_var.get(), "")
+        self.assertTrue(self.win.tree.exists("data:accounts"))
+        self.assertEqual(self.win.current_item(), "data:accounts")
+        result = self.in_thread(lambda: client.call("show_item", {"item": "r:no.such.rule"}))
+        self.assertEqual(result["structuredContent"], {"shown": False, "reason": "no such item"})
+
+
+class PortInUseTest(McpWindowTestCase):
+    def test_a_taken_port_offers_a_new_token(self) -> None:
+        squatter = socket.socket()
+        squatter.bind(("127.0.0.1", 0))
+        squatter.listen(1)
+        self.addCleanup(squatter.close)
+        self.settings.mcp_port = squatter.getsockname()[1]
+        old = self.service.ensure_token()
+        with mock.patch.object(self.win, "_dialog", return_value=True) as dialog:
+            self.assertFalse(self.win.start_mcp_server())
+        self.assertIs(dialog.call_args.args[0], messagebox.askyesno)
+        self.assertIn("access token", dialog.call_args.args[2])
+        self.assertNotEqual(self.service.token, old)
+        self.assertRegex(self.service.token, TOKEN_RE)
+        self.assertFalse(self.service.running)
+        rotated = self.service.token
+        with mock.patch.object(self.win, "_dialog", return_value=False):
+            self.assertFalse(self.win.start_mcp_server())
+        self.assertEqual(self.service.token, rotated)
+
+
+class PumpResilienceTest(McpWindowTestCase):
+    def test_the_pump_survives_a_failing_status_refresh(self) -> None:
+        client = self.start()
+        with mock.patch.object(self.win, "refresh_mcp_status", side_effect=RuntimeError("widget gone")):
+            result = self.in_thread(lambda: client.call("get_status"))
+            self.assertFalse(result["isError"])
+        result = self.in_thread(lambda: client.call("get_status"))
+        self.assertFalse(result["isError"])
+        self.assertIsNotNone(self.win.mcp_pump_id)
 
 
 class MonitorTest(McpWindowTestCase):

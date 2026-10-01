@@ -5,6 +5,9 @@ pending. Stage 8. Dependencies: T21. Implementation notes: ToolError lives in `m
 `MainWindow._dialog()` instead of a `modal()` context manager; `McpService.configure(paths, settings, on_save=None)`;
 `start_http(port, token, server)` returns the bound server and `serve(httpd)` is the thread body; HTTP tests run on the
 customer's PC as well (loopback port 0 raised no firewall dialog); the release notes are `docs/releases/v1.2.0-rc.1.md`.
+An adversarial review (five lenses, 01.10.2026) produced 44 findings; 43 were fixed in code, tests and documentation,
+one was rejected (invalid tool arguments stay a tool error with `isError`, as the 2025-11-25 specification prefers,
+instead of the JSON-RPC `-32602` the 2025-06-18 text lists).
 
 This is the final design for the MCP server (Model Context Protocol) of WinKickOff 1.2. It is the synthesis of three
 candidate designs (security-first, spec-first, usability-first) as the two judges recommended: the security-first design

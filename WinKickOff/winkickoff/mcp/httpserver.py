@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+import re
 import secrets
 import sys
 import threading
@@ -24,6 +25,8 @@ log = logging.getLogger("winkickoff.mcp.http")
 HOST = "127.0.0.1"
 ALLOWED_HOSTS = ("127.0.0.1", "localhost")
 SESSION_HEADER = "Mcp-Session-Id"
+MAX_CONNECTIONS = 32  # handler threads alive at once, authenticated or not; more are closed unanswered
+_LENGTH_RE = re.compile(r"^[0-9]{1,12}$")
 
 
 class McpHttpServer(ThreadingHTTPServer):
@@ -38,8 +41,23 @@ class McpHttpServer(ThreadingHTTPServer):
         self.sessions: dict[str, Session] = {}
         self.sessions_lock = threading.Lock()
         self.slots = threading.BoundedSemaphore(MAX_CONCURRENT)
+        self.connections = threading.BoundedSemaphore(MAX_CONNECTIONS)
         self.serving = threading.Event()  # set by the serving thread before serve_forever
         super().__init__((HOST, port), McpHandler)
+
+    def process_request(self, request: Any, client_address: Any) -> None:
+        """One thread per connection, but never more than MAX_CONNECTIONS: a flood of unauthenticated connections
+        must not grow the window process without bound."""
+        if not self.connections.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        super().process_request(request, client_address)
+
+    def process_request_thread(self, request: Any, client_address: Any) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.connections.release()
 
     def server_bind(self) -> None:
         if sys.platform == "win32":
@@ -96,10 +114,11 @@ class McpHandler(BaseHTTPRequestHandler):
         if getattr(self, "_consumed", False) or self.command not in ("POST", "PUT", "PATCH"):
             return
         self._consumed = True
-        try:
-            remaining = min(int(self.headers.get("Content-Length") or 0), DRAIN_LIMIT)
-        except ValueError:
+        declared = (self.headers.get("Content-Length") or "").strip()
+        if not _LENGTH_RE.match(declared):
             return
+        # a request that failed the checks (no token) gets a small drain only: nothing to keep a thread busy for
+        remaining = min(int(declared), DRAIN_LIMIT if getattr(self, "_authenticated", False) else 65536)
         while remaining > 0:
             chunk = self.rfile.read(min(65536, remaining))
             if not chunk:
@@ -142,6 +161,7 @@ class McpHandler(BaseHTTPRequestHandler):
         if scheme.lower() != "bearer" or not hmac.compare_digest(token.strip().encode(), self.server.token.encode()):
             self._reply(401)
             return False
+        self._authenticated = True
         if self.path != ENDPOINT:
             self._reply(404)
             return False
@@ -149,17 +169,20 @@ class McpHandler(BaseHTTPRequestHandler):
         if version is not None and version.strip() not in HEADER_VERSIONS:
             self._reply(400)
             return False
+        if self.server.mcp.closed:
+            self._reply(503)
+            return False
         return True
 
     def _body(self) -> bytes | None:
         if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Length") is None:
             self._reply(411)
             return None
-        try:
-            length = int(self.headers["Content-Length"])
-        except ValueError:
+        declared = (self.headers.get("Content-Length") or "").strip()
+        if not _LENGTH_RE.match(declared):  # digits only: no sign, no spaces, no underscores
             self._reply(400)
             return None
+        length = int(declared)
         if length > MAX_MESSAGE_BYTES:
             self._reply(413)  # _reply drains up to DRAIN_LIMIT first, so the client sees the status, not a reset
             return None
@@ -189,7 +212,10 @@ class McpHandler(BaseHTTPRequestHandler):
             try:
                 message = parse_message(body)
             except JsonRpcError as exc:
-                self._json(400, exc.response())
+                if exc.silent:
+                    self._reply(400)  # a malformed notification: no JSON-RPC body, nothing is answered
+                else:
+                    self._json(400, exc.response())
                 return
             self._dispatch(message)
         finally:

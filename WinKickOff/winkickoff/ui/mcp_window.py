@@ -24,7 +24,7 @@ COLUMN_TITLES = {"time": N_("Time"), "transport": N_("Transport"), "client": N_(
 
 
 def masked(token: str) -> str:
-    return f"{token[:4]}...{token[-4:]}" if len(token) >= 12 else ("(none)" if not token else "*" * len(token))
+    return f"{token[:4]}...{token[-4:]}" if len(token) >= 12 else (tr("(none)") if not token else "*" * len(token))
 
 
 class McpMonitor(tk.Toplevel):
@@ -91,8 +91,8 @@ class McpMonitor(tk.Toplevel):
         self.filter_var.trace_add("write", lambda *_: self.render())
         self.errors_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(filters, text=tr("Errors only"), variable=self.errors_var, command=self.render).pack(side=tk.LEFT)
-        self.transport_var = tk.StringVar(value="all")
-        box = ttk.Combobox(filters, textvariable=self.transport_var, values=["all", "http", "stdio"], state="readonly", width=8)
+        self.transport_var = tk.StringVar(value=tr("all transports"))
+        box = ttk.Combobox(filters, textvariable=self.transport_var, values=[tr("all transports"), "http", "stdio"], state="readonly", width=16)
         box.pack(side=tk.LEFT, padx=(10, 0))
         box.bind("<<ComboboxSelected>>", lambda _e: self.render())
 
@@ -178,17 +178,22 @@ class McpMonitor(tk.Toplevel):
 
     def _tick(self) -> None:
         self._after_id = None
-        fresh = self.service.journal.since(self._seen_seq)
-        if fresh:
-            self._rows.extend(fresh)
-            self._seen_seq = fresh[-1].seq
-            del self._rows[:-1000]
-            for entry in fresh:
-                if self._visible(entry):
-                    self._insert(entry)
-            self.tree.yview_moveto(1.0)
-            self.refresh_state()
-        self._schedule()
+        try:
+            fresh = self.service.journal.since(self._seen_seq)
+            if fresh:
+                self._rows.extend(fresh)
+                self._seen_seq = fresh[-1].seq
+                del self._rows[:-1000]
+                for entry in fresh:
+                    if self._visible(entry):
+                        self._insert(entry)
+                self.tree.yview_moveto(1.0)
+                self.refresh_state()
+        except tk.TclError:
+            return  # the window is going away
+        finally:
+            if self.winfo_exists():
+                self._schedule()
 
     def _visible(self, entry: Entry) -> bool:
         needle = self.filter_var.get().strip().lower()
@@ -197,7 +202,7 @@ class McpMonitor(tk.Toplevel):
         if self.errors_var.get() and entry.ok:
             return False
         transport = self.transport_var.get()
-        return transport == "all" or entry.transport == transport
+        return transport not in ("http", "stdio") or entry.transport == transport
 
     def _insert(self, entry: Entry) -> None:
         result = "ok" if entry.ok and not entry.note else (entry.note or "error")

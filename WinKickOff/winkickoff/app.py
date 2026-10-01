@@ -94,8 +94,9 @@ def create_app(*, withdraw: bool = False, state: dict[str, object] | None = None
             try:
                 service.start_http()
             except OSError as exc:
-                problems.append(tr("The MCP server did not start: port {0} is used by another program. Choose another port in the monitor.",
-                                   settings.mcp_port))
+                problems.append(tr("The MCP server did not start: port {0} is used by another program. Clients configured for this "
+                                   "port may already have sent the access token to that program. Choose another port in the "
+                                   "monitor and generate a new access token (MCP menu).", settings.mcp_port))
                 log.error("mcp autostart failed: %s", exc)
         root.refresh_mcp_status()
     if state:

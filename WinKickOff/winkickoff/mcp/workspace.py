@@ -16,7 +16,7 @@ from typing import Any, Protocol
 from winkickoff.core import linked
 from winkickoff.core.catalog import Catalog, Param, Rule, is_imported
 from winkickoff.core.deps import Change, Resolver
-from winkickoff.core.i18n import catalog_texts, tr
+from winkickoff.core.i18n import N_, catalog_texts, tr
 from winkickoff.core.paths import AppPaths, display_path
 from winkickoff.core.profile import Profile
 from winkickoff.core.render import BuildResult, Renderer, RenderError, write_answer_file
@@ -27,7 +27,7 @@ from winkickoff.mcp.redact import check_name, safe_child
 
 log = logging.getLogger(__name__)
 PRESET_IDS = ("office", "strict", "laptop", "memstechtips")
-POWERSHELL_NOTE = "PowerShell syntax not checked (use Check in the window)"
+POWERSHELL_NOTE = N_("PowerShell syntax not checked (use Check in the window)")
 GROUP_ACTIONS = ("on", "off", "defaults")
 
 
@@ -51,12 +51,14 @@ class Workspace(Protocol):
     def set_rules(self, items: list[tuple[str, bool]]) -> tuple[list[Change], list[tuple[str, str]]]: ...
     def set_group(self, group_id: str, action: str) -> list[Change]: ...
     def set_param(self, rule_id: str, name: str, value: Any) -> Any: ...
-    def set_profile_info(self, name: str | None, author: str | None, comment: str | None) -> None: ...
+    def set_profile_info(self, name: str | None, author: str | None, comment: str | None) -> tuple[str, str, str]: ...
     def load_profile(self, path: Path, force: bool) -> list[str]: ...
     def show_item(self, item: str) -> bool: ...
     def save_profile_to(self, path: Path) -> None: ...
     def write_answer_file_to(self, path: Path) -> tuple[BuildResult, list[Issue]]: ...
     def current_issues(self) -> list[Issue]: ...
+    def is_dirty(self) -> bool: ...
+    def error_count(self) -> int: ...
     def is_busy(self) -> bool: ...
 
 
@@ -144,9 +146,10 @@ def normalise_param_value(rule: Rule, param: Param, value: Any) -> Any:
     return value.strip()
 
 
-def change_param(catalog: Catalog, profile: Profile, resources: Resources, rule_id: str, name: str, value: Any) -> Any:
+def change_param(catalog: Catalog, profile: Profile, resources: Resources, rule_id: str, name: str,
+                 value: Any) -> tuple[Any, bool]:
     """Set one parameter as the parameter panel does; a value that introduces a validation error is rejected and the
-    profile restored. Returns the stored value."""
+    profile restored. Returns the stored value and whether the profile changed (the current value changes nothing)."""
     rule = catalog.rules.get(rule_id)
     if rule is None:
         raise ToolError("unknown_id", f"unknown rule {rule_id}", {"id": rule_id})
@@ -158,20 +161,31 @@ def change_param(catalog: Catalog, profile: Profile, resources: Resources, rule_
     problem = check_param(rule, param, value)
     if problem:
         raise ToolError("invalid_arguments", problem, {"id": rule_id, "name": name})
-    before_errors = {i.message for i in validate_profile(profile, catalog, resources.keyboards) if i.level == "error"}
     state = profile.rules[rule_id]
     previous = dict(state.params)
     if value == param.default:
         state.params.pop(name, None)
     else:
         state.params[name] = value
+    if state.params == previous:
+        return value, False  # the current value: the panel does not mark the profile dirty either
+    before_errors = {i.message for i in validate_profile(_with_params(profile, rule_id, previous), catalog, resources.keyboards)
+                     if i.level == "error"}
     new_errors = [i.message for i in validate_profile(profile, catalog, resources.keyboards)
                   if i.level == "error" and i.message not in before_errors]
     if new_errors:
         state.params.clear()
         state.params.update(previous)
         raise ToolError("validation_failed", "; ".join(new_errors), {"id": rule_id, "name": name})
-    return value
+    return value, True
+
+
+def _with_params(profile: Profile, rule_id: str, params: dict[str, Any]) -> Profile:
+    """A copy of the profile with the given parameters of one rule (to validate the state before a change)."""
+    copied = profile.copy()
+    copied.rules[rule_id].params.clear()
+    copied.rules[rule_id].params.update(params)
+    return copied
 
 
 def clean_info(text: str | None, limit: int) -> str | None:
@@ -198,12 +212,24 @@ def check_and_build(catalog: Catalog, profile: Profile, resources: Resources, te
 # --------------------------------------------------------------------------- profile files
 
 
+def is_preset_id(name: str) -> bool:
+    return unicodedata.normalize("NFC", name).lower() in PRESET_IDS
+
+
 def profile_file(paths: AppPaths, name: str) -> Path:
     """A preset id (office, strict, laptop, memstechtips) inside the data folder, or profiles/<name>.json."""
-    key = unicodedata.normalize("NFC", name).lower()
-    if key in PRESET_IDS:
-        return paths.data / "profiles" / f"preset-{key}.json"
+    if is_preset_id(name):
+        return paths.data / "profiles" / f"preset-{unicodedata.normalize('NFC', name).lower()}.json"
     return safe_child(paths.profiles, name, ".json")
+
+
+def profile_display(path: Path | None, root: Path) -> str:
+    """The profile file as clients see it: its path inside the program folder, or the file name alone when it lies
+    elsewhere (the folder layout of the user's disk never leaves the machine)."""
+    if path is None:
+        return ""
+    shown = display_path(path, root)
+    return path.name if Path(shown).is_absolute() else shown
 
 
 def list_profile_files(paths: AppPaths) -> tuple[list[dict[str, Any]], int]:
@@ -221,10 +247,10 @@ def list_profile_files(paths: AppPaths) -> tuple[list[dict[str, Any]], int]:
             resolved = path.resolve()
             if resolved in seen or not path.is_file():
                 continue
-            seen.add(resolved)
             is_preset = path.name.lower().startswith("preset-")
             if (kind == "preset") != is_preset:
-                continue
+                continue  # not counted as seen: the same folder is scanned again for the other kind when data == root
+            seen.add(resolved)
             stem = path.stem[len("preset-"):] if is_preset else path.stem
             if check_name(stem) or (is_preset and stem.lower() not in PRESET_IDS):
                 unlisted += 1
@@ -270,9 +296,8 @@ class HeadlessWorkspace:
     def snapshot(self) -> Snapshot:
         from winkickoff.core.i18n import language
 
-        file = display_path(self.profile.path, self.paths.root) if self.profile.path is not None else ""
-        return Snapshot(self.catalog, self.profile.copy(), self.resources, self.paths, self.dirty, file, "",
-                        list(self.issues), language())
+        return Snapshot(self.catalog, self.profile.copy(), self.resources, self.paths, self.dirty,
+                        profile_display(self.profile.path, self.paths.root), "", list(self.issues), language())
 
     def set_rules(self, items: list[tuple[str, bool]]) -> tuple[list[Change], list[tuple[str, str]]]:
         changes, refused = apply_rule_states(self.catalog, self.profile, self.resolver, items)
@@ -287,18 +312,18 @@ class HeadlessWorkspace:
         return changes
 
     def set_param(self, rule_id: str, name: str, value: Any) -> Any:
-        stored = change_param(self.catalog, self.profile, self.resources, rule_id, name, value)
-        self.dirty = True
+        stored, changed = change_param(self.catalog, self.profile, self.resources, rule_id, name, value)
+        if changed:
+            self.dirty = True
         return stored
 
-    def set_profile_info(self, name: str | None, author: str | None, comment: str | None) -> None:
-        if name is not None:
-            self.profile.name = name
-        if author is not None:
-            self.profile.author = author
-        if comment is not None:
-            self.profile.comment = comment
-        self.dirty = True
+    def set_profile_info(self, name: str | None, author: str | None, comment: str | None) -> tuple[str, str, str]:
+        wanted = (self.profile.name if name is None else name, self.profile.author if author is None else author,
+                  self.profile.comment if comment is None else comment)
+        if wanted != (self.profile.name, self.profile.author, self.profile.comment):
+            self.profile.name, self.profile.author, self.profile.comment = wanted
+            self.dirty = True
+        return wanted
 
     def load_profile(self, path: Path, force: bool) -> list[str]:
         if self.dirty and not force:
@@ -309,15 +334,20 @@ class HeadlessWorkspace:
             raise ToolError("load_failed", f"the profile could not be opened: {type(exc).__name__}", {"name": path.stem}) from exc
         self.profile = profile
         self.dirty = False
-        self.issues = []
+        self.issues = [Issue("info", "profile", warning) for warning in warnings]  # the window shows them the same way
         return warnings
 
     def show_item(self, item: str) -> bool:
         return False
 
     def save_profile_to(self, path: Path) -> None:
+        previous = self.profile.name
         self.profile.name = path.stem
-        self.profile.save(path, self.catalog)
+        try:
+            self.profile.save(path, self.catalog)
+        except OSError:
+            self.profile.name = previous  # a failed save leaves the profile as it was
+            raise
         self.dirty = False
 
     def write_answer_file_to(self, path: Path) -> tuple[BuildResult, list[Issue]]:
@@ -332,6 +362,12 @@ class HeadlessWorkspace:
 
     def current_issues(self) -> list[Issue]:
         return list(self.issues)
+
+    def is_dirty(self) -> bool:
+        return self.dirty
+
+    def error_count(self) -> int:
+        return sum(1 for i in validate_profile(self.profile, self.catalog, self.resources.keyboards) if i.level == "error")
 
     def is_busy(self) -> bool:
         return False

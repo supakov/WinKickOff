@@ -21,6 +21,13 @@ _TYPES = {
 }
 
 
+def _pattern(pattern: str) -> str:
+    """A trailing "$" as ECMA 262 reads it: the end of the string, not before a final newline as Python does."""
+    if pattern.endswith("$") and not pattern.endswith("\\$"):
+        return pattern[:-1] + r"\Z"
+    return pattern
+
+
 def check(schema: dict[str, Any], value: Any, path: str = "$") -> list[str]:
     """Every violation as "<path>: <reason>"; an empty list means the value fits."""
     problems: list[str] = []
@@ -36,7 +43,7 @@ def check(schema: dict[str, Any], value: Any, path: str = "$") -> list[str]:
             problems.append(f"{path}: shorter than {schema['minLength']} characters")
         if "maxLength" in schema and len(value) > schema["maxLength"]:
             problems.append(f"{path}: longer than {schema['maxLength']} characters")
-        if "pattern" in schema and not re.search(schema["pattern"], value):
+        if "pattern" in schema and not re.search(_pattern(schema["pattern"]), value):
             problems.append(f"{path}: does not match {schema['pattern']}")
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         if "minimum" in schema and value < schema["minimum"]:

@@ -17,7 +17,7 @@ from typing import Any
 from winkickoff import APP_VERSION
 from winkickoff.mcp import HEADER_VERSIONS, MAX_RESULT_BYTES, PROTOCOL_VERSION, SERVER_NAME, SUPPORTED_VERSIONS
 from winkickoff.mcp.bridge import Bridge
-from winkickoff.mcp.journal import Journal, render_args
+from winkickoff.mcp.journal import Journal, render_args, render_client, render_uri
 from winkickoff.mcp.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS, INVALID_REQUEST, METHOD_NOT_FOUND, JsonRpcError,
                                     error_response, is_notification, is_request, response)
 from winkickoff.mcp.redact import clean_text
@@ -48,10 +48,11 @@ class Session:
     protocol_version: str = ""
     initialized: bool = False  # the initialize result was produced
     acknowledged: bool = False  # notifications/initialized arrived (monitor only)
+    journal_client: str = ""  # identifier-like rendering for the monitor; free text is shown by size only
 
     @property
     def client(self) -> str:
-        return " ".join(part for part in (self.client_name, self.client_version) if part)
+        return self.journal_client
 
 
 class McpServer:
@@ -65,6 +66,7 @@ class McpServer:
         self.mode = mode
         self.has_window = has_window
         self.app_version = app_version
+        self.closed = False  # set by the service on stop: handler threads that outlive it answer an error
         self._call_lock = threading.Lock()  # tool calls and resource reads run one at a time
 
     def context(self) -> ToolContext:
@@ -83,7 +85,12 @@ class McpServer:
         request_id = message.get("id")
         started = time.monotonic()
         tool, args, note, ok = "", "", "", True
+        pending: Any = None
         try:
+            if self.closed:
+                if is_notification(message):
+                    return None
+                raise JsonRpcError(INVALID_REQUEST, "the server is stopped", request_id=request_id)
             if is_notification(message):
                 self._notification(method, session)
                 self._journal(session, method, "", "", True, started, "")
@@ -107,25 +114,30 @@ class McpServer:
                 arguments = params.get("arguments")
                 if arguments is not None and not isinstance(arguments, dict):
                     raise JsonRpcError(INVALID_PARAMS, "arguments must be an object", request_id=request_id)
-                args = render_args(arguments)
+                args = render_args(arguments, set(self.tools.specs[tool].input_schema.get("properties", {})))
                 with self._call_lock:
                     result = self.tools.call(tool, arguments, self.context())
                 if result.get("isError"):
                     ok = False
                     note = str(result.get("structuredContent", {}).get("error", "error"))
-                    self._note_late(session, result)
+                    pending = result.get("structuredContent", {}).get("pending")
             elif method == "resources/list":
                 result = {"resources": self.resources.listing()}
             elif method == "resources/templates/list":
                 result = {"resourceTemplates": self.resources.templates()}
             elif method == "resources/read":
-                tool = str(params.get("uri", ""))
+                uri = params.get("uri")
+                if not isinstance(uri, str) or not uri:
+                    raise JsonRpcError(INVALID_PARAMS, "uri must be a non-empty string", request_id=request_id)
+                tool = render_uri(uri)
                 with self._call_lock:
-                    result = self.resources.read(tool, self.context())
+                    result = self.resources.read(uri, self.context())
             else:
                 raise JsonRpcError(METHOD_NOT_FOUND, f"Method not found: {method}", request_id=request_id)
             result = self._sized(result, request_id)
-            self._journal(session, method, tool, args, ok, started, note)
+            seq = self._journal(session, method, tool, args, ok, started, note)
+            if isinstance(pending, int):  # a write that may still land: the journal row gets a note when it does
+                self.bridge.note_late(pending, lambda text, seq=seq: self.journal.annotate(seq, text))
             return response(request_id, result)
         except JsonRpcError as exc:
             exc.request_id = request_id
@@ -151,6 +163,7 @@ class McpServer:
         info = params.get("clientInfo") if isinstance(params.get("clientInfo"), dict) else {}
         session.client_name = clean_text(info.get("name", ""), 80).replace("\n", " ")
         session.client_version = clean_text(info.get("version", ""), 40).replace("\n", " ")
+        session.journal_client = render_client(session.client_name, session.client_version)
         session.protocol_version = requested if requested in SUPPORTED_VERSIONS else PROTOCOL_VERSION
         session.initialized = True
         return {"protocolVersion": session.protocol_version,
@@ -171,12 +184,6 @@ class McpServer:
     def _journal(self, session: Session, method: str, tool: str, args: str, ok: bool, started: float, note: str) -> int:
         ms = int((time.monotonic() - started) * 1000)
         return self.journal.append(session.transport, session.client, method, tool, args, ok, ms, note)
-
-    def _note_late(self, session: Session, result: dict[str, Any]) -> None:
-        pending = result.get("structuredContent", {}).get("pending")
-        if isinstance(pending, int):
-            seq = self.journal.count + 1  # the entry appended right after this call
-            self.bridge.note_late(pending, lambda note: self.journal.annotate(seq, note))
 
 
 def accepted_header_version(value: str | None) -> bool:

@@ -14,14 +14,16 @@ RESOURCE_NOT_FOUND = -32002
 
 
 class JsonRpcError(Exception):
-    """An error response to build: code, message, optional data, and the id of the request when known."""
+    """An error response to build: code, message, optional data, and the id of the request when known.
+    silent marks a malformed notification: JSON-RPC forbids answering a notification, so transports drop it."""
 
-    def __init__(self, code: int, message: str, data: Any = None, request_id: Any = None) -> None:
+    def __init__(self, code: int, message: str, data: Any = None, request_id: Any = None, silent: bool = False) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
         self.data = data
         self.request_id = request_id
+        self.silent = silent
 
     def response(self) -> dict[str, Any]:
         return error_response(self.request_id, self.code, self.message, self.data)
@@ -36,8 +38,8 @@ def parse_message(raw: bytes | str) -> dict[str, Any]:
     """
     try:
         text = raw.decode("utf-8") if isinstance(raw, bytes) else raw
-        message = json.loads(text)
-    except (UnicodeDecodeError, ValueError) as exc:
+        message = json.loads(text, parse_constant=_refuse_constant)  # NaN and Infinity are not JSON
+    except (UnicodeDecodeError, ValueError, RecursionError) as exc:
         raise JsonRpcError(PARSE_ERROR, "parse error: " + type(exc).__name__) from exc
     if isinstance(message, list):
         raise JsonRpcError(INVALID_REQUEST, "batches are not supported")
@@ -53,8 +55,12 @@ def parse_message(raw: bytes | str) -> dict[str, Any]:
     if "method" not in message and "result" not in message and "error" not in message:
         raise JsonRpcError(INVALID_REQUEST, "a message needs a method, a result or an error", request_id=request_id)
     if "params" in message and not isinstance(message["params"], dict):
-        raise JsonRpcError(INVALID_PARAMS, "params must be an object", request_id=request_id)
+        raise JsonRpcError(INVALID_PARAMS, "params must be an object", request_id=request_id, silent="id" not in message)
     return message
+
+
+def _refuse_constant(name: str) -> Any:
+    raise ValueError(f"{name} is not JSON")
 
 
 def valid_id(value: Any) -> bool:
@@ -82,6 +88,6 @@ def error_response(request_id: Any, code: int, message: str, data: Any = None) -
 
 def dumps(obj: Any) -> bytes:
     """Compact UTF-8 JSON on one line (no indent, so json never emits a raw newline)."""
-    text = json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
+    text = json.dumps(obj, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
     assert "\n" not in text and "\r" not in text
     return text.encode("utf-8")

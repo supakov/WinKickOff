@@ -101,7 +101,11 @@ once.
 
 The item "New access token" in the "MCP" menu makes another token: a running server stops, and clients with the old
 token stop working until the new configuration is pasted into them. The token is never shown in full, only copied:
-"Copy token" in the monitor or "Copy client configuration (HTTP)".
+"Copy token" in the monitor or "Copy client configuration (HTTP)". The copy is marked for Windows so that the token
+stays out of the clipboard history (Win+V) and of the cloud clipboard.
+
+When the port is held by another program at the start of the server, the window warns that clients configured for
+this port may already have sent the token to that program and offers to make a new token at once.
 
 Whoever reads the program folder sees the token, as they see the profiles with passwords in clear text; but the token
 only works from this same computer.

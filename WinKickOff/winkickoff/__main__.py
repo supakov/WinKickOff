@@ -15,8 +15,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         args, extras = parse_args(raw)
     except SystemExit as exc:
-        if is_headless(raw):
-            return int(exc.code) if isinstance(exc.code, int) else 2  # console use: argparse wrote the message
+        if exc.code == 0 or is_headless(raw):  # --help, or console use: argparse wrote the message
+            return int(exc.code) if isinstance(exc.code, int) else 2
         from winkickoff.app import fatal  # the window path: show the message in a box
 
         fatal(f"Arguments not understood: {' '.join(raw)}")

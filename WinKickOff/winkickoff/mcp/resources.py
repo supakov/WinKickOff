@@ -15,8 +15,7 @@ from winkickoff.core.i18n import language
 from winkickoff.mcp import MAX_DOC_BYTES
 from winkickoff.mcp.jsonrpc import RESOURCE_NOT_FOUND, JsonRpcError
 from winkickoff.mcp.redact import TITLE, clean_text
-from winkickoff.mcp.tools import (ToolContext, ToolError, groups_payload, messages_payload, profile_payload, rule_card,
-                                  status_payload)
+from winkickoff.mcp.tools import ToolContext, ToolError, group_rows, messages_payload, profile_payload, rule_card, status_payload
 
 SCHEME = "winkickoff://"
 JSON = "application/json"
@@ -97,14 +96,8 @@ class ResourceRegistry:
         raise JsonRpcError(RESOURCE_NOT_FOUND, "resource not found", {"uri": uri})
 
     def _all_groups(self, ctx: ToolContext) -> dict[str, Any]:
-        rows: list[dict[str, Any]] = []
-        pending: list[str | None] = [None]
-        while pending:
-            parent = pending.pop(0)
-            page = groups_payload(ctx, parent, language())["groups"]
-            rows.extend(page)
-            pending.extend(g["id"] for g in page if g["children"])
-        return {"groups": rows}
+        snap = ctx.snapshot()  # one snapshot for the whole tree: one profile copy, consistent counts
+        return {"groups": group_rows(snap, ctx.texts(language()), None, language(), deep=True)}
 
     def _builtin_rules(self, ctx: ToolContext) -> dict[str, Any]:
         snap = ctx.snapshot()

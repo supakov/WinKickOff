@@ -21,7 +21,7 @@ from winkickoff.core.i18n import CatalogTexts, language
 from winkickoff.core.paths import AppPaths, display_path
 from winkickoff.core.profile import Profile
 from winkickoff.core.render import SCRIPT_ORDER, render_action, substitute
-from winkickoff.core.validate import Issue, validate_profile
+from winkickoff.core.validate import Issue, has_errors, validate_profile
 from winkickoff.core.verify import rollback_steps, verify_steps
 from winkickoff.mcp import BRIDGE_TIMEOUT, DEFAULT_LIMIT, MAX_LIMIT, MAX_RESULT_BYTES, MODE_EDIT, MODE_FILES, MODE_READ, WRITE_TIMEOUT, allows
 from winkickoff.mcp import schema as schema_check
@@ -29,7 +29,8 @@ from winkickoff.mcp.bridge import Bridge
 from winkickoff.mcp.errors import ToolError
 from winkickoff.mcp.redact import (EFFECT, EXPLAIN, SUMMARY, TITLE, assert_redacted_build, clean_json, clean_text,
                                    redact_differences, redact_profile, redacted_copy, safe_child)
-from winkickoff.mcp.workspace import Snapshot, Workspace, check_and_build, list_profile_files, profile_file
+from winkickoff.mcp.workspace import (Snapshot, Workspace, check_and_build, is_preset_id, list_profile_files,
+                                      profile_display, profile_file)
 
 ID_PATTERN = r"^[A-Za-z0-9_.:-]{1,200}$"
 ITEM_PATTERN = r"^(r:[A-Za-z0-9_.:-]{1,200}|g:[A-Za-z0-9_.:-]{1,200}|data:(accounts|languages|install))$"
@@ -132,6 +133,11 @@ def _enabled(snap: Snapshot, covered: dict[str, str], rule_id: str) -> bool:
     return snap.profile.is_enabled(rule_id) or rule_id in covered
 
 
+def _enabled_count(snap: Snapshot, covered: dict[str, str]) -> int:
+    """Rules on, covered policies included: the same count list_rules and list_groups give."""
+    return sum(1 for rule_id in snap.catalog.rules if _enabled(snap, covered, rule_id))
+
+
 def _rule_row(snap: Snapshot, texts: CatalogTexts, covered: dict[str, str], rule: Rule, requested: str) -> dict[str, Any]:
     return {"id": rule.id, "group": rule.group, "title": clean_text(texts.rule(rule, "title"), TITLE), "level": rule.level,
             "phase": rule.phase, "enabled": _enabled(snap, covered, rule.id), "default": rule.default,
@@ -169,12 +175,17 @@ def rule_card(snap: Snapshot, texts: CatalogTexts, rule: Rule, requested: str) -
     covered = _covered(snap)
     params = profile.params_for(catalog, rule.id)
     link = linked.link(catalog, profile, rule.id) if is_imported(rule.id) else None
+    # a covered policy that is not on itself: the values the built-in rule writes, as the description panel shows them
+    from_rule = link is not None and rule.id in covered and not profile.is_enabled(rule.id)
+    if from_rule:
+        params = {**params, **link.params}  # type: ignore[union-attr]
     card = {"id": rule.id, "group": rule.group, "group_title": clean_text(texts.group(catalog.groups[rule.group], "title"), TITLE),
             "phase": rule.phase, "level": rule.level, **_rule_texts(texts, rule), "default": rule.default,
             "enabled": _enabled(snap, covered, rule.id), "tags": [clean_text(t, 60) for t in rule.tags],
             "requires": list(rule.requires), "required_by": catalog.required_by(rule.id), "conflicts": list(rule.conflicts),
             "dependents": Resolver(catalog).dependents(rule.id), "same_values": catalog.same_values(rule.id),
-            "linked": None if link is None else {"rule": link.rule, "equal": link.equal, "covered": rule.id in covered},
+            "linked": None if link is None else {"rule": link.rule, "equal": link.equal, "covered": rule.id in covered,
+                                                 "values_from_rule": from_rule},
             "params": [_param_json(texts, rule, p, params[p.name]) for p in rule.params.values()],
             "actions": [{"type": a.type, "text": clean_text(_action_text(a, params), EFFECT)} for a in rule.actions],
             "verify_steps": [clean_text(s, EFFECT) for s in verify_steps(rule, params)],
@@ -222,19 +233,30 @@ def status_payload(ctx: ToolContext) -> dict[str, Any]:
             "mode": ctx.mode, "transport": ctx.transport, "has_window": ctx.has_window, "language": snap.language,
             "languages": list(ctx.languages),
             "profile": {"name": clean_text(snap.profile.name, NAME_MAX), "file": snap.profile_file, "dirty": snap.dirty,
-                        "enabled": len(snap.profile.enabled_ids()), "total": total},
+                        "enabled": _enabled_count(snap, _covered(snap)), "total": total},
             "imports_shown": _imports_shown(snap.catalog),
             "redaction": "passwords and product keys are never returned", "note": DATA_NOTE}
 
 
 def groups_payload(ctx: ToolContext, parent: str | None, requested: str) -> dict[str, Any]:
     snap = ctx.snapshot()
-    texts = ctx.texts(requested)
-    covered = _covered(snap)
     if parent is not None and parent not in snap.catalog.groups:
         raise ToolError("unknown_id", f"unknown group {parent}", {"id": parent})
-    groups = snap.catalog.children(parent)
-    return {"groups": [_group_row(snap, texts, covered, g, requested) for g in groups], "language": requested}
+    return {"groups": group_rows(snap, ctx.texts(requested), parent, requested), "language": requested}
+
+
+def group_rows(snap: Snapshot, texts: CatalogTexts, parent: str | None, requested: str, *, deep: bool = False) -> list[dict[str, Any]]:
+    """The children of a group (deep: the whole subtree, breadth first) from one snapshot."""
+    covered = _covered(snap)
+    rows: list[dict[str, Any]] = []
+    pending: list[str | None] = [parent]
+    while pending:
+        current = pending.pop(0)
+        for group in snap.catalog.children(current):
+            rows.append(_group_row(snap, texts, covered, group, requested))
+            if deep and rows[-1]["children"]:
+                pending.append(group.id)
+    return rows
 
 
 def _search(snap: Snapshot, texts: CatalogTexts, query: str, requested: str) -> set[str]:
@@ -290,7 +312,7 @@ def profile_payload(ctx: ToolContext) -> dict[str, Any]:
     data = redact_profile(snap.profile.to_dict(snap.catalog))
     changed = [rid for rid, rule in snap.catalog.rules.items()
                if snap.profile.is_enabled(rid) != rule.default or snap.profile.rules[rid].params]
-    data.update({"file": snap.profile_file, "dirty": snap.dirty, "enabled_count": len(snap.profile.enabled_ids()),
+    data.update({"file": snap.profile_file, "dirty": snap.dirty, "enabled_count": _enabled_count(snap, _covered(snap)),
                  "changed_from_defaults": changed})
     return data
 
@@ -329,19 +351,41 @@ def check_profile(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
 
 def preview_build(ctx: ToolContext, args: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     snap = ctx.snapshot()
-    result, issues = check_and_build(snap.catalog, redacted_copy(snap.profile), snap.resources, snap.paths.templates, ctx.app_version)
+    # the real profile is validated first: the redacted copy would hide an error in a custom product key
+    issues = validate_profile(snap.profile, snap.catalog, snap.resources.keyboards)
+    if not has_errors(issues):
+        result, issues = check_and_build(snap.catalog, redacted_copy(snap.profile), snap.resources, snap.paths.templates, ctx.app_version)
+    else:
+        result = None
     if result is None:
         raise ToolError("validation_failed", "the profile has errors; run check_profile",
                         {"errors": [clean_text(i.message, EFFECT) for i in issues if i.level == "error"]})
     assert_redacted_build(result)
     part = str(args.get("part") or PARTS[0])
-    text = result.xml if part == PARTS[0] else result.scripts.get(part, "")
-    limit = MAX_RESULT_BYTES - 4096
-    truncated = len(text.encode("utf-8")) > limit
-    if truncated:
-        text = text.encode("utf-8")[:limit].decode("utf-8", "ignore") + "\n[truncated]"
+    text, truncated = fit_text(result.xml if part == PARTS[0] else result.scripts.get(part, ""), MAX_RESULT_BYTES - 8192)
     return text, {"part": part, "parts": list(PARTS), "bytes": len(text.encode("utf-8")), "truncated": truncated,
                   "redacted": True, "rules": len(result.rule_ids)}
+
+
+TRUNCATED = "\n[truncated]"
+
+
+def _json_bytes(text: str) -> int:
+    return len(json.dumps(text, ensure_ascii=False).encode("utf-8"))
+
+
+def fit_text(text: str, limit: int) -> tuple[str, bool]:
+    """The text cut so that its JSON serialisation (quotes and newlines escaped) stays within limit bytes; the
+    result of a tool is measured serialised, so a raw byte count would overshoot."""
+    if _json_bytes(text) <= limit:
+        return text, False
+    keep = len(text)
+    while keep > 0:
+        size = _json_bytes(text[:keep] + TRUNCATED)
+        if size <= limit:
+            break
+        keep = min(keep - 1, int(keep * limit / size))  # proportional shrink: a few rounds at most
+    return text[:keep] + TRUNCATED, True
 
 
 def messages_payload(ctx: ToolContext) -> dict[str, Any]:
@@ -356,18 +400,13 @@ def _changes_json(changes: list[Change]) -> list[dict[str, Any]]:
     return [{"id": c.rule_id, "enabled": c.enabled, "reason": clean_text(c.reason, TITLE)} for c in changes]
 
 
-def _error_count(ws: Workspace) -> int:
-    snap = ws.snapshot()
-    return sum(1 for i in validate_profile(snap.profile, snap.catalog, snap.resources.keyboards) if i.level == "error")
-
-
 def set_rules(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
     items = [(str(item["id"]), bool(item["enabled"])) for item in args["items"]]
 
     def work(ws: Workspace) -> dict[str, Any]:
         changes, refused = ws.set_rules(items)
         return {"changes": _changes_json(changes), "refused": [{"id": i, "reason": r} for i, r in refused],
-                "dirty": ws.snapshot().dirty, "issues_errors": _error_count(ws)}
+                "dirty": ws.is_dirty(), "issues_errors": ws.error_count()}
 
     return ctx.write(work)
 
@@ -375,8 +414,8 @@ def set_rules(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
 def set_group(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
     def work(ws: Workspace) -> dict[str, Any]:
         changes = ws.set_group(str(args["id"]), str(args["action"]))
-        return {"id": args["id"], "action": args["action"], "changes": _changes_json(changes), "dirty": ws.snapshot().dirty,
-                "issues_errors": _error_count(ws)}
+        return {"id": args["id"], "action": args["action"], "changes": _changes_json(changes), "dirty": ws.is_dirty(),
+                "issues_errors": ws.error_count()}
 
     return ctx.write(work)
 
@@ -385,8 +424,12 @@ def set_param(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
     value = args["value"]
     if isinstance(value, list) and sum(len(str(item)) for item in value) > 4000:
         raise ToolError("invalid_arguments", "the joined value is longer than 4000 characters")
-    stored = ctx.write(lambda ws: ws.set_param(str(args["id"]), str(args["name"]), value))
-    return {"id": args["id"], "name": args["name"], "value": clean_json(stored), "dirty": True}
+
+    def work(ws: Workspace) -> dict[str, Any]:
+        stored = ws.set_param(str(args["id"]), str(args["name"]), value)
+        return {"id": args["id"], "name": args["name"], "value": clean_json(stored), "dirty": ws.is_dirty()}
+
+    return ctx.write(work)
 
 
 def set_profile_info(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
@@ -397,10 +440,9 @@ def set_profile_info(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
         raise ToolError("invalid_arguments", "the name must not be empty")
 
     def work(ws: Workspace) -> dict[str, Any]:
-        ws.set_profile_info(name, author, comment)
-        profile = ws.snapshot().profile
-        return {"name": clean_text(profile.name, NAME_MAX), "author_text": clean_text(profile.author, NAME_MAX),
-                "comment_text": clean_text(profile.comment, 2000), "dirty": True}
+        stored_name, stored_author, stored_comment = ws.set_profile_info(name, author, comment)
+        return {"name": clean_text(stored_name, NAME_MAX), "author_text": clean_text(stored_author, NAME_MAX),
+                "comment_text": clean_text(stored_comment, 2000), "dirty": ws.is_dirty()}
 
     return ctx.write(work)
 
@@ -410,7 +452,7 @@ def load_profile(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
     if not path.is_file():
         raise ToolError("unknown_id", f"no profile named {args['name']}", {"name": args["name"]})
     warnings = ctx.write(lambda ws: ws.load_profile(path, bool(args.get("force", False))))
-    return {"name": args["name"], "file": display_path(path, ctx.paths.root), "warnings": [clean_text(w, EFFECT) for w in warnings],
+    return {"name": args["name"], "file": profile_display(path, ctx.paths.root), "warnings": [clean_text(w, EFFECT) for w in warnings],
             "forced": bool(args.get("force", False))}
 
 
@@ -424,12 +466,23 @@ def show_item(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
 # --------------------------------------------------------------------------- files tools
 
 
+def _written(ctx: ToolContext, fn: Callable[[Workspace], Any], name: str) -> Any:
+    """A write closure whose file errors become the tool error write_failed (the kind only, never a path)."""
+    try:
+        return ctx.write(fn)
+    except OSError as exc:
+        raise ToolError("write_failed", f"the file could not be written: {type(exc).__name__}", {"name": name}) from exc
+
+
 def save_profile(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
+    if is_preset_id(args["name"]):
+        raise ToolError("name_refused", "the names of the presets (office, strict, laptop, memstechtips) are reserved",
+                        {"name": args["name"]})
     target = safe_child(ctx.paths.profiles, args["name"], ".json")
     if target.exists():
         raise ToolError("exists", "a profile with this name exists; choose another name, WinKickOff never replaces files "
                                   "through MCP", {"name": args["name"]})
-    ctx.write(lambda ws: ws.save_profile_to(target))
+    _written(ctx, lambda ws: ws.save_profile_to(target), args["name"])
     return {"file": display_path(target, ctx.paths.root), "dirty": False}
 
 
@@ -438,7 +491,7 @@ def write_answer_file(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
     if target.exists():
         raise ToolError("exists", "a file with this name exists in output; choose another name, WinKickOff never replaces "
                                   "files through MCP", {"name": args["name"]})
-    result, issues = ctx.write(lambda ws: ws.write_answer_file_to(target))
+    result, issues = _written(ctx, lambda ws: ws.write_answer_file_to(target), args["name"])
     return {"file": display_path(target, ctx.paths.root), "rules": len(result.rule_ids), "issues": [_issue_json(i) for i in issues],
             "powershell_checked": False,
             "note": "rename the file to autounattend.xml when copying it to the installation media"}
@@ -524,8 +577,9 @@ class ToolRegistry:
             ToolSpec("preview_build", "Preview the build", "The text the build would write, from a copy without secrets: "
                      "the answer file or one of the embedded scripts. Nothing is written.",
                      MODE_READ, _schema({"part": {"type": "string", "enum": list(PARTS), "maxLength": 32}}), preview_build, READ_ANNOTATIONS),
-            ToolSpec("get_messages", "Messages", "The messages panel of the window (headless: the last check).",
-                     MODE_READ, _schema(), lambda ctx, args: messages_payload(ctx), READ_ANNOTATIONS),
+            ToolSpec("get_messages", "Messages", "The messages panel of the window (headless: the warnings of the last "
+                     "load_profile or the issues of the last write_answer_file). check_profile returns its own issues and "
+                     "leaves the panel alone.", MODE_READ, _schema(), lambda ctx, args: messages_payload(ctx), READ_ANNOTATIONS),
             ToolSpec("set_rules", "Switch rules", "Switch rules on or off with the cascade the tree applies (dependencies, "
                      "conflicts, linked policies). The change stays in memory as an unsaved change; the user saves.",
                      MODE_EDIT, _schema({"items": {"type": "array", "minItems": 1, "maxItems": 200,
