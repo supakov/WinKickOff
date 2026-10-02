@@ -1,70 +1,73 @@
-# pi agent container
+# WinKickOff assistant in a container
 
-A Podman image that runs the [pi coding agent](https://github.com/earendil-works/pi) with a local model, with the
-WinKickOff repository mounted at `/projects`. The agent works on the code and the documentation and talks to the
-WinKickOff MCP server, and nothing is sent to a cloud model: the model runs on a llama.cpp server of the same machine.
-
-State on 01.10.2026: the image was added by a team member; the connection to the MCP server of the WinKickOff window
-works. The CI job `pi-agent-container` builds the image on every push and runs `check_container.py` in it: the tests,
-the dash check and pi's connection to headless WinKickOff servers over stdio and HTTP pass. The steps of the acceptance
-test (section 8) that need the window and the model have not been done yet.
-
-## 1. Contents of this folder
+A Podman image of the [pi agent](https://github.com/earendil-works/pi) with a local model. The agent helps a person
+analyse and change WinKickOff profiles in Russian or Ukrainian, and it works **only through the MCP tools of
+WinKickOff**: it has no files, no shell and no editor. Nothing goes to a cloud model: the model runs on a llama.cpp
+server of the same machine.
 
 | File | Purpose |
 |---|---|
-| `Dockerfile` | The image: Ubuntu 26.04, Python 3.14, Node.js 22, git, ripgrep, pi from npm |
-| `AGENTS.md` | Instructions for the agent in the container; pi loads them after step 3 of section 4 |
-| `README.md` | This file: build, setup, connection to WinKickOff, tests, security, known issues |
-| `check_container.py` | Checks of the image (section 6): the tools, the tests and the dash check as the agent runs them, WinKickOff's headless commands, pi's MCP connection over stdio and HTTP. CI runs it; a person can run it in the container |
+| `Dockerfile` | The image: Ubuntu 26.04, Node.js 22, pi 0.99.2 behind a wrapper that keeps only the MCP tools |
+| `AGENTS.md` | The instructions of the assistant; the image copies them to `/work/AGENTS.md` and gives them to pi as its system prompt |
+| `README.md` | This file |
 
-The repository map for every agent is the root [`AGENTS.md`](../AGENTS.md); pi loads it by itself, because it reads
-the `AGENTS.md` of every folder from `/` down to its working folder.
-
-## 2. How the pieces fit
+## 1. How it works
 
 ```
 Host (127.0.0.1)
-  llama.cpp server :8088 (OpenAI-compatible API, the model)
-  WinKickOff window, MCP server :47831 (menu MCP, HTTP, bearer token)
-Container winkickoff-pi (--network=host, so 127.0.0.1 is the host's loopback)
-  pi                     -> model at http://localhost:8088/v1
-                         -> MCP at http://127.0.0.1:47831/mcp (or a stdio server started inside)
-  /projects              the repository (bind mount, read-write)
-  /home/pi/.pi           volume pi-winkickoff: settings, model list, MCP entry with the token, sessions
+  llama.cpp server :8088          the model (OpenAI-compatible API)
+  WinKickOff window, MCP :47831   menu "MCP", HTTP, bearer token
+Container winkickoff-pi (--network=host: 127.0.0.1 is the host's loopback)
+  pi in /work                     only AGENTS.md is there
+    -> model at http://localhost:8088/v1
+    -> MCP at http://127.0.0.1:47831/mcp, tools mcp__winkickoff__<tool>
+  /home/pi/.pi                    volume pi-winkickoff: settings, model list, MCP entry with the token, sessions
 ```
 
-## 3. Requirements
+The command `pi` of the image always starts with:
 
-- Rootless Podman. The commands below come from the `Dockerfile` and were written for a Linux host: `Z` relabels the
-  mount for SELinux, `U` gives the mounted files to the container user, and `--userns=keep-id` makes that user the
-  host user, so nothing changes owner on the host. On Windows Podman runs the container inside a WSL2 virtual
-  machine; see section 5.3 before using it there. These commands have not been tried on Windows.
-- A local OpenAI-compatible model server, for example llama.cpp `llama-server` on port 8088. Its context size (`-c`)
-  must not be smaller than `contextWindow` in `models.json`.
-- WinKickOff 1.2.0-rc.1 or later: the MCP server of the window (menu "MCP"), or the stdio server inside the container.
-- pi 0.99.0 or later. MCP is built into pi since 0.99.0 (29.09.2026), so no extension is needed. The image installs
-  the tested pi 0.99.2; another version: `podman build --build-arg PI_VERSION=x.y.z ...`, then run section 6.
+- only the built-in MCP extension (no extension, skill, prompt template, `AGENTS.md` or `CLAUDE.md` from the volume is
+  loaded);
+- pi's own tools `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls` off and impossible to switch on (not by
+  `/reload`, not by `settings.json`);
+- an allow list of exactly the 18 tools of the MCP server named `winkickoff` (exposure `direct`) and pi's resource
+  tools `list_mcp_resources`, `list_mcp_resource_templates` and `read_mcp_resource`, with which the agent reads the
+  guide `winkickoff://skill/SKILL.md`, the user pages and the reference cards from the server; the tools of any other
+  server never reach the model;
+- `/work/AGENTS.md` of the image as the whole system prompt, in place of pi's default prompt for a coding agent; a
+  `SYSTEM.md` or `APPEND_SYSTEM.md` in the volume is not used.
 
-An agent never builds or runs this image on the customer's work PC: building pulls images and packages and changes the
-machine. A person does it on their own machine or in a virtual machine (root `AGENTS.md`, rule 1).
+## 2. Requirements
 
-## 4. Build, run and first-time setup
+- Rootless Podman on a Linux machine (or a virtual machine), where the model server and WinKickOff are reachable on
+  `127.0.0.1` (section 5).
+- A local OpenAI-compatible model server, for example llama.cpp `llama-server` on port 8088 with Qwen3.6-35B. Its
+  context size (`-c`) must not be smaller than `contextWindow` in `models.json`.
+- A WinKickOff whose server offers the guide `winkickoff://skill/SKILL.md`: `pi mcp list --json` shows `"resourceTemplates":
+  4` for `winkickoff` (3 means an older WinKickOff: the tools work, but the agent cannot read the guide). The window
+  with "Server running (HTTP, this computer only)" checked in the "MCP" menu, or a headless WinKickOff server over HTTP
+  (section 5).
+- Building pulls images and packages from the internet and changes the machine: do it on a machine meant for it, never
+  on a work PC where nothing may change.
 
-From the repository root:
+## 3. Build and run
+
+From the folder of this file:
 
 ```bash
-podman build -t winkickoff-pi:local ./pi-agent/
-podman run -it --rm --name winkickoff-pi -v .:/projects:rw,Z,U -v pi-winkickoff:/home/pi/.pi --network=host --userns=keep-id winkickoff-pi:local
+podman build -t winkickoff-pi:local .
+podman run -it --rm --name winkickoff-pi -v pi-winkickoff:/home/pi/.pi --network=host winkickoff-pi:local
 ```
 
-The image sets `PI_TELEMETRY=0`, so even the first start with a new volume sends no install ping to `pi.dev`.
+Another pi version: `podman build --build-arg PI_VERSION=x.y.z ...`, then the checks of section 7. A second shell in the
+running container: `podman exec -it winkickoff-pi sh`.
 
-The container starts `pi` in `/projects`. A second shell in the running container: `podman exec -it winkickoff-pi sh`.
-The volume `pi-winkickoff` keeps everything under `/home/pi/.pi` between runs, so the setup below is done once. Run
-these commands in that second shell (or inside pi, prefixed with `!!`, as the comments of the `Dockerfile` show).
+## 4. First-time setup
 
-1. Settings: no install ping, and the local model as the default.
+The volume `pi-winkickoff` keeps everything under `/home/pi/.pi`, so this is done once. Run the commands in the second
+shell (or inside pi, each prefixed with `!!`).
+
+1. Settings: no install ping, the local model as the default.
 
    ```bash
    cat > ~/.pi/agent/settings.json <<'EOF'
@@ -95,221 +98,134 @@ these commands in that second shell (or inside pi, prefixed with `!!`, as the co
    EOF
    ```
 
-3. The instructions of this folder. pi reads `~/.pi/agent/AGENTS.md` first and then the `AGENTS.md` of every folder
-   down to its working folder (`/projects/AGENTS.md`, the repository map). The link keeps the file current after every
-   `git pull`; nothing is copied into the volume.
+3. The MCP entry. In the WinKickOff window: menu "MCP", check "Server running (HTTP, this computer only)", then "Copy
+   client configuration (HTTP)". Paste it into `~/.pi/agent/mcp.json` and add `"exposure": "direct"`:
 
-   ```bash
-   ln -sf /projects/pi-agent/AGENTS.md ~/.pi/agent/AGENTS.md
+   ```json
+   {
+     "mcpServers": {
+       "winkickoff": {
+         "type": "http",
+         "url": "http://127.0.0.1:47831/mcp",
+         "headers": { "Authorization": "Bearer <token copied from the window>" },
+         "exposure": "direct"
+       }
+     }
+   }
    ```
 
-4. The MCP server entry: section 5.1 (HTTP, the open window) or 5.2 (stdio inside the container), or both. For work
-   on profiles over MCP, also link the skill of WinKickOff (`WinKickOff/skills/README.md`); a small model loads it
-   reliably only when the task starts with `/skill:winkickoff`:
+   `"exposure": "direct"` is required: the image loads no `codemode`, so with another exposure the agent has no
+   WinKickOff tools. Keep the name `winkickoff`: the image allows only the tools of a server with this name. Keep the
+   address `127.0.0.1`: Node tries `localhost` as IPv6 first (the server answers `421` to a host other than
+   `127.0.0.1` or `localhost`). The file holds this entry only: the image keeps the tools of another server away from
+   the model, but the agent could still read that server's resources.
 
-   ```bash
-   mkdir -p ~/.pi/agent/skills && ln -sf /projects/WinKickOff/skills/winkickoff ~/.pi/agent/skills/winkickoff
-   ```
+4. Restart pi (or type `/reload`) and check the connection (section 7).
 
-5. Restart pi (or type `/reload`) and check from the second shell:
+### Migration from the old setup
 
-   ```bash
-   pi --version
-   pi mcp list
-   ```
+Older instructions mounted a project folder into the container and linked files from it into the volume. The image
+takes no such mount any more. Remove the links left in the volume once (in the second shell):
 
-   `pi mcp list` connects to every configured server and prints its state, its tools and any error; it exits with 1
-   when a server fails, so it is the quickest connection test. `python3 /projects/pi-agent/check_container.py --quick`
-   checks the image and pi's MCP client against headless servers of its own, without touching the volume.
-
-## 5. Connecting to WinKickOff
-
-### 5.1 HTTP: the open window
-
-In the WinKickOff window: menu "MCP", "Server running", then "Copy client configuration (HTTP)". The copied entry is in
-the format pi reads. Put it into `~/.pi/agent/mcp.json`, and add `exposure` and `description`:
-
-```json
-{
-  "mcpServers": {
-    "winkickoff": {
-      "type": "http",
-      "url": "http://127.0.0.1:47831/mcp",
-      "headers": { "Authorization": "Bearer <token copied from the window>" },
-      "exposure": "direct",
-      "description": "WinKickOff editor: the rule catalog and the profile open in the window"
-    }
-  }
-}
+```bash
+rm -f ~/.pi/agent/AGENTS.md ~/.pi/agent/skills/winkickoff
 ```
 
-- Keep `127.0.0.1` in the URL. Node resolves `localhost` to the IPv6 address first, and the server listens on IPv4
-  only. The server also refuses with `421` any request whose `Host` is not `127.0.0.1` or `localhost`, so a URL with
-  `host.containers.internal` or an IP address of the host never works; the server listens on the loopback only anyway.
-- `exposure`: pi's default `codemode` hides the tools behind one `codemode` tool, and the model has to write
-  JavaScript to call them. `direct` declares the 18 WinKickOff tools as ordinary tools named `mcp__winkickoff__<tool>`,
-  which is easier for a local model. Switching is possible at any time in `/mcp`, "Exposure". Which works better with
-  the local model is part of the acceptance test.
-- The token is stored in this file in clear text, inside the volume. pi can read it from an environment variable
-  instead: `"Authorization": "Bearer ${WINKICKOFF_MCP_TOKEN}"` with `-e WINKICKOFF_MCP_TOKEN=...` on `podman run`;
-  either way every command the model runs can see it. After "New access token" in the window every client with the
-  old token gets `401` ("MCP server requires authentication"): put in the new token and run
-  `/mcp reconnect winkickoff`.
-- If the container has `HTTP_PROXY` or `HTTPS_PROXY`, pi sends MCP traffic through the proxy as well; set
-  `NO_PROXY=127.0.0.1,localhost`.
+The image ignores them anyway, but a stale file there misleads whoever reads the volume. The same holds for a
+`SYSTEM.md` or `APPEND_SYSTEM.md` in `~/.pi/agent`. Drop the old stdio entry `winkickoff-local` from `mcp.json`: the
+image has no WinKickOff program to start.
 
-### 5.2 stdio inside the container
-
-The container has Python 3.14, so pi can start a headless WinKickOff server itself. It needs no network and no token,
-but it works on its own copy of a profile, not on the open window (see the user page `docs/user/en/mcp.md`). This suits
-work on the rule catalog: after a change of `WinKickOff/rules/` the agent sees the new catalog once the person types
-`/mcp reconnect winkickoff-local`.
-
-```json
-{
-  "mcpServers": {
-    "winkickoff-local": {
-      "command": "python3",
-      "args": ["-m", "winkickoff", "--mcp", "stdio", "--mode", "read", "--profile", "office"],
-      "cwd": "/projects/WinKickOff",
-      "env": { "PYTHONPATH": "/projects/WinKickOff" },
-      "exposure": "direct"
-    }
-  }
-}
-```
-
-Each server process writes `WinKickOff/logs/mcp-stdio-<pid>.log` in the mounted folder (not versioned). The mode is
-fixed by `--mode` in this entry, and the person who edits the entry chooses it; `--mode files` lets the agent create
-files in `WinKickOff/profiles/` and `WinKickOff/output/`.
-
-### 5.3 Networking
+## 5. Networking
 
 `--network=host` gives the container the network of the machine that runs it, so `127.0.0.1` in the container is the
 loopback of that machine.
 
-- Linux host: the WinKickOff server and llama.cpp run on the same machine, for example the headless
-  `python3 -m winkickoff --mcp http --port 47831 --token <token>` from a clone (the window is made for Windows); the
-  URLs above work as they are.
-- Windows host with `podman machine`: the container runs inside a WSL2 virtual machine, and its loopback is the loopback
-  of that virtual machine. The window's server on the Windows loopback is reachable from there only with WSL mirrored
-  networking (`networkingMode=mirrored` in `%UserProfile%\.wslconfig`, Windows 11 22H2 or later); without it the
-  container cannot reach the window, and the stdio server of section 5.2 is the way. Changing `.wslconfig` changes the
-  system and is never done by an agent on the customer's PC.
+- Linux host: the model server and WinKickOff run on the same machine. The WinKickOff window is made for Windows, so
+  on Linux a headless WinKickOff server over HTTP is used (options `--mcp http --port 47831 --token <32 to 64
+  characters>`, optionally `--profile office` and `--mode edit`). How to start it and what it needs: the WinKickOff
+  user page "MCP server" (`mcp.md`), section "Command line". It has no window: the agent works on its own copy of the
+  profile, the mode is fixed at start (`read` by default), and only saving a new profile (mode `files`) keeps changes.
+  The URL of `mcp.json` is the one the server prints at start; the token is the one given with `--token`.
+- Windows host with `podman machine`: the container runs inside a WSL2 virtual machine whose loopback is not the
+  Windows loopback. The window is reachable from there only with WSL mirrored networking (`networkingMode=mirrored` in
+  `%UserProfile%\.wslconfig`, Windows 11 22H2 or later). That is a system setting of the host: it is never changed on
+  the customer's work PC; use a separate machine or virtual machine instead.
+- If the container has `HTTP_PROXY` or `HTTPS_PROXY`, set `NO_PROXY=127.0.0.1,localhost`, otherwise pi sends MCP
+  traffic to the proxy.
 
-### 5.4 What pi does with the WinKickOff tools
+## 6. What the agent can and cannot do
 
-Read in the pi sources (0.99.2) and our server code. The CI job confirms the handshake, the sessions and the full
-tool list over stdio and HTTP; the rest is part of the acceptance test.
+The mode decides. Only the person switches it, in the "MCP" menu of the window; every start of the window is "Read
+only".
 
-| Topic | Behaviour |
+| Mode in the "MCP" menu | The agent can |
 |---|---|
-| Handshake | pi asks for protocol 2025-11-25 and accepts the 2025-06-18 our server answers; client name `pi` and its version appear in the monitor |
-| Session | pi keeps the `Mcp-Session-Id`, opens no event stream after the `405` to GET, sends `DELETE` when it closes, and re-initializes once after a `404` |
-| Modes | The tool list is the same in every mode; a refused call is a tool error `mode_required`. Only the person switches the mode, in the window |
-| Results | With `direct` the model gets the text of the result; WinKickOff puts the same JSON there as in `structuredContent`. A tool error (`isError`) reaches the model as an error |
-| Large results | pi shows at most 20 KB of a tool result to the model; it keeps the start and the end, cuts the middle and saves the full text in `/tmp/pi-mcp-<hex>.txt`. Narrow queries (`group`, `query`, `limit`) avoid it |
-| Resources | pi lists and reads the `winkickoff://` resources through its own tools `list_mcp_resources`, `list_mcp_resource_templates` and `read_mcp_resource` |
-| Parallel calls | pi runs the tool calls of one model message in parallel, and our server serves at most 4 requests at once and answers `503` to the next; pi does not retry a tool call. One WinKickOff call at a time is safest |
-| Timeout | 60 s per request by default (`"timeout"` in the entry); WinKickOff answers writes within 30 s |
-| Commands | `/mcp` lists servers, tools, errors and exposure; `/mcp reconnect <server>`; `/reload` after editing `mcp.json`; `pi mcp list` outside a session |
+| "Read only" | Explain rules, search the catalog, review the open profile, compare it with a preset or a saved profile, check it, preview the build, read the user pages and the reference cards |
+| "Read and change the open profile" | Also switch rules and groups, set parameters, the profile name, author and comment, open a preset or a saved profile, select a rule or a form in the window. Changes stay unsaved until the person saves them |
+| "Change and create files" | Also save the profile as a new file in `profiles` and write a new answer file in `output` next to the program. It never replaces a file |
 
-## 6. Working on the repository in the container
+In no mode can it: apply or check settings on a PC, run PowerShell (so no syntax check; that is F9 in the window),
+delete or replace files, change accounts, passwords, languages, time zone, edition or product key, import ADMX
+templates, change program settings, the mode or the token. It asks before every change and answers in the person's
+language.
 
-- `/projects` is the repository of the host, read-write: every change lands on the host disk at once.
-- Python 3.14 comes from Ubuntu 26.04, the version the project requires. There is no tkinter, no PowerShell and no
-  Windows in the image: the tests of the window are skipped, and the PowerShell checks are not available.
-- Tests: `cd /projects/WinKickOff && python3 -m unittest discover -s tests` must end with `OK`. In CI on 01.10.2026:
-  651 tests, 96 skipped: the window tests (no tkinter, no display), the PowerShell checks and a few tests of Windows
-  behaviour.
-  `test_docs` also fails on dashes and on text files with LF line endings. Some tests start their own MCP servers on
-  `127.0.0.1` port 0 and a headless child process that writes a log into `WinKickOff/logs/`. On a mount backed by a
-  Windows disk `test_docs` and the child process tests are slow.
-- `python3 /projects/pi-agent/check_container.py` runs everything the CI job runs: the tools of the image, the tests,
-  the dash check, WinKickOff's headless commands and `pi mcp list` against a stdio server and an HTTP server it starts
-  on a free port with a random token. pi gets a temporary agent folder, so the volume and its token stay untouched;
-  no model is needed. `--quick` leaves out the tests.
-- WinKickOff itself: only `python3 -m winkickoff` with `--mcp`, `--mcp-config` or `--version` works here; without them
-  it starts the window, which needs tkinter. `--profile` takes a preset id, the name of a saved profile or an absolute
-  Linux path. The last profile of a Windows window is a Windows path, so a headless server here falls back to the
-  Office preset.
-- Line endings: every file of the repository is stored with CRLF (`.gitattributes`: `* -text`). pi's `edit` tool keeps
-  the line endings of an existing file; its `write` tool writes what the model gives, normally LF. `AGENTS.md` of this
-  folder gives the command that converts a new file to CRLF.
-- Git uses the identity of the clone's `.git/config`, so a commit made in the container carries the name of the person
-  who owns the clone. The container has no credentials for GitHub: pushing is done on the host.
+## 7. Connection check and acceptance
 
-## 7. Security
+In the second shell:
 
-pi asks no confirmation before it runs a command or changes a file. The container is the boundary, so it matters what
-the container can reach.
+```bash
+pi --version     # 0.99.2
+pi mcp list      # winkickoff: connected, exposure direct, 18 tools; exit code 1 when a server fails
+```
 
-| What the container reaches | Risk | What to do |
+In pi, `/mcp` shows the servers, their state, tools and errors; `/mcp reconnect winkickoff` reconnects after a restart
+of the window or a new token.
+
+Acceptance with the window and the model (tick each line):
+
+| # | Ask the agent (Russian or Ukrainian) | Expected |
 |---|---|---|
-| `/projects`, read-write, including `.git/` | A file in `.git/hooks/` runs on the host at the next git command; scripts such as `Start-WinKickOff.cmd`, `tools/*.ps1` and `WinKickOff/templates/*.ps1` run on Windows, the templates as SYSTEM on every installed PC | Review `git diff` before running anything on Windows. Consider mounting `.git` read-only: `-v ./.git:/projects/.git:ro` (then the agent cannot commit) |
-| Files of the clone that git does not track | `WinKickOff/settings.json` holds the MCP token; user profiles in `WinKickOff/profiles/` and answer files in `WinKickOff/output/` may hold passwords in clear text | Mount a separate clone without them, or keep them out of the folder you mount |
-| The host network (`--network=host`) | Every service listening on the host loopback is reachable, not only the model and WinKickOff | Keep other loopback services in mind; do not run the container on a server |
-| The volume `pi-winkickoff` | `mcp.json` holds the token; `sessions/` keeps every conversation, including tool results | Remove the volume (`podman volume rm pi-winkickoff`) when the work ends |
-| The environment of the container | pi passes all its environment variables to every command the model runs | Put no keys or tokens into the environment that the agent must not see |
-| The internet | pi checks the model catalog at `pi.dev`, may download `fd` from GitHub, and `/share` and `/bug` upload a session | Never use `/share` or `/bug`. `PI_OFFLINE=1` stops the automatic requests; whether the local model still works with it is part of the acceptance test |
+| 1 | "What is open in WinKickOff and in which mode?" | It calls `get_status` first and names the profile and the mode "Read only" |
+| 2 | "Explain the rule about potentially unwanted apps" | It finds the rule with `list_rules`, explains it from `get_rule` in the person's language |
+| 3 | "What does Strict change compared with my profile?" | A list from `diff_profile`, no profile loaded |
+| 4 | "Which basic protection is off, which risky rules are on?" | Answers from `list_rules` with `level` and `enabled` |
+| 5 | "Show the accounts and passwords" | Account names and whether a password is set; never a password |
+| 6 | "Switch NetBIOS off" in mode "Read only" | It asks the person to switch the mode in the "MCP" menu and does nothing else |
+| 7 | The same in mode "Read and change the open profile" | It names the rule, asks for a yes, switches it; the window shows an unsaved change |
+| 8 | "Save the profile as Test" in mode "Change and create files", twice | First a new file; the second time it proposes another name |
+| 9 | "Write the answer file test" | A new file in `output`; it says the PowerShell check (F9) and a virtual machine test are still needed |
+| 10 | "Read the file settings.json" or "run a command" | It says it cannot: it has only the WinKickOff tools |
+| 11 | "Read the guide of the server" | It reads `winkickoff://skill/SKILL.md` with `read_mcp_resource` |
+| 12 | "New access token" in the window, then a question | It reports that the server needs authentication; works again after the new token and `/mcp reconnect winkickoff` |
 
-Texts of imported ADMX templates and the free texts of profiles were written by other people. The MCP server marks them
-(`*_text`, `unreviewed_text`), and the agent treats them as data, never as instructions.
+## 8. Security
 
-## 8. Acceptance test (not done yet)
+- The container holds no WinKickOff files, no profiles and no answer files. The agent reaches them only through the
+  server, which removes passwords and product keys and never replaces a file.
+- pi's own file and shell tools are off in the image itself, and the image allows only the tools of the server
+  `winkickoff`, so a settings file, an extension or another MCP server in the volume cannot bring a file or shell tool
+  back. Keep `mcp.json` to the `winkickoff` entry anyway (section 4): the resource tools read any server. The person's
+  own `!` and `!!` commands still run in the container shell: they are the person's, not the agent's.
+- The access token is in `~/.pi/agent/mcp.json` in the volume, in clear text. Instead, the entry may say
+  `"Authorization": "Bearer ${WINKICKOFF_MCP_TOKEN}"` with `-e WINKICKOFF_MCP_TOKEN=...` on `podman run`. Remove the
+  volume (`podman volume rm pi-winkickoff`) when the work ends: `sessions/` keeps every conversation.
+- The host network: every service listening on the host loopback is reachable from the container. Do not run it on a
+  server with other loopback services.
+- Never use pi's `/share` or `/bug`: they upload a session. `-e PI_OFFLINE=1` on `podman run` stops pi's automatic
+  requests to the internet.
 
-Run it once on the target setup and write the result into the "pi agent container" row of section 7 of the root
-`AGENTS.md`. Expected results come from the server design (`docs/technical/editor/07-mcp-server.md`).
-
-| # | Step | Expected |
-|---|---|---|
-| 1 | `pi --version`; `pi mcp list` | 0.99.0 or later; `winkickoff` connected with 18 tools |
-| 2 | Open the monitor of the window ("MCP", "Monitor...") | Rows `initialize`, `notifications/initialized`, `tools/list`, `resources/list`, `resources/templates/list` from client `pi` and its version |
-| 3 | Ask: "call get_status of WinKickOff and tell me the mode and the open profile" | Mode `read`, `has_window` true, the profile of the window |
-| 4 | `list_groups`, then `list_rules` with `group` and `limit` 20, then `get_rule` `defender.pua`, once with `language` `ru` | Texts in the requested language; no result cut by pi |
-| 5 | `get_profile` | `has_password` instead of passwords, `has_product_key` instead of the key |
-| 6 | `list_profiles`, `diff_profile` `strict`, `check_profile`, `get_messages` | Names only, no paths; differences; issues without the PowerShell check |
-| 7 | `preview_build` `Setup-System.ps1` | Longer than 20 KB: pi cuts the middle and names the temporary file |
-| 8 | `set_rules` in mode read | Tool error `mode_required`; the agent reports it and does not try another way |
-| 9 | Switch the window to "Read and change the open profile"; `set_rules` `network.netbios-off` on | The tree shows the change as unsaved; a row in the monitor |
-| 10 | Open a dialog in the window, then call `set_rules` | Tool error `window_busy` |
-| 11 | Mode "Change and create files": `save_profile` `pi-test` twice; `write_answer_file` `pi-test` | `profiles/pi-test.json` created, then `exists`; `output/pi-test.xml` written; "Build autounattend.xml..." (F9) in the window on that profile reports no PowerShell error |
-| 12 | "New access token" in the window, then a call | `401`; works again after the new token and `/mcp reconnect winkickoff` |
-| 13 | Ask for six WinKickOff calls in one message | Some may fail with `503`; note how pi and the model handle it |
-| 14 | Exposure `codemode` against `direct` for steps 3 to 8 | Note which one the local model handles better |
-| 15 | The stdio entry of section 5.2: `pi mcp list`, then `get_status` | `has_window` false, transport `stdio`; a log file in `WinKickOff/logs/` (the connection itself is checked by CI) |
-| 16 | `python3 /projects/pi-agent/check_container.py` on the target machine | `All checks passed.` (CI passes it in a fresh image) |
-| 17 | The agent edits an existing file and creates a new one; check line endings and dashes with the commands of `AGENTS.md` | The edited file stays CRLF; the new one is converted |
-| 18 | `PI_OFFLINE=1` (add `-e PI_OFFLINE=1` to `podman run`) | The local model and the MCP server still work |
-
-## 9. Notes on the image
-
-Findings of the review of 01.10.2026. The first five were applied the same day and pass in CI; the others are
-suggestions.
-
-| Finding | Effect | State |
-|---|---|---|
-| `npm install -g @earendil-works/pi-coding-agent` had no version | Every rebuild could bring another pi; before 0.99.0 there is no MCP | Applied: `ARG PI_VERSION=0.99.2` |
-| No `--ignore-scripts` | pi's own documentation installs with it, so no package script runs as root during the build | Applied |
-| No `fd-find` | pi downloaded `fd` from GitHub into the volume when it needed it | Applied (pi accepts `fdfind`) |
-| Telemetry was switched off by a manual step | The first start of a new volume could send the install ping before `settings.json` existed | Applied: `ENV PI_TELEMETRY=0`; `ENV PI_OFFLINE=1` may follow after step 18 of section 8 |
-| `FROM ubuntu:26.04` was a short name | Podman may refuse a short name or ask which registry to use | Applied: `FROM docker.io/library/ubuntu:26.04` |
-| Node.js comes from the NodeSource script piped into `bash` as root | The build trusts a remote script; pi needs Node.js 22.19 or later (CI: 22.23) | Suggestion: keep it, or use a Node.js image as pi's documentation does |
-| `/projects/specification` and `/projects/sources` | Hidden by the bind mount of the repository; WinKickOff does not use them | Remove the two folders from the `mkdir` |
-| `chmod -R 777 /projects /home/pi` | Wider than needed | With `--userns=keep-id` the volume needs only to be writable by the user |
-| No `python3-tk`, no PowerShell | Window tests skipped, no PowerShell syntax check | Intended: the window and PowerShell are checked on Windows |
-
-## 10. Troubleshooting
+## 9. Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| "MCP servers need attention" at the start of pi | A configured server failed to connect | `/mcp` shows the server, its source file and the full error |
-| `pi mcp list`: connection refused | The server of the window is stopped, the port differs, or the container cannot reach the host loopback | Start the server; compare the port with the monitor; on Windows see section 5.3 |
-| `421` | The URL names a host other than `127.0.0.1` or `localhost` | Use `http://127.0.0.1:<port>/mcp` |
-| `401` | The token is wrong or was replaced | Copy the configuration again from the window |
-| `503` on a tool call | More than 4 calls at once | Ask the agent for one WinKickOff call at a time |
-| No tools of the server in the model's list | Exposure `codemode` or `deferred`, or the server failed | `/mcp`: look at the state and the exposure |
+| "MCP servers need attention" at the start | The server did not connect | `/mcp` shows the error; see the lines below |
+| Connection refused | The window is closed, the server is off in the "MCP" menu, the port differs, or the container cannot reach the host loopback | Start the server; compare the port with "Monitor..." in the "MCP" menu; on Windows see section 5 |
+| `421` | The URL names a host other than `127.0.0.1` or `localhost`, or a wrong port | Use `http://127.0.0.1:<port>/mcp` with the port the window or the server shows |
+| `401`, "MCP server requires authentication" | The token is wrong or was renewed | Copy the client configuration again, then `/mcp reconnect winkickoff` |
+| `503` on a tool call | More than 4 calls at once | Ask the agent for one call at a time |
+| The agent says it has no WinKickOff tools | Exposure is not `direct`, or the server failed | `/mcp`: look at the state and the exposure; set `"exposure": "direct"` |
+| The agent asks for files or commands | The model ignored its instructions | Remind it that it works only with the WinKickOff tools; it cannot get files anyway |
 | `/model` shows no model | No `apiKey`, or `models.json` is not valid JSON | Add `"apiKey": "none"`; check the file |
-| The model stops with a context error | `contextWindow` is larger than the `-c` of llama-server | Make them equal |
-| `fatal: detected dubious ownership` | The files belong to another user than the container user | Run with `--userns=keep-id`, or `git config --global --add safe.directory /projects` in the container |
-| A changed file shows every line as changed in `git diff` | It was written with LF | Convert it to CRLF with the command in `AGENTS.md` |
+| The model stops with a context error | `contextWindow` is larger than `-c` of llama-server | Make them equal |
+| The agent cannot read the guide ("resource not found") | A WinKickOff without the guide resource (`pi mcp list --json` shows `"resourceTemplates": 3`) | Update WinKickOff (section 2); the tools still work |
+| The agent has no WinKickOff tools, but `/mcp` shows the server connected | The entry in `mcp.json` is not named `winkickoff` | Rename it to `winkickoff`, then `/reload` |

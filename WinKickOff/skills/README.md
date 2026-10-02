@@ -14,10 +14,23 @@ It is not for developers of WinKickOff; they follow `AGENTS.md` in the repositor
 | `winkickoff/SKILL.md` | The skill: golden rules, first steps, tools by mode, errors, short workflows |
 | `winkickoff/references/tools.md` | Exact reference of the 18 tools and the resources of the MCP server |
 | `winkickoff/references/workflows.md` | Recipes for 23 typical requests |
-| `winkickoff/references/concepts.md` | Rules, levels, phases, groups, presets, data forms, the build, deliberate decisions |
+| `winkickoff/references/server.md` | Resources, limits, a server with or without a window, protocol errors |
+| `winkickoff/references/concepts.md` | Rules, levels, phases, groups, presets, data forms, the build |
+| `winkickoff/references/decisions.md` | Deliberate decisions not to "fix", window labels in Russian and Ukrainian |
 
 The skill follows the open Agent Skills format (agentskills.io): a folder named like the skill with a `SKILL.md` file
 and optional `references/`. The portable build ships this folder next to `WinKickOff.exe`.
+
+## Reading the skill over MCP
+
+The WinKickOff MCP server also serves this folder as resources, in every mode: `winkickoff://skill/SKILL.md` and
+`winkickoff://skill/references/{file}` (`tools.md`, `server.md`, `workflows.md`, `concepts.md`, `decisions.md`). When it serves them, the
+`instructions` the server sends at the handshake tell an agent that has not loaded the skill to read
+`winkickoff://skill/SKILL.md` first (pi shows these instructions only for `codemode` and `deferred` exposure; the pi
+container names the resource in its own instructions). So a client without a skill installer, or
+an agent without file tools, can still follow the skill: it reads the resource with its resource tool (in pi,
+`read_mcp_resource`) instead of a file. The server takes the folder from next to the program (`WinKickOff/skills/winkickoff`
+from sources, `skills\winkickoff` next to `WinKickOff.exe`); without it the server simply has no skill resources.
 
 ## Before you install it: connect the MCP server
 
@@ -63,14 +76,9 @@ in the copy you zip.
 
 - Copy or link the folder into pi's skills folder: `~/.pi/agent/skills/winkickoff/`.
 - Or list the path in `~/.pi/agent/settings.json` under `"skills"`, for example
-  `"skills": ["/projects/WinKickOff/skills/winkickoff"]`.
-- In the pi container of this repository (`pi-agent/`, the repository mounted at `/projects`):
-
-  ```bash
-  mkdir -p ~/.pi/agent/skills
-  ln -s /projects/WinKickOff/skills/winkickoff ~/.pi/agent/skills/winkickoff
-  ```
-
+  `"skills": ["/path/to/WinKickOff/skills/winkickoff"]`.
+- The pi container of this repository (`pi-agent/`) holds no copy of the repository and no file tools: there the agent
+  reads the skill from the server (`winkickoff://skill/SKILL.md`, see "Reading the skill over MCP" above).
 - Run `/reload` in pi after adding it. A small local model may not load the skill by itself: start the task with
   `/skill:winkickoff`, and run it again after the conversation was compacted.
 - Expose the WinKickOff tools with `"exposure": "direct"` in `~/.pi/agent/mcp.json` (see `pi-agent/README.md`), so the

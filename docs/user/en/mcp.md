@@ -175,7 +175,9 @@ sources `WinKickOff\skills\winkickoff`); detailed installation steps: `skills\RE
 - pi: copy the folder or link it into `~/.pi/agent/skills/`; with a small local model, call the skill explicitly with
   `/skill:winkickoff`.
 
-The skill does not connect the server: connect MCP first, as described above. The skill describes this version of the
+The skill does not connect the server: connect MCP first, as described above. The server itself serves the skill
+as the resource `winkickoff://skill/SKILL.md`, so an assistant that cannot install skills or has no access to files
+can read it from the server. The skill describes this version of the
 program; after an update of WinKickOff, copy the folder again.
 
 ## Command line

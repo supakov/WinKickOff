@@ -8,6 +8,7 @@ temporary folder. Imported ADMX policies come from the synthetic templates of te
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import json
 import re
 import sys
@@ -31,10 +32,11 @@ from winkickoff.core.profile import Profile  # noqa: E402
 from winkickoff.core.render import SCRIPT_ORDER, Renderer, write_answer_file  # noqa: E402
 from winkickoff.core.resources import Resources  # noqa: E402
 from winkickoff.core.validate import Issue, validate_profile, validate_xml  # noqa: E402
-from winkickoff.mcp import MODE_EDIT, MODE_FILES, MODE_READ, MODES, allows  # noqa: E402
+from winkickoff.mcp import MAX_DOC_BYTES, MODE_EDIT, MODE_FILES, MODE_READ, MODES, allows  # noqa: E402
 from winkickoff.mcp.bridge import InlineBridge  # noqa: E402
 from winkickoff.mcp.errors import RedactionError  # noqa: E402
 from winkickoff.mcp.journal import Journal  # noqa: E402
+from winkickoff.mcp.jsonrpc import RESOURCE_NOT_FOUND  # noqa: E402
 from winkickoff.mcp.protocol import McpServer, Session  # noqa: E402
 from winkickoff.mcp.redact import HIDDEN, KEY_PLACEHOLDER, assert_redacted_build, check_name, clean_text, redacted_copy  # noqa: E402
 from winkickoff.mcp.resources import ResourceRegistry  # noqa: E402
@@ -42,6 +44,7 @@ from winkickoff.mcp.tools import PARTS, ToolRegistry, fit_text  # noqa: E402
 from winkickoff.mcp.workspace import POWERSHELL_NOTE, PRESET_IDS, HeadlessWorkspace, list_profile_files, profile_display  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
+SKILL = ROOT / "skills" / "winkickoff"
 OFFICE = ROOT / "profiles" / "preset-office.json"
 SECRET_PASSWORD = "Zq9!secretPW-7731"
 SECRET_KEY = "ABCDE-FGHIJ-KLMNO-PQRST-UVWXY"
@@ -139,7 +142,9 @@ class McpToolsTestCase(unittest.TestCase):
         self.workspace = HeadlessWorkspace(self.paths, self.catalog, profile, self.resources, "test")
         self.bridge = InlineBridge(self.workspace)
         self.tools = ToolRegistry(self.paths, LANGUAGES)
-        self.registry = ResourceRegistry(self.paths, LANGUAGES)
+        # the skill folder of the sources (root = WinKickOff/), so that every test also reads the skill resources;
+        # the registry only reads, the tools keep the temporary root
+        self.registry = ResourceRegistry(dataclasses.replace(self.paths, root=ROOT), LANGUAGES)
         self.journal = Journal()
         self.server = McpServer(self.tools, self.registry, self.bridge, self.journal, transport="stdio",
                                 mode=lambda: self.mode, has_window=False, app_version="test")
@@ -189,7 +194,7 @@ class McpToolsTestCase(unittest.TestCase):
         self.assertTrue(result["isError"], (tool, result["structuredContent"]))
         data = result["structuredContent"]
         self.assertEqual(data["error"], kind, data)
-        self.assertEqual(result["content"][0]["text"], data["message"])
+        self.assertEqual(result["content"][0]["text"], f"{kind}: {data['message']}")
         return data
 
     def read_resource(self, uri: str) -> dict[str, Any]:
@@ -203,7 +208,10 @@ class McpToolsTestCase(unittest.TestCase):
         uris: list[str] = []
         for template in self.registry.templates():
             uri = template["uriTemplate"]
-            file = self.registry.reference[0] if "reference" in uri else self.registry.user["en"][0]
+            if uri.startswith("winkickoff://skill/references/"):
+                file = self.registry.skill_references[0]
+            else:
+                file = self.registry.reference[0] if "docs/reference/" in uri else self.registry.user["en"][0]
             for placeholder, value in {**values, "{file}": file}.items():
                 uri = uri.replace(placeholder, value)
             self.assertNotIn("{", uri)
@@ -232,7 +240,7 @@ class ModeTest(McpToolsTestCase):
                         data = result["structuredContent"]
                         self.assertEqual((data["error"], data["required"], data["current"]), ("mode_required", spec.mode, mode))
                         self.assertIn("MCP menu", data["how"])
-                        self.assertEqual(result["content"][0]["text"], data["message"])
+                        self.assertEqual(result["content"][0]["text"], f"{data['error']}: {data['message']}")
 
     def test_a_refused_mode_changes_nothing(self) -> None:
         self.refused("set_rules", "mode_required", items=[{"id": "defender.pua", "enabled": False}])
@@ -1183,6 +1191,139 @@ class ForbiddenTest(McpToolsTestCase):
                 self.read_resource(uri)
         self.assertEqual(called, [])
         self.assertEqual([p.name for p in self.paths.output.iterdir()], ["forbidden.xml"])
+
+
+# --------------------------------------------------------------------------- the agent skill as resources
+
+
+class SkillResourcesTest(McpToolsTestCase):
+    """winkickoff://skill/SKILL.md and winkickoff://skill/references/{file}: an allow list taken at start."""
+
+    def use_root(self, root: Path) -> None:
+        """A new server whose resources take the skill from root/skills/winkickoff; the session stays initialized."""
+        self.registry = ResourceRegistry(dataclasses.replace(self.paths, root=root), LANGUAGES)
+        self.server = McpServer(self.tools, self.registry, self.bridge, self.journal, transport="stdio",
+                                mode=lambda: self.mode, has_window=False, app_version="test")
+
+    def fake_skill(self, name: str, references: bool = True) -> Path:
+        """A root with a skill folder of its own: SKILL.md and references/a.md, plus files the allow list skips."""
+        root = self.tmp / name
+        skill = root / "skills" / "winkickoff"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_bytes(b"---\r\nname: winkickoff\r\n---\r\n# Skill\r\n")
+        (skill / "notes.md").write_bytes(b"not a skill file")
+        if references:
+            (skill / "references" / "sub").mkdir(parents=True)
+            (skill / "references" / "a.md").write_bytes(b"# A\r\n")
+            for skipped in ("b.txt", "-c.md", "bad name.md", "d.md.bak"):
+                (skill / "references" / skipped).write_bytes(b"skipped")
+            (skill / "references" / "sub" / "e.md").write_bytes(b"nested")
+        return root
+
+    def not_found(self, uri: str) -> None:
+        response = self.request("resources/read", {"uri": uri})
+        self.assertIn("error", response, (uri, response))
+        self.assertEqual(response["error"]["code"], RESOURCE_NOT_FOUND)
+        self.assertEqual(response["error"]["data"]["uri"], uri)
+
+    def skill_uris(self) -> list[str]:
+        return [entry["uri"] for entry in self.request("resources/list")["result"]["resources"]
+                if entry["uri"].startswith("winkickoff://skill")]
+
+    def skill_templates(self) -> list[dict[str, Any]]:
+        templates = self.request("resources/templates/list")["result"]["resourceTemplates"]
+        return [t for t in templates if t["uriTemplate"].startswith("winkickoff://skill")]
+
+    def test_the_skill_of_the_sources_is_listed(self) -> None:
+        names = sorted(p.name for p in (SKILL / "references").glob("*.md"))
+        self.assertLessEqual({"concepts.md", "tools.md", "workflows.md"}, set(names))
+        self.assertEqual(self.skill_uris(),
+                         ["winkickoff://skill/SKILL.md"] + [f"winkickoff://skill/references/{name}" for name in names])
+        self.assertEqual([(t["uriTemplate"], t["mimeType"]) for t in self.skill_templates()],
+                         [("winkickoff://skill/references/{file}", "text/markdown")])
+
+    def test_every_skill_file_reads_as_the_file(self) -> None:
+        files = {"winkickoff://skill/SKILL.md": SKILL / "SKILL.md"}
+        files.update({f"winkickoff://skill/references/{p.name}": p for p in (SKILL / "references").glob("*.md")})
+        for uri, path in files.items():
+            with self.subTest(uri=uri):
+                self.assertLessEqual(path.stat().st_size, MAX_DOC_BYTES, "the skill file would be cut")
+                contents = self.read_resource(uri)["contents"]
+                self.assertEqual(len(contents), 1)
+                self.assertEqual((contents[0]["uri"], contents[0]["mimeType"]), (uri, "text/markdown"))
+                self.assertEqual(contents[0]["text"], path.read_bytes().decode("utf-8").replace("\r\n", "\n"))
+        text = self.read_resource("winkickoff://skill/SKILL.md")["contents"][0]["text"]
+        self.assertTrue(text.startswith("---\nname: winkickoff\n"))
+
+    def test_readable_in_every_mode(self) -> None:
+        for mode in MODES:
+            with self.subTest(mode=mode):
+                self.mode = mode
+                self.assertTrue(self.read_resource("winkickoff://skill/references/tools.md")["contents"][0]["text"])
+
+    def test_anything_outside_the_allow_list_is_not_found(self) -> None:
+        for uri in ("winkickoff://skill", "winkickoff://skill/", "winkickoff://skill/skill.md", "winkickoff://skill/SKILL.MD",
+                    "winkickoff://skill/SKILL.md/", "winkickoff://skill//SKILL.md", "winkickoff://skill/SKILL.md?x=1",
+                    "winkickoff://skill/SKILL.md#top", "winkickoff://skill/../SKILL.md", "winkickoff://skill/README.md",
+                    "winkickoff://skill/tools.md", "winkickoff://skill/references", "winkickoff://skill/references/",
+                    "winkickoff://skill/references/TOOLS.md", "winkickoff://skill/references/tools",
+                    "winkickoff://skill/references/tools.txt", "winkickoff://skill/references/tools.md.bak",
+                    "winkickoff://skill/references/../SKILL.md", "winkickoff://skill/references/..%2FSKILL.md",
+                    "winkickoff://skill/references/%2e%2e/SKILL.md", "winkickoff://skill/references/sub/tools.md",
+                    "winkickoff://skill/references/SKILL.md", "winkickoff://skill/references/{file}",
+                    "winkickoff://skills/winkickoff/SKILL.md", "winkickoff://skill/../../AGENTS.md",
+                    "winkickoff://skill/references/../../../settings.json", "winkickoff://docs/../skills/winkickoff/SKILL.md",
+                    "winkickoff://skill/C:/Windows/win.ini", "file:///" + (SKILL / "SKILL.md").as_posix()):
+            with self.subTest(uri=uri):
+                self.not_found(uri)
+
+    def test_the_allow_list_is_taken_at_start(self) -> None:
+        root = self.fake_skill("fake")
+        self.use_root(root)
+        self.assertEqual(self.skill_uris(), ["winkickoff://skill/SKILL.md", "winkickoff://skill/references/a.md"])
+        self.assertEqual(self.read_resource("winkickoff://skill/references/a.md")["contents"][0]["text"], "# A\n")
+        for uri in ("winkickoff://skill/references/b.txt", "winkickoff://skill/references/-c.md",
+                    "winkickoff://skill/references/bad name.md", "winkickoff://skill/references/d.md.bak",
+                    "winkickoff://skill/references/sub/e.md", "winkickoff://skill/notes.md",
+                    "winkickoff://skill/references/notes.md"):
+            with self.subTest(uri=uri):
+                self.not_found(uri)
+        references = root / "skills" / "winkickoff" / "references"
+        (references / "later.md").write_bytes(b"added after start")
+        self.not_found("winkickoff://skill/references/later.md")
+        (references / "a.md").unlink()
+        self.not_found("winkickoff://skill/references/a.md")  # listed at start, gone now: not found, no internal error
+
+    def test_the_text_is_cleaned_and_cut(self) -> None:
+        root = self.fake_skill("big")
+        rlo, zero_width = chr(0x202E), chr(0x200B)
+        text = "# Skill" + rlo + zero_width + chr(0) + "\r\n" + "x" * (MAX_DOC_BYTES * 2)
+        (root / "skills" / "winkickoff" / "SKILL.md").write_bytes(text.encode("utf-8"))
+        self.use_root(root)
+        read = self.read_resource("winkickoff://skill/SKILL.md")["contents"][0]["text"]
+        self.assertTrue(read.startswith("# Skill\nxxx"))
+        for char in (rlo, zero_width, chr(0), "\r"):
+            self.assertNotIn(char, read)
+        self.assertLessEqual(len(read.encode("utf-8")), MAX_DOC_BYTES)
+
+    def test_without_the_folder_there_are_no_skill_resources(self) -> None:
+        self.assertFalse((self.paths.root / "skills").exists())
+        self.use_root(self.paths.root)  # the temporary root holds no skills folder
+        self.assertEqual(self.skill_uris(), [])
+        self.assertEqual(self.skill_templates(), [])
+        uris = [entry["uri"] for entry in self.registry.listing()]
+        self.assertIn("winkickoff://status", uris)
+        self.assertTrue([uri for uri in uris if uri.startswith("winkickoff://docs/reference/")])
+        self.assertEqual(len(self.registry.templates()), 3)
+        self.not_found("winkickoff://skill/SKILL.md")
+        self.not_found("winkickoff://skill/references/tools.md")
+
+    def test_skill_md_without_references(self) -> None:
+        self.use_root(self.fake_skill("main-only", references=False))
+        self.assertEqual(self.skill_uris(), ["winkickoff://skill/SKILL.md"])
+        self.assertEqual(self.skill_templates(), [])
+        self.assertTrue(self.read_resource("winkickoff://skill/SKILL.md")["contents"][0]["text"].startswith("---\nname:"))
+        self.not_found("winkickoff://skill/references/a.md")
 
 
 # --------------------------------------------------------------------------- names and texts

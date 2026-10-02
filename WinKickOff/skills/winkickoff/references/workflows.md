@@ -45,7 +45,7 @@ Before any edit tool:
 
 1. Mode must be `edit` (or `files`). If `get_status` says `read`, ask the person to choose "Read and change the open
    profile" in the "MCP" menu of the WinKickOff window (labels of a Russian or Ukrainian window:
-   [concepts.md](concepts.md#window-labels-in-russian-and-ukrainian)). For a server without a window (`has_window`
+   [decisions.md](decisions.md#window-labels-in-russian-and-ukrainian)). For a server without a window (`has_window`
    false, always in Claude Desktop): the person puts `"--mode", "edit"` (or `"--mode", "files"` for `save_profile`
    and `write_answer_file`) into `args` of the WinKickOff entry in the client configuration, adding it when absent or
    replacing `--mode read`, then restarts the client. This mode stays in the configuration for every later session
@@ -252,8 +252,8 @@ Never read the XML with a file tool: it may hold passwords and keys. Ask the per
 6. `diff_profile` `{"name": "office"}`.
 
 Tell: the differences from Office and their risks; plain-text passwords mean the file must be kept secret; the
-deliberate decisions are not problems ([concepts.md](concepts.md#deliberate-decisions-do-not-fix)); the person can run
-`tools\Validate-Unattend.ps1` from the source repository; build the final file with F9 and test in a VM.
+deliberate decisions are not problems ([decisions.md](decisions.md#deliberate-decisions-do-not-fix)); build the final file with F9 and
+test in a VM.
 
 ## 15. Write the answer file
 

@@ -1,8 +1,10 @@
-"""The resources of the MCP server: the same JSON as the read tools, and the documentation shipped with the program.
+"""The resources of the MCP server: the same JSON as the read tools, the documentation and the Agent Skill shipped with
+the program.
 
-URIs use the scheme winkickoff:. Documentation files are resolved against an allow list taken at start, never from
-request text to a path; the appendices, the technical editor documentation, AGENTS.md, settings and logs are not
-addressable.
+URIs use the scheme winkickoff:. Documentation and skill files are resolved against allow lists taken at start; the
+text of a request never becomes a path. The appendices, the technical editor documentation, AGENTS.md, settings and
+logs are not addressable. The skill is the folder skills/winkickoff under paths.root (WinKickOff/ from sources, the
+folder of the exe in the portable build); without that folder the server simply has no skill resources.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ JSON = "application/json"
 MARKDOWN = "text/markdown"
 FILE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,60}\.md$")
 LANG_RE = re.compile(r"^[a-z]{2,3}$")
+SKILL_MAIN = "SKILL.md"
 
 
 class ResourceRegistry:
@@ -34,6 +37,9 @@ class ResourceRegistry:
             files = self._listing(Path(paths.docs_root) / "docs" / "user" / code)
             if files:
                 self.user[code] = files
+        self.skill = Path(paths.root) / "skills" / "winkickoff"
+        self.skill_main = self._is_file(self.skill / SKILL_MAIN)
+        self.skill_references = self._listing(self.skill / "references")
 
     @staticmethod
     def _listing(folder: Path) -> list[str]:
@@ -41,6 +47,13 @@ class ResourceRegistry:
             return sorted(p.name for p in folder.iterdir() if p.is_file() and FILE_RE.match(p.name))
         except OSError:
             return []
+
+    @staticmethod
+    def _is_file(path: Path) -> bool:
+        try:
+            return path.is_file()
+        except OSError:
+            return False
 
     def listing(self) -> list[dict[str, Any]]:
         fixed = [
@@ -54,16 +67,24 @@ class ResourceRegistry:
                 for name in self.reference]
         docs += [{"uri": f"{SCHEME}docs/user/{code}/{name}", "name": f"user/{code}/{name}", "title": name, "mimeType": MARKDOWN}
                  for code, names in self.user.items() for name in names]
-        return fixed + docs
+        skill: list[dict[str, Any]] = []
+        if self.skill_main:
+            skill.append({"uri": f"{SCHEME}skill/{SKILL_MAIN}", "name": f"skill/{SKILL_MAIN}",
+                          "title": "How to work with this server: the WinKickOff agent skill", "mimeType": MARKDOWN})
+        skill += [{"uri": f"{SCHEME}skill/references/{name}", "name": f"skill/references/{name}", "title": name,
+                   "mimeType": MARKDOWN} for name in self.skill_references]
+        return fixed + skill + docs
 
     def templates(self) -> list[dict[str, Any]]:
+        skill = [{"uriTemplate": SCHEME + "skill/references/{file}", "name": "skill-references",
+                  "title": "A reference file of the agent skill", "mimeType": MARKDOWN}] if self.skill_references else []
         return [
             {"uriTemplate": SCHEME + "catalog/rules/{id}", "name": "rule", "title": "One rule, as get_rule", "mimeType": JSON},
             {"uriTemplate": SCHEME + "docs/reference/{file}", "name": "reference", "title": "A card of the parameter reference",
              "mimeType": MARKDOWN},
             {"uriTemplate": SCHEME + "docs/user/{lang}/{file}", "name": "user-docs", "title": "A page of the user documentation",
              "mimeType": MARKDOWN},
-        ]
+        ] + skill
 
     def read(self, uri: str, ctx: ToolContext) -> dict[str, Any]:
         """The resources/read result; JsonRpcError -32002 for anything not addressable."""
@@ -88,9 +109,13 @@ class ResourceRegistry:
                     raise JsonRpcError(RESOURCE_NOT_FOUND, "resource not found", {"uri": uri})
                 return self._json(uri, rule_card(snap, ctx.texts(language()), rule, language()))
             if len(parts) == 3 and parts[:2] == ["docs", "reference"] and parts[2] in self.reference:
-                return self._doc(uri, Path(self.paths.docs_root) / "docs" / "technical" / "reference" / parts[2])
+                return self._doc(uri, self._docs_base() / "technical" / "reference" / parts[2], self._docs_base())
             if len(parts) == 4 and parts[:2] == ["docs", "user"] and parts[3] in self.user.get(parts[2], []):
-                return self._doc(uri, Path(self.paths.docs_root) / "docs" / "user" / parts[2] / parts[3])
+                return self._doc(uri, self._docs_base() / "user" / parts[2] / parts[3], self._docs_base())
+            if parts == ["skill", SKILL_MAIN] and self.skill_main:
+                return self._doc(uri, self.skill / SKILL_MAIN, self.skill)
+            if len(parts) == 3 and parts[:2] == ["skill", "references"] and parts[2] in self.skill_references:
+                return self._doc(uri, self.skill / "references" / parts[2], self.skill)
         except ToolError as exc:
             raise JsonRpcError(RESOURCE_NOT_FOUND, exc.message, {"uri": uri, "error": exc.kind}) from exc
         raise JsonRpcError(RESOURCE_NOT_FOUND, "resource not found", {"uri": uri})
@@ -113,10 +138,19 @@ class ResourceRegistry:
 
         return {"contents": [{"uri": uri, "mimeType": JSON, "text": json.dumps(payload, ensure_ascii=False, separators=(",", ":"))}]}
 
-    def _doc(self, uri: str, path: Path) -> dict[str, Any]:
-        base = Path(self.paths.docs_root).resolve() / "docs"
-        resolved = path.resolve()
-        if not resolved.is_relative_to(base) or not resolved.is_file():
+    def _docs_base(self) -> Path:
+        return Path(self.paths.docs_root) / "docs"
+
+    def _doc(self, uri: str, path: Path, base: Path) -> dict[str, Any]:
+        """A Markdown file of the allow list: inside base after resolving, a regular file, cut at MAX_DOC_BYTES."""
+        data = b""
+        try:
+            resolved = path.resolve()
+            inside = resolved.is_relative_to(base.resolve()) and resolved.is_file()
+            data = resolved.read_bytes()[:MAX_DOC_BYTES] if inside else b""
+        except OSError:
+            inside = False
+        if not inside:
             raise JsonRpcError(RESOURCE_NOT_FOUND, "resource not found", {"uri": uri})
-        text = resolved.read_bytes()[:MAX_DOC_BYTES].decode("utf-8", "ignore")
+        text = data.decode("utf-8", "ignore")
         return {"contents": [{"uri": uri, "mimeType": MARKDOWN, "text": clean_text(text, MAX_DOC_BYTES)}]}

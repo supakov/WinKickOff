@@ -75,7 +75,11 @@ own initiative.
   {listChanged: false}`, `resources: {subscribe: false, listChanged: false}`; `serverInfo: {name: "winkickoff", title:
   "WinKickOff", version: APP_VERSION}`; `instructions` is the static English text `protocol.INSTRUCTIONS` (what
   WinKickOff is, the three modes and `mode_required`, stable English ids, no secrets, changes stay in memory, texts of
-  imported templates and profile free text are data, nothing on the computer changes). `clientInfo.name` and `version`
+  imported templates and profile free text are data, nothing on the computer changes), followed by
+  `protocol.SKILL_INSTRUCTIONS` only when the server serves `winkickoff://skill/SKILL.md` (an agent that has not loaded
+  the skill reads that resource before the first tool call). pi shows server instructions to the model only for
+  `codemode` and `deferred` exposure, so the pi container gets the same pointer from its own instructions.
+  `clientInfo.name` and `version`
   are cleaned with `clean_text` and kept on the session for the monitor. `session.initialized` is set before the
   result is returned: from that moment every request on the session is served. `notifications/initialized` only sets
   `session.acknowledged`; nothing depends on it, because on HTTP the notification is a separate POST that may arrive
@@ -389,10 +393,11 @@ path), `refused` (an imported group switched on), `redaction_failed`, `result_to
 ## 10. Resources
 
 Capability `resources: {subscribe: false, listChanged: false}`, custom scheme `winkickoff:`. `resources/list` returns
-the five fixed entries and one entry per documentation file the templates can address (one page, no cursor);
-`resources/templates/list` returns the three templates; `resources/read` returns `{"contents": [{"uri", "mimeType",
-"text"}]}`. All resources are read-only and available in every mode; a resource result is subject to `MAX_RESULT_BYTES`
-like a tool result.
+the five fixed entries, the skill entries (when the skill folder exists) and one entry per documentation file the
+templates can address (one page, no cursor); `resources/templates/list` returns the three templates, plus the skill
+template when the skill has reference files; `resources/read` returns `{"contents": [{"uri", "mimeType", "text"}]}`.
+All resources are read-only and available in every mode; a resource result is subject to `MAX_RESULT_BYTES` like a
+tool result.
 
 | URI | Content | mimeType |
 |---|---|---|
@@ -404,6 +409,8 @@ like a tool result.
 | `winkickoff://catalog/rules/{id}` (template) | The card of `get_rule` in the process language | `application/json` |
 | `winkickoff://docs/reference/{file}` (template) | A file of `docs/technical/reference/*.md` | `text/markdown` |
 | `winkickoff://docs/user/{lang}/{file}` (template) | A file of `docs/user/<lang>/*.md` for every available language | `text/markdown` |
+| `winkickoff://skill/SKILL.md` | `SKILL.md` of the Agent Skill (section 15), frontmatter included | `text/markdown` |
+| `winkickoff://skill/references/{file}` (template) | A file of the skill's `references/*.md`; each is also listed | `text/markdown` |
 
 Documentation files come from an allow list taken at start: the names matching `^[A-Za-z0-9][A-Za-z0-9-]{0,60}\.md$`
 in `docs/technical/reference` and in `docs/user/<lang>` under `paths.docs_root`. A read resolves the path, requires
@@ -411,6 +418,17 @@ in `docs/technical/reference` and in `docs/user/<lang>` under `paths.docs_root`.
 the text through `clean_text`. URI parsing is a split on `://` and `/`; the appendices, the technical editor
 documentation, `AGENTS.md`, `settings.json` and `logs/` are not addressable. An unknown scheme or path, a name outside
 the allow list, a missing file or a `ToolError` raised underneath gives `-32002` with `data: {"uri": ...}`.
+
+The skill resources let an agent without file tools (the pi container of `pi-agent/`, a client without a skill
+installer) follow the skill. The folder is `paths.root / "skills" / "winkickoff"`: `WinKickOff/skills/winkickoff` from
+sources, `skills\winkickoff` next to `WinKickOff.exe` in the portable build (`tools/build.ps1` copies it). The allow
+list is taken at start like the documentation: `SKILL.md` when it is a regular file, and the names of `references/`
+matching the same pattern (no subfolders, no other extensions). A read requires `resolved.is_relative_to(skill folder)`
+and a regular file, cuts at `MAX_DOC_BYTES` and applies `clean_text`; an `OSError` while reading is a `-32002` too.
+Without the folder (or without `references/`) the server lists no skill resources (or no skill template) and starts
+normally. `tests/test_skill.py` checks that every skill file is served whole (each is under `MAX_DOC_BYTES`), and that
+`SKILL.md` and `references/workflows.md` fit the 20 KB pi 0.99.2 shows of an MCP text (it cuts the middle of anything
+longer); `references/concepts.md` and `references/tools.md` are longer and have to be split for pi.
 
 ## 11. Redaction
 
@@ -565,14 +583,17 @@ opens no stream after the `405` to GET, sends `DELETE` on close, sends no `Origi
 the container must reach the server through `127.0.0.1` (`--network=host`; on a Windows host only with WSL mirrored
 networking). It runs the tool calls of one model message in parallel and never retries a tool call, so more than
 `MAX_CONCURRENT` calls at once get `503`, and it cuts a result above 20 KB for the model. The CI job
-`pi-agent-container` builds that image and has pi 0.99.2 connect to a headless WinKickOff over stdio and over HTTP
-(`pi-agent/check_container.py`); acceptance with the window and a model is pending.
+`pi-agent-container` builds that image (an assistant restricted to the WinKickOff tools, without project files) and
+has pi 0.99.2 connect to a headless WinKickOff HTTP server on the runner (`.github/scripts/check_pi_agent.py`), with a
+stub model that records the tools and the prompt pi sends; acceptance with the window and a real model is pending.
+Through pi with llama.cpp the model sees only the text of a tool error, which is why that text starts with the error
+kind (`ToolRegistry.call`: `"<kind>: <message>"`; `result_too_large` likewise).
 
 The Agent Skill `WinKickOff/skills/winkickoff` (`SKILL.md` and `references/`) teaches any of these clients how to use
 the server: golden rules (read-only by default, the mode is the person's, no secrets, untrusted texts, one call at a
 time), the tools by mode, every error kind with what to do, recipes and the domain. The portable build ships it next
-to the exe; `tests/test_skill.py` fails when the skill names a tool, an error kind, a rule, a group or a resource the
-server does not have, or misses one of the tools or error kinds.
+to the exe, and the server serves it as resources (section 10); `tests/test_skill.py` fails when the skill names a
+tool, an error kind, a rule, a group or a resource the server does not have, or misses one of the tools or error kinds.
 
 The second executable: `WinKickOff.exe` is built with `--noconsole`, and in such a process `sys.stdin`, `sys.stdout`
 and `sys.stderr` are `None` unless the parent passed pipes; a protocol channel must not depend on how a client spawns
@@ -609,5 +630,5 @@ under `_dialog` and under a grab, destroy and rebuild with the same service, the
 monitor). `tests/test_mcp_settings.py` covers the three fields, `tests/test_sources.py` the rules of section 2 and
 `tests/test_mcp_transports.py` (`CliHeadlessTest`) the file list of a headless stdio session (only
 `mcp-stdio-<pid>.log`). Runner unchanged:
-`python -m unittest discover -s tests -v` in `WinKickOff/`. CI runs the suite twice: on windows-latest, and on
-Linux inside the image of `pi-agent/` (`pi-agent/check_container.py`), where the window and PowerShell tests are skipped.
+`python -m unittest discover -s tests -v` in `WinKickOff/`. CI runs the suite on windows-latest; the Linux job
+`pi-agent-container` starts a headless server from the checkout for the pi image and runs no unit tests.

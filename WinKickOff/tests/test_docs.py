@@ -6,7 +6,7 @@
 - the catalog translations rules/lang/{ru,uk}.toml are complete (English is the source);
 - every relative Markdown link resolves, including #anchors;
 - no em or en dash anywhere in our texts;
-- every text file of the repository uses CRLF line endings (the pi agent of pi-agent/ writes on Linux).
+- every text file of the repository uses CRLF line endings (an editor or an agent on Linux writes LF).
 """
 
 from __future__ import annotations

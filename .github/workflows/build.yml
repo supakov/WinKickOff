@@ -2,7 +2,7 @@
 # request; a tag v<version> (for example v1.0.0-rc.1) also publishes a GitHub release with the zip.
 # The build needs PyInstaller from the internet, so it runs here (or in a VM), never on the customer's PC.
 # The build (tools\WinKickOff.spec) has two executables; the smoke test starts WinKickOff-mcp.exe on a copy.
-# A second job builds the image of pi-agent/ on Linux and runs there what the pi agent runs.
+# A second job builds the image of pi-agent/ on Linux and checks the assistant's MCP-only setup.
 name: build
 
 on:
@@ -85,23 +85,28 @@ jobs:
           path: WinKickOff/dist/WinKickOff-*.zip
           if-no-files-found: error
 
-  # The pi agent of pi-agent/ works in that image on Linux (Ubuntu 26.04, Python from apt, no tkinter, no PowerShell).
-  # Build it with Podman as people do and run pi-agent/check_container.py inside: the unit tests and the dash check
-  # exactly as the agent runs them, WinKickOff's headless commands, and pi's own MCP client against headless WinKickOff
-  # servers over stdio and HTTP (no model is needed). A release does not wait for this job.
+  # The WinKickOff assistant of pi-agent/: the pi agent in a Podman image that holds no project files and works only
+  # through the MCP tools of WinKickOff. Build the image as people do, start a headless WinKickOff HTTP server from this
+  # checkout on the runner, and let pi in the container (host network) connect to it. .github/scripts/check_pi_agent.py
+  # checks the image (/work holds only AGENTS.md, no python3 or git, the wrapper that switches pi's own tools off and
+  # allows only the WinKickOff tools), "pi mcp list" (connected, exposure direct, the 18 tools) and, with a stub model
+  # server instead of a real model, the exact tools and the system prompt pi gives the model, also when the agent folder
+  # holds a second MCP server and prompt files of its own. A release does not wait for this job.
   pi-agent-container:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
 
       - name: Build the image
         run: podman build -t winkickoff-pi:ci ./pi-agent/
 
-      - name: Checks inside the container
-        run: >-
-          podman run --rm -v "$PWD:/projects:rw,Z,U" --network=host --userns=keep-id winkickoff-pi:ci
-          python3 /projects/pi-agent/check_container.py
+      - name: Check the image and pi's connection to WinKickOff
+        run: python .github/scripts/check_pi_agent.py winkickoff-pi:ci
 
   release:
     if: github.ref_type == 'tag'

@@ -7,12 +7,16 @@ or a resource changes. These tests tie it to the code:
   Claude Desktop and claude.ai) and no angle brackets; its body stays under 500 lines;
 - every tool of the server and every error kind of the code is named in SKILL.md, and nothing in the skill names a tool
   or an error kind the server does not have;
-- every rule id, group id and winkickoff:// resource written in backticks exists; the mode titles are the window's.
+- every rule id, group id and winkickoff:// resource written in backticks exists; the mode titles are the window's;
+- the server serves the skill itself (winkickoff://skill/SKILL.md and winkickoff://skill/references/{file}) whole, for
+  agents without file tools; SKILL.md and references/workflows.md fit the 20 KB that pi shows of an MCP text, and
+  SKILL.md says nothing about the source tree.
 Dashes, links and line endings of the skill files are checked by test_docs.py with every Markdown file.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import re
 import tempfile
 import unittest
@@ -21,6 +25,7 @@ from pathlib import Path
 from winkickoff.core.catalog import load_catalog
 from winkickoff.core.i18n import available_languages
 from winkickoff.core.paths import AppPaths
+from winkickoff.mcp import MAX_DOC_BYTES
 from winkickoff.mcp.resources import ResourceRegistry
 from winkickoff.mcp.tools import ToolRegistry
 
@@ -33,6 +38,15 @@ CLIENT_TOOLS = {"list_mcp_resources", "list_mcp_resource_templates", "read_mcp_r
 DOTTED = re.compile(r"^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+$")
 FILE_SUFFIXES = (".md", ".json", ".xml", ".ps1", ".exe", ".toml", ".py", ".log", ".cmd", ".zip", ".txt", ".yml")
 MODE_TITLES = ("Read only", "Read and change the open profile", "Change and create files")
+# pi 0.99.2 (the agent of pi-agent/) cuts every MCP text above 20 KB in the middle (MCP_OUTPUT_MAX_BYTES in
+# extensions/mcp/tools.ts), and that agent has no file tool to read the rest. These files must reach it whole;
+# references/concepts.md and references/tools.md are longer and still have to be split.
+PI_MCP_OUTPUT_MAX_BYTES = 20 * 1024
+WHOLE_FOR_PI = ("SKILL.md", "references/tools.md", "references/server.md", "references/workflows.md",
+                "references/concepts.md", "references/decisions.md")  # pi cuts a longer result: split a file instead
+# The server serves SKILL.md to agents that must not explore the project: no word about the source tree.
+DEVELOPER_MARKERS = re.compile(r"\brepositor|\bsource (code|files?|tree)\b|\.toml\b|AGENTS\.md|Validate-Unattend",
+                               re.IGNORECASE)
 
 
 def frontmatter(text: str) -> tuple[dict[str, str], str]:
@@ -82,7 +96,7 @@ class SkillFormatTest(unittest.TestCase):
 
     def test_body_is_short_and_points_to_the_references(self) -> None:
         self.assertLess(len(self.body.splitlines()), 500)
-        for name in ("tools.md", "workflows.md", "concepts.md"):
+        for name in ("tools.md", "server.md", "workflows.md", "concepts.md", "decisions.md"):
             with self.subTest(reference=name):
                 self.assertTrue((SKILL / "references" / name).is_file())
                 self.assertIn(f"](references/{name}", self.body)
@@ -97,9 +111,10 @@ class SkillAgreesWithTheServerTest(unittest.TestCase):
                          logs=base / "logs")
         languages = tuple(available_languages(ROOT / "resources", ROOT / "rules"))
         cls.tools = set(ToolRegistry(paths, languages).specs)
-        registry = ResourceRegistry(paths, languages)
-        cls.uris = {item["uri"] for item in registry.listing()}
-        cls.templates = [item["uriTemplate"] for item in registry.templates()]
+        # root = WinKickOff/, as when running from sources: the registry then serves this skill folder too
+        cls.registry = ResourceRegistry(dataclasses.replace(paths, root=ROOT), languages)
+        cls.uris = {item["uri"] for item in cls.registry.listing()}
+        cls.templates = [item["uriTemplate"] for item in cls.registry.templates()]
         catalog = load_catalog(ROOT / "rules", docs_root=ROOT.parent)
         cls.ids = set(catalog.rules) | set(catalog.groups)
         cls.prefixes = {item.split(".", 1)[0] for item in cls.ids}
@@ -157,8 +172,33 @@ class SkillAgreesWithTheServerTest(unittest.TestCase):
                         relative = uri[len("winkickoff://docs/"):].replace("reference/", "technical/reference/", 1)
                         self.assertTrue((ROOT.parent / "docs" / relative).is_file(), relative)
 
+    def test_the_server_serves_every_skill_file_whole(self) -> None:
+        self.assertIn("winkickoff://skill/references/{file}", self.templates)
+        files = {"winkickoff://skill/SKILL.md": SKILL / "SKILL.md"}
+        files.update({f"winkickoff://skill/references/{p.name}": p for p in sorted((SKILL / "references").glob("*.md"))})
+        self.assertEqual(sorted(uri for uri in self.uris if uri.startswith("winkickoff://skill/")), sorted(files))
+        for uri, path in files.items():
+            with self.subTest(uri=uri):
+                self.assertLessEqual(path.stat().st_size, MAX_DOC_BYTES, "the server would cut this file")
+                contents = self.registry.read(uri, None)["contents"]  # type: ignore[arg-type]  # files need no context
+                self.assertEqual(contents[0]["mimeType"], "text/markdown")
+                self.assertEqual(contents[0]["text"], path.read_bytes().decode("utf-8").replace("\r\n", "\n"))
+
+    def test_pi_reads_the_main_files_whole(self) -> None:
+        for name in WHOLE_FOR_PI:
+            with self.subTest(file=name):
+                served = (SKILL / name).read_bytes().replace(b"\r\n", b"\n")
+                self.assertLessEqual(len(served), PI_MCP_OUTPUT_MAX_BYTES, "pi would cut the middle of this file")
+
+    def test_skill_says_nothing_about_the_source_tree(self) -> None:
+        """Every file of the skill is served over MCP, also to the pi agent, which must not go looking for the code."""
+        for path in skill_files():
+            with self.subTest(file=path.name):
+                found = [m.group(0) for m in DEVELOPER_MARKERS.finditer(path.read_text(encoding="utf-8"))]
+                self.assertEqual(found, [])
+
     def test_mode_titles_are_the_window_titles(self) -> None:
-        # read from the source: importing the window needs tkinter, which the Linux container of pi-agent/ lacks
+        # read from the source: importing the window needs tkinter, which a Linux checkout may lack
         source = (ROOT / "winkickoff" / "ui" / "main_window.py").read_text(encoding="utf-8")
         line = next(line for line in source.splitlines() if line.startswith("MODE_TITLES = "))
         self.assertEqual(MODE_TITLES, tuple(re.findall(r'N_\("([^"]+)"\)', line)))

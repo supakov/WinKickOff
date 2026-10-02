@@ -532,7 +532,9 @@ class ToolRegistry:
                                         "the server with --mode"})
             result = spec.handler(ctx, args)
         except ToolError as exc:
-            return {"content": [{"type": "text", "text": exc.message}], "structuredContent": exc.structured(), "isError": True}
+            # the text starts with the kind: a client that shows only the text (pi with a local model) still sees it
+            return {"content": [{"type": "text", "text": f"{exc.kind}: {exc.message}"}], "structuredContent": exc.structured(),
+                    "isError": True}
         if isinstance(result, tuple):
             text, structured = result
         else:

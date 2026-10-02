@@ -23,7 +23,7 @@ from winkickoff.mcp import SUPPORTED_VERSIONS, jsonrpc, redact, schema
 from winkickoff.mcp.bridge import InlineBridge
 from winkickoff.mcp.errors import RedactionError, ToolError
 from winkickoff.mcp.journal import Journal, render_args, render_client, render_uri
-from winkickoff.mcp.protocol import INSTRUCTIONS, McpServer, Session, accepted_header_version
+from winkickoff.mcp.protocol import INSTRUCTIONS, SKILL_INSTRUCTIONS, McpServer, Session, accepted_header_version
 from winkickoff.mcp.resources import ResourceRegistry
 from winkickoff.mcp.tools import ID_PATTERN, ITEM_PATTERN, ToolRegistry
 from winkickoff.mcp.workspace import HeadlessWorkspace, check_and_build
@@ -733,6 +733,22 @@ class InitializeTest(ServerTestCase):
         self.assertIn("Passwords and product keys are never returned", result["instructions"])
         self.assertEqual(set(result), {"protocolVersion", "capabilities", "serverInfo", "instructions"})
 
+    def test_instructions_name_the_skill_resource_only_when_the_server_serves_it(self) -> None:
+        # the temporary root has no skills folder: no skill resource, so the instructions do not point to one
+        self.assertFalse((self.paths.root / "skills").exists())
+        self.assertNotIn("winkickoff://skill", self.initialize()["result"]["instructions"])
+        self.assertIn(" read the resource winkickoff://skill/SKILL.md before the first tool call", SKILL_INSTRUCTIONS)
+        self.assertIn("If you have not loaded the WinKickOff skill", SKILL_INSTRUCTIONS)
+        # the skill folder is paths.root / "skills" / "winkickoff": WinKickOff/ from sources, the exe folder when built
+        registry = ResourceRegistry(dataclasses.replace(self.paths, root=ROOT), LANGUAGES)
+        self.server = McpServer(ToolRegistry(self.paths, LANGUAGES), registry, InlineBridge(self.workspace), self.journal,
+                                transport="stdio", mode=lambda: self.mode, has_window=False, app_version="1.0.0-test")
+        self.session = Session(id="s2", transport="stdio")
+        self.assertEqual(self.initialize()["result"]["instructions"], INSTRUCTIONS + SKILL_INSTRUCTIONS)
+        self.assertIn("winkickoff://skill/SKILL.md", {entry["uri"] for entry in registry.listing()})
+        text = registry.read("winkickoff://skill/SKILL.md", None)["contents"][0]["text"]  # type: ignore[arg-type]
+        self.assertTrue(text.startswith("---\nname: winkickoff\n"))
+
     def test_response_keeps_the_request_id(self) -> None:
         self.assertEqual(self.initialize()["id"], 1)
         response = self.request("ping", request_id="abc")
@@ -854,7 +870,8 @@ class ToolsCallTest(ServerTestCase):
         self.assertIs(result["isError"], True)
         self.assertEqual(result["structuredContent"]["error"], "unknown_id")
         self.assertEqual(result["structuredContent"]["id"], "no.such.rule")
-        self.assertEqual(result["content"], [{"type": "text", "text": result["structuredContent"]["message"]}])
+        error = result["structuredContent"]
+        self.assertEqual(result["content"], [{"type": "text", "text": f"{error['error']}: {error['message']}"}])
 
     def test_bad_arguments_are_a_tool_error(self) -> None:
         self.initialize()

@@ -60,14 +60,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 
 - [Appendices](docs/appendices/README.md) (Russian): the original UnattendedWinstall file, our hand-written
   answer file v0.2 (the reference the WinKickOff catalog grew from), the reviews.
 - [AGENTS.md](AGENTS.md): repository map for developers and agents.
-- [pi-agent/](pi-agent/README.md): a Podman image of the pi coding agent with a local model, for work on this
-  repository and on profiles over MCP without a cloud model (its acceptance test is pending).
+- [pi-agent/](pi-agent/README.md): a Podman image of an assistant with a local model (the pi agent) that analyses and
+  changes WinKickOff profiles only through the MCP server, without a cloud model (its acceptance test is pending).
 
 ## Repository and builds
 
 https://github.com/supakov/WinKickOff (private). Every push to `main` runs the tests, the answer file checker
 and the portable build in GitHub Actions ([`.github/workflows/build.yml`](.github/workflows/build.yml)), and on Linux
-builds the image of `pi-agent/` and runs the tests and pi's MCP connection in it; a tag
+builds the image of `pi-agent/` and checks its connection to a WinKickOff MCP server and the tools it gives the
+model; a tag
 `v<version>` also publishes a release with the zip. The program's working folders (`output/`, `logs/`,
 `settings.json`) and user profiles are not versioned.
 
