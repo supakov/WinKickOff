@@ -51,7 +51,7 @@ try {
     & $vpy -m pip install --upgrade pip pyinstaller
     if ($LASTEXITCODE -ne 0) { throw "pip install failed" }
 
-    # Every preset: a fixed list once left the Laptop and memstechtips presets out of the build. The spec file
+    # Every preset: a fixed list once left two of the presets out of the build. The spec file
     # collects the presets with the same pattern; this count checks the result after the build.
     $presets = @(Get-ChildItem -Path (Join-Path $root 'profiles') -Filter 'preset-*.json' -File)
     if ($presets.Count -lt 1) { throw "no presets in $root\profiles" }
@@ -77,7 +77,6 @@ try {
     Copy-Item -Path (Join-Path $repo 'docs\user') -Destination (Join-Path $dist 'docs\user') -Recurse -Force
     $tech = New-Item -ItemType Directory -Force -Path (Join-Path $dist 'docs\technical')
     Copy-Item -Path (Join-Path $repo 'docs\technical\reference') -Destination $tech.FullName -Recurse -Force
-    Copy-Item -Path (Join-Path $repo 'docs\technical\memstechtips-profile.md') -Destination $tech.FullName -Force
     Copy-Item -Path (Join-Path $root 'skills') -Destination (Join-Path $dist 'skills') -Recurse -Force
     if (-not (Test-Path (Join-Path $dist 'skills\winkickoff\SKILL.md') -PathType Leaf)) { throw "skills\winkickoff\SKILL.md is missing in $dist" }
     $zip = Join-Path $distPath "WinKickOff-$version.zip"

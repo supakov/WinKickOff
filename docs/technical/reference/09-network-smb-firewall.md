@@ -55,7 +55,7 @@ while keeping sharing functional.
 ## DisableLLMNR
 
 - Value: `$true` → `HKLM\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast = 0`.
-- What it does: disables Link-Local Multicast Name Resolution: the broadcast query "who is PC-BUH?",
+- What it does: disables Link-Local Multicast Name Resolution: the broadcast query "who is PC-NAME?",
   which any host on the network can answer, including an attacker.
 - Expected effect: Responder-class tools stop receiving hashes from these PCs through LLMNR.
 - Cross-links: name resolution for workgroup computers keeps working through NetBIOS
@@ -73,8 +73,8 @@ while keeping sharing functional.
   (P-node: WINS only, no broadcast) and, for each interface in
   `NetBT\Parameters\Interfaces\Tcpip_{GUID}`, the value `NetbiosOptions = 2` (NetBIOS over TCP/IP is off).
 - Expected effect when `$true`: the second name spoofing channel (NBT-NS poisoning) and ports 137-139 are closed.
-- Why it is off by default: without a domain and WINS, names like `\\PC-BUH` are resolved through NetBIOS
-  or mDNS. mDNS in Windows answers only queries of the form `pc-buh.local`; the usual `\\PC-BUH` entry
+- Why it is off by default: without a domain and WINS, names like `\\PC-NAME` are resolved through NetBIOS
+  or mDNS. mDNS in Windows answers only queries of the form `pc-name.local`; the usual `\\PC-NAME` entry
   in File Explorer may not be found without NetBIOS, and users and shortcuts to shared folders are used to that form.
   In addition, interfaces added after installation (a new Wi-Fi adapter, VPN) will get the default.
 - Cross-links: a workaround is the `hosts` file or DNS records on the router. The parameter is intended

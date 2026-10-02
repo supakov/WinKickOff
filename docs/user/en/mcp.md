@@ -192,7 +192,7 @@ program; after an update of WinKickOff, copy the folder again.
 | `--port N` | The port for `--mcp http`: 0 or 1024 to 65535; the settings by default |
 | `--token TOKEN` | The token for `--mcp http` for this run only (32 to 64 characters: letters, digits, `_` and `-`) |
 | `--mode read`, `--mode edit`, `--mode files` | The mode; `read` by default |
-| `--profile NAME` | A preset (`office`, `strict`, `laptop`, `memstechtips`), the name of a saved profile in `profiles` or a full path to a file; by default the last profile of the window, else the "Office" preset |
+| `--profile NAME` | A preset (`office`, `strict`, `laptop`, `home`), the name of a saved profile in `profiles` or a full path to a file; by default the last profile of the window, else the "Office" preset |
 | `--language CODE` | The language of the texts (`en`, `ru`, `uk`); the settings by default, else the Windows language |
 | `--mcp-config stdio` or `--mcp-config http` | Print the client configuration (the same one the window copies) and exit |
 | `--version` | Print the version and exit |

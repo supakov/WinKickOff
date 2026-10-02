@@ -31,19 +31,19 @@ class ProfileTest(unittest.TestCase):
         profile = Profile.from_catalog(self.catalog, name="Тест")
         profile.rules["network.netbios-off"].enabled = True
         profile.set_param("accounts.inactivity-lock", "seconds", 600)
-        profile.accounts.append(Account("Buh", "Бухгалтер", "Users"))
+        profile.accounts.append(Account("Operator", "Оператор", "Users"))
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "t.json"
             profile.save(path, self.catalog)
             raw = path.read_text(encoding="utf-8")
-            self.assertIn('"Бухгалтер"', raw)  # cyrillic not escaped
+            self.assertIn('"Оператор"', raw)  # cyrillic not escaped
             self.assertTrue(raw.startswith("{"))
             loaded, warnings = Profile.load(path, self.catalog)
         self.assertEqual(warnings, [])
         self.assertEqual(loaded.diff(profile), [])
         self.assertTrue(loaded.is_enabled("network.netbios-off"))
         self.assertEqual(loaded.param(self.catalog, "accounts.inactivity-lock", "seconds"), 600)
-        self.assertEqual(loaded.accounts[2].display_name, "Бухгалтер")
+        self.assertEqual(loaded.accounts[2].display_name, "Оператор")
 
     def test_rules_written_in_catalog_order(self) -> None:
         profile = Profile.from_catalog(self.catalog)

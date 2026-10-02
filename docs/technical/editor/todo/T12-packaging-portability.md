@@ -42,5 +42,5 @@ portability checklist, SmartScreen note for the unsigned exe in the user documen
 - Bug found by the customer: the portable build had only the "Office" and "Strict" presets
   because `build.ps1` listed them by name. It now takes every `profiles/preset-*.json` and fails when the build
   holds fewer presets than the source; `test_presets.py` forbids preset names in the script.
-- The documentation next to the exe now includes `docs/technical/reference` and the memstechtips report, so the
+- The documentation next to the exe now includes `docs/technical/reference`, so the
   links of the user documentation resolve there too.

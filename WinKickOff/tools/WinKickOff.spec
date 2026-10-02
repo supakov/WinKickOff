@@ -10,7 +10,7 @@ Result (app_paths() in frozen mode reads the data from sys._MEIPASS, which is di
     dist\WinKickOff\WinKickOff.exe          the window, from winkickoff\__main__.py, no console
     dist\WinKickOff\WinKickOff-mcp.exe      the headless MCP server, from winkickoff\mcp_main.py, with a console
     dist\WinKickOff\_internal\              rules, templates, resources, profiles\preset-*.json,
-                                            docs\technical\reference, docs\technical\memstechtips-profile.md, docs\user
+                                            docs\technical\reference, docs\user
 
 Both executables derive their folder from sys.executable, so they share settings.json, profiles\, output\, logs\
 and admx\ next to them. The data sources below are the ones tools\build.ps1 used to pass with --add-data; they
@@ -31,10 +31,9 @@ DATAS = [
     (os.path.join(ROOT, "templates"), "templates"),
     (os.path.join(ROOT, "resources"), "resources"),
     (os.path.join(REPO, "docs", "technical", "reference"), os.path.join("docs", "technical", "reference")),
-    (os.path.join(REPO, "docs", "technical", "memstechtips-profile.md"), os.path.join("docs", "technical")),
     (os.path.join(REPO, "docs", "user"), os.path.join("docs", "user")),
 ]
-# Every preset by pattern: a fixed list once left the Laptop and memstechtips presets out of the build.
+# Every preset by pattern: a fixed list once left two of the presets out of the build.
 PRESETS = sorted(glob.glob(os.path.join(ROOT, "profiles", "preset-*.json")))
 if not PRESETS:
     raise SystemExit("no presets in " + os.path.join(ROOT, "profiles"))

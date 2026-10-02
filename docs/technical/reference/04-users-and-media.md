@@ -50,7 +50,7 @@ The `$Config` section in `Setup-System.ps1`, groups "Users" and "Installation me
   `dism.exe /Online /Enable-Feature /FeatureName:NetFx3 /All /LimitAccess /Source:<path> /NoRestart /Quiet`.
   If not found: a WARN is written to the log and the feature is not enabled.
 - Expected effect: .NET Framework 3.5 (including 2.0 and 3.0) is available right after installation without
-  internet access. It is needed by old accounting software, bank client applications and old versions of digital signature key drivers.
+  internet access. It is needed by old accounting and banking programs and old versions of digital signature key drivers.
 - Cross-links:
   - The media must stay connected during specialize (the first reboot). If the USB drive
     was removed right after the files were copied, the feature will not be installed; it can then be added later

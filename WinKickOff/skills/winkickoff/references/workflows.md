@@ -185,9 +185,9 @@ Tell: the window's "Restore defaults" undoes it; the Laptop preset uses 600 seco
 
 ## 10. Prepare a profile for a department
 
-Example: "a profile for the accounting department's laptops".
+Example: "a profile for one department's laptops".
 
-Ask first: legacy accounting programs (1C, M.E.Doc, client-bank), digital signature tokens, scanning to a network
+Ask first: legacy accounting and banking programs, digital signature tokens, scanning to a network
 folder from an older printer, shared folders by computer name, screen lock time, the BitLocker plan.
 
 Then, in mode `edit`:
@@ -201,10 +201,10 @@ Then, in mode `edit`:
    - `network.smb-signing`, `network.smb1-off`: old printers or NAS may need attention;
    - `network.netbios-off`: keep it off if shares are reached by computer name.
 4. `set_param` `{"id": "accounts.inactivity-lock", "name": "seconds", "value": 600}` or the agreed value.
-5. `set_profile_info` `{"author": "IT", "comment": "Accounting laptops"}`.
+5. `set_profile_info` `{"author": "IT", "comment": "Department laptops"}`.
 6. `check_profile` `{}`.
-7. In mode `files`: `save_profile` `{"name": "Accounting laptops"}`. Optionally `write_answer_file`
-   `{"name": "accounting-laptops"}`.
+7. In mode `files`: `save_profile` `{"name": "Department laptops"}`. Optionally `write_answer_file`
+   `{"name": "department-laptops"}`.
 
 Tell: BitLocker is turned on later together with key escrow; passwords come from the separate project; test tokens and
 accounting programs in the VM.

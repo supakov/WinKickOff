@@ -21,7 +21,7 @@ The customer's list of 29.09.2026:
 - Catalog: `rules/*.toml` texts, tags and comments are English; `rules/lang/ru.toml` holds the Russian texts and
   the Russian search tags, `rules/lang/uk.toml` the Ukrainian ones, both with `_language`. The browser table of
   `tools/make_browser_rules.py` is English and generates the same `14-browsers.toml`. Preset names are the
-  English data values Office, Strict, Laptop and are shown through `tr()`; "Imported from XML" likewise.
+  English data values Office, Strict, Laptop, Home and are shown through `tr()`; "Imported from XML" likewise.
 - `core/i18n.py`: `available_languages()` scans `strings.*.json` and `rules/lang/*.toml` (a code matches
   `^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$`), English is always first; `resolve_language("")` follows the Windows
   interface language (`GetUserDefaultUILanguage`), otherwise English; every gap (file, rule, field, string)

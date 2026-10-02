@@ -1,6 +1,6 @@
 [project]
 name = "winkickoff"
-version = "1.2.0rc3"
+version = "1.2.0rc4"
 description = "Editor that assembles autounattend.xml for workgroup Windows 11 Pro installs from a catalog of rules"
 requires-python = ">=3.14"
 readme = "README.md"

@@ -36,13 +36,14 @@ the person insists after hearing the reason.
     (`apps.remove-quick-assist`) because scammers use it; it can be reinstalled from the Store.
 13. **`lsa.protection` uses mode 2** (reversible). Mode 1 cannot be undone without firmware access.
 14. **`defender.controlled-folder-access` is on with mode 0 (Off)** in Office: it only stops users from turning it on by
-    accident. Block (1) breaks accounting software (1C, M.E.Doc, client-bank programs); the safe path is a month in
+    accident. Block (1) breaks accounting and banking programs; the safe path is a month in
     Audit (2), then Block.
 15. **`thispc.*` folders are off by default**, as in Windows 11. Showing both variants of a folder may duplicate it.
 16. **`privacy.office` and all `default-user` rules reach new profiles only.** Accounts created during installation get
     them; existing profiles on a running PC do not.
-17. **The memstechtips preset weakens protection** on purpose: it reproduces a third-party file for comparison.
-    Recommend Office for work PCs.
+17. **The Home preset leaves out the WinKickOff protection set**: UAC, LSA, Defender (only its notifications rule is
+    on), ASR, logging and others stay at the Windows defaults; the region, input language and printing rules are off
+    too. Recommend Office for work PCs.
 18. **No third-party programs.** `update.unblock` (baseline) removes leftovers of "optimizer" tools that block updates.
 19. **Hardware check bypasses** (`install.bypass-tpm`, `install.bypass-secureboot`, `install.bypass-cpu`,
     `install.bypass-ram`, `install.bypass-storage`) are on so older PCs can be installed. They change nothing on

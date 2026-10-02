@@ -4,7 +4,7 @@ Revision 0.2 of 25.09.2026 (reworked for the rule model, see `../06-critical-rev
 One file per task. Statuses: `todo`, `in-progress`, `done`, `blocked`. When a status changes,
 update this index and the root `AGENTS.md` (the "Work status" section).
 
-Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in the `WinKickOff/` folder (685 tests).
+Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in the `WinKickOff/` folder (684 tests).
 
 | Task | Title | Stage | Depends on | Status |
 |---|---|---|---|---|
@@ -24,7 +24,7 @@ Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in t
 | [T14](T14-localization-and-diff.md) | uk localization, profile comparison, "Laptop" preset | 6 | T13 | done (uk and en interface, language menu, profile comparison, Laptop preset) |
 | [T15](T15-apply-to-running-system.md) | Applying the selected rule or branch to a running Windows: audit, application, rollback, return to Windows defaults | 6 | T06, T08, T11 | blocked (implemented and tested; acceptance needs a VM) |
 | [T16](T16-docs-split-technical-user.md) | Documentation split: technical in English, user documentation in Ukrainian, English, Russian | 5 | T17 | done (technical docs in English, user docs in ru, uk, en, generated rule lists) |
-| [T17](T17-repo-toolkit-and-appendices.md) | Repository root as a toolkit, with WinKickOff as the first one; XML of the original and of v0.2 in documentation appendices | 5 | none | done (root as a toolkit, XML and reviews in `docs/appendices/`) |
+| [T17](T17-repo-toolkit-and-appendices.md) | Repository root as a toolkit, with WinKickOff as the first one; XML of v0.2 in documentation appendices | 5 | none | done (root as a toolkit, XML and the critic's report in `docs/appendices/`) |
 | [T18](T18-english-source-languages-themes.md) | English source language; languages and colour themes as files | 6 | T14 | done (English code and catalog, ru and uk files, Light, Dark, Latte, Matrix, as in Windows) |
 | [T19](T19-admx-import.md) | Import of policy templates (ADMX, ADML) as a subtree of selectable rules | 7 | T18 | done (1.1.0-rc.1: menu ADMX, store admx/, rules, links to built-in rules; 1.1.0-rc.2: list and multiText elements) |
 | [T20](T20-navigation-and-shared-imports.md) | Back and Forward; rename, update and shared policies of imported templates | 7 | T19 | done (1.1.0-rc.3) |

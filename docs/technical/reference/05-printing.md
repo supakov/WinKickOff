@@ -1,8 +1,8 @@
 # 05. Printing
 
 Section 1 of `Setup-System.ps1`. Customer requirement: printing must work right after installation.
-The original UnattendedWinstall file switched the print spooler to manual start, so printing
-did not work until the service was started manually.
+With the print spooler on manual start, printing does not work until the service is started
+manually.
 
 ## EnsurePrintSpooler
 
@@ -23,7 +23,7 @@ did not work until the service was started manually.
   - The `PrintNotify` service is needed for print notifications; manual start is the standard mode.
 - Version differences: in Windows 11 22H2+ Microsoft is moving printing to IPP and "Windows Protected Print
   Mode" (WPP, 24H2): in this mode third-party drivers are not used, only the universal class driver.
-  WPP is off by default; the file does not enable it because old printers (Canon LBP, Samsung ML)
+  WPP is off by default; the file does not enable it because old host-based (GDI) printers
   require their own drivers.
 - Verification: `Get-Service Spooler | Select Status, StartType` → Running, Automatic.
 - Rollback: `Set-Service Spooler -StartupType Manual`.

@@ -125,7 +125,7 @@ class ProfileValidationTest(unittest.TestCase):
 
     def test_account_names(self) -> None:
         self.assertIsNone(check_account_name("Admin"))
-        self.assertIsNone(check_account_name("Бухгалтерия"))
+        self.assertIsNone(check_account_name("Оператор"))
         for bad in ("", "Administrator", "guest", "a/b", "x" * 21, "name.", " name"):
             self.assertIsNotNone(check_account_name(bad), bad)
 

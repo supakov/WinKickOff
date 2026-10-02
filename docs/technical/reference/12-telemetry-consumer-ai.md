@@ -24,8 +24,8 @@ which unwanted apps and links appear on the PC.
 - Expected effect: the minimum level of data sending available on Pro, without harming
   updates and Defender. The «Необязательные диагностические данные» (Optional diagnostic data) switch in Settings is grayed out.
 - Cross-links:
-  - The original file disabled DiagTrack (4) and the Application Experience tasks (Compatibility Appraiser),
-    which interfered with feature update offers; here they are kept for the sake of `DeferFeatureUpdatesDays`
+  - DiagTrack and the Application Experience tasks (Compatibility Appraiser) are not disabled: disabling them
+    interferes with feature update offers; here they are kept for the sake of `DeferFeatureUpdatesDays`
     (section 06). The critic confirmed that the Appraiser tasks are absent under their old names on build 26200.
   - Windows Error Reporting is disabled: developer dumps (`LocalDumps`) are not affected; the
     «Программа перестала работать» (Program has stopped working) window appears, but the report is not sent.
@@ -107,8 +107,8 @@ which unwanted apps and links appear on the PC.
 - Expected effect: Start menu search looks only for apps, files and settings; nothing is
   sent to Bing on every keystroke; no "recommended" web results.
 - Cross-links: Cortana was removed from Windows 11 (2023), so the policy is harmless. File Explorer search and
-  indexing (`WSearch`) are not affected: the original file switched the indexing service to
-  manual mode, which broke search in Outlook; here it is left untouched.
+  indexing (`WSearch`) are not affected: switching the indexing service to manual mode breaks
+  search in Outlook, so it is left untouched.
 - Version differences: `DisableSearchBoxSuggestions` since Windows 10 2004, works on Pro. `DisableWebSearch`
   comes from the old Windows 8.1/10 set; on 11 it partially duplicates the first one. No changes in 24H2.
 - Verification: searching Start for the word "weather" shows no web results.

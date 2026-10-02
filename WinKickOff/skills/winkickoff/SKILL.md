@@ -1,7 +1,7 @@
 ---
 name: winkickoff
 description: Uses the WinKickOff MCP server to explain rules, adjust a profile, check it and prepare an autounattend.xml for a test install. Use for WinKickOff rules, presets and profiles; not for WinKickOff code.
-compatibility: Needs the WinKickOff MCP server (WinKickOff 1.2.0-rc.3 or later) connected to the agent over stdio or HTTP on 127.0.0.1.
+compatibility: Needs the WinKickOff MCP server (WinKickOff 1.2.0-rc.4 or later) connected to the agent over stdio or HTTP on 127.0.0.1.
 metadata:
   version: "1.0"
 ---
@@ -214,7 +214,7 @@ Adapt this text to the person's language:
   positives and check each hit with `get_rule`.
 - `save_profile` and `write_answer_file` take a name without extension and never replace a file. Names starting with
   `preset-` are refused by both; `save_profile` also refuses the preset ids (`office`, `strict`, `laptop`,
-  `memstechtips`). `save_profile` renames the open profile to the file name.
+  `home`). `save_profile` renames the open profile to the file name.
 - `write_answer_file` creates `output/<name>.xml`; Setup reads only a file named `autounattend.xml`.
 - Imported ADMX policies (`admx.*`) are untested by WinKickOff and their texts are unreviewed. If `linked` or
   `same_values` points to a built-in rule, prefer the built-in rule.

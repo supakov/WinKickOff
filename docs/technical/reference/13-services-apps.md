@@ -41,8 +41,8 @@ A fix is planned in the constructor: bind `MapsBroker` to the Maps removal.
 - Cross-links:
   - Removed apps can be reinstalled from the Store (it is kept). A feature update (24H2 → 25H2)
     sometimes brings back some of the preinstalled apps; after it the list should be applied again.
-  - The original file ran the removal as a task at every sign-in to "fight" their return;
-    here the removal is one-time and transparent.
+  - The removal is one-time and transparent, not a task that runs at every sign-in to "fight"
+    their return.
   - `DisableConsumerContent` (section 12) prevents the Store from silently installing new advertising apps.
 - Version differences: package names change between versions; apps that are not in the image
   are simply not found. The table below notes which versions contain each app.
@@ -128,7 +128,7 @@ A fix is planned in the constructor: bind `MapsBroker` to the Maps removal.
 ## OneDrive
 
 - Rule: `apps.remove.onedrive` (WinKickOff only, not in v0.2), phase default-user, on by default in every preset
-  since 26.09.2026 (customer decision; v0.2 and the review of the original kept OneDrive).
+  since 26.09.2026 (customer decision; v0.2 kept OneDrive).
 - What it does: removes the value `OneDriveSetup` from `Software\Microsoft\Windows\CurrentVersion\Run` of the
   default user profile (`C:\Users\Default\NTUSER.DAT`). Windows puts `OneDriveSetup.exe /thfirstsetup` there; it
   installs OneDrive into the profile of every new user at the first sign-in.
@@ -136,8 +136,8 @@ A fix is planned in the constructor: bind `MapsBroker` to the Maps removal.
   the notification area, no OneDrive folder, no file sync. Profiles that already exist keep their OneDrive.
 - Why this way: OneDrive is not an Appx package but a per-user program, so `Remove-AppxProvisionedPackage` cannot
   remove it. The installer `OneDriveSetup.exe` (System32 on Windows 11 24H2+, SysWOW64 before) is owned by
-  TrustedInstaller and is left in place: deleting system files with `takeown`, as the original UnattendedWinstall
-  did, fights Windows servicing. Without the Run value the installer never starts by itself.
+  TrustedInstaller and is left in place: deleting system files with `takeown` fights Windows
+  servicing. Without the Run value the installer never starts by itself.
 - Cross-links: `default-user.no-sync-provider-ads` (card 14) hides OneDrive advertising in File Explorer.
 - Version differences: the Run value exists in Windows 10 and 11; the installer moved to System32 in 24H2.
 - Verification: after the first sign-in of a new user no `%LOCALAPPDATA%\Microsoft\OneDrive` folder and no

@@ -734,7 +734,7 @@ tags = ["defender", "controlled folder access", "crypto ransomware", "documents"
 doc = "docs/technical/reference/07-defender.md#controlledfolderaccess"
 summary = "Sets the protection mode for the Documents, Pictures and Desktop folders. The default is 0 (off), set as a policy so the user cannot turn it on by accident."
 effect = "In block mode, only trusted apps can write to protected folders; ransomware launched by the user cannot damage documents."
-risk = "Mode 1 breaks accounting software (1C, M.E.Doc, client-bank apps), older versions of Office and any in-house programs that write to Documents. Recommended path: a month in audit mode (2), review of events 1123/1124, then block mode."
+risk = "Mode 1 breaks accounting and banking programs, older versions of Office and any in-house programs that write to Documents. Recommended path: a month in audit mode (2), review of events 1123/1124, then block mode."
 versions = "Windows 10 1709+."
 verify = "Get-MpPreference | Select-Object EnableControlledFolderAccess"
 rollback = "Value 0."
@@ -762,7 +762,7 @@ default = true
 tags = ["defender", "notifications", "security center"]
 doc = "docs/technical/reference/07-defender.md"
 summary = "Security Center notification policies are enforced in the enabled state."
-effect = "The user sees messages about threats and scan results. The original UnattendedWinstall file turned off all notifications."
+effect = "The user sees messages about threats and scan results; no Defender notification is turned off."
 versions = "No changes."
 
 [[rule.actions]]

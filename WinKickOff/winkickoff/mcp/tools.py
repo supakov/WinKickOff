@@ -476,7 +476,7 @@ def _written(ctx: ToolContext, fn: Callable[[Workspace], Any], name: str) -> Any
 
 def save_profile(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
     if is_preset_id(args["name"]):
-        raise ToolError("name_refused", "the names of the presets (office, strict, laptop, memstechtips) are reserved",
+        raise ToolError("name_refused", "the names of the presets (office, strict, laptop, home) are reserved",
                         {"name": args["name"]})
     target = safe_child(ctx.paths.profiles, args["name"], ".json")
     if target.exists():
@@ -545,7 +545,7 @@ class ToolRegistry:
         lang = _language_property(languages)
         id_prop = {"type": "string", "pattern": ID_PATTERN, "maxLength": 200}
         name_prop = {"type": "string", "minLength": 1, "maxLength": NAME_MAX,
-                     "description": "A preset id (office, strict, laptop, memstechtips) or the name of a saved profile"}
+                     "description": "A preset id (office, strict, laptop, home) or the name of a saved profile"}
         return [
             ToolSpec("get_status", "Status", "What the agent talks to: versions, mode, transport, the open profile, the imported "
                      "templates shown. Passwords and product keys are never returned by any tool.",

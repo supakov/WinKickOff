@@ -26,7 +26,7 @@ is skipped only if all four are set; otherwise OOBE asks for whatever is missing
 
 - Value: `uk-UA`.
 - What it does: the language for non-Unicode programs (ANSI code page 1251, OEM 866).
-- Expected effect: legacy programs (1C 7.7, old accounting systems, console utilities) display
+- Expected effect: legacy programs (old accounting systems, console utilities) display
   Cyrillic instead of "mojibake". Code page 1251 is shared by Ukrainian and Russian, so
   choosing `uk-UA` also covers legacy Russian-language programs.
 - Cross-links: does not affect the display language or input. Changing it requires a reboot. The
@@ -128,6 +128,6 @@ Two accounts; the order of the child elements follows the example in the Microso
 
 ## FirstLogonCommands component
 
-Not used. In the original it re-enabled the network adapters after OOBE; in our design the adapters
+Not used. It is sometimes used to re-enable network adapters after OOBE; in our design the adapters
 are not disabled, and the first sign-in actions are performed by Active Setup (section 15), which fires
 for every user, not only for the first one to sign in.

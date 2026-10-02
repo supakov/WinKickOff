@@ -143,7 +143,7 @@ when LSA protection is enabled.
 - Expected effect with 1: writing to Documents, Pictures, Desktop and other protected folders
   is allowed only to applications on the Microsoft trusted list or added manually. Ransomware
   launched by the user cannot damage the documents.
-- Why it is off by default: accounting software (1C, M.E.Doc, bank clients), old versions of Office
+- Why it is off by default: accounting and banking programs, old versions of Office
   and any in-house programs that write to Documents will be blocked, and a non-professional
   user will not understand what is happening. Enabling it requires maintaining a list of allowed applications
   (`Add-MpPreference -ControlledFolderAccessAllowedApplications`). Recommended path: audit mode (2)

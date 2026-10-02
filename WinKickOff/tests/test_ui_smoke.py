@@ -128,13 +128,13 @@ class MainWindowSmokeTest(unittest.TestCase):
 
     def test_save_as_and_reopen(self) -> None:
         self.win.toggle_item("r:network.netbios-off")
-        target = self.paths.profiles / "Бухгалтерия.json"
+        target = self.paths.profiles / "Профиль.json"
         with mock.patch("winkickoff.ui.main_window.filedialog.asksaveasfilename", return_value=str(target)):
             self.assertTrue(self.win.save_profile())  # a preset is never overwritten: Save turns into Save as
         self.assertTrue(target.exists())
         self.assertFalse(self.win.dirty)
-        self.assertEqual(self.win.profile.name, "Бухгалтерия")
-        self.assertIn("Бухгалтерия", self.win.profile_box.cget("values"))
+        self.assertEqual(self.win.profile.name, "Профиль")
+        self.assertIn("Профиль", self.win.profile_box.cget("values"))
 
         self.assertTrue(self.win.load_profile_file(self.office_path))
         self.assertFalse(self.win.profile.is_enabled("network.netbios-off"))
@@ -386,9 +386,9 @@ class MainWindowSmokeTest(unittest.TestCase):
         form._apply()
         self.assertEqual(self.win.profile.accounts[1].name, "User")
         self.assertIn("reserved Windows name", form.error.get())
-        form.name.set("Kasa")
+        form.name.set("Operator")
         form._apply()
-        self.assertEqual(self.win.profile.accounts[1].name, "Kasa")
+        self.assertEqual(self.win.profile.accounts[1].name, "Operator")
         self.assertTrue(self.win.dirty)
 
     def test_check_and_build_to_file(self) -> None:

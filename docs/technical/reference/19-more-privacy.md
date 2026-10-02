@@ -1,7 +1,7 @@
 # 19. More privacy options: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Explorer
 
 Rules from the customer's list of 28.09.2026 (file MoreOptions: "AI and telemetry must be off; the whole list is
-on by default everywhere except memstechtips"). Every value was checked on 28.09.2026 against Microsoft Learn
+on by default everywhere except Home"). Every value was checked on 28.09.2026 against Microsoft Learn
 (Policy CSP, ADMX reference, "Manage connections from Windows operating system components to Microsoft
 services", Microsoft 365 Apps privacy controls, OneDrive Group Policy), the ADMX templates shipped with Windows 11
 25H2 (26200) and read-only registry queries on a 26200 PC. Where the list had a wrong path, an internal value,
@@ -9,7 +9,10 @@ a value that does not exist or an obsolete one, the catalog uses the documented 
 out; the section "Corrections to the list" names each case.
 
 All rules below are on by default, so they are in the "Office", "Strict" and "Laptop"
-presets; the memstechtips preset takes a rule only when the original file has its actions. Per-user values are
+presets. The Home preset (the list `HOME_RULES` in `WinKickOff/tools/make_presets.py`) turns on only ten of them:
+`telemetry.app-telemetry-off`, `ads.lock-screen-spotlight-off`, `ads.account-notifications-off`,
+`ads.advertising-id-user-off`, `search.user-cloud-off`, `speech.online-user-off`, `speech.narrator-online-off`,
+`speech.narrator-extensions-off`, `onedrive.kfm-block` and `nav.launch-to-this-pc`. Per-user values are
 written into the default user profile (phase default-user), so every account created during and after the
 installation gets them; accounts that already exist on a running PC keep their own values.
 

@@ -26,11 +26,11 @@ class ImporterTest(unittest.TestCase):
         cls.renderer = Renderer(cls.catalog, ROOT / "templates", cls.keyboards)
 
     def test_round_trip(self) -> None:
-        profile = Profile.from_catalog(self.catalog, name="Бухгалтерия")
+        profile = Profile.from_catalog(self.catalog, name="Профиль")
         profile.comment = "Проверка ]]> внутри CDATA"
         Resolver(self.catalog).enable(profile, "network.netbios-off")
         profile.set_param("defender.smartscreen-shell", "level", "Block")
-        profile.accounts.append(Account("Kasa", "Каса", "Users"))
+        profile.accounts.append(Account("Operator", "Оператор", "Users"))
         profile.languages["input"] = ["uk-UA", "en-US"]
         xml = self.renderer.build(profile, app_version="test").xml
 

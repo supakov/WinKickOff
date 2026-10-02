@@ -43,7 +43,7 @@ The command `pi` of the image always starts with:
   `127.0.0.1` (section 5).
 - A local OpenAI-compatible model server, for example llama.cpp `llama-server` on port 8088 with Qwen3.6-35B. Its
   context size (`-c`) must not be smaller than `contextWindow` in `models.json`.
-- WinKickOff 1.2.0-rc.3 or later, whose server offers the guide `winkickoff://skill/SKILL.md`: `pi mcp list --json` shows `"resourceTemplates":
+- WinKickOff 1.2.0-rc.4 or later, whose server offers the guide `winkickoff://skill/SKILL.md`: `pi mcp list --json` shows `"resourceTemplates":
   4` for `winkickoff` (3 means an older WinKickOff: the tools work, but the agent cannot read the guide). The window
   with "Server running (HTTP, this computer only)" checked in the "MCP" menu, or a headless WinKickOff server over HTTP
   (section 5).

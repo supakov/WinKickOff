@@ -68,7 +68,7 @@ class PortableSessionTest(unittest.TestCase):
                 win = app.create_app(withdraw=True)
                 try:
                     win.toggle_item("r:network.netbios-off")
-                    save_dialog.return_value = str(paths.profiles / "Каса.json")
+                    save_dialog.return_value = str(paths.profiles / "Профіль.json")
                     self.assertTrue(win.save_profile())
                     save_dialog.return_value = str(paths.output / "autounattend.xml")
                     win.build()
@@ -92,9 +92,9 @@ class PortableSessionTest(unittest.TestCase):
             self.assertEqual(
                 written,
                 sorted([str(Path("logs/winkickoff.log")), str(Path("output/autounattend.xml")),
-                        str(Path("profiles/Каса.json")), "settings.json"]),
+                        str(Path("profiles/Профіль.json")), "settings.json"]),
             )
-            self.assertIn("Каса.json", (base / "settings.json").read_text(encoding="utf-8"))
+            self.assertIn("Профіль.json", (base / "settings.json").read_text(encoding="utf-8"))
         self.assertEqual(snapshot(REPO), before, "the session changed files of the repository")
 
 

@@ -28,8 +28,8 @@ there is no 32-bit Windows 11.
 
 - Value: `OnError`.
 - What it does: the key entry window is shown only if the key is rejected. This is the default value,
-  specified explicitly. The original UnattendedWinstall file used `Always` with an empty key
-  `00000-...`, which is what caused the edition selection window.
+  specified explicitly. `Always` with an empty key `00000-...` would show the key and edition selection
+  window on every installation.
 - Version differences: none.
 
 ## AcceptEula

@@ -23,8 +23,8 @@ powershell.exe -NoProfile -WindowStyle Hidden -Command "try{$x=[xml]::new();$x.L
 - Cross-links: without this step the Order 3 command will not find the script and will write "no script" to the same file;
   Post-OOBE.ps1 carries the contents of `ua.err` over into its log. The path `C:\Windows\Panther\unattend.xml`
   is fixed by Setup for all versions from Windows 7 onward.
-- Version differences: none. The method (scripts inside the XML) is taken from the practice of the Schneegans generator and
-  UnattendedWinstall; it works on Windows 10 and 11.
+- Version differences: none. The method (scripts inside the XML) is taken from the practice of the Schneegans generator; it
+  works on Windows 10 and 11.
 - Verification: after installation three files exist in `C:\ProgramData\Unattend\Scripts`.
 - Rollback: not required.
 

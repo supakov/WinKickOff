@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 02.10.2026 (release 1.2.0-rc.3: the skill served over MCP, error kinds in tool error texts, pi-agent an MCP-only assistant).
+Last update: 02.10.2026 (release 1.2.0-rc.4: the Home preset defined by its own list of rules; customer-specific places and programs removed; Appendix A and the review of the original deleted).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -32,7 +32,6 @@ only through the MCP server, without a cloud model, without files and without th
 | Understand what the answer file does | `docs/appendices/B-autounattend-v0.2/README.md` (Russian), then `docs/technical/reference/00-architecture.md` |
 | Find a parameter and its registry keys | `docs/technical/reference/README.md` (index by parameter) |
 | Change installation behaviour | a rule in `WinKickOff/rules/` (v0.2 in Appendix B is frozen); Setup limits in `docs/technical/reference/00-architecture.md` section 3 |
-| Understand why something differs from UnattendedWinstall | `docs/appendices/C-critical-review/01-critical-review.md` (Russian) |
 | Work on the editor | `docs/technical/editor/README.md`, then `docs/technical/editor/todo/README.md`, then `WinKickOff/README.md` |
 | Understand why the editor is built on rules, not on `$Config` | `docs/technical/editor/06-critical-review-v0.1.md` |
 | Add or change an installation rule | `docs/technical/editor/03-data-model.md`, a file `WinKickOff/rules/NN-*.toml`, then `python -m unittest` in `WinKickOff/` |
@@ -60,7 +59,6 @@ only through the MCP server, without a cloud model, without files and without th
 ├── docs/
 │   ├── README.md                  entry point to the documentation (three languages)
 │   ├── technical/                 TECHNICAL DOCUMENTATION, English
-│   │   ├── memstechtips-profile.md  generated report: the original of Appendix A mapped onto the catalog (issue #2)
 │   │   ├── reference/             reference: a card for every installation parameter (20 files; 18 browsers, 19 more privacy)
 │   │   └── editor/                WinKickOff specification: problem, architecture, data model, testing,
 │   │       │                      plan (days, milestones), review of revision 0.1
@@ -68,11 +66,10 @@ only through the MCP server, without a cloud model, without files and without th
 │   ├── user/                      USER DOCUMENTATION: ru (source), uk, en; the same files in each language
 │   ├── releases/                  release notes v<version>.md (ru, uk, en), used by the release job
 │   └── appendices/                APPENDICES, frozen, Russian: README describes them
-│       ├── A-unattendedwinstall/  original UnattendedWinstall answer file (MIT, SOURCE.md, LICENSE)
 │       ├── B-autounattend-v0.2/   our hand-written answer file v0.2 (the reference) and its README: history, VM checklist
-│       ├── C-critical-review/     review of the original and the critic's report on v0.2 (docx)
+│       ├── C-critical-review/     the critic's report on v0.2 (docx)
 │       └── D-requirements-draft/  first requirements draft; section 6 holds open questions to the customer
-└── WinKickOff/                    EDITOR 1.2.0-rc.3 AND RULE CATALOG 0.5
+└── WinKickOff/                    EDITOR 1.2.0-rc.4 AND RULE CATALOG 0.5
     ├── README.md                  developer README: run, test, structure; links to user docs
     ├── pyproject.toml             requires-python >= 3.14, no runtime dependencies
     ├── winkickoff/                package: __main__.py (dispatcher: window or headless MCP), app.py (window start,
@@ -92,7 +89,7 @@ only through the MCP server, without a cloud model, without files and without th
     │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.5
     ├── resources/                 keyboards.json, timezones.json, strings.ru.json and strings.uk.json (interface
     │                              translations), themes/ (light, dark, latte, matrix colour themes)
-    ├── profiles/                  presets Office (= catalog defaults), Strict, Laptop, memstechtips, README
+    ├── profiles/                  presets Office (= catalog defaults), Strict, Laptop, Home, README
     ├── skills/                    winkickoff/: the Agent Skill for AI agents that use WinKickOff over MCP (SKILL.md,
     │                              references/tools.md, workflows.md, concepts.md); README.md: how to install it;
     │                              shipped next to the exe in the portable build
@@ -102,8 +99,7 @@ only through the MCP server, without a cloud model, without files and without th
     │                              v02_actions.py holds the v0.2 reference profile (V02_DIFFERENCES)
     └── tools/                     make_presets.py, make_rule_docs.py, run-tests.ps1, build.ps1 (portable zip,
                                    two executables from WinKickOff.spec),
-                                   make_browser_rules.py (generates rules/14-browsers.toml),
-                                   memstechtips.py (maps Appendix A onto the catalog for make_presets.py)
+                                   make_browser_rules.py (generates rules/14-browsers.toml)
 ```
 
 Working folders `WinKickOff/output/`, `WinKickOff/logs/`, `WinKickOff/settings.json`, `__pycache__/` and
@@ -216,7 +212,7 @@ python -m winkickoff --version
 Find em and en dashes in the whole tree (PowerShell; an empty output means none):
 
 ```powershell
-$d = "[$([char]0x2013)$([char]0x2014)]"; Get-ChildItem -Recurse -Include *.md,*.ps1,*.py,*.toml,*.json -File | Where-Object { $_.FullName -notmatch '\\(A-unattendedwinstall|\.git|__pycache__)\\' } | ForEach-Object { $n = ([regex]::Matches([IO.File]::ReadAllText($_.FullName, [Text.Encoding]::UTF8), $d)).Count; if ($n) { "$($_.FullName): $n" } }
+$d = "[$([char]0x2013)$([char]0x2014)]"; Get-ChildItem -Recurse -Include *.md,*.ps1,*.py,*.toml,*.json -File | Where-Object { $_.FullName -notmatch '\\(\.git|__pycache__)\\' } | ForEach-Object { $n = ([regex]::Matches([IO.File]::ReadAllText($_.FullName, [Text.Encoding]::UTF8), $d)).Count; if ($n) { "$($_.FullName): $n" } }
 ```
 
 Checks after an installation in a VM: the checklist in `docs/user/<lang>/install-and-check.md`.
@@ -271,12 +267,16 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 - This PC folders (`thispc.*`): Windows 11 24H2+ hides all 11 `MyComputer\NameSpace` entries with
   `HiddenByDefault=1`; the rules show them (0) in the 64-bit and WOW6432Node views and are off by default. Each
   folder has a Local entry (shown by Windows 10) and a classic one; showing both may duplicate the folder.
-- The memstechtips preset (issue #2) is computed, not hand-made: a rule is on when the original of Appendix A has at
-  least one of its actions and none of them contradicts the original; `EQUIVALENT` in `WinKickOff/tools/memstechtips.py` lists
-  values with the same effect on Pro (`AllowTelemetry` 0 acts as 1). A catalog change can change the preset and
-  `docs/technical/memstechtips-profile.md`: rerun `python tools/make_presets.py` and read the report diff.
-  The report shows that the original weakens protection (administrators elevate without a UAC prompt, no secure
-  desktop, Win+L disabled).
+- The Home preset is an allowlist: `HOME_RULES` in `WinKickOff/tools/make_presets.py` names its 70 rules (the hardware
+  check bypasses and OOBE screens of Office, removal of extra apps, ads, Copilot and user privacy, File Explorer opens
+  This PC), with Delivery Optimization `mode` 99, telemetry `level` 0 and the product key asked. A new catalog rule
+  stays off in Home until it is added to the list. Home leaves out the WinKickOff protection set: of the UAC, LSA,
+  Defender, ASR, SmartScreen, network, logging, update, browser and post-installation rules only
+  `defender.notifications` and `update.delivery-optimization-lan` are on, the rest write nothing, so Windows keeps its
+  defaults. Also off: `install.netfx3`, `printing.spooler-automatic`, `default-user.region`,
+  `user-logon.input-languages`, `user-logon.pin-ui-language`, `removable.autorun-off` and the AI rules of Notepad,
+  Paint, Office and Edge; the check shows 13 baseline warnings. It does not turn UAC prompts, the secure desktop, Win+L or
+  real-time protection off; it only stops enforcing them. Home is not the Windows Home edition: the edition is Pro.
 - GitHub rejects a push with a personal e-mail in the commit author; this repository has the local address
   `265459095+stanislavperec-ua@users.noreply.github.com` (`git config user.email`, this folder only).
   Files are stored byte for byte (`.gitattributes`: `* -text`), CRLF.
@@ -402,7 +402,6 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 | Area | State | Date | Where |
 |---|---|---|---|
 | Answer file v0.2 | Reference, frozen; checked by the validator and the critic | 13.09.2026 | `docs/appendices/B-autounattend-v0.2/` |
-| Review of the original | Done | 12.09.2026 | `docs/appendices/C-critical-review/01-critical-review.md` |
 | Critic's report and fixes | Done (9 accepted, 3 rejected) | 13.09.2026 | `docs/appendices/C-critical-review/03-critic-report-v0.2.docx` |
 | Parameter reference | Done, 19 files, English | 25.09.2026 | `docs/technical/reference/` |
 | Answer file checker | Done, 36 checks, 0 errors on v0.2 | 25.09.2026 | `tools/Validate-Unattend.ps1` |
@@ -410,13 +409,13 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
 | Editor tasks | T01-T12, T14, T16-T22 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 30.09.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.5: 251 rules, 36 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer 15), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.5 adds the parameter type `list` and the action `reg-list` (runtime Set-RegList, Test-RegList), the rules themselves are those of 0.4 | 30.09.2026 | `WinKickOff/rules/` |
-| Editor code | 1.2.0-rc.3 (skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 685 tests | 01.10.2026 | `WinKickOff/` |
+| Editor code | 1.2.0-rc.4 (Home preset; customer specifics removed; skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 684 tests | 01.10.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply (rules on are applied, rules off return to Windows defaults) and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 29.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |
 | Documentation split | T16 done: technical in English, user documentation in ru, uk, en; since T18 the catalog is English with complete ru and uk translations | 30.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
-| GitHub issues | #1 "Web Browsers debloat" done: section "Browsers" (Edge, Chrome, Brave), 46 rules off by default, card 18. #2 "memstechtips profile" done: preset of 60 rules computed from Appendix A, report of what is added, contradicted and not transferable. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md`, `WinKickOff/profiles/preset-memstechtips.json`, `docs/technical/memstechtips-profile.md` |
-| Release candidate | 1.2.0-rc.3 published (the skill served over MCP, error kinds in tool error texts, pi-agent an MCP-only assistant); earlier 1.2.0-rc.2 (skill `skills/winkickoff` in the build, clipboard fix, F9 hint), 1.2.0-rc.1 (MCP server, after the review fixes of 01.10.2026), 1.1.0-rc.4 (imported policies follow the built-in rules), 1.1.0-rc.3 (Back and Forward, shared imports), 1.1.0-rc.2 (lists of values), 1.1.0-rc.1 (import of ADMX templates) and 1.0.0-rc.1 to rc.4 of 26.09-30.09.2026: tag and GitHub release built by CI | 01.10.2026 | `docs/releases/v1.2.0-rc.2.md`, `docs/releases/v1.2.0-rc.3.md` |
+| GitHub issues | #1 "Web Browsers debloat" done: section "Browsers" (Edge, Chrome, Brave), 46 rules off by default, card 18. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md` |
+| Release candidate | 1.2.0-rc.4 published (Home preset with its own list of rules, customer specifics removed, Appendix A and the review of the original deleted); earlier 1.2.0-rc.3 (the skill served over MCP, error kinds in tool error texts, pi-agent an MCP-only assistant), 1.2.0-rc.2 (skill `skills/winkickoff` in the build, clipboard fix, F9 hint), 1.2.0-rc.1 (MCP server, after the review fixes of 01.10.2026), 1.1.0-rc.4 (imported policies follow the built-in rules), 1.1.0-rc.3 (Back and Forward, shared imports), 1.1.0-rc.2 (lists of values), 1.1.0-rc.1 (import of ADMX templates) and 1.0.0-rc.1 to rc.4 of 26.09-30.09.2026: tag and GitHub release built by CI | 01.10.2026 | `docs/releases/v1.2.0-rc.3.md`, `docs/releases/v1.2.0-rc.4.md` |
 | Imported ADMX templates | T19 done: ADMX menu, store `admx/` next to the program, policies as rules with parameters, links to built-in rules; since 1.1.0-rc.2 list and multi-line elements too (20 of 3552 policies of this Windows skipped); acceptance of lists on This PC in a VM pending; T20 (1.1.0-rc.3): an import of an imported folder asks to update it or add a tree, a policy in several trees has one check mark, trees can be renamed; Back and Forward in the window; T21 (1.1.0-rc.4): an imported policy follows the built-in rule that sets the same values | 30.09.2026 | `WinKickOff/winkickoff/core/admx.py`, `docs/user/*/admx.md` |
 | Customer list MoreOptions | Done: BitLocker off in every preset; 57 rules on by default (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Edge AI and sign-in, Gallery hidden), This PC folders as options off by default; corrections in card 19 | 28.09.2026 | `docs/technical/reference/19-more-privacy.md` |
 | MCP server | T22 done in code: stdio and HTTP transports, 18 tools, resources, modes read/edit/files, monitor, second executable in CI; acceptance with real clients (Claude Code, Claude Desktop) in a VM pending | 30.09.2026 | `WinKickOff/winkickoff/mcp/`, `docs/user/*/mcp.md` |

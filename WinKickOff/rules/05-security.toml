@@ -10,7 +10,7 @@ default = true
 tags = ["uac", "enablelua", "secure desktop", "win+l", "lock"]
 doc = "docs/technical/reference/08-accounts-uac-lsa-remote.md"
 summary = "Baseline UAC values: enabled, prompts on the secure desktop, standard users enter administrator credentials, installers require elevation, the built-in Administrator runs in Admin Approval Mode, and network logons of local administrators get a filtered token. The ban on locking the screen is removed."
-effect = "The original UnattendedWinstall file blocked Win+L locking and removed UAC prompts; here it is the opposite."
+effect = "UAC stays on: elevation prompts appear on the secure desktop, standard users must enter administrator credentials, and Win+L locks the screen."
 versions = "The values have been the same since Windows Vista."
 verify = "Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
 

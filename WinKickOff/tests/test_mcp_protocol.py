@@ -474,7 +474,7 @@ class RedactedBuildTest(unittest.TestCase):
 
 class CheckNameTest(unittest.TestCase):
     def test_accepted_names(self) -> None:
-        for name in ("Каса", "Профіль офісу", "Office 2026", "kasa.v2", "a", "x" * redact.MAX_NAME, "1-2_3"):
+        for name in ("Профіль", "Профіль офісу", "Office 2026", "office.v2", "a", "x" * redact.MAX_NAME, "1-2_3"):
             with self.subTest(name=name):
                 self.assertIsNone(redact.check_name(name))
 
@@ -508,8 +508,8 @@ class SafeChildTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_a_good_name_lands_inside_the_folder(self) -> None:
-        self.assertEqual(redact.safe_child(self.folder, "Каса", ".json"), self.folder / "Каса.json")
-        self.assertFalse((self.folder / "Каса.json").exists())  # nothing is created
+        self.assertEqual(redact.safe_child(self.folder, "Профіль", ".json"), self.folder / "Профіль.json")
+        self.assertFalse((self.folder / "Профіль.json").exists())  # nothing is created
 
     def test_preset_names_are_refused(self) -> None:
         for name in ("preset-x", "Preset-office", "PRESET-strict"):
@@ -573,7 +573,7 @@ class JournalTest(unittest.TestCase):
                          "id=apps.remove.onedrive enabled=true force=false limit=5")
 
     def test_render_args_hides_free_text(self) -> None:
-        self.assertEqual(render_args({"name": "Каса"}), "name=<text, 4 chars>")
+        self.assertEqual(render_args({"name": "Профіль"}), "name=<text, 7 chars>")
         for key in ("comment", "author", "query", "value", "title"):
             with self.subTest(key=key):
                 self.assertEqual(render_args({key: "ab"}), f"{key}=<text, 2 chars>")

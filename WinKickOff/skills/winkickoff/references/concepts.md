@@ -179,9 +179,9 @@ Four presets ship with the program. They are read-only: a changed preset is save
 | `office` | Ordinary work PCs. Recommended start | None (214 of 251 rules on) |
 | `strict` | Higher-risk PCs; may break older programs; test on one PC first | On: `update.other-microsoft-products`, `asr.usb-untrusted`, `uac.admin-always-notify`, `network.netbios-off`, `scripts.remove-vbscript`. Parameters: `defender.controlled-folder-access` `mode` 1 (Block), `defender.smartscreen-shell` `level` `"Block"`, `asr.prevalence` `mode` 1 (Block). 219 on |
 | `laptop` | Laptops | `accounts.inactivity-lock` `seconds` 600 instead of 900. 214 on |
-| `memstechtips` | Comparison only: reproduces a popular third-party answer file as far as the catalog allows | 70 on; key mode `ask`; weakens protection (UAC, real-time protection, logging and more are off; Check warns for each baseline rule). Not for work PCs |
+| `home` | Home PCs: installation screens, app removal and privacy only | 70 on (the list `HOME_RULES`); key mode `ask`; weakens protection (the UAC, LSA, Defender, ASR, SmartScreen, network, logging, update, browser and post-OOBE rules are off except `defender.notifications` and `update.delivery-optimization-lan` `mode` 99, Windows keeps its defaults); also off: `install.netfx3`, `printing.spooler-automatic`, `default-user.region`, `user-logon.input-languages`, `user-logon.pin-ui-language`, `removable.autorun-off`, the Notepad, Paint, Office and Edge AI rules; Check warns for each baseline rule. Not for work PCs |
 
-All presets share the data forms: edition Pro, generic key (memstechtips: ask), time zone `FLE Standard Time`
+All presets share the data forms: edition Pro, generic key (home: ask), time zone `FLE Standard Time`
 (Kyiv), display language `uk-UA`, keyboards `en-US`, `uk-UA`, `ru-UA`, accounts Admin (Administrators) and User (Users)
 without passwords.
 

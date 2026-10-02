@@ -284,7 +284,7 @@ Shared logic, used by both implementations so that an agent can do nothing a cli
   the previous parameters are restored.
 - `check_and_build(catalog, profile, resources, templates, app_version)`: `validate_profile`, `Renderer.build`,
   `validate_xml`; the window's Check without PowerShell.
-- `profile_file(paths, name)`: the preset ids `office`, `strict`, `laptop`, `memstechtips` resolve to `paths.data /
+- `profile_file(paths, name)`: the preset ids `office`, `strict`, `laptop`, `home` resolve to `paths.data /
   "profiles" / "preset-<id>.json"`, everything else to `safe_child(paths.profiles, name, ".json")`.
   `list_profile_files(paths)` scans `paths.data / "profiles"` for `preset-*.json` and `paths.profiles` for user files
   (the two folders differ in the frozen build and coincide only when running from sources) and counts files whose stem
@@ -381,7 +381,7 @@ false, destructiveHint: false, idempotentHint: false, openWorldHint: false` (the
 | `set_profile_info` | edit | `name?` (1-80), `author?` (0-80), `comment?` (0-2000) | `name`, `author_text`, `comment_text`, `dirty` (false when nothing changed); control characters stripped |
 | `load_profile` | edit | `name`, `force?` | `name`, `file`, `warnings`, `forced`; `unsaved_changes` when the workspace is dirty and `force` is false; with `force` the unsaved changes are dropped without a dialog |
 | `show_item` | edit | `item` (`r:<rule>`, `g:<group>`, `data:accounts`, `data:languages`, `data:install`) | `shown`, `reason?` (`"no window"` headless, `"no such item"`) |
-| `save_profile` | files | `name` (1-80) | `file` (display path `profiles/<name>.json`), `dirty: false`; `name_refused` from `safe_child` and for the preset ids (`office`, `strict`, `laptop`, `memstechtips`, which `load_profile` would resolve to the preset), `exists` for an existing file, `write_failed` (the profile keeps its previous name) |
+| `save_profile` | files | `name` (1-80) | `file` (display path `profiles/<name>.json`), `dirty: false`; `name_refused` from `safe_child` and for the preset ids (`office`, `strict`, `laptop`, `home`, which `load_profile` would resolve to the preset), `exists` for an existing file, `write_failed` (the profile keeps its previous name) |
 | `write_answer_file` | files | `name` (1-80) | `file` (`output/<name>.xml`), `rules`, `issues` (with the `info` issue about PowerShell), `powershell_checked: false`, `note` ("rename the file to autounattend.xml when copying it to the installation media"); `exists`, `validation_failed`, `write_failed` |
 
 Error kinds (`structuredContent.error`): `invalid_arguments` (with `problems` from the schema checker or a message),

@@ -17,7 +17,7 @@ PRESETS = {
     "preset-office.json": "office",
     "preset-strict.json": "strict",
     "preset-laptop.json": "laptop",
-    "preset-memstechtips.json": "memstechtips",
+    "preset-home.json": "home",
 }
 
 
@@ -86,27 +86,28 @@ class PresetsTest(unittest.TestCase):
         issues = validate_profile(Profile.from_catalog(self.catalog), self.catalog, self.keyboards)
         self.assertFalse(any(i.target == "encryption.prevent-auto-bitlocker" for i in issues))
 
-    def test_memstechtips_follows_the_original(self) -> None:
-        mtt, _ = Profile.load(ROOT / "profiles" / "preset-memstechtips.json", self.catalog)
+    def test_home_is_the_allowlist(self) -> None:
+        home, _ = Profile.load(ROOT / "profiles" / "preset-home.json", self.catalog)
+        self.assertEqual(home.name, "Home")
+        self.assertTrue(set(self.maker.HOME_RULES) <= set(self.catalog.rules))
+        self.assertEqual(set(home.enabled_ids()), set(self.maker.HOME_RULES))
+        # installation, OOBE, app removal and user privacy rules are on
         for rule_id in ("install.bypass-tpm", "install.bypass-nro", "accounts.block-aad-join",
-                        "apps.remove-quick-assist", "default-user.show-file-extensions"):
-            self.assertTrue(mtt.is_enabled(rule_id), rule_id)
-        # partly present without contradictions: on; AllowTelemetry 0 of the original acts as 1 on Pro
-        for rule_id in ("privacy.telemetry-minimal", "privacy.copilot-recall-off", "privacy.consumer-content"):
-            self.assertTrue(mtt.is_enabled(rule_id), rule_id)
-        # absent from the original, or contradicting it (UAC without prompts, Xbox services on demand)
+                        "apps.remove-quick-assist", "default-user.show-file-extensions",
+                        "privacy.telemetry-minimal", "privacy.copilot-recall-off", "privacy.consumer-content"):
+            self.assertTrue(home.is_enabled(rule_id), rule_id)
+        # the WinKickOff protection set is not applied: Windows keeps its defaults
         for rule_id in ("defender.realtime", "uac.baseline", "apps.xbox-services-off", "edge.baseline",
-                        "edge.diagnostic-data-off"):
-            self.assertFalse(mtt.is_enabled(rule_id), rule_id)
-        self.assertEqual(mtt.install["product_key_mode"], "ask")
-        for rule_id in mtt.enabled_ids():
+                        "edge.diagnostic-data-off", "post-oobe.delete-answer-file-copies"):
+            self.assertFalse(home.is_enabled(rule_id), rule_id)
+        office, _ = Profile.load(ROOT / "profiles" / "preset-office.json", self.catalog)
+        self.assertEqual(set(home.enabled_ids()) - set(office.enabled_ids()), {"nav.launch-to-this-pc"})
+        self.assertEqual(home.param(self.catalog, "update.delivery-optimization-lan", "mode"), 99)
+        self.assertEqual(home.param(self.catalog, "privacy.telemetry-minimal", "level"), 0)
+        self.assertEqual(home.install["product_key_mode"], "ask")
+        for rule_id in home.enabled_ids():
             for required in self.catalog.rules[rule_id].requires:
-                self.assertTrue(mtt.is_enabled(required), f"{rule_id} requires {required}")
-
-    def test_memstechtips_report_is_up_to_date(self) -> None:
-        on_disk = self.maker.memstechtips_map.REPORT.read_bytes().decode("utf-8")
-        expected = self.maker.memstechtips_report(self.catalog).replace("\n", "\r\n")
-        self.assertEqual(on_disk, expected, "the memstechtips report is stale: run python tools/make_presets.py")
+                self.assertTrue(home.is_enabled(required), f"{rule_id} requires {required}")
 
     def test_build_takes_every_preset(self) -> None:
         # tools/build.ps1 once listed two presets by name and the portable build lost the other two

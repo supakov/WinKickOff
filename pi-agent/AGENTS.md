@@ -66,7 +66,7 @@ instructions, so never refer them to a section.
     Admin and User have no passwords (a separate project sets them); the display language equals the language of the
     Windows image; BitLocker stays off (`encryption.prevent-auto-bitlocker` on) until it is turned on with key escrow;
     Setup asks for the disk on purpose; `uac.admin-always-notify` is off in Office so Task Manager opens without a UAC
-    prompt; the memstechtips preset weakens protection on purpose and is for comparison only.
+    prompt; the Home preset leaves out the protection set and is not for work PCs.
 15. **Every new answer file goes to a virtual machine first**, never straight to work PCs.
 
 ## 3. First step: always `get_status`
@@ -110,7 +110,7 @@ Modes are ordered: `edit` includes `read`, `files` includes both. Every tool des
 Values: `level` is `baseline`, `recommended`, `optional` or `risky`; `phase` is `windowspe`, `specialize-xml`,
 `specialize`, `default-user`, `user-first-logon`, `post-oobe` or `oobe-xml`; `part` is `autounattend.xml` (default),
 `Setup-System.ps1`, `Setup-User.ps1` or `Post-OOBE.ps1`; a profile `name` is a preset id (`office`, `strict`,
-`laptop`, `memstechtips`) or the name of a saved profile from `list_profiles`. The person names presets as the window
+`laptop`, `home`) or the name of a saved profile from `list_profiles`. The person names presets as the window
 shows them, for example "Строгий" or "Суворий": pass the id (`strict`; the labels are in section 10). Every argument not
 listed in a tool's schema is refused.
 
@@ -287,7 +287,7 @@ values. Prefer `set_rules` with explicit ids, and use `set_group` only when the 
 
 **Name, author, comment of the profile**
 
-`set_profile_info` `{"name": "Accounting laptops", "author": "IT", "comment": "..."}`; every argument is optional.
+`set_profile_info` `{"name": "Department laptops", "author": "IT", "comment": "..."}`; every argument is optional.
 
 **Open a preset or a saved profile**
 
@@ -403,8 +403,7 @@ Use the labels of the person's language when you guide them:
 | "Office" (preset `office`) | "Офис" | "Офіс" |
 | "Strict" (preset `strict`) | "Строгий" | "Суворий" |
 | "Laptop" (preset `laptop`) | "Ноутбук" | "Ноутбук" |
-
-The preset `memstechtips` has the same name in every language.
+| "Home" (preset `home`) | "Домашний" | "Домашній" |
 
 To review someone else's answer file, the person opens it in the window with "Open profile from autounattend.xml..."
 (you then read it with `get_status`, `get_messages`, `check_profile`, `get_profile` and `diff_profile`). Never ask

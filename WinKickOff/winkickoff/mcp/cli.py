@@ -31,7 +31,7 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument("--port", type=int, help="port for --mcp http (0 or 1024-65535; default: the settings)")
     parser.add_argument("--token", help="bearer token for --mcp http (default: the token saved by the window)")
     parser.add_argument("--mode", choices=MODES, default=MODE_READ, help="read (default), edit or files")
-    parser.add_argument("--profile", help="a preset id (office, strict, laptop, memstechtips), a saved profile name or a path")
+    parser.add_argument("--profile", help="a preset id (office, strict, laptop, home), a saved profile name or a path")
     parser.add_argument("--language", help="language of the texts (en, ru, uk); default: the settings, then Windows")
     parser.add_argument("--mcp-config", choices=("stdio", "http"), help="print the client configuration and exit")
     parser.add_argument("--version", action="store_true", help="print the version and exit")

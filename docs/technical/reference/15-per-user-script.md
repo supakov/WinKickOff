@@ -17,7 +17,7 @@ Section 11 of `Setup-System.ps1` registers the mechanism; the script itself is e
   is delayed by 3-10 seconds while the script rearranges the input languages. No window is shown.
 - Why not FirstLogonCommands and not a scheduled task: FirstLogonCommands run once
   for the first user who signs in; a task running as SYSTEM has no access to the HKCU of the right user without
-  complex token substitution (which is what the original file did). Active Setup has been a standard mechanism since Windows 98 and works
+  complex token substitution. Active Setup has been a standard mechanism since Windows 98 and works
   in all versions of Windows 10/11.
 - Cross-links: `-ExecutionPolicy Bypass` is mandatory (the default policy is Restricted).
   The script runs without elevation: everything it does concerns the current user's HKCU.

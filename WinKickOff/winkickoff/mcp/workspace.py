@@ -26,7 +26,7 @@ from winkickoff.mcp.errors import ToolError
 from winkickoff.mcp.redact import check_name, safe_child
 
 log = logging.getLogger(__name__)
-PRESET_IDS = ("office", "strict", "laptop", "memstechtips")
+PRESET_IDS = ("office", "strict", "laptop", "home")
 POWERSHELL_NOTE = N_("PowerShell syntax not checked: build the file in the window (F9) to check it")  # Check (F7) does not run it, only Build (F9)
 GROUP_ACTIONS = ("on", "off", "defaults")
 
@@ -217,7 +217,7 @@ def is_preset_id(name: str) -> bool:
 
 
 def profile_file(paths: AppPaths, name: str) -> Path:
-    """A preset id (office, strict, laptop, memstechtips) inside the data folder, or profiles/<name>.json."""
+    """A preset id (office, strict, laptop, home) inside the data folder, or profiles/<name>.json."""
     if is_preset_id(name):
         return paths.data / "profiles" / f"preset-{unicodedata.normalize('NFC', name).lower()}.json"
     return safe_child(paths.profiles, name, ".json")

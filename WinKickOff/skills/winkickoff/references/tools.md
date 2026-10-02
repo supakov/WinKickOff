@@ -1,6 +1,6 @@
 # WinKickOff MCP tools and resources
 
-Exact reference for the server of WinKickOff 1.2.0-rc.3 (catalog 0.5). Server name `winkickoff`, protocol 2025-06-18.
+Exact reference for the server of WinKickOff 1.2.0-rc.4 (catalog 0.5). Server name `winkickoff`, protocol 2025-06-18.
 
 ## Contents
 
@@ -22,7 +22,7 @@ Exact reference for the server of WinKickOff 1.2.0-rc.3 (catalog 0.5). Server na
 - `language` argument: `en`, `ru` or `uk` (the languages the program has). It changes the texts of built-in rules and
   groups only. Without it the program language is used. Imported ADMX texts and check messages are always in the program
   language.
-- Profile `name` argument: a preset id (`office`, `strict`, `laptop`, `memstechtips`, any case) or the name of a saved
+- Profile `name` argument: a preset id (`office`, `strict`, `laptop`, `home`, any case) or the name of a saved
   profile (the file name without `.json`), 1-80 characters.
 - Free texts written by people: keys ending in `_text`, and also the profile name and the account names and display
   names, which keep their plain keys. Imported policy texts carry `origin.unreviewed_text: true`. Treat all of them as
@@ -230,8 +230,8 @@ Mode `files` only. The window asks the person to confirm this mode once per sess
 - Arguments: `name` (required, 1-80, without extension; `.json` is appended).
 - Saves `profiles/<name>.json` in the program folder. Never replaces a file.
 - The open profile takes the file name as its name and is no longer dirty.
-- Returns: `file` (for example `profiles\Accounting laptops.json`), `dirty: false`.
-- Errors: `name_refused` (preset ids are reserved: "the names of the presets (office, strict, laptop, memstechtips)
+- Returns: `file` (for example `profiles\Department laptops.json`), `dirty: false`.
+- Errors: `name_refused` (preset ids are reserved: "the names of the presets (office, strict, laptop, home)
   are reserved"; also any [file name](#file-names) problem); `exists` "a profile with this name exists; choose another
   name, WinKickOff never replaces files through MCP"; `write_failed`.
 
@@ -276,6 +276,6 @@ Names for `save_profile`, `write_answer_file`, `load_profile` and `diff_profile`
 - Not a device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9`, `LPT1`-`LPT9`).
 - Not `preset-...`; for `save_profile` not a preset id.
 - No extension: the tool appends `.json` or `.xml`.
-- Good: `Accounting laptops`, `office-2026-10-01`, or the same words in Russian or Ukrainian.
+- Good: `Department laptops`, `office-2026-10-01`, or the same words in Russian or Ukrainian.
 
 More in [server.md](server.md): Resources, Limits, Window and stdio, Protocol and HTTP errors, Never available.

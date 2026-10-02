@@ -1,11 +1,11 @@
 {
   "format_version": 2,
   "catalog_version": "0.5",
-  "name": "memstechtips",
+  "name": "Home",
   "author": "",
   "created": "2026-09-25T00:00:00",
   "modified": "2026-09-25T00:00:00",
-  "comment": "The original UnattendedWinstall answer file (memstechtips, Appendix A) carried over: the rules whose actions are in the original and do not contradict it are on. The product key is asked during installation. Baseline rules of WinKickOff that the original lacks or contradicts are off: read the warnings before use. What is added beyond the original, what is not carried over and why: docs/technical/memstechtips-profile.md.",
+  "comment": "A lighter setup for home PCs: the setup screens of Office (hardware checks bypassed, no Microsoft account or network screens, BitLocker prevented), extra apps, OneDrive and Quick Assist removed, ads, widgets, web search, Copilot and Recall off, minimal telemetry, file extensions shown, File Explorer opens This PC; the product key is asked during installation. The WinKickOff protection set is not applied: the UAC, LSA, Defender (except visible notifications), ASR, SmartScreen, network, logging, update (except Delivery Optimization without the cloud), browser and post-installation rules are off and Windows keeps its defaults. Also off: .NET Framework 3.5 from the media, the automatic Print Spooler start, the user region, the input language list and the display language pin, AutoRun of removable media, and the AI settings of Notepad, Paint, Office and Edge. Check shows the baseline rules that are off. Use Office for work PCs.",
   "install": {
     "edition": "Pro",
     "product_key_mode": "ask",

@@ -69,7 +69,7 @@ from winkickoff.ui.winmenus import MenuMargins, colorref
 log = logging.getLogger(__name__)
 
 WORKFLOW_NODE = "info:workflow"
-PRESET_NAMES = (N_("Office"), N_("Strict"), N_("Laptop"))  # preset names are English data; shown through tr()
+PRESET_NAMES = (N_("Office"), N_("Strict"), N_("Laptop"), N_("Home"))  # preset names are English data; shown through tr()
 HISTORY_LIMIT = 50  # nodes kept for Back
 GROUP_LIST_LIMIT = 300  # rules listed in the description of a group; imported branches hold thousands
 MODE_TITLES = (N_("Read only"), N_("Read and change the open profile"), N_("Change and create files"))

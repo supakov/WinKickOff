@@ -22,7 +22,7 @@
 | DefenderPUAProtection | none | bundled installers, remote access utilities | legitimate PUA-class utilities |
 | DefenderNetworkProtection | Defender as the primary antivirus | all browsers, VPN clients with filters | third-party antivirus (Defender is passive) |
 | DefenderASRRules | cloud protection for three rules, Office in the standard path | Office macros, scripts, USB, PsExec (audit) | in-house programs without reputation (rule in audit mode), remote administration through PsExec/WMI (audit) |
-| ControlledFolderAccess (0) | none | at 1: accounting programs that write to Documents | 1C, M.E.Doc, old Office |
+| ControlledFolderAccess (0) | none | at 1: accounting programs that write to Documents | accounting and banking programs, old Office |
 | SmartScreenLevel | Mark of the Web | launching downloaded programs | Block breaks installation of rare programs |
 | UACAlwaysNotify | none | prompts on system changes | none |
 | InactivityLockSeconds | passwords | screen lock | empty passwords (Enter unlocks) |

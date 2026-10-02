@@ -558,7 +558,7 @@ class ProfilesListTest(McpToolsTestCase):
     def test_presets_from_data_and_user_files_from_root(self) -> None:
         self.assertNotEqual(self.paths.data, self.paths.root)
         other = self.office_profile()
-        other.save(self.paths.profiles / "Каса.json", self.catalog)
+        other.save(self.paths.profiles / "Профіль.json", self.catalog)
         (self.paths.profiles / "CON.json").write_text("{}", encoding="utf-8")  # a reserved name: counted, not listed
         (self.paths.profiles / "preset-mine.json").write_text("{}", encoding="utf-8")  # not a preset folder: ignored
         (self.paths.profiles / "broken.json").write_text("not json", encoding="utf-8")
@@ -567,8 +567,8 @@ class ProfilesListTest(McpToolsTestCase):
         self.assertEqual(sorted(p["name"] for p in presets), sorted(PRESET_IDS))
         self.assertTrue(all(p["readable"] and p["catalog_version"] == self.catalog.version for p in presets))
         users = {p["name"]: p for p in data["profiles"] if p["kind"] == "user"}
-        self.assertEqual(sorted(users), ["broken", "Каса"])
-        self.assertEqual((users["Каса"]["readable"], users["Каса"]["title_text"]), (True, "Office"))
+        self.assertEqual(sorted(users), ["broken", "Профіль"])
+        self.assertEqual((users["Профіль"]["readable"], users["Профіль"]["title_text"]), (True, "Office"))
         self.assertEqual(users["broken"]["readable"], False)
         self.assertEqual(data["unlisted"], 1)
         for entry in data["profiles"]:
@@ -595,9 +595,9 @@ class DiffTest(McpToolsTestCase):
         other = self.office_profile()
         other.rules["printing.spooler-automatic"].enabled = not other.rules["printing.spooler-automatic"].enabled
         other.set_param(INT_RULE, INT_PARAM, 11)
-        other.save(self.paths.profiles / "Каса.json", self.catalog)
+        other.save(self.paths.profiles / "Профіль.json", self.catalog)
         expected = self.profile.diff(other, self.catalog)
-        data = self.ok("diff_profile", name="Каса")
+        data = self.ok("diff_profile", name="Профіль")
         self.assertEqual(data["differences"], [{"kind": d.kind, "key": d.key, "before": d.before, "after": d.after} for d in expected])
         self.assertIn(("param", f"{INT_RULE}.{INT_PARAM}"), [(d["kind"], d["key"]) for d in data["differences"]])
 
@@ -942,10 +942,10 @@ class ProfileInfoTest(McpToolsTestCase):
         self.mode = MODE_EDIT
 
     def test_strips_control_and_invisible_characters(self) -> None:
-        data = self.ok("set_profile_info", name=" Ka" + chr(7) + "sa" + chr(0x200B) + " ", author="me" + chr(1) + chr(0x202E),
+        data = self.ok("set_profile_info", name=" Office" + chr(7) + "-PC" + chr(0x200B) + " ", author="me" + chr(1) + chr(0x202E),
                        comment="line 1\r\nline 2" + chr(0xFEFF))
-        self.assertEqual(data, {"name": "Kasa", "author_text": "me", "comment_text": "line 1\nline 2", "dirty": True})
-        self.assertEqual((self.profile.name, self.profile.author, self.profile.comment), ("Kasa", "me", "line 1\nline 2"))
+        self.assertEqual(data, {"name": "Office-PC", "author_text": "me", "comment_text": "line 1\nline 2", "dirty": True})
+        self.assertEqual((self.profile.name, self.profile.author, self.profile.comment), ("Office-PC", "me", "line 1\nline 2"))
         self.assertTrue(self.workspace.dirty)
 
     def test_refuses_an_empty_name(self) -> None:
@@ -993,11 +993,11 @@ class LoadProfileTest(McpToolsTestCase):
 
     def test_loads_a_saved_user_profile(self) -> None:
         other = self.office_profile()
-        other.name = "Cash desk"
-        other.save(self.paths.profiles / "Каса.json", self.catalog)
-        data = self.ok("load_profile", name="Каса")
-        self.assertEqual(data["file"], str(Path("profiles") / "Каса.json"))
-        self.assertEqual(self.workspace.profile.name, "Cash desk")
+        other.name = "Office PC"
+        other.save(self.paths.profiles / "Профіль.json", self.catalog)
+        data = self.ok("load_profile", name="Профіль")
+        self.assertEqual(data["file"], str(Path("profiles") / "Профіль.json"))
+        self.assertEqual(self.workspace.profile.name, "Office PC")
 
     def test_unknown_and_refused_names(self) -> None:
         self.assertEqual(self.refused("load_profile", "unknown_id", name="nope")["name"], "nope")
@@ -1034,24 +1034,24 @@ class SaveProfileTest(McpToolsTestCase):
     def test_writes_a_new_file_that_loads_back_equal(self) -> None:
         self.ok("set_rules", items=[{"id": "defender.pua", "enabled": False}])
         self.ok("set_param", id=INT_RULE, name=INT_PARAM, value=9)
-        path = self.paths.profiles / "Каса.json"
-        data = self.ok("save_profile", name="Каса")
+        path = self.paths.profiles / "Профіль.json"
+        data = self.ok("save_profile", name="Профіль")
         self.assertEqual(data, {"file": display_path(path, self.paths.root), "dirty": False})
-        self.assertEqual([p.name for p in self.paths.profiles.iterdir()], ["Каса.json"])
+        self.assertEqual([p.name for p in self.paths.profiles.iterdir()], ["Профіль.json"])
         self.assertFalse(self.workspace.dirty)
         loaded, warnings = Profile.load(path, self.catalog)
         self.assertEqual(warnings, [])
         self.assertEqual(loaded.to_dict(self.catalog), self.workspace.profile.to_dict(self.catalog))
-        self.assertEqual((loaded.name, loaded.is_enabled("defender.pua"), loaded.param(self.catalog, INT_RULE, INT_PARAM)), ("Каса", False, 9))
-        self.assertEqual(self.ok("get_status")["profile"], {"name": "Каса", "file": str(Path("profiles") / "Каса.json"), "dirty": False,
+        self.assertEqual((loaded.name, loaded.is_enabled("defender.pua"), loaded.param(self.catalog, INT_RULE, INT_PARAM)), ("Профіль", False, 9))
+        self.assertEqual(self.ok("get_status")["profile"], {"name": "Профіль", "file": str(Path("profiles") / "Профіль.json"), "dirty": False,
                                                             "enabled": len(loaded.enabled_ids()), "total": len(self.catalog.rules)})
 
     def test_never_replaces_an_existing_file(self) -> None:
-        path = self.paths.profiles / "Каса.json"
-        self.ok("save_profile", name="Каса")
+        path = self.paths.profiles / "Профіль.json"
+        self.ok("save_profile", name="Профіль")
         before = path.read_bytes()
         self.ok("set_rules", items=[{"id": "defender.pua", "enabled": False}])
-        self.assertEqual(self.refused("save_profile", "exists", name="Каса")["name"], "Каса")
+        self.assertEqual(self.refused("save_profile", "exists", name="Профіль")["name"], "Профіль")
         self.assertEqual(path.read_bytes(), before)
         self.assertTrue(self.workspace.dirty)
 
@@ -1066,7 +1066,7 @@ class SaveProfileTest(McpToolsTestCase):
         self.assertEqual(list(self.paths.profiles.iterdir()), [])
 
     def test_accepted_names(self) -> None:
-        for name in ("Каса", "Профіль офісу", "Office 2026", "kasa.v2"):
+        for name in ("Профіль", "Профіль офісу", "Office 2026", "office.v2"):
             with self.subTest(name=name):
                 self.assertIsNone(check_name(name))
                 self.assertEqual(self.ok("save_profile", name=name)["file"], str(Path("profiles") / (name + ".json")))
@@ -1090,10 +1090,10 @@ class WriteAnswerFileTest(McpToolsTestCase):
         expected = self.build(self.profile)
         reference = self.tmp / "expected.xml"
         write_answer_file(expected, reference)
-        target = self.paths.output / "Каса.xml"
-        data = self.ok("write_answer_file", name="Каса")
+        target = self.paths.output / "Профіль.xml"
+        data = self.ok("write_answer_file", name="Профіль")
         self.assertEqual(target.read_bytes(), reference.read_bytes())
-        self.assertEqual([p.name for p in self.paths.output.iterdir()], ["Каса.xml"])
+        self.assertEqual([p.name for p in self.paths.output.iterdir()], ["Профіль.xml"])
         self.assertEqual((data["file"], data["rules"], data["powershell_checked"]),
                          (display_path(target, self.paths.root), len(expected.rule_ids), False))
         self.assertEqual(data["issues"][-1], {"level": "info", "target": "powershell", "message": POWERSHELL_NOTE, "doc": None})
@@ -1340,10 +1340,10 @@ class ReviewFixesTest(McpToolsTestCase):
         paths.profiles.mkdir(parents=True)
         for name in PRESET_IDS:
             (paths.profiles / f"preset-{name}.json").write_bytes((ROOT / "profiles" / f"preset-{name}.json").read_bytes())
-        self.office_profile().save(paths.profiles / "Kasa.json", self.catalog)
+        self.office_profile().save(paths.profiles / "Office-PC.json", self.catalog)
         found, unlisted = list_profile_files(paths)
         self.assertEqual(sorted((p["name"], p["kind"]) for p in found),
-                         sorted([(name, "preset") for name in PRESET_IDS] + [("Kasa", "user")]))
+                         sorted([(name, "preset") for name in PRESET_IDS] + [("Office-PC", "user")]))
         self.assertEqual(unlisted, 0)
 
     def test_preview_accepts_product_key_mode_ask(self) -> None:
@@ -1395,7 +1395,7 @@ class ReviewFixesTest(McpToolsTestCase):
 
     def test_save_profile_refuses_the_preset_ids(self) -> None:
         self.mode = MODE_FILES
-        for name in ("office", "Strict", "LAPTOP", "memstechtips"):
+        for name in ("office", "Strict", "LAPTOP", "HOME"):
             with self.subTest(name=name):
                 self.refused("save_profile", "name_refused", name=name)
         self.assertEqual(list(self.paths.profiles.iterdir()), [])
@@ -1416,11 +1416,11 @@ class ReviewFixesTest(McpToolsTestCase):
         self.assertEqual(data["message"], "the file could not be written: OSError")
 
     def test_a_profile_outside_the_program_folder_is_shown_by_file_name(self) -> None:
-        elsewhere = self.tmp / "Documents" / "kasa.json"
+        elsewhere = self.tmp / "Documents" / "office-pc.json"
         self.profile.path = elsewhere
         status = self.ok("get_status")
-        self.assertEqual(status["profile"]["file"], "kasa.json")
-        self.assertEqual(self.ok("get_profile")["file"], "kasa.json")
+        self.assertEqual(status["profile"]["file"], "office-pc.json")
+        self.assertEqual(self.ok("get_profile")["file"], "office-pc.json")
         self.assertNotIn("Documents", json.dumps(status))
         self.profile.path = self.paths.profiles / "mine.json"
         self.assertEqual(self.ok("get_status")["profile"]["file"], str(Path("profiles") / "mine.json"))
@@ -1462,7 +1462,7 @@ class ReservedNamesTest(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertEqual(check_name(name), "the name is a reserved device name")
         self.assertIsNone(check_name("COMMON"))
-        self.assertIsNone(check_name("Каса"))
+        self.assertIsNone(check_name("Профіль"))
 
     def test_reserved_variants_without_os_path_isreserved(self) -> None:
         """Linux has no os.path.isreserved (the pi agent container): the list alone must refuse them."""
@@ -1476,7 +1476,7 @@ class ReservedNamesTest(unittest.TestCase):
 
 class NamesTest(unittest.TestCase):
     def test_check_name_accepts(self) -> None:
-        for name in ("Каса", "Профіль офісу", "Office 2026", "kasa.v2", "a", "x" * 80):
+        for name in ("Профіль", "Профіль офісу", "Office 2026", "office.v2", "a", "x" * 80):
             with self.subTest(name=name):
                 self.assertIsNone(check_name(name))
 

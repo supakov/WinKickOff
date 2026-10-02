@@ -321,6 +321,7 @@
  "no scripts": "немає скриптів",
  "Strict": "Суворий",
  "Laptop": "Ноутбук",
+ "Home": "Домашній",
  "Language": "Мова",
  "takes effect only during Windows installation": "діє лише під час інсталяції Windows",
  "runs at the first sign-in of each user; not applied to a running system": "виконується під час першого входу кожного користувача; на робочій системі не застосовується",

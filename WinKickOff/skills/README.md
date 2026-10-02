@@ -86,5 +86,5 @@ in the copy you zip.
 
 ## Updating
 
-The skill describes WinKickOff 1.2.0-rc.3 and catalog 0.5. When the MCP tools, the presets or the rule catalog change,
+The skill describes WinKickOff 1.2.0-rc.4 and catalog 0.5. When the MCP tools, the presets or the rule catalog change,
 update the skill together with the code, and copy the folder again to every place where it is installed.

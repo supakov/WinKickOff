@@ -7,7 +7,7 @@ where the computers are used by non-professionals and the organisation is under 
 The goal: Windows hardened and updatable from the first boot, without configuring every PC by hand and
 without third-party programs.
 
-State on 02.10.2026: version 1.2.0-rc.3 (release candidate; MCP server for AI clients, read-only by default, with a
+State on 02.10.2026: version 1.2.0-rc.4 (release candidate; MCP server for AI clients, read-only by default, with a
 skill that teaches assistants to use it; import of ADMX policy templates, including policies with lists of values; Back and Forward; imported policies follow the built-in rules). Installation from a built answer file has been
 confirmed by the customer on real hardware. Downloads: the GitHub releases of the repository (portable zip,
 no installation, no administrator rights).
@@ -57,8 +57,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 
 
 - [docs/](docs/README.md): user documentation in three languages, technical documentation, appendices,
   [release notes](docs/releases/).
-- [Appendices](docs/appendices/README.md) (Russian): the original UnattendedWinstall file, our hand-written
-  answer file v0.2 (the reference the WinKickOff catalog grew from), the reviews.
+- [Appendices](docs/appendices/README.md) (Russian): our hand-written answer file v0.2 (the reference the
+  WinKickOff catalog grew from), the critic's report, the first requirements draft.
 - [AGENTS.md](AGENTS.md): repository map for developers and agents.
 - [pi-agent/](pi-agent/README.md): a Podman image of an assistant with a local model (the pi agent) that analyses and
   changes WinKickOff profiles only through the MCP server, without a cloud model (its acceptance test is pending).

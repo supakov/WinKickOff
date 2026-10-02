@@ -31,7 +31,7 @@ Bypassing compatibility checks, a local account without a network connection, .N
   Effect: A safeguard: accounts are created from the file, but if OOBE behavior changes, the key keeps setup from getting stuck on the network screen.
 - **.NET Framework 3.5 from the installation media** (`install.netfx3`). Level: optional. "Office": enabled; "Strict": enabled.
   Searches connected drives for the sources\sxs folder and enables .NET Framework 3.5 (including 2.0 and 3.0) without internet access.
-  Effect: Legacy accounting software, client-bank apps and drivers for digital signature keys work right after installation.
+  Effect: Legacy accounting and banking programs and drivers for digital signature keys work right after installation.
   Risk: The media must stay connected during the first restart; otherwise the component is not installed and a WARN entry is written to the log. It can be added later through Settings when internet access is available.
 
 ## Out-of-box experience (OOBE)
@@ -61,7 +61,7 @@ Print Spooler and protection of printer driver installation.
 
 - **Print Spooler starts automatically** (`printing.spooler-automatic`). Level: baseline. "Office": enabled; "Strict": enabled.
   The Spooler service is set to automatic startup (registry and Set-Service); PrintNotify stays manual.
-  Effect: Printing works right after installation: USB and network printers, "Print to PDF". The original UnattendedWinstall file set the service to manual, and printing did not work.
+  Effect: Printing works right after installation: USB and network printers, "Print to PDF". The service starts with Windows even if it was set to manual start before.
   Risk: Print Spooler has historically been a source of vulnerabilities (PrintNightmare); this is mitigated by the rule that restricts driver installation to administrators and by the firewall.
 - **Only administrators can install printer drivers** (`printing.point-and-print-admins`). Level: recommended. "Office": enabled; "Strict": enabled.
   Point and Print policy: installing and updating printer drivers requires administrator rights and shows a warning.
@@ -115,10 +115,10 @@ Real-time protection, cloud-delivered protection, PUA, network protection, ASR r
 - **Controlled Folder Access (mode)** (`defender.controlled-folder-access`). Level: optional. "Office": enabled; "Strict": enabled.
   Sets the protection mode for the Documents, Pictures and Desktop folders. The default is 0 (off), set as a policy so the user cannot turn it on by accident.
   Effect: In block mode, only trusted apps can write to protected folders; ransomware launched by the user cannot damage documents.
-  Risk: Mode 1 breaks accounting software (1C, M.E.Doc, client-bank apps), older versions of Office and any in-house programs that write to Documents. Recommended path: a month in audit mode (2), review of events 1123/1124, then block mode.
+  Risk: Mode 1 breaks accounting and banking programs, older versions of Office and any in-house programs that write to Documents. Recommended path: a month in audit mode (2), review of events 1123/1124, then block mode.
 - **Windows Security notifications are shown** (`defender.notifications`). Level: baseline. "Office": enabled; "Strict": enabled.
   Security Center notification policies are enforced in the enabled state.
-  Effect: The user sees messages about threats and scan results. The original UnattendedWinstall file turned off all notifications.
+  Effect: The user sees messages about threats and scan results; no Defender notification is turned off.
 - **SmartScreen for downloaded programs and files** (`defender.smartscreen-shell`). Level: recommended. "Office": enabled; "Strict": enabled.
   Running a program downloaded from the internet that has no reputation shows a warning (Warn) or is blocked (Block).
   Effect: Works based on the Internet zone mark; files from USB flash drives and the local network are not checked (they are covered by the ASR rule for USB and by cloud protection).
@@ -209,7 +209,7 @@ UAC, accounts, credential protection, remote access, encryption.
 
 - **UAC enabled, prompts on the secure desktop, Win+L works** (`uac.baseline`). Level: baseline. "Office": enabled; "Strict": enabled.
   Baseline UAC values: enabled, prompts on the secure desktop, standard users enter administrator credentials, installers require elevation, the built-in Administrator runs in Admin Approval Mode, and network logons of local administrators get a filtered token. The ban on locking the screen is removed.
-  Effect: The original UnattendedWinstall file blocked Win+L locking and removed UAC prompts; here it is the opposite.
+  Effect: UAC stays on: elevation prompts appear on the secure desktop, standard users must enter administrator credentials, and Win+L locks the screen.
 - **UAC for administrators: always notify** (`uac.admin-always-notify`). Level: recommended. "Office": disabled; "Strict": enabled.
   The administrator sees a prompt for every elevation, including system components; this closes known UAC bypasses through trusted Windows programs.
   Effect: More "Yes/No" prompts for Admin, including when opening Task Manager (Ctrl+Shift+Esc), the Registry Editor and other Windows tools that otherwise elevate without a prompt; protection against automatic elevation by malicious code. For a standard user (User) these tools open without a prompt in any case.
@@ -284,7 +284,7 @@ SMB, signing, name resolution, firewall.
   Effect: Workgroup computer names continue to resolve through NetBIOS (left enabled) and mDNS.
 - **NetBIOS over TCP/IP disabled** (`network.netbios-off`). Level: risky. "Office": disabled; "Strict": enabled.
   Closes the second name spoofing channel (NBT-NS) and ports 137-139 on all current interfaces.
-  Effect: Without a domain and WINS, a name such as \\PC-BUH resolves only through mDNS (pc-buh.local) or the router's DNS; familiar shortcuts to shared folders may stop working.
+  Effect: Without a domain and WINS, a name such as \\PC-NAME resolves only through mDNS (pc-name.local) or the router's DNS; familiar shortcuts to shared folders may stop working.
   Risk: Interfaces added after installation (a new Wi-Fi adapter, VPN) get the default setting. Enable it only after testing on the specific network.
 - **Firewall on for all profiles, inbound blocked, dropped packets logged** (`network.firewall`). Level: recommended. "Office": enabled; "Strict": enabled.
   Policy for the domain, private and public profiles: the firewall is on and cannot be turned off from Control Panel, inbound connections are blocked by default, outbound connections are allowed, dropped packets are written to a 16 MB file.

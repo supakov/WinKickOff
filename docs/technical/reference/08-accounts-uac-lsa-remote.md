@@ -35,8 +35,8 @@ devices (printers, NAS) that look for shares anonymously; in that case use the v
 - Expected effect at 2: the administrator sees a UAC prompt for every elevation, including changes to
   Windows settings. At 5 the prompt appears only for third-party programs, while system components
   elevate silently (which is what UAC bypasses via fodhelper, eventvwr and others exploited).
-- Cross-links: the original file set 0 (no prompts at all), which gave any program administrator
-  rights without a click. Level 2 closes the known UAC bypasses. For Admin with a blank password
+- Cross-links: value 0 (no prompts at all) would give any program administrator rights without a
+  click. Level 2 closes the known UAC bypasses. For Admin with a blank password
   the UAC prompt is simply a «Да» (Yes) button: protection against automatic elevation, not against the person at the keyboard.
 - Version differences: the values have been the same since Windows Vista. No changes in 24H2.
 - Side effect at 2: Windows tools whose manifest asks for the highest available rights and that normally
@@ -73,7 +73,7 @@ devices (printers, NAS) that look for shares anonymously; in that case use the v
   - Plug-ins loaded into LSA (drivers for smart cards and digital signature tokens, third-party
     authentication providers) must be signed by Microsoft; unsigned ones will not load and will log event
     3033/3063 in the `Microsoft-Windows-CodeIntegrity/Operational` log. Before mass rollout,
-    check the digital signature keys used by the organization (Almaz-1K, Crystal-1, SecureToken).
+    check the digital signature keys used by the organization.
   - The ASR rule for LSASS is not enabled because it is redundant.
   - Credential Guard is not enabled: it requires VBS/Secure Boot and is unavailable on part of the fleet.
 - Version differences: the value 2 is understood by Windows 11 22H2 and later; Windows 10 treats any

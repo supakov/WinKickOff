@@ -528,13 +528,13 @@ class CliHeadlessTest(unittest.TestCase):
 
     def test_stdio_profile_by_saved_name(self) -> None:
         profile, _ = Profile.load(OFFICE, real_catalog())
-        profile.name = "Kasa"
-        profile.save(self.paths.profiles / "Kasa.json", real_catalog())
-        code, raw = self.headless(["--mcp", "stdio", "--language", "en", "--profile", "Kasa"], self.SESSION)
+        profile.name = "Office-PC"
+        profile.save(self.paths.profiles / "Office-PC.json", real_catalog())
+        code, raw = self.headless(["--mcp", "stdio", "--language", "en", "--profile", "Office-PC"], self.SESSION)
         self.assertEqual(code, 0)
         status = self.status_of(raw)
-        self.assertEqual(status["profile"]["name"], "Kasa")
-        self.assertEqual(Path(status["profile"]["file"]), Path("profiles") / "Kasa.json")
+        self.assertEqual(status["profile"]["name"], "Office-PC")
+        self.assertEqual(Path(status["profile"]["file"]), Path("profiles") / "Office-PC.json")
 
     def test_stdio_profile_by_absolute_path(self) -> None:
         code, raw = self.headless(["--mcp", "stdio", "--language", "en", "--profile", str(STRICT)], self.SESSION)

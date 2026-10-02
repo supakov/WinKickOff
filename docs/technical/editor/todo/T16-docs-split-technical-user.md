@@ -20,7 +20,7 @@ Split the documentation into two branches with different readers:
 | `AGENTS.md`, `WinKickOff/templates/README.md`, `WinKickOff/profiles/README.md` | technical | English |
 | `WinKickOff/README.md` | both | a short technical README in English plus links to the user documentation |
 | The "Workflow" node in the window, `README.md` (how to apply, VM verification checklist) | user | `docs/user/{uk,en,ru}/` |
-| `docs/appendices/C-critical-review/` (review of the original, critic report), reports at the customer's request | customer | stay in Russian in the appendices (moved in T17) |
+| `docs/appendices/C-critical-review/` (critic report), reports at the customer's request | customer | stay in Russian in the appendices (moved in T17) |
 
 Code comments and log messages are already in English. Rule texts in the catalog (`summary`,
 `effect`, `risk`) are interface, not documentation: Russian plus `rules/lang/uk.toml`; English

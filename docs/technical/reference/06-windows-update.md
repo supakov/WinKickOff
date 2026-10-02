@@ -32,8 +32,8 @@ it is changed to 3 (manual; normally they are started by triggers).
   a notification about the scheduled restart and can postpone it within the limits of Windows policy.
 - Cross-links:
   - The maximum span of active hours is 18 hours; 12 hours leave the night for the restart.
-  - The original file set `NoAutoRebootWithLoggedOnUsers=1`: with it, a PC that is never
-    switched off would not restart and would accumulate uninstalled updates. Our file does not do this.
+  - `NoAutoRebootWithLoggedOnUsers=1` is not set: with it, a PC that is never switched off would not
+    restart and would accumulate uninstalled updates.
   - The policy makes the «Период активности» (Active hours) page in Settings unavailable for changes.
   - Defender updates (signatures) come through the same channel and do not depend on active hours.
 - Version differences: `AUOptions=4` works on Windows 10 and 11; on Windows 11 24H2 "smart active
@@ -50,7 +50,7 @@ it is changed to 3 (manual; normally they are started by triggers).
 - Expected effect: the «Получать обновления для других продуктов Майкрософт» (Receive updates for other Microsoft products)
   toggle is on and locked. Office 2016/2019 (MSI) and .NET 3.5 receive security fixes together with Windows.
 - Cross-links: Office 365/2021 (Click-to-Run) is updated by its own mechanism; the policy does not affect it.
-  The original file set 0, depriving Office of updates.
+  The value 0 would deprive Office of updates.
 - Version differences: none.
 - Verification: `(New-Object -ComObject Microsoft.Update.ServiceManager).Services | ? IsDefaultAUService`.
 - Rollback: delete the value.
@@ -88,7 +88,7 @@ it is changed to 3 (manual; normally they are started by triggers).
   take it from their neighbors. No traffic is uploaded to the outside.
 - Cross-links:
   - Value 1 matches the Windows default for local accounts; the policy enforces it.
-  - The original file set 99 (fully off, HTTP only): it works, but every PC downloads everything by itself.
+  - Value 99 (simple mode without peers, HTTP only) works, but every PC downloads everything by itself.
   - The exchange needs open port 7680 TCP between the PCs; Windows creates the firewall rule itself.
     The `DefaultInboundAction=block` policy (section 09) does not interfere: the rule is an allow rule.
 - Version differences: modes 0 (HTTP), 1 (LAN), 2 (group), 3 (internet), 99 (simple), 100 (bypass)

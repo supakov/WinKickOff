@@ -34,8 +34,8 @@ class SettingsTest(unittest.TestCase):
                 self.assertEqual(settings.geometry, "")
 
     def test_round_trip_without_leftovers(self) -> None:
-        settings = Settings(geometry="1260x800+10+20", last_profile="profiles\\Каса.json")
-        settings.add_recent(self.root / "profiles" / "Каса.json", self.root)
+        settings = Settings(geometry="1260x800+10+20", last_profile="profiles\\Профіль.json")
+        settings.add_recent(self.root / "profiles" / "Профіль.json", self.root)
         settings.save(self.file)
         self.assertEqual(Settings.load(self.file), settings)
         self.assertEqual(sorted(p.name for p in self.root.iterdir()), ["settings.json"])

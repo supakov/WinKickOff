@@ -461,23 +461,23 @@ class ToolsOverHttpTest(McpWindowTestCase):
 
     def test_save_profile_in_files_mode_writes_into_the_profiles_folder(self) -> None:
         client = self.start(MODE_FILES)
-        result = self.in_thread(lambda: client.call("save_profile", {"name": "Каса"}))
+        result = self.in_thread(lambda: client.call("save_profile", {"name": "Профіль"}))
         self.assertFalse(result["isError"], result)
         self.assertFalse(result["structuredContent"]["dirty"])
-        target = self.paths.profiles / "Каса.json"
+        target = self.paths.profiles / "Профіль.json"
         self.assertTrue(target.is_file())
-        self.assertEqual(self.win.profile.name, "Каса")
+        self.assertEqual(self.win.profile.name, "Профіль")
         self.assertEqual(self.win.profile.path, target)
         self.assertFalse(self.win.dirty)
         self.assertIn("Profile saved", self.win.status_var.get())
-        self.assertIn("Каса", self.win.profile_box.cget("values"))
-        again = self.in_thread(lambda: client.call("save_profile", {"name": "Каса"}))
+        self.assertIn("Профіль", self.win.profile_box.cget("values"))
+        again = self.in_thread(lambda: client.call("save_profile", {"name": "Профіль"}))
         self.assertEqual(again["structuredContent"]["error"], "exists")
-        self.assertEqual(sorted(p.name for p in self.paths.profiles.iterdir()), ["Каса.json"])
+        self.assertEqual(sorted(p.name for p in self.paths.profiles.iterdir()), ["Профіль.json"])
 
     def test_save_profile_in_edit_mode_is_refused(self) -> None:
         client = self.start(MODE_EDIT)
-        result = self.in_thread(lambda: client.call("save_profile", {"name": "Каса"}))
+        result = self.in_thread(lambda: client.call("save_profile", {"name": "Профіль"}))
         self.assertEqual(result["structuredContent"]["error"], "mode_required")
         self.assertEqual(list(self.paths.profiles.iterdir()), [])
 

@@ -31,7 +31,7 @@ LANGUAGES = ("ru", "uk", "en")  # the languages of docs/user
 # .claude holds worktrees of agent sessions (copies of other branches); .venv, venv and node_modules hold third-party
 # files; build and dist are left by tools/build.ps1 (dist holds copies of the documentation without the appendices);
 # none of them is part of the repository
-SKIP_PARTS = {".git", "__pycache__", "A-unattendedwinstall", "output", "logs", ".claude", ".venv", "venv", "node_modules",
+SKIP_PARTS = {".git", "__pycache__", "output", "logs", ".claude", ".venv", "venv", "node_modules",
               "build", "dist"}
 FROZEN = "docs/appendices/"  # the originals there keep their own bytes, line endings included
 CRLF_FIX = ("python3 -c \"import pathlib,sys; [pathlib.Path(p).write_bytes(pathlib.Path(p).read_bytes()"
