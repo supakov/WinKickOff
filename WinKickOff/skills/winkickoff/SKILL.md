@@ -1,7 +1,7 @@
 ---
 name: winkickoff
 description: Uses the WinKickOff MCP server to explain rules, adjust a profile, check it and prepare an autounattend.xml for a test install. Use for WinKickOff rules, presets and profiles; not for WinKickOff code.
-compatibility: Needs the WinKickOff MCP server (WinKickOff 1.2.0-rc.2 or later) connected to the agent over stdio or HTTP on 127.0.0.1.
+compatibility: Needs the WinKickOff MCP server (WinKickOff 1.2.0-rc.3 or later) connected to the agent over stdio or HTTP on 127.0.0.1.
 metadata:
   version: "1.0"
 ---

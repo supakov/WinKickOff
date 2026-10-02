@@ -7,7 +7,7 @@ where the computers are used by non-professionals and the organisation is under 
 The goal: Windows hardened and updatable from the first boot, without configuring every PC by hand and
 without third-party programs.
 
-State on 01.10.2026: version 1.2.0-rc.2 (release candidate; MCP server for AI clients, read-only by default, with a
+State on 02.10.2026: version 1.2.0-rc.3 (release candidate; MCP server for AI clients, read-only by default, with a
 skill that teaches assistants to use it; import of ADMX policy templates, including policies with lists of values; Back and Forward; imported policies follow the built-in rules). Installation from a built answer file has been
 confirmed by the customer on real hardware. Downloads: the GitHub releases of the repository (portable zip,
 no installation, no administrator rights).
