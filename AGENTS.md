@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 02.10.2026 (release 1.2.0-rc.4: the Home preset defined by its own list of rules; customer-specific places and programs removed; Appendix A and the review of the original deleted).
+Last update: 02.10.2026 (the tree root "Unknown rules and policies" for the choices a profile keeps for rules the loaded catalog does not have, such as policies of imported templates that are not loaded; after release 1.2.0-rc.4).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -332,6 +332,13 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   (`Catalog.aliases`, `placements()`), with the tree item id `r:<rule>@<group>`. Code that takes a rule from a tree
   item uses `rule_of()` of `ui/main_window.py`, never `item[2:]`, and This PC gets canonical `r:<rule>` items.
   `import.json` `renamed: true` keeps a name given by the user when the import is updated in place.
+- Unknown choices (02.10.2026, after 1.2.0-rc.4): `Profile.unknown` holds the states of rules the loaded catalog does
+  not have (policies of hidden or deleted imports, rules of another catalog version); they are never built, validated
+  or applied. The window lists them under the last root `unknown` with items `u:<rule id>` (`Profile.unknown_entries()`),
+  only while there are any; they cannot be toggled, search matches their ids, and the MCP `show_item` pattern does not
+  accept them. The description names the hidden saved imports that have the policy (`admx.policy_ids()`, the ids
+  `catalog_part` gives, read once per window) and offers "Show ..." (`show_templates(id, True, "r:<rule>")`) or the
+  import commands of the ADMX menu.
 - MCP server (T22, `winkickoff/mcp/`, design in `docs/technical/editor/todo/T22-mcp-server.md`, description in
   `docs/technical/editor/07-mcp-server.md`): protocol 2025-06-18 on JSON-RPC 2.0, hand-written on the standard library;
   the HTTP listener binds the literal 127.0.0.1 (`tests/test_sources.py` allows `http.server` in `mcp/httpserver.py`
@@ -409,7 +416,7 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
 | Editor tasks | T01-T12, T14, T16-T22 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 30.09.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.5: 251 rules, 36 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer 15), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.5 adds the parameter type `list` and the action `reg-list` (runtime Set-RegList, Test-RegList), the rules themselves are those of 0.4 | 30.09.2026 | `WinKickOff/rules/` |
-| Editor code | 1.2.0-rc.4 (Home preset; customer specifics removed; skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 684 tests | 01.10.2026 | `WinKickOff/` |
+| Editor code | 1.2.0-rc.4 and after it the tree root of unknown rules and policies (Home preset; customer specifics removed; skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 689 tests | 02.10.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply (rules on are applied, rules off return to Windows defaults) and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 29.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |

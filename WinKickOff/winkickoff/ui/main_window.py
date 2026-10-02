@@ -91,6 +91,20 @@ PHASE_TITLES = {
 }
 ISSUE_TITLES = {"error": N_("error"), "warning": N_("warning"), "info": N_("information"), "change": N_("changed")}
 VK_S, VK_O, VK_F = 83, 79, 70  # virtual-key codes: shortcuts work with any keyboard layout
+UNKNOWN_NODE = "unknown"  # the root of the choices kept in the profile for rules the loaded catalog does not have
+UNKNOWN_PREFIX = "u:"  # its items: "u:<rule id>" (Profile.unknown)
+UNKNOWN_TITLE = N_("Unknown rules and policies")
+UNKNOWN_SUMMARY = N_("The open profile keeps choices for rules that the loaded catalog does not have: policies of imported "
+                     "templates that are not loaded, or rules of another version of WinKickOff. They come back when their "
+                     "rules are there again; until then they are not written to autounattend.xml, not checked and not "
+                     "applied to this PC.")
+UNKNOWN_POLICY = N_("A policy of imported templates that are not loaded now. The profile keeps its state and parameters and "
+                    "brings them back when the templates are shown or imported again (menu \"ADMX\"). Until then the policy "
+                    "is not written to autounattend.xml, not checked and not applied to this PC.")
+UNKNOWN_RULE = N_("A rule that is not in rule catalog {0}: the profile was probably saved by another version of WinKickOff. "
+                  "The profile keeps its state and parameters and brings them back when the catalog has the rule. Until "
+                  "then the rule is not written to autounattend.xml, not checked and not applied to this PC.")
+VALUE_LIMIT = 300  # characters of a kept parameter value shown in the description
 
 WORKFLOW = [
     ("h1", N_("Workflow")),
@@ -192,6 +206,8 @@ class MainWindow(tk.Tk):
         self._overlapping = [rid for rid in catalog.rules if is_imported(rid) and catalog.same_values(rid)]
         self._covered: set[str] = set()
         self._future: list[str] = []  # nodes left by Back (Forward)
+        self._saved_imports: list[admx_module.ImportInfo] | None = None  # read when an unknown policy is shown
+        self._import_ids: dict[str, set[str]] = {}  # policy ids of the saved imports read so far
         self.forms: dict[str, InstallForm | AccountsForm | LanguagesForm] = {}
 
         self.geometry(self.settings.geometry or "1260x800")
@@ -527,6 +543,7 @@ class MainWindow(tk.Tk):
         self.tree.tag_configure("risky", foreground=self.color("risky"))
         self.tree.tag_configure("info", foreground=self.color("changed"))
         self.tree.tag_configure("linked", foreground=self.color("link"))
+        self.tree.tag_configure("unknown", foreground=self.color("warning"))
         self.tree.bind("<Button-1>", self._on_tree_click)
         self.tree.bind("<Double-Button-1>", self._on_tree_double)
         self.tree.bind("<space>", self._on_space)
@@ -623,7 +640,8 @@ class MainWindow(tk.Tk):
     # ----------------------------------------------------------------- tree
 
     def rebuild_tree(self, visible: set[str] | None = None) -> None:
-        """Build the tree from the catalog. With visible, only those rules (and their groups) are shown, expanded."""
+        """Build the tree from the catalog. With visible, only those rules (and their groups) are shown, expanded;
+        it may also name ids of the profile's unknown choices."""
         self._update_covered()
         self.tree.delete(*self.tree.get_children(""))
         if visible is None:
@@ -631,6 +649,23 @@ class MainWindow(tk.Tk):
             for iid, title in DATA_NODES:
                 self.tree.insert("", tk.END, iid=iid, text="  " + tr(title))
         self._insert_groups("", None, visible)
+        self._insert_unknown(visible)
+
+    def _insert_unknown(self, visible: set[str] | None) -> None:
+        """The last root lists the choices the profile keeps for rules the loaded catalog does not have, such as
+        policies of imported templates that are not loaded; it exists only while there are any."""
+        entries = [entry for entry in self.profile.unknown_entries() if visible is None or entry[0] in visible]
+        if not entries:
+            return
+        is_open = visible is not None or UNKNOWN_NODE in self._open_groups
+        self.tree.insert("", tk.END, iid=UNKNOWN_NODE, text=self._unknown_text(), tags=("unknown",), open=is_open)
+        for rule_id, enabled, _params in entries:
+            self.tree.insert(UNKNOWN_NODE, tk.END, iid=UNKNOWN_PREFIX + rule_id, text=" " + rule_id,
+                             image=self.images["on" if enabled else "off"], tags=() if enabled else ("off",))
+
+    def _unknown_text(self) -> str:
+        entries = self.profile.unknown_entries()
+        return "  " + tr("{0}   {1} of {2}", tr(UNKNOWN_TITLE), sum(1 for entry in entries if entry[1]), len(entries))
 
     def _insert_groups(self, parent_item: str, parent_group: str | None, visible: set[str] | None) -> None:
         for group in self.catalog.children(parent_group):
@@ -738,7 +773,7 @@ class MainWindow(tk.Tk):
         element = str(self.tree.identify_element(event.x, event.y))
         if "indicator" not in element:  # the "+" only opens the branch; anything else shows the node
             self._remember(item)
-        if "image" in element and (item.startswith("r:") or item.startswith("g:")):
+        if "image" in element and item.startswith(("r:", "g:", UNKNOWN_PREFIX)):
             self.tree.selection_set(item)
             self.tree.focus(item)
             self.toggle_item(item)
@@ -751,10 +786,10 @@ class MainWindow(tk.Tk):
         on a group's text or indicator the default (open or close) applies."""
         item = self.tree.identify_row(event.y)
         element = str(self.tree.identify_element(event.x, event.y))
-        if "image" in element and (item.startswith("r:") or item.startswith("g:")):
+        if "image" in element and item.startswith(("r:", "g:", UNKNOWN_PREFIX)):
             self.toggle_item(item)
             return "break"
-        if item.startswith("r:") and "indicator" not in element:
+        if item.startswith(("r:", UNKNOWN_PREFIX)) and "indicator" not in element:
             self.toggle_item(item)
             return "break"
         return None
@@ -789,6 +824,9 @@ class MainWindow(tk.Tk):
                 return []
             changes = self.resolver.set_group(self.profile, item[2:], on != total and not is_imported(item[2:]))
             scope = {r.id for r in self.catalog.rules_in_group(item[2:])}
+        elif item.startswith(UNKNOWN_PREFIX):
+            self.set_status(tr("An unknown choice is kept in the profile as it is; it can be changed when its rule is loaded again"))
+            return []
         else:
             return []
         changes = changes + self._drop_redundant()
@@ -880,6 +918,8 @@ class MainWindow(tk.Tk):
             texts = catalog_texts()
             found |= {r.id for r in self.catalog.rules.values()
                       if needle in " ".join([self.rule_text(r, "title"), self.rule_text(r, "summary"), *texts.tags(r)]).lower()}
+        words = query.lower().split()  # unknown choices have only their ids to search in
+        found |= {rule_id for rule_id, _, _ in self.profile.unknown_entries() if all(w in rule_id.lower() for w in words)}
         self.rebuild_tree(found)
         self.set_status(tr("Rules found: {0}", len(found)) if found else tr("Nothing found"))
 
@@ -923,6 +963,8 @@ class MainWindow(tk.Tk):
         elif item.startswith("g:"):
             self._write_detail(self._group_parts(item[2:]))
             self._build_group_buttons(item[2:])
+        elif item == UNKNOWN_NODE or item.startswith(UNKNOWN_PREFIX):
+            self._show_unknown(item)
         else:
             self._write_detail([(tag, tr(text)) for tag, text in WORKFLOW])
             self._clear_params()
@@ -1013,6 +1055,119 @@ class MainWindow(tk.Tk):
             parts.append(("muted", tr("... and {0} more: open the branches or use the search", len(rules) - GROUP_LIST_LIMIT)))
         return parts
 
+    # ----------------------------------------------------------------- unknown choices of the profile
+
+    def _show_unknown(self, item: str) -> None:
+        """The root of the unknown choices or one of them: what the profile keeps, and the saved imports that have
+        the policies (showing one brings the choices back)."""
+        entries = self.profile.unknown_entries()
+        if item != UNKNOWN_NODE:
+            entries = [entry for entry in entries if entry[0] == item[len(UNKNOWN_PREFIX):]]
+        if not entries:  # the profile changed under the item
+            self._write_detail([(tag, tr(text)) for tag, text in WORKFLOW])
+            self._clear_params()
+            return
+        sources, missing = self._unknown_sources([entry[0] for entry in entries])
+        single = item != UNKNOWN_NODE
+        parts = self._unknown_entry_parts(entries[0]) if single else self._unknown_root_parts(entries)
+        if sources or missing:
+            parts.append(("h2", tr("Imported templates")))
+            for info, count in sources:
+                parts.append(("", tr("The saved imported templates \"{0}\" have this policy; they are hidden now.", info.name) if single
+                              else tr("The saved imported templates \"{0}\" have {1} of these policies; they are hidden now.", info.name, count)))
+            if missing:
+                parts.append(("", tr("None of the imported templates saved in the program folder has this policy: import the "
+                                     "templates that define it.") if single else
+                              tr("{0} of these policies are in none of the imported templates saved in the program folder: "
+                                 "import the templates that define them.", missing)))
+        self._write_detail(parts)
+        self._build_unknown_buttons(item, sources, missing)
+
+    def _unknown_entry_parts(self, entry: tuple[str, bool, dict[str, Any]]) -> list[tuple[str, str]]:
+        rule_id, enabled, params = entry
+        parts: list[tuple[str, str]] = [
+            ("h1", rule_id),
+            ("muted", tr("{0}   |   not in the loaded catalog", tr("Enabled") if enabled else tr("Disabled"))),
+            ("", tr(UNKNOWN_POLICY) if is_imported(rule_id) else tr(UNKNOWN_RULE, self.catalog.version)),
+            ("h2", tr("Kept in the profile")),
+            ("", tr("State: {0}", tr("enabled") if enabled else tr("disabled"))),
+        ]
+        if not params:
+            return parts + [("muted", tr("No parameters"))]
+        return parts + [("", tr("Parameters:"))] + [("mono", f"{name} = {self._kept_value(value)}") for name, value in params.items()]
+
+    def _unknown_root_parts(self, entries: list[tuple[str, bool, dict[str, Any]]]) -> list[tuple[str, str]]:
+        parts: list[tuple[str, str]] = [
+            ("h1", tr(UNKNOWN_TITLE)),
+            ("muted", tr("Rules: {0}, enabled: {1}", len(entries), sum(1 for entry in entries if entry[1]))),
+            ("", tr(UNKNOWN_SUMMARY)),
+            ("h2", tr("Kept in the profile")),
+        ]
+        for rule_id, enabled, _params in entries[:GROUP_LIST_LIMIT]:
+            parts.append((f"link:{UNKNOWN_PREFIX}{rule_id}", f"{'[x]' if enabled else '[ ]'} {rule_id}"))
+        if len(entries) > GROUP_LIST_LIMIT:
+            parts.append(("muted", tr("... and {0} more: open the branches or use the search", len(entries) - GROUP_LIST_LIMIT)))
+        return parts
+
+    @staticmethod
+    def _kept_value(value: Any) -> str:
+        """A parameter value as the profile file holds it, cut when it is long."""
+        text = json.dumps(value, ensure_ascii=False, default=str)
+        return text if len(text) <= VALUE_LIMIT else text[:VALUE_LIMIT] + "..."
+
+    def _hidden_imports_with(self, rule_id: str) -> list[admx_module.ImportInfo]:
+        """Saved imports, hidden now, that have this policy. Their policies are read once per window: every change of
+        the imports rebuilds the window."""
+        if self._saved_imports is None:
+            self._saved_imports = admx_module.list_imports(self.paths.admx)
+        found = []
+        for info in self._saved_imports:
+            if info.id in self.settings.admx:
+                continue
+            ids = self._import_ids.get(info.id)
+            if ids is None:
+                try:
+                    ids = admx_module.policy_ids(admx_module.load_import(self.paths.admx, info.id)[1], language())
+                except (admx_module.AdmxError, AttributeError, KeyError, TypeError) as exc:
+                    log.warning("import %s not read: %s", info.id, exc)
+                    ids = set()
+                self._import_ids[info.id] = ids
+            if admx_module.has_policy(ids, rule_id):
+                found.append(info)
+        return found
+
+    def _unknown_sources(self, rule_ids: list[str]) -> tuple[list[tuple[admx_module.ImportInfo, int]], int]:
+        """The hidden saved imports that have some of these policies, with how many; and how many policies none has."""
+        hits: dict[str, tuple[admx_module.ImportInfo, int]] = {}
+        missing = 0
+        for rule_id in rule_ids:
+            if not is_imported(rule_id):
+                continue
+            found = self._hidden_imports_with(rule_id)
+            if not found:
+                missing += 1
+            for info in found:
+                hits[info.id] = (info, hits[info.id][1] + 1 if info.id in hits else 1)
+        return list(hits.values()), missing
+
+    def _build_unknown_buttons(self, item: str, sources: list[tuple[admx_module.ImportInfo, int]], missing: int) -> None:
+        """Show a hidden import that has the policies (the window opens on the policy or on the tree), or import new
+        templates."""
+        self._clear_params()
+        if not sources and not missing:
+            return
+        self.params_frame.configure(text=tr("Imported templates"))
+        self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
+        buttons = []
+        for info, _count in sources:
+            target = "g:" + IMPORTED_PREFIX + info.id if item == UNKNOWN_NODE else "r:" + item[len(UNKNOWN_PREFIX):]
+            buttons.append((tr("Show \"{0}\"", info.name), lambda i=info.id, t=target: self.show_templates(i, True, t)))
+        if missing:
+            buttons += [(tr("Import the templates of this Windows"), lambda: self.import_templates(True)),
+                        (tr("Import templates from a folder..."), lambda: self.import_templates(False))]
+        for text, command in buttons:
+            ttk.Button(self.params_frame, text=text, command=command).pack(side=tk.LEFT, padx=(0, 6))
+
     def _action_text(self, action: Action, params: dict[str, Any]) -> str:
         f = action.fields
         if action.type == "xml-oobe":
@@ -1068,6 +1223,10 @@ class MainWindow(tk.Tk):
     def can_show(self, item: str) -> bool:
         if item == WORKFLOW_NODE or item.startswith("data:"):
             return True
+        if item == UNKNOWN_NODE:
+            return bool(self.profile.unknown)
+        if item.startswith(UNKNOWN_PREFIX):
+            return item[len(UNKNOWN_PREFIX):] in self.profile.unknown
         if item.startswith("g:"):
             return item[2:] in self.catalog.groups
         return item.startswith("r:") and rule_of(item) in self.catalog.rules
@@ -2141,14 +2300,15 @@ class MainWindow(tk.Tk):
         shown = import_id in self.settings.admx
         self._restart("g:" + IMPORTED_PREFIX + import_id if shown else None, status=tr("Imported tree renamed: \"{0}\"", info.name))
 
-    def show_templates(self, import_id: str, shown: bool) -> None:
-        """Show or hide a saved import; the choice is remembered for the next start."""
+    def show_templates(self, import_id: str, shown: bool, item: str | None = None) -> None:
+        """Show or hide a saved import; the choice is remembered for the next start. item: the node to open then
+        (by default the shown tree)."""
         wanted = [i for i in self.settings.admx if i != import_id] + ([import_id] if shown else [])
         if wanted == self.settings.admx:
             return
         self.settings.admx = wanted
         self.save_settings()
-        self._restart("g:" + IMPORTED_PREFIX + import_id if shown else None)
+        self._restart(item or ("g:" + IMPORTED_PREFIX + import_id if shown else None))
 
     def delete_templates(self, import_id: str, name: str) -> None:
         if not self._dialog(messagebox.askyesno, APP_NAME, tr("Delete the imported templates \"{0}\" from the program folder? Profiles "

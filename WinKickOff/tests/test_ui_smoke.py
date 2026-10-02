@@ -97,6 +97,23 @@ class MainWindowSmokeTest(unittest.TestCase):
         rules = [i for i in self.win._all_items() if i.startswith("r:")]
         self.assertEqual(len(rules), len(self.catalog.rules))
 
+    def test_unknown_rule_of_another_version(self) -> None:
+        from winkickoff.ui.main_window import UNKNOWN_NODE
+
+        self.assertFalse(self.win.tree.exists(UNKNOWN_NODE))  # the root exists only while the profile keeps such choices
+        self.assertFalse(self.win.can_show(UNKNOWN_NODE))
+        profile = self.win.profile.copy()
+        profile.unknown = {"ghost.rule": {"enabled": True, "params": {"hours": 4}}}
+        self.win.set_profile(profile, dirty=False)
+        self.assertEqual(self.win.tree.get_children(UNKNOWN_NODE), ("u:ghost.rule",))
+        self.assertTrue(self.win.can_show("u:ghost.rule"))
+        self.win.follow_link("u:ghost.rule")
+        text = self.win.detail.get("1.0", "end")
+        self.assertIn(f"A rule that is not in rule catalog {self.catalog.version}", text)
+        self.assertIn("hours = 4", text)
+        self.assertEqual(self.win.params_frame.winfo_children(), [])  # no templates to show or import for a rule
+        self.assertFalse(self.win.params_frame.winfo_ismapped())
+
     def test_plus_only_opens_the_branch(self) -> None:
         group = self.first_group()
         counts = self.win._group_counts(group[2:])

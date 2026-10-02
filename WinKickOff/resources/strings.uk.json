@@ -540,5 +540,21 @@
  "all transports": "усі транспорти",
  "The MCP server did not start: port {0} is used by another program. Clients configured for this port may already have sent the access token to that program. Choose another port in the monitor and generate a new access token (MCP menu).": "Сервер MCP не запущено: порт {0} зайнятий іншою програмою. Клієнти, налаштовані на цей порт, могли вже надіслати тій програмі токен доступу. Виберіть інший порт у моніторі та створіть новий токен доступу (меню «MCP»).",
  "The clipboard is busy, nothing was copied. Try again.": "Буфер обміну зайнятий, нічого не скопійовано. Спробуйте ще раз.",
- "PowerShell syntax not checked: build the file in the window (F9) to check it": "Синтаксис PowerShell не перевірено: зберіть файл у вікні (F9), щоб перевірити його"
+ "PowerShell syntax not checked: build the file in the window (F9) to check it": "Синтаксис PowerShell не перевірено: зберіть файл у вікні (F9), щоб перевірити його",
+ "Unknown rules and policies": "Невідомі правила та політики",
+ "The open profile keeps choices for rules that the loaded catalog does not have: policies of imported templates that are not loaded, or rules of another version of WinKickOff. They come back when their rules are there again; until then they are not written to autounattend.xml, not checked and not applied to this PC.": "Відкритий профіль зберігає вибір для правил, яких немає в завантаженому каталозі: політик імпортованих шаблонів, які зараз не завантажені, або правил іншої версії WinKickOff. Вибір повернеться, коли ці правила знову з'являться; доти вони не записуються в autounattend.xml, не перевіряються і не застосовуються до цього ПК.",
+ "A policy of imported templates that are not loaded now. The profile keeps its state and parameters and brings them back when the templates are shown or imported again (menu \"ADMX\"). Until then the policy is not written to autounattend.xml, not checked and not applied to this PC.": "Політика імпортованих шаблонів, які зараз не завантажені. Профіль зберігає її стан і параметри та поверне їх, коли шаблони знову буде показано або імпортовано (меню «ADMX»). Доти політика не записується в autounattend.xml, не перевіряється і не застосовується до цього ПК.",
+ "A rule that is not in rule catalog {0}: the profile was probably saved by another version of WinKickOff. The profile keeps its state and parameters and brings them back when the catalog has the rule. Until then the rule is not written to autounattend.xml, not checked and not applied to this PC.": "Цього правила немає в каталозі правил {0}: імовірно, профіль збережено іншою версією WinKickOff. Профіль зберігає стан і параметри правила та поверне їх, коли правило з'явиться в каталозі. Доти правило не записується в autounattend.xml, не перевіряється і не застосовується до цього ПК.",
+ "An unknown choice is kept in the profile as it is; it can be changed when its rule is loaded again": "Невідомий вибір зберігається в профілі як є; змінити його можна, коли його правило знову буде завантажено",
+ "Imported templates": "Імпортовані шаблони",
+ "The saved imported templates \"{0}\" have this policy; they are hidden now.": "Ця політика є в збережених імпортованих шаблонах «{0}»; зараз вони приховані.",
+ "The saved imported templates \"{0}\" have {1} of these policies; they are hidden now.": "У збережених імпортованих шаблонах «{0}» є {1} з цих політик; зараз вони приховані.",
+ "None of the imported templates saved in the program folder has this policy: import the templates that define it.": "Цієї політики немає в жодних імпортованих шаблонах, збережених у папці програми: імпортуйте шаблони, у яких її визначено.",
+ "{0} of these policies are in none of the imported templates saved in the program folder: import the templates that define them.": "{0} з цих політик немає в жодних імпортованих шаблонах, збережених у папці програми: імпортуйте шаблони, у яких їх визначено.",
+ "{0}   |   not in the loaded catalog": "{0}   |   немає в завантаженому каталозі",
+ "Kept in the profile": "Зберігається в профілі",
+ "State: {0}": "Стан: {0}",
+ "No parameters": "Параметрів немає",
+ "Parameters:": "Параметри:",
+ "Show \"{0}\"": "Показати «{0}»"
 }

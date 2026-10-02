@@ -245,7 +245,9 @@ the frame (attribute 20), which older builds understand.
   are on or have parameters are written, an absent one is "not configured" and is not reported as new.
 - `params` is present only for rules with parameters; a missing parameter = the default value.
 - Rules from an old profile that are not in the catalog are moved to `unknown` and are not lost; when such a
-  rule is in the catalog again (templates loaded again), its state comes back from `unknown`.
+  rule is in the catalog again (templates loaded again), its state comes back from `unknown`. Until then they are
+  not built, validated or applied; the window lists them under the last root of the tree,
+  "Unknown rules and policies" (`Profile.unknown_entries()`), which exists only while `unknown` is not empty.
 - Passwords are in plain text; profiles with a password are marked in the recent list.
 
 ## 5. Reference data
@@ -343,6 +345,14 @@ Behaviour that differs from built-in rules: an imported policy without a check m
 written to the profile, not validated, not reverted by "Apply the selection now"); "Return to Windows defaults"
 takes it only when it is selected itself; the check box of an imported group only switches off; the validator
 warns when an imported policy and a built-in rule with the same value are both on.
+
+Policies of templates that are not loaded: a profile keeps them in `unknown` (section 4), and the window shows them
+under the root "Unknown rules and policies" (tree items `unknown` and `u:<rule id>`; image on or off, tag `off`,
+no toggling, found by search in their ids). The description of such an item names the saved imports, hidden now,
+that have the policy: `admx.policy_ids()` gives the ids an import's policies get (the same code as `catalog_part`),
+`has_policy()` also accepts `<id>.off`; the window reads each hidden import once and caches the ids, since every
+change of the imports rebuilds it. A button "Show ..." shows that import (`show_templates` with the policy as the
+item to open), and when no saved import has the policy the buttons of the ADMX menu import new templates.
 
 Untrusted input: documents with a DTD or entities are refused (the parser does not resolve entities anyway), a
 file is at most 16 MB and a folder at most 3000 templates, files are decoded by their BOM; keys and value names

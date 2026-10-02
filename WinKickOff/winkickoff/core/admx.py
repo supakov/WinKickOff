@@ -34,7 +34,7 @@ import platform
 import re
 import shutil
 import xml.etree.ElementTree as ET
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -787,6 +787,30 @@ def policy_rules(policy: dict[str, Any], rule_id: str, group: str, language: str
     ]
 
 
+def _named_policies(data: dict[str, Any], language: str) -> Iterator[tuple[dict[str, Any], str]]:
+    """The policies of an import with the ids of their rules: the namespace and the name, numbered when two policies
+    get the same id. Profiles keep these ids, so they fit any import of the same templates."""
+    ids: set[str] = set()
+    ordered = sorted(data.get("policies", []), key=lambda p: (pick(p.get("title"), language) or p.get("name", "")).lower())
+    for policy in ordered:
+        base = f"{IMPORTED_PREFIX}{_id_part(policy['namespace'], True)}.{_id_part(policy['name'], False)}"
+        rule_id, index = base, 2
+        while rule_id in ids:
+            rule_id, index = f"{base}-{index}", index + 1
+        ids.add(rule_id)
+        yield policy, rule_id
+
+
+def policy_ids(data: dict[str, Any], language: str) -> set[str]:
+    """The ids of the policies of an import, as their rules get them (without the "<id>.off" of a Disabled state)."""
+    return {rule_id for _, rule_id in _named_policies(data, language)}
+
+
+def has_policy(ids: set[str], rule_id: str) -> bool:
+    """A rule id of a profile belongs to one of these policies: the policy itself or its Disabled state."""
+    return rule_id in ids or (rule_id.endswith(".off") and rule_id[:-len(".off")] in ids)
+
+
 @dataclass
 class ImportedPart:
     groups: dict[str, Group] = field(default_factory=dict)
@@ -827,14 +851,7 @@ def catalog_part(info: ImportInfo, data: dict[str, Any], language: str, taken: s
             parent = group_id
         return parent
 
-    ids: set[str] = set()
-    ordered = sorted(data.get("policies", []), key=lambda p: (pick(p.get("title"), language) or p.get("name", "")).lower())
-    for policy in ordered:
-        base = f"{IMPORTED_PREFIX}{_id_part(policy['namespace'], True)}.{_id_part(policy['name'], False)}"
-        rule_id, index = base, 2
-        while rule_id in ids:
-            rule_id, index = f"{base}-{index}", index + 1
-        ids.add(rule_id)
+    for policy, rule_id in _named_policies(data, language):
         side = "user" if policy.get("class") == "User" else "machine"
         if rule_id in taken:
             group = group_for(side, policy.get("category", ""))

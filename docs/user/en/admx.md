@@ -91,6 +91,14 @@ opened without the templates loaded (or on another computer), the choice is not 
 brings it back when the templates are shown again. Rule names depend on the template and the policy, not on a
 particular import, so a new import of the same templates fits older profiles.
 
+While the templates are not loaded, such policies are listed in the last branch of the tree, "Unknown rules and
+policies". It appears only when the profile keeps choices for rules the loaded catalog does not have. Each policy
+shows its name (the rule id), the kept state and parameters. They cannot be changed there, and they are not written
+to the answer file, checked or applied on this PC. When a saved but hidden import has the policy, the description
+names that import, and the button "Show" with its name brings the branch of the import back and opens the policy
+with the kept choice. When no import in the program folder has the policy, the buttons below offer to import the
+templates.
+
 ## Safety
 
 WinKickOff has not reviewed imported policies: try every new policy in a virtual machine first. Templates from a

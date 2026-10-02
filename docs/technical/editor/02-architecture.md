@@ -218,6 +218,9 @@ on the unpacked text.
   the reference card (`os.startfile`) if the file is in the build.
 - Parameters: widgets by type (Spinbox, Combobox, Entry) below the description; a change goes straight into the profile.
 - Data nodes: "Installation: edition, key, time zone", "Accounts", "Languages and region" open forms in the right panel.
+- "Unknown rules and policies": the last root, only while the profile keeps choices for rules the catalog does not
+  have (`unknown`: policies of imported templates that are not loaded, rules of another version). Its items show the
+  kept state and parameters, cannot be toggled and offer to show the hidden import that has the policy.
 - DPI: `SetProcessDpiAwareness(1)` before Tk is created; theme `vista`.
 
 ## 9. Build

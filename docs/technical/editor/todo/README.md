@@ -4,7 +4,7 @@ Revision 0.2 of 25.09.2026 (reworked for the rule model, see `../06-critical-rev
 One file per task. Statuses: `todo`, `in-progress`, `done`, `blocked`. When a status changes,
 update this index and the root `AGENTS.md` (the "Work status" section).
 
-Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in the `WinKickOff/` folder (684 tests).
+Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in the `WinKickOff/` folder (689 tests).
 
 | Task | Title | Stage | Depends on | Status |
 |---|---|---|---|---|

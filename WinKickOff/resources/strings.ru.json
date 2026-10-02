@@ -540,5 +540,21 @@
  "all transports": "все транспорты",
  "The MCP server did not start: port {0} is used by another program. Clients configured for this port may already have sent the access token to that program. Choose another port in the monitor and generate a new access token (MCP menu).": "Сервер MCP не запущен: порт {0} занят другой программой. Клиенты, настроенные на этот порт, могли уже отправить той программе токен доступа. Выберите другой порт в мониторе и создайте новый токен доступа (меню «MCP»).",
  "The clipboard is busy, nothing was copied. Try again.": "Буфер обмена занят, ничего не скопировано. Повторите попытку.",
- "PowerShell syntax not checked: build the file in the window (F9) to check it": "Синтаксис PowerShell не проверен: соберите файл в окне (F9), чтобы проверить его"
+ "PowerShell syntax not checked: build the file in the window (F9) to check it": "Синтаксис PowerShell не проверен: соберите файл в окне (F9), чтобы проверить его",
+ "Unknown rules and policies": "Неизвестные правила и политики",
+ "The open profile keeps choices for rules that the loaded catalog does not have: policies of imported templates that are not loaded, or rules of another version of WinKickOff. They come back when their rules are there again; until then they are not written to autounattend.xml, not checked and not applied to this PC.": "Открытый профиль хранит выбор для правил, которых нет в загруженном каталоге: политик импортированных шаблонов, которые сейчас не загружены, или правил другой версии WinKickOff. Выбор вернётся, когда эти правила снова появятся; до тех пор они не записываются в autounattend.xml, не проверяются и не применяются к этому ПК.",
+ "A policy of imported templates that are not loaded now. The profile keeps its state and parameters and brings them back when the templates are shown or imported again (menu \"ADMX\"). Until then the policy is not written to autounattend.xml, not checked and not applied to this PC.": "Политика импортированных шаблонов, которые сейчас не загружены. Профиль хранит её состояние и параметры и вернёт их, когда шаблоны снова будут показаны или импортированы (меню «ADMX»). До тех пор политика не записывается в autounattend.xml, не проверяется и не применяется к этому ПК.",
+ "A rule that is not in rule catalog {0}: the profile was probably saved by another version of WinKickOff. The profile keeps its state and parameters and brings them back when the catalog has the rule. Until then the rule is not written to autounattend.xml, not checked and not applied to this PC.": "Этого правила нет в каталоге правил {0}: вероятно, профиль сохранён другой версией WinKickOff. Профиль хранит состояние и параметры правила и вернёт их, когда правило появится в каталоге. До тех пор правило не записывается в autounattend.xml, не проверяется и не применяется к этому ПК.",
+ "An unknown choice is kept in the profile as it is; it can be changed when its rule is loaded again": "Неизвестный выбор хранится в профиле как есть; изменить его можно, когда его правило снова будет загружено",
+ "Imported templates": "Импортированные шаблоны",
+ "The saved imported templates \"{0}\" have this policy; they are hidden now.": "Эта политика есть в сохранённых импортированных шаблонах «{0}»; сейчас они скрыты.",
+ "The saved imported templates \"{0}\" have {1} of these policies; they are hidden now.": "В сохранённых импортированных шаблонах «{0}» есть {1} из этих политик; сейчас они скрыты.",
+ "None of the imported templates saved in the program folder has this policy: import the templates that define it.": "Этой политики нет ни в одних импортированных шаблонах, сохранённых в папке программы: импортируйте шаблоны, в которых она определена.",
+ "{0} of these policies are in none of the imported templates saved in the program folder: import the templates that define them.": "{0} из этих политик нет ни в одних импортированных шаблонах, сохранённых в папке программы: импортируйте шаблоны, в которых они определены.",
+ "{0}   |   not in the loaded catalog": "{0}   |   нет в загруженном каталоге",
+ "Kept in the profile": "Хранится в профиле",
+ "State: {0}": "Состояние: {0}",
+ "No parameters": "Параметров нет",
+ "Parameters:": "Параметры:",
+ "Show \"{0}\"": "Показать «{0}»"
 }

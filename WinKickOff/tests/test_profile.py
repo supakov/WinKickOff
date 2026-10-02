@@ -63,6 +63,12 @@ class ProfileTest(unittest.TestCase):
         self.assertTrue(any("ghost.rule" in w for w in warnings))
         self.assertIn("ghost.rule", loaded.to_dict(self.catalog)["unknown"])
 
+    def test_unknown_entries_for_the_tree(self) -> None:
+        profile = Profile.from_catalog(self.catalog)
+        profile.unknown = {"zeta.rule": {"enabled": True, "params": {"n": 2}}, "admx.a.b": {"params": "bad"}, "admx.a.c": 7}
+        # sorted by id; whatever the file holds, an entry is a state and a dictionary of parameters
+        self.assertEqual(profile.unknown_entries(), [("admx.a.b", False, {}), ("admx.a.c", False, {}), ("zeta.rule", True, {"n": 2})])
+
     def test_old_profile_gets_new_rules_in_one_warning(self) -> None:
         # a profile saved before the browser section: its rules keep their states, new rules get the defaults
         data = Profile.from_catalog(self.catalog).to_dict(self.catalog)

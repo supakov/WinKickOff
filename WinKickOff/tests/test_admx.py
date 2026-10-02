@@ -322,6 +322,15 @@ class CatalogPartTest(AdmxTestCase):
         self.assertEqual([(a.type, a.fields["name"], a.fields.get("value")) for a in off.actions], [("reg", "A", 0)])
         self.assertEqual(on.phase, "specialize")  # class Both is written for the computer
 
+    def test_policy_ids_name_the_rules_of_an_import(self) -> None:
+        info, catalog = self.imported()
+        ids = admx.policy_ids(admx.load_import(self.store, info.id)[1], "en")
+        self.assertEqual(ids, {r for r in catalog.rules if r.startswith("admx.") and not r.endswith(".off")})
+        for rule_id in (TOGGLE, PAIR, PAIR + ".off"):  # a policy and its Disabled state
+            self.assertTrue(admx.has_policy(ids, rule_id), rule_id)
+        for rule_id in ("admx.winkickoff.test.missing", "admx.winkickoff.test.missing.off", "defender.pua"):
+            self.assertFalse(admx.has_policy(ids, rule_id), rule_id)
+
     def test_same_registry_values_link_both_ways(self) -> None:
         _, catalog = self.imported()
         self.assertEqual(catalog.same_values(SAME), ["defender.pua"])
@@ -691,6 +700,32 @@ class WindowTest(AdmxTestCase):
     def detail(self, win) -> str:  # type: ignore[no-untyped-def]
         return win.detail.get("1.0", "end")
 
+    def hidden_window(self, delete: bool = False):  # type: ignore[no-untyped-def]
+        """The window after the import was hidden (or deleted): the profile keeps its policies as unknown choices."""
+        from winkickoff.ui.main_window import MainWindow
+
+        win, info, paths = self.window()
+        win.toggle_item("r:" + TOGGLE)
+        win.profile.rules[ELEMENTS].params["seconds"] = 300
+        win.show_templates(info.id, False)
+        profile, _ = win.restart_state["profile"].rebind(self.base)
+        if delete:
+            admx.delete_import(paths.admx, info.id)
+        hidden = MainWindow(paths, self.base, profile, Resources.load(paths.resources), Settings(language="en", theme="light"))
+        hidden.withdraw()
+
+        def close() -> None:
+            try:
+                hidden.destroy()
+            except tk.TclError:
+                pass  # already closed by a restart
+
+        self.addCleanup(close)
+        return hidden, info, paths
+
+    def buttons(self, win) -> list[str]:  # type: ignore[no-untyped-def]
+        return [str(b.cget("text")) for b in win.params_frame.winfo_children()]
+
     def test_subtree_links_and_group_check_box(self) -> None:
         win, info, _ = self.window()
         root = "g:admx." + info.id
@@ -819,6 +854,54 @@ class WindowTest(AdmxTestCase):
         self.assertTrue(win.forward_button.instate(["disabled"]))
         win.go_back()
         self.assertEqual(win._current_item, "r:" + SAME)
+
+    def test_policies_of_hidden_templates_have_their_own_root(self) -> None:
+        from winkickoff.ui.main_window import UNKNOWN_NODE
+
+        win, info, paths = self.hidden_window()
+        self.assertEqual(win.tree.get_children("")[-1], UNKNOWN_NODE)  # the last root
+        self.assertEqual(list(win.tree.get_children(UNKNOWN_NODE)), ["u:" + TOGGLE, "u:" + ELEMENTS])  # by id
+        self.assertIn("Unknown rules and policies   1 of 2", win.tree.item(UNKNOWN_NODE, "text"))
+        self.assertIn("off", win.tree.item("u:" + ELEMENTS, "tags"))  # kept for its parameter, without a check mark
+        self.assertEqual(str(win.tree.item("u:" + TOGGLE, "image")[0]), str(win.images["on"]))
+        win.select_node(UNKNOWN_NODE)
+        text = self.detail(win)
+        self.assertIn("[x] " + TOGGLE, text)
+        self.assertIn("[ ] " + ELEMENTS, text)
+        self.assertIn(f"The saved imported templates \"{info.name}\" have 2 of these policies; they are hidden now.", text)
+        self.assertEqual(self.buttons(win), [f"Show \"{info.name}\""])
+        win.select_node("u:" + ELEMENTS)
+        self.assertIn("seconds = 300", self.detail(win))
+        win.search_var.set("simple toggle")  # unknown choices are found by their ids
+        win.apply_search()
+        self.assertEqual(list(win.tree.get_children(UNKNOWN_NODE)), ["u:" + TOGGLE])
+        win.clear_search()
+        self.assertEqual(win.toggle_item("u:" + TOGGLE), [])  # an unknown choice is kept as it is
+        self.assertIn("kept in the profile as it is", win.status_var.get())
+        self.assertFalse(win.dirty)
+        win.follow_link("u:" + TOGGLE)
+        text = self.detail(win)
+        self.assertIn("Enabled   |   not in the loaded catalog", text)
+        self.assertIn("State: enabled", text)
+        self.assertIn("No parameters", text)
+        self.assertIn(f"The saved imported templates \"{info.name}\" have this policy; they are hidden now.", text)
+        # the button shows the saved import again and opens the policy, which takes its kept state back
+        next(b for b in win.params_frame.winfo_children() if b.cget("text") == f"Show \"{info.name}\"").invoke()
+        self.assertEqual(win.settings.admx, [info.id])
+        self.assertEqual(win.restart_state["item"], "r:" + TOGGLE)
+        catalog, _ = admx.with_imports(self.base, paths.admx, win.settings.admx, "en")
+        profile, _ = win.restart_state["profile"].rebind(catalog)
+        self.assertTrue(profile.is_enabled(TOGGLE))
+        self.assertEqual(profile.param(catalog, ELEMENTS, "seconds"), 300)
+        self.assertEqual(profile.unknown, {})
+
+    def test_an_unknown_policy_without_a_saved_import(self) -> None:
+        win, _, _ = self.hidden_window(delete=True)
+        win.select_node("u:" + TOGGLE)
+        self.assertIn("None of the imported templates saved in the program folder has this policy", self.detail(win))
+        self.assertEqual(self.buttons(win), ["Import the templates of this Windows", "Import templates from a folder..."])
+        win.select_node("unknown")
+        self.assertIn("2 of these policies are in none of the imported templates", self.detail(win))
 
 
 if __name__ == "__main__":

@@ -149,6 +149,17 @@ class Profile:
     def set_param(self, rule_id: str, name: str, value: Any) -> None:
         self.rules[rule_id].params[name] = value
 
+    def unknown_entries(self) -> list[tuple[str, bool, dict[str, Any]]]:
+        """Choices kept in "unknown" (rules the loaded catalog does not have, such as policies of imported templates
+        that are not loaded) as (id, enabled, params), sorted by id. The file may hold anything there: an entry that
+        is not an object counts as off without parameters."""
+        entries = []
+        for rule_id, entry in sorted(self.unknown.items()):
+            entry = entry if isinstance(entry, dict) else {}
+            params = entry.get("params")
+            entries.append((str(rule_id), bool(entry.get("enabled", False)), dict(params) if isinstance(params, dict) else {}))
+        return entries
+
     # ----------------------------------------------------------------- serialisation
 
     def to_dict(self, catalog: Catalog | None = None) -> dict[str, Any]:
