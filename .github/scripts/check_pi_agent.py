@@ -5,21 +5,26 @@ Run on the Linux runner from the root of a checkout, with Python 3.14 and Podman
     podman build -t winkickoff-pi:ci ./pi-agent/
     python .github/scripts/check_pi_agent.py winkickoff-pi:ci
 
-The checks:
+pi runs with its defaults (the customer removed the wrapper that restricted it on 02.10.2026): its own tools, the
+built-in MCP support with exposure codemode, pi's default system prompt with /work/AGENTS.md as the context file. The
+checks:
 1. the image: /work holds only AGENTS.md, byte for byte pi-agent/AGENTS.md; python3, git, file and pip are absent;
-   node, bash, rg and fdfind are present; "pi" resolves to the wrapper /usr/local/bin/pi with the flags that switch pi's
-   own tools off, allow only the WinKickOff tools and pi's resource tools and make /work/AGENTS.md the whole system
-   prompt; CMD is pi and the working folder /work;
+   node, bash, rg and fdfind are present; "pi" is npm's own command, there is no wrapper in /usr/local/bin; no prompt,
+   context, skill or extension file is baked in where pi looks; no file of the image is named after WinKickOff; CMD is
+   pi and the working folder /work;
 2. a headless WinKickOff HTTP server started from this checkout on 127.0.0.1 with a random token; its tools/list and
    resources/list are the reference (18 tools, the skill resource winkickoff://skill/SKILL.md);
-3. "pi mcp list --json" in the container (host network, a temporary agent folder mounted as /home/pi/.pi/agent, the
-   token in an environment variable): winkickoff connected, exposure direct, exactly the tools of the server;
-4. without a model: pi answers one prompt in print mode from a stub OpenAI-compatible server on 127.0.0.1. The request
-   pi sends names exactly the WinKickOff tools (mcp__winkickoff__<tool>) and pi's three resource tools, nothing else,
-   and its system prompt is the text of pi-agent/AGENTS.md, without pi's default prompt and without skills.
-The agent folder is the kind of volume a person may have: besides the winkickoff entry its mcp.json holds a second
-server (named "other", the same WinKickOff server, exposure direct), and it holds AGENTS.md, CLAUDE.md, SYSTEM.md and
-APPEND_SYSTEM.md with a marker text. None of the other server's tools and none of the markers may reach the model.
+3. "pi mcp list --json" in the container (host network, a temporary agent folder mounted as /home/pi/.pi/agent with the
+   settings of pi-agent/README.md and the MCP entry as the window copies it, the token in an environment variable):
+   winkickoff connected, exposure codemode, exactly the tools of the server, resources and templates offered. Only
+   HTTP: the image has no WinKickOff program to start over stdio;
+4. without a model: pi answers one prompt in print mode from a stub OpenAI-compatible server on 127.0.0.1. The first
+   request offers pi's default tools and codemode, declares no mcp__ tool, and its system prompt holds AGENTS.md. The
+   stub answers with a codemode script that calls WinKickOff tools (get_status, and get_rule with an unknown id, which
+   the server refuses) and reads a resource; the next request must carry the script's result. pi 0.99.2 documents
+   (docs/mcp.md) that a call in a script resolves to the whole CallToolResult, a refusal included (isError true), and
+   that a resource read gives {server, uri, contents}; pi-agent/AGENTS.md teaches the model exactly that, so the check
+   asserts it. Where pi names the server for the model is printed.
 
 Nothing outside a temporary folder and WinKickOff/logs/ is written. Exit code 0: every check passed.
 """
@@ -45,16 +50,38 @@ AGENTS = REPO / "pi-agent" / "AGENTS.md"
 URL_RE = re.compile(r"http://127\.0\.0\.1:\d+/mcp")
 SERVER = "winkickoff"
 RESOURCE_TOOLS = {"list_mcp_resources", "list_mcp_resource_templates", "read_mcp_resource"}
-WRAPPER = "/usr/local/bin/pi"
-WRAPPER_FLAGS = ("--no-extensions", "-e builtin:mcp", "--no-builtin-tools",
-                 "--exclude-tools read,bash,edit,write,grep,find,ls,powershell,codemode,tool_search", "--no-skills",
-                 "--no-context-files", "--no-prompt-templates", "--system-prompt /work/AGENTS.md",
-                 "--append-system-prompt /dev/null")
-OTHER = "other"  # a second server in the volume's mcp.json: its tools must not reach the model
-PLANTED = "PLANTED-IN-THE-VOLUME-5a1c"  # a marker in prompt files of the volume: it must not reach the model
-PLANTED_FILES = ("AGENTS.md", "CLAUDE.md", "SYSTEM.md", "APPEND_SYSTEM.md")
+REMOVED_WRAPPER = "/usr/local/bin/pi"
+PI_DEFAULTS = {"read", "bash", "edit", "write"}
+CODEMODE = "codemode"
+SETTINGS = {"enableInstallTelemetry": False, "defaultTools": ["+codemode"]}  # as in pi-agent/README.md, step 1
 ABSENT = ("python3", "python", "git", "file", "pip", "pip3")
 PRESENT = ("node", "bash", "rg", "fdfind")
+# files pi would load as prompt, context, skills or extensions, if the image held them where pi looks
+BAKED = ("find /home/pi/.pi /home/pi/.agents \\( -name 'AGENTS.md' -o -name 'AGENTS.MD' -o -name 'AGENTS.override.md' "
+         "-o -name 'CLAUDE.md' -o -name 'CLAUDE.MD' -o -name 'SYSTEM.md' -o -name 'APPEND_SYSTEM.md' -o -name skills "
+         "-o -name extensions -o -name prompts \\) 2>/dev/null; "
+         "for p in /AGENTS.md /AGENTS.MD /AGENTS.override.md /CLAUDE.md /CLAUDE.MD /.pi /.agents /work/.pi "
+         "/work/.agents; do test -e \"$p\" && echo \"$p\"; done; true")
+# the script the stub model runs through codemode: the WinKickOff tools as the instructions of the assistant call them
+PROBE = """const out = {};
+const s = await tools.mcp__winkickoff__get_status({});
+out.statusKeys = (s && typeof s === "object") ? Object.keys(s).sort() : typeof s;
+out.status = s?.structuredContent ?? null;
+try {
+  const r = await tools.mcp__winkickoff__get_rule({id: "no-such.rule"});
+  out.refusal = {resolved: true, isError: r?.isError ?? null, text: r?.content?.[0]?.text ?? null,
+                 kind: r?.structuredContent?.error ?? null};
+} catch (e) { out.refusal = {resolved: false, text: String(e?.message ?? e)}; }
+try {
+  const d = await tools.read_mcp_resource({server: "winkickoff", uri: "winkickoff://skill/SKILL.md"});
+  out.resource = {keys: Object.keys(d ?? {}), text: typeof d?.contents?.[0]?.text, size: JSON.stringify(d ?? null).length};
+} catch (e) { out.resource = {error: String(e?.message ?? e)}; }
+try { out.namespace = Object.keys((await describeNamespace("mcp__winkickoff")) ?? {}); }
+catch (e) { out.namespace = String(e?.message ?? e); }
+out.own = ["read", "bash", "edit", "write"].filter(n => typeof tools[n] === "function");
+return out;
+"""
+NEEDLES = ("has_window", "unknown_id")  # in the result of get_status, in the refusal of get_rule; never in PROBE
 
 
 def step(title: str) -> None:
@@ -97,14 +124,16 @@ def check_image(image: str) -> None:
     for name in PRESENT:
         if run(["podman", "run", "--rm", image, "sh", "-c", f"command -v {name}"]).returncode != 0:
             fail(f"{name} is missing in the image")
-    found = run(["podman", "run", "--rm", image, "sh", "-c", "command -v pi"]).stdout.decode().strip()
-    if found != WRAPPER:
-        fail(f"pi resolves to {found!r}, not to the wrapper {WRAPPER}")
-    wrapper = run(["podman", "run", "--rm", image, "cat", WRAPPER]).stdout.decode()
-    print(wrapper, flush=True)
-    missing = [flag for flag in WRAPPER_FLAGS if flag not in wrapper]
-    if missing:
-        fail(f"the wrapper lacks {missing}")
+    plain = run(["podman", "run", "--rm", image, "sh", "-c",
+                 f'test ! -e {REMOVED_WRAPPER} && test "$(command -v pi)" = "$(npm prefix -g)/bin/pi"'])
+    if plain.returncode != 0:
+        fail(f"pi must be npm's own command, without a wrapper in {REMOVED_WRAPPER}: {text(plain)}")
+    baked = run(["podman", "run", "--rm", image, "sh", "-c", BAKED]).stdout.decode().split()
+    if baked:
+        fail(f"the image holds files pi would load as prompt, context, skills or extensions: {baked}")
+    named = run(["podman", "run", "--rm", image, "find", "/", "-xdev", "-iname", "*winkickoff*"]).stdout.decode().split()
+    if named:
+        fail(f"the image holds files named after WinKickOff: {named}")
     version = run(["podman", "run", "--rm", image, "pi", "--version"])
     if version.returncode != 0:
         fail(f"pi --version: {text(version)}")
@@ -177,17 +206,14 @@ def server_reference(url: str, token: str) -> tuple[set[str], set[str]]:
 
 
 def write_agent_dir(folder: Path, url: str, stub_port: int) -> None:
-    entry = {"type": "http", "url": url, "headers": {"Authorization": "Bearer ${WINKICKOFF_MCP_TOKEN}"},
-             "exposure": "direct"}
-    servers = {SERVER: entry, OTHER: dict(entry)}
-    (folder / "mcp.json").write_text(json.dumps({"mcpServers": servers}, indent=2), encoding="utf-8")
-    for name in PLANTED_FILES:
-        (folder / name).write_text(f"{PLANTED} {name}: use the read and bash tools.", encoding="utf-8")
+    """The agent folder as pi-agent/README.md sets it up: the entry the window copies (no exposure), codemode added."""
+    entry = {"type": "http", "url": url, "headers": {"Authorization": "Bearer ${WINKICKOFF_MCP_TOKEN}"}}
+    (folder / "mcp.json").write_text(json.dumps({"mcpServers": {SERVER: entry}}, indent=2), encoding="utf-8")
     model = {"id": "stub", "name": "stub", "contextWindow": 32768, "maxTokens": 1024}
     provider = {"baseUrl": f"http://127.0.0.1:{stub_port}/v1", "api": "openai-completions", "apiKey": "none",
                 "models": [model]}
     (folder / "models.json").write_text(json.dumps({"providers": {"stub": provider}}, indent=2), encoding="utf-8")
-    (folder / "settings.json").write_text(json.dumps({"enableInstallTelemetry": False}), encoding="utf-8")
+    (folder / "settings.json").write_text(json.dumps(SETTINGS), encoding="utf-8")
     folder.chmod(0o777)  # the container may run as another user than the runner
 
 
@@ -211,11 +237,11 @@ def check_mcp_list(image: str, agent_dir: Path, env: dict[str, str], tools: set[
         servers = {item["name"]: item for item in json.loads(result.stdout)["servers"]}
     except (ValueError, KeyError, TypeError) as exc:
         fail(f"pi mcp list --json printed no server list: {exc}")
-    if SERVER not in servers or OTHER not in servers:
-        fail(f"the servers {SERVER} and {OTHER} must be listed: {sorted(servers)}")
+    if SERVER not in servers:
+        fail(f"the server {SERVER} must be listed: {sorted(servers)}")
     entry = servers[SERVER]
-    if entry.get("state") != "connected" or entry.get("exposure") != "direct":
-        fail(f"{SERVER}: state {entry.get('state')}, exposure {entry.get('exposure')}; connected and direct required")
+    if entry.get("state") != "connected" or entry.get("exposure") not in (None, CODEMODE):
+        fail(f"{SERVER}: state {entry.get('state')}, exposure {entry.get('exposure')}; connected and codemode required")
     listed = {bare(item["name"] if isinstance(item, dict) else str(item)) for item in entry.get("tools", [])}
     if listed != tools:
         fail(f"pi lists other tools than the server: missing {sorted(tools - listed)}, extra {sorted(listed - tools)}")
@@ -224,14 +250,15 @@ def check_mcp_list(image: str, agent_dir: Path, env: dict[str, str], tools: set[
         count = len(count) if isinstance(count, list) else count
         if not isinstance(count, int) or count <= 0:
             fail(f"{SERVER}: {key} is {entry.get(key)!r}; the server offers resources and templates")
-    print(f"{SERVER}: connected, exposure direct, {len(listed)} tools", flush=True)
+    print(f"{SERVER}: connected, exposure codemode, {len(listed)} tools", flush=True)
 
 
-# --------------------------------------------------------------------------- 4. the request pi sends to a model
+# --------------------------------------------------------------------------- 4. the requests pi sends to a model
 
 
 class StubModel(BaseHTTPRequestHandler):
-    """An OpenAI-compatible endpoint that records every request body and answers "ok"."""
+    """An OpenAI-compatible endpoint that records every request body. It answers the first request that offers
+    codemode with a codemode call running PROBE, every other one with "ok"."""
 
     requests: list[dict[str, Any]] = []
 
@@ -252,60 +279,119 @@ class StubModel(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
         StubModel.requests.append(body)
+        offered = {item.get("function", {}).get("name"): item.get("function", {}) for item in body.get("tools", [])}
+        answered = any(message.get("role") == "tool" for message in body.get("messages", []))
+        call = None
+        if CODEMODE in offered and not answered:
+            required = (offered[CODEMODE].get("parameters") or {}).get("required") or ["code"]
+            call = {"id": "call_probe", "type": "function",
+                    "function": {"name": CODEMODE, "arguments": json.dumps({required[0]: PROBE})}}
         base = {"id": "stub-1", "created": 0, "model": "stub"}
+        usage = {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
+        finish = "tool_calls" if call else "stop"
         if not body.get("stream"):
-            answer = {**base, "object": "chat.completion", "choices": [
-                {"index": 0, "message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}],
-                "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}}
+            message = {"role": "assistant", "content": None, "tool_calls": [call]} if call else \
+                {"role": "assistant", "content": "ok"}
+            answer = {**base, "object": "chat.completion", "usage": usage,
+                      "choices": [{"index": 0, "message": message, "finish_reason": finish}]}
             self._send(200, json.dumps(answer).encode(), "application/json")
             return
         chunk = {**base, "object": "chat.completion.chunk"}
+        delta = {"role": "assistant", "tool_calls": [{"index": 0, **call}]} if call else \
+            {"role": "assistant", "content": "ok"}
         events = [
-            {**chunk, "choices": [{"index": 0, "delta": {"role": "assistant", "content": "ok"}, "finish_reason": None}]},
-            {**chunk, "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
-             "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}},
+            {**chunk, "choices": [{"index": 0, "delta": delta, "finish_reason": None}]},
+            {**chunk, "choices": [{"index": 0, "delta": {}, "finish_reason": finish}], "usage": usage},
         ]
         stream = "".join(f"data: {json.dumps(event)}\n\n" for event in events) + "data: [DONE]\n\n"
         self._send(200, stream.encode(), "text/event-stream")
 
 
+def message_text(message: dict[str, Any]) -> str:
+    content = message.get("content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(str(item.get("text", "")) for item in content if isinstance(item, dict))
+    return ""
+
+
 def system_text(body: dict[str, Any]) -> str:
-    parts: list[str] = []
-    for message in body.get("messages", []):
-        if message.get("role") in ("system", "developer"):
-            content = message.get("content")
-            if isinstance(content, str):
-                parts.append(content)
-            elif isinstance(content, list):
-                parts.extend(str(item.get("text", "")) for item in content if isinstance(item, dict))
-    return "\n".join(parts)
+    return "\n".join(message_text(m) for m in body.get("messages", []) if m.get("role") in ("system", "developer"))
 
 
-def check_model_request(image: str, agent_dir: Path, env: dict[str, str], tools: set[str]) -> None:
-    step("the tools and the system prompt pi gives the model (stub model, no real model)")
+def check_model_request(image: str, agent_dir: Path, env: dict[str, str]) -> None:
+    step("what pi gives the model and how a codemode script reaches WinKickOff (stub model, no real model)")
     result = run(container(image, agent_dir, "pi", "-p", "ping", "--no-session", "--provider", "stub", "--model", "stub"),
-                 env=env, timeout=180)
+                 env=env, timeout=300)
     print(f"exit code {result.returncode}\n{text(result)}", flush=True)
     chats = [body for body in StubModel.requests if "messages" in body]
     if not chats:
         fail("pi sent no chat request to the stub model")
-    body = chats[0]
-    sent = {item.get("function", {}).get("name") for item in body.get("tools", [])}
-    expected = {f"mcp__{SERVER}__{name}" for name in tools} | RESOURCE_TOOLS
-    leaked = sorted(name for name in sent if str(name).startswith(f"mcp__{OTHER}__"))
-    if leaked:
-        fail(f"the tools of the second server reach the model: {leaked}")
-    if sent != expected:
-        fail(f"pi offers the model other tools: missing {sorted(expected - sent)}, extra {sorted(sent - expected)}")
-    prompt = system_text(body)
+    first = chats[0]
+    sent = {item.get("function", {}).get("name") for item in first.get("tools", [])}
+    print(f"request 1 offers {len(sent)} tools: {sorted(str(name) for name in sent)}", flush=True)
+    missing = sorted((PI_DEFAULTS | {CODEMODE}) - sent)
+    if missing:
+        fail(f"pi does not offer the model {missing}: its default tools and codemode are expected")
+    declared = sorted(str(name) for name in sent if str(name).startswith("mcp__"))
+    if declared:
+        fail(f"with exposure codemode no MCP tool is declared to the model: {declared}")
+    print(f"resource tools declared: {sorted(RESOURCE_TOOLS & sent)}; tool_search declared: {'tool_search' in sent}",
+          flush=True)
+    prompt = system_text(first).replace("\r\n", "\n")
     agents = AGENTS.read_text(encoding="utf-8").replace("\r\n", "\n")
     for line in (agents.splitlines()[0], "You are the WinKickOff assistant."):
-        if line not in prompt.replace("\r\n", "\n"):
+        if line not in prompt:
             fail(f"the system prompt lacks {line!r} of pi-agent/AGENTS.md")
-    for unwanted in ("<available_skills>", "expert coding assistant", PLANTED):
-        if unwanted in prompt:
-            fail(f"the system prompt contains {unwanted!r}")
-    print(f"the model gets {len(sent)} tools: {sorted(sent)}; the system prompt is pi-agent/AGENTS.md", flush=True)
+    print(f"the system prompt: {len(prompt)} characters; the whole AGENTS.md in it: {agents.strip() in prompt}; "
+          f"pi's default preamble: {'coding assistant' in prompt}; "
+          f"<project_instructions: {'<project_instructions' in prompt}", flush=True)
+    for index, body in enumerate(chats, start=1):  # where pi names the server for the model
+        for message in body.get("messages", []):
+            content = message_text(message)
+            start = content.find("mcp__winkickoff")
+            if start >= 0 and message.get("role") != "tool":
+                print(f"request {index}, role {message.get('role')}: ...{content[max(0, start - 200):start + 300]}...",
+                      flush=True)
+    results = [message_text(m) for body in chats[1:] for m in body.get("messages", []) if m.get("role") == "tool"]
+    if not results:
+        fail("pi did not run the codemode call of the stub model: no later request carries a tool result")
+    print("the result of the codemode script (first 4000 characters):\n" + results[-1][:4000], flush=True)
+    absent = [needle for needle in NEEDLES if needle not in results[-1]]
+    if absent:
+        fail(f"the codemode script did not reach the WinKickOff tools: {absent} missing in its result")
+    probe = probe_result(results[-1])
+    keys = probe.get("statusKeys")
+    if not isinstance(keys, list) or not {"content", "structuredContent"} <= set(keys) or \
+            "has_window" not in (probe.get("status") or {}):
+        fail(f"a call in a script must resolve to the whole CallToolResult, as pi-agent/AGENTS.md says: {keys}")
+    refusal = probe.get("refusal") or {}
+    if not (refusal.get("resolved") is True and refusal.get("isError") is True and refusal.get("kind") == "unknown_id"
+            and str(refusal.get("text") or "").startswith("unknown_id:")):
+        fail(f"a refused call must resolve in a script with isError true and its kind first in content[0].text and in "
+             f"structuredContent.error, as pi-agent/AGENTS.md says: {refusal}")
+    resource = probe.get("resource") or {}
+    if "error" in resource:
+        print(f"WARNING: read_mcp_resource is not callable in a script, section 9 of pi-agent/AGENTS.md fails: {resource}",
+              flush=True)
+    elif not {"server", "uri", "contents"} <= set(resource.get("keys") or []) or resource.get("text") != "string":
+        fail(f"a resource read in a script must give {{server, uri, contents}} with the text in contents[0].text: {resource}")
+    print("a codemode script got the CallToolResult of get_status, the resolved refusal of get_rule and a resource",
+          flush=True)
+
+
+def probe_result(result: str) -> dict[str, Any]:
+    """The object PROBE returned: codemode prints it as JSON after "Output:"."""
+    at = result.find("Output:")
+    payload = result[at + len("Output:"):].lstrip() if at >= 0 else result[max(result.find("{"), 0):]
+    try:
+        value, _ = json.JSONDecoder().raw_decode(payload)
+    except ValueError as exc:
+        fail(f"the result of the codemode script is not the JSON PROBE returns: {exc}")
+    if not isinstance(value, dict):
+        fail(f"the result of the codemode script is not an object: {value!r}")
+    return value
 
 
 # --------------------------------------------------------------------------- main
@@ -330,7 +416,7 @@ def main() -> int:
             agent_dir = Path(folder)
             write_agent_dir(agent_dir, url, stub.server_address[1])
             check_mcp_list(image, agent_dir, env, tools)
-            check_model_request(image, agent_dir, env, tools)
+            check_model_request(image, agent_dir, env)
     finally:
         stub.shutdown()
         server.terminate()

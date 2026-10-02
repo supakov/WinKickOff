@@ -1,9 +1,9 @@
-"""The WinKickOff assistant of pi-agent/: an image of the pi agent that works only through the WinKickOff MCP tools.
+"""The WinKickOff assistant of pi-agent/: an image of the pi agent that reaches WinKickOff only over its MCP server.
 
 The customer decided that the folder pi-agent/ holds no information about the project itself: an agent that reads about
-source files, tests or rule files starts exploring them. pi-agent/AGENTS.md is the system prompt of the agent and
-pi-agent/README.md is read by the person who runs the container; the Dockerfile copies only AGENTS.md into the image.
-These tests keep it so:
+source files, tests or rule files starts exploring them. pi-agent/AGENTS.md is the context file pi loads after its
+default system prompt and pi-agent/README.md is read by the person who runs the container; the Dockerfile copies only
+AGENTS.md into the image. These tests keep it so:
 
 - AGENTS.md, README.md and the Dockerfile contain none of the project-internal markers of MARKERS. Each marker is a
   word or a path that legitimate text about the assistant never needs: a path into the source tree ("WinKickOff/",
@@ -15,11 +15,16 @@ These tests keep it so:
 - the Dockerfile mounts nothing (only the named volume pi-winkickoff appears in run commands), copies only AGENTS.md,
   starts pi in /work, names neither Python nor git among the packages it installs and takes Node.js from the checked
   release archive, not from NodeSource's package, which depends on python3 (a test of the Dockerfile cannot see the
-  dependencies apt pulls in: the CI check runs "command -v python3" in the built image), and its pi wrapper switches
-  pi's own tools off, pins the system prompt and allows exactly the tools of the server (the 18 WinKickOff tools as
-  mcp__winkickoff__<tool> and pi's three resource tools), so a new tool fails here until the wrapper names it;
+  dependencies apt pulls in: the CI check runs "command -v python3" in the built image), and it starts plain pi with
+  its defaults, as the customer decided on 02.10.2026 (the wrapper that restricted pi took away the additional tools
+  and codemode and replaced the system instructions): no instruction writes /usr/local/bin/pi, none passes a flag that
+  removes pi's tools, extensions, context files, skills or prompt templates or replaces its system prompt, none bakes a
+  SYSTEM.md, APPEND_SYSTEM.md, CLAUDE.md or AGENTS.override.md into the image, and the setup in the Dockerfile and the
+  README pastes the MCP entry as the window copies it (no exposure: pi's default codemode) and adds codemode to pi's
+  default tools;
 - every tool, rule id, group id and winkickoff:// resource named in AGENTS.md exists in the server, all 18 tools are
-  named, the mode titles are the window's, and every Russian or Ukrainian window label is a translation of the program.
+  named, every tools.<name> of a script example is one of them or a resource tool, the mode titles are the window's,
+  and every Russian or Ukrainian window label is a translation of the program.
 """
 
 from __future__ import annotations
@@ -63,26 +68,43 @@ DOTTED = re.compile(r"^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+$")
 FILE_SUFFIXES = (".md", ".json", ".xml", ".ps1")
 CYRILLIC = re.compile("[" + chr(0x0400) + "-" + chr(0x04FF) + "]")
 QUOTED = re.compile(r'"([^"]+)"')
-WRAPPER_FLAGS = ("--no-extensions", "-e builtin:mcp", "--no-builtin-tools",
-                 "--exclude-tools read,bash,edit,write,grep,find,ls,powershell,codemode,tool_search", "--no-skills",
-                 "--no-context-files", "--no-prompt-templates", "--system-prompt /work/AGENTS.md",
-                 "--append-system-prompt /dev/null")
+# flags that would take tools, extensions, context files, skills or prompt templates away from pi or replace its system
+# prompt; -ne and -nt are left out, they are operators of the shell's test
+RESTRICTING = re.compile(r"(?<![\w-])(--tools|--exclude-tools|--no-tools|--no-builtin-tools|-nbt|--no-extensions"
+                         r"|--no-context-files|-nc|--no-skills|-ns|--no-prompt-templates|-np|--system-prompt"
+                         r"|--append-system-prompt)(?![\w-])")
+PROMPT_FILES = re.compile(r"\b(APPEND_)?SYSTEM\.md\b|\bCLAUDE\.md\b|AGENTS\.override\.md")
+EXPOSURE = re.compile(r'"exposure"\s*:')
+CODEMODE_SETTING = '"defaultTools": ["+codemode"]'
+SCRIPT_TOOL = re.compile(r"\btools\.([A-Za-z_]\w*)\s*\(")  # a call in a script example
 SERVER = "winkickoff"
 NOT_INSTALLED = {"python3", "python3-pip", "python3-venv", "python-is-python3", "git", "file"}
 DASHES = (chr(0x2013), chr(0x2014))
+REMOVED_WRAPPER = "/usr/local/bin/pi"
+# <<EOF, <<-EOF, <<'EOF', <<"EOF", 3<<EOF; as in BuildKit the heredoc starts a word (not $((x<<y)), not <<<)
+HEREDOC = re.compile(r"(?:^|(?<=\s))\d*<<(?!<)(-?)([\"']?)([A-Za-z_][A-Za-z0-9_]*)\2")
 
 
 def instructions(dockerfile: str) -> list[str]:
-    """The instructions of a Dockerfile, continuation lines joined, comment lines dropped."""
+    """The instructions of a Dockerfile: continuation lines joined, comment lines dropped, and the body of a heredoc
+    (<<EOF up to the line EOF, read after the whole logical line as Docker does) kept in its instruction line by line,
+    a "#!" or "#" line of a script included."""
     out: list[str] = []
     current = ""
-    for line in dockerfile.splitlines():
+    lines = iter(dockerfile.splitlines())
+    for line in lines:
         if line.lstrip().startswith("#") or not line.strip():
             continue
-        current += " " + line.strip()
-        if current.endswith("\\"):
-            current = current[:-1]
+        text = line.strip()
+        continued = text.endswith("\\")
+        current += " " + (text[:-1].rstrip() if continued else text)
+        if continued:
             continue
+        for strip_tabs, _quote, word in HEREDOC.findall(current):
+            for body in lines:
+                if (body.lstrip("\t") if strip_tabs else body).rstrip() == word:
+                    break
+                current += "\n" + body
         out.append(current.strip())
         current = ""
     if current.strip():
@@ -145,17 +167,33 @@ class DockerfileTest(unittest.TestCase):
         self.assertNotIn("deb.nodesource.com", self.text)
         node = next(i for i in self.instructions if "nodejs.org/dist/" in i)
         self.assertIn("sha256sum -c", node)
-        self.assertIn("ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/node/bin",
-                      self.instructions, "npm's own pi link must come after the wrapper in PATH")
+        paths = [i.split("=", 1)[1].split(":") for i in self.instructions if i.startswith("ENV PATH=")]
+        self.assertTrue(paths and "/opt/node/bin" in paths[-1], "npm's global commands, pi among them, must be in PATH")
 
-    def test_the_wrapper_switches_pi_tools_off(self) -> None:
-        wrapper = next(i for i in self.instructions if "/usr/local/bin/pi" in i and "printf" in i)
-        for flag in WRAPPER_FLAGS:
-            with self.subTest(flag=flag):
-                self.assertIn(flag, wrapper)
-        self.assertIn('test "$(command -v pi)" = /usr/local/bin/pi', wrapper)
-        self.assertIn('test "$real" != /usr/local/bin/pi', wrapper, "the wrapper must not write through npm's link")
-        self.assertIn('/dev/null "$@"', wrapper, "the arguments of the person come last, after the image's flags")
+    def test_pi_runs_with_its_defaults(self) -> None:
+        """Commented-out lines do not count: the customer first commented the wrapper out."""
+        for instruction in self.instructions:
+            with self.subTest(instruction=instruction[:60]):
+                self.assertNotIn(REMOVED_WRAPPER, instruction)
+                self.assertIsNone(RESTRICTING.search(instruction))
+                self.assertIsNone(PROMPT_FILES.search(instruction))
+        self.assertIn('test "$(command -v pi)" = "$(npm prefix -g)/bin/pi"', "\n".join(self.instructions))
+
+    def test_the_setup_pastes_the_entry_the_window_copies(self) -> None:
+        for path in (DOCKERFILE, README):
+            with self.subTest(file=path.name):
+                text = path.read_text(encoding="utf-8")
+                self.assertIsNone(EXPOSURE.search(text), "the copied entry has no exposure: pi's default codemode")
+                self.assertIn(CODEMODE_SETTING, text)
+
+    def test_instructions_keep_a_heredoc_in_its_instruction(self) -> None:
+        dockerfile = "\n".join(["# a comment", "RUN a && \\", "    b", "RUN cat > /x <<'EOF'", "#!/bin/sh", "echo \\",
+                                "EOF", 'CMD ["pi"]'])
+        self.assertEqual(instructions(dockerfile), ["RUN a && b", "RUN cat > /x <<'EOF'\n#!/bin/sh\necho \\", 'CMD ["pi"]'])
+        # a shift is no heredoc; the body of a heredoc follows the whole logical line, continuation lines included
+        self.assertEqual(instructions('RUN echo $((x<<y))\nCMD ["pi"]'), ["RUN echo $((x<<y))", 'CMD ["pi"]'])
+        continued = "\n".join(["RUN cat <<EOF > /x && \\", "    echo done", "body", "EOF", 'CMD ["pi"]'])
+        self.assertEqual(instructions(continued), ["RUN cat <<EOF > /x && echo done\nbody", 'CMD ["pi"]'])
 
 
 class AgentsAgreesWithTheServerTest(unittest.TestCase):
@@ -185,20 +223,21 @@ class AgentsAgreesWithTheServerTest(unittest.TestCase):
         cls._tmp.cleanup()
 
     def test_the_error_table_names_every_kind_of_the_server(self) -> None:
-        """The agent sees only the text of a refusal, which starts with the kind: every kind needs a row."""
+        """A refusal reaches the agent as a result whose text starts with the kind (structuredContent.error holds it
+        too): every kind needs a row."""
         errors = self.text.split("## 5. Errors", 1)[1].split("\n## ", 1)[0]
         named = {kind for row in errors.splitlines() if row.startswith("| `")
                  for kind in TICKS.findall(row.split("|")[1])}
         self.assertEqual(sorted(self.kinds - named), [])
         self.assertEqual(sorted(named - self.kinds), [])
 
-    def test_the_wrapper_allows_exactly_the_tools_of_the_server(self) -> None:
-        wrapper = next(i for i in instructions(DOCKERFILE.read_text(encoding="utf-8"))
-                       if "/usr/local/bin/pi" in i and "printf" in i)
-        allowed = re.findall(r"--tools (\S+)", wrapper)
-        self.assertEqual(len(allowed), 1)
-        expected = {f"mcp__{SERVER}__{name}" for name in self.tools} | CLIENT_TOOLS
-        self.assertEqual(sorted(allowed[0].split(",")), sorted(expected))
+    def test_script_calls_name_real_tools(self) -> None:
+        """tools.<name>(...) in a script example is a WinKickOff tool or a resource tool, never one of pi's own tools
+        (the placeholder tools.mcp__winkickoff__<tool>(...) is no call)."""
+        called = SCRIPT_TOOL.findall(self.text)
+        self.assertTrue(called)
+        allowed = {f"mcp__{SERVER}__{name}" for name in self.tools} | CLIENT_TOOLS
+        self.assertEqual(sorted(set(called) - allowed), [])
 
     def test_every_tool_is_named_and_none_is_invented(self) -> None:
         self.assertEqual(len(self.tools), 18)

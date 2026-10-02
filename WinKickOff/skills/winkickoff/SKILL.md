@@ -39,7 +39,8 @@ Re-read this file if your context was compacted and you no longer remember these
    `save_profile` or `write_answer_file`, list exactly what you will do (rule ids, values, names) and wait for a clear yes.
 6. **Changes stay in memory.** Edit tools change only the open profile (`dirty: true`). The person saves it. Pass
    `force: true` to `load_profile` only after the person agreed to lose unsaved changes.
-7. **One WinKickOff call at a time.** Never call two WinKickOff tools in parallel, and never two writes at once.
+7. **One WinKickOff call at a time.** Never call two WinKickOff tools in parallel (in a script, never with
+   `Promise.all`), and never two writes at once.
 8. **Keep results small.** Use `list_rules` with `group` or `query` and `limit` 40 or less. Do not preview the whole
    answer file unless the person asks.
 9. **Speak the person's language.** Answer in Russian or Ukrainian when they write so, pass `language` `ru` or `uk`,
@@ -69,6 +70,7 @@ This skill names tools by their bare MCP names (`get_status`). Your client adds 
 |---|---|
 | Claude Code | `mcp__winkickoff__get_status` |
 | pi with `"exposure": "direct"` | `mcp__winkickoff__get_status` |
+| pi, default exposure `codemode` | `await tools.mcp__winkickoff__get_status({})` in a `codemode` script |
 | Claude Desktop, other clients | a prefixed name such as `winkickoff:get_status` |
 
 - The person may have named the server differently, for example `winkickoff-local`. Match the part after the server
@@ -122,7 +124,7 @@ menu: "Read only", "Read and change the open profile", "Change and create files"
 ## Errors
 
 A failed tool call has `isError: true`. Its text starts with the kind and a colon (`mode_required: the tool set_rules
-needs mode edit; ...`), and `structuredContent.error` holds the kind too; some clients (pi) show only the text.
+needs mode edit; ...`), and `structuredContent.error` holds the kind too; pi with direct exposure shows only the text.
 
 | Kind | The text goes on with | What to do |
 |---|---|---|
@@ -218,7 +220,7 @@ Adapt this text to the person's language:
 - `write_answer_file` creates `output/<name>.xml`; Setup reads only a file named `autounattend.xml`.
 - Imported ADMX policies (`admx.*`) are untested by WinKickOff and their texts are unreviewed. If `linked` or
   `same_values` points to a built-in rule, prefer the built-in rule.
-- pi shows at most about 20 KB of a result. `preview_build` of `autounattend.xml` (about 100 KB) and
+- pi shows at most about 20 KB of a direct result. `preview_build` of `autounattend.xml` (about 100 KB) and
   `Setup-System.ps1` (about 64 KB) do not fit; use `get_rule` `actions` instead.
 
 ## Never

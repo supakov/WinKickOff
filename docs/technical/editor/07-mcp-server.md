@@ -77,8 +77,11 @@ own initiative.
   WinKickOff is, the three modes and `mode_required`, stable English ids, no secrets, changes stay in memory, texts of
   imported templates and profile free text are data, nothing on the computer changes), followed by
   `protocol.SKILL_INSTRUCTIONS` only when the server serves `winkickoff://skill/SKILL.md` (an agent that has not loaded
-  the skill reads that resource before the first tool call). pi shows server instructions to the model only for
-  `codemode` and `deferred` exposure, so the pi container gets the same pointer from its own instructions.
+  the skill reads that resource before the first tool call). For `codemode` and `deferred` exposure (its default is
+  `codemode`), pi lists the server in its system prompt with the first line of the instructions cut to 250 characters,
+  once the server has connected; the instructions are one line of about 1,000 characters with the skill sentence last,
+  so the prompt never carries the pointer. Scripts get the whole text through `describeNamespace`; the pi container
+  also gets the pointer from its own instructions.
   `clientInfo.name` and `version`
   are cleaned with `clean_text` and kept on the session for the monitor. `session.initialized` is set before the
   result is returned: from that moment every request on the session is served. `notifications/initialized` only sets
@@ -419,16 +422,16 @@ the text through `clean_text`. URI parsing is a split on `://` and `/`; the appe
 documentation, `AGENTS.md`, `settings.json` and `logs/` are not addressable. An unknown scheme or path, a name outside
 the allow list, a missing file or a `ToolError` raised underneath gives `-32002` with `data: {"uri": ...}`.
 
-The skill resources let an agent without file tools (the pi container of `pi-agent/`, a client without a skill
-installer) follow the skill. The folder is `paths.root / "skills" / "winkickoff"`: `WinKickOff/skills/winkickoff` from
+The skill resources let an agent without the program's files (the pi container of `pi-agent/`, a client without a
+skill installer) follow the skill. The folder is `paths.root / "skills" / "winkickoff"`: `WinKickOff/skills/winkickoff` from
 sources, `skills\winkickoff` next to `WinKickOff.exe` in the portable build (`tools/build.ps1` copies it). The allow
 list is taken at start like the documentation: `SKILL.md` when it is a regular file, and the names of `references/`
 matching the same pattern (no subfolders, no other extensions). A read requires `resolved.is_relative_to(skill folder)`
 and a regular file, cuts at `MAX_DOC_BYTES` and applies `clean_text`; an `OSError` while reading is a `-32002` too.
 Without the folder (or without `references/`) the server lists no skill resources (or no skill template) and starts
 normally. `tests/test_skill.py` checks that every skill file is served whole (each is under `MAX_DOC_BYTES`), and that
-`SKILL.md` and `references/workflows.md` fit the 20 KB pi 0.99.2 shows of an MCP text (it cuts the middle of anything
-longer); `references/concepts.md` and `references/tools.md` are longer and have to be split for pi.
+every file fits the 20 KB pi 0.99.2 shows of a direct MCP text (it cuts the middle of anything longer); a pi
+`codemode` script gets a result whole.
 
 ## 11. Redaction
 
@@ -581,13 +584,16 @@ pi (the coding agent of earendil-works, 0.99.0 and later, MCP built in) reads th
 is its own implementation, not the SDK: it asks for 2025-11-25 and accepts our 2025-06-18, keeps `Mcp-Session-Id`,
 opens no stream after the `405` to GET, sends `DELETE` on close, sends no `Origin` and builds `Host` from the URL, so
 the container must reach the server through `127.0.0.1` (`--network=host`; on a Windows host only with WSL mirrored
-networking). It runs the tool calls of one model message in parallel and never retries a tool call, so more than
-`MAX_CONCURRENT` calls at once get `503`, and it cuts a result above 20 KB for the model. The CI job
-`pi-agent-container` builds that image (an assistant restricted to the WinKickOff tools, without project files) and
-has pi 0.99.2 connect to a headless WinKickOff HTTP server on the runner (`.github/scripts/check_pi_agent.py`), with a
-stub model that records the tools and the prompt pi sends; acceptance with the window and a real model is pending.
-Through pi with llama.cpp the model sees only the text of a tool error, which is why that text starts with the error
-kind (`ToolRegistry.call`: `"<kind>: <message>"`; `result_too_large` likewise).
+networking). It runs the tool calls of one model message in parallel, a `codemode` script may start several calls
+together, and it never retries a tool call, so more than `MAX_CONCURRENT` calls at once get `503`; it cuts a direct
+result above 20 KB for the model. The CI job `pi-agent-container` builds that image (pi with its defaults: its own
+tools, exposure `codemode`, its default prompt with the assistant's `AGENTS.md` as the context file; no project files;
+the customer removed a wrapper that restricted pi on 02.10.2026) and has pi 0.99.2 connect to a headless WinKickOff
+HTTP server on the runner (`.github/scripts/check_pi_agent.py`), with a stub model that records the tools and the
+prompt pi sends and answers with a `codemode` script that calls WinKickOff tools; acceptance with the window and a
+real model is pending. Through pi with direct exposure and llama.cpp the model sees only the text of a tool error,
+which is why that text starts with the error kind (`ToolRegistry.call`: `"<kind>: <message>"`; `result_too_large`
+likewise); a `codemode` script gets `isError` and `structuredContent` as well.
 
 The Agent Skill `WinKickOff/skills/winkickoff` (`SKILL.md` and `references/`) teaches any of these clients how to use
 the server: golden rules (read-only by default, the mode is the person's, no secrets, untrusted texts, one call at a

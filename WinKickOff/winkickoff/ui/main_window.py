@@ -899,12 +899,20 @@ class MainWindow(tk.Tk):
     def _schedule_search(self) -> None:
         if self._suppress_search:
             return
-        if self._search_job is not None:
-            self.after_cancel(self._search_job)
+        self._cancel_search()
         self._search_job = self.after(150, self.apply_search)
 
+    def _cancel_search(self) -> None:
+        """Drop the delayed search: a direct search replaces it, and a closed window must not leave it to Tcl."""
+        if self._search_job is not None:
+            try:
+                self.after_cancel(self._search_job)
+            except tk.TclError:
+                pass
+            self._search_job = None
+
     def apply_search(self) -> None:
-        self._search_job = None
+        self._cancel_search()
         query = self.search_var.get().strip()
         if not query:
             self.rebuild_tree()
@@ -924,9 +932,7 @@ class MainWindow(tk.Tk):
         self.set_status(tr("Rules found: {0}", len(found)) if found else tr("Nothing found"))
 
     def clear_search(self) -> None:
-        if self._search_job is not None:
-            self.after_cancel(self._search_job)
-            self._search_job = None
+        self._cancel_search()
         self._suppress_search = True
         self.search_var.set("")
         self._suppress_search = False
@@ -2338,6 +2344,8 @@ class MainWindow(tk.Tk):
             except tk.TclError:
                 pass
             self.mcp_pump_id = None
+        if getattr(self, "_search_job", None) is not None:
+            self._cancel_search()  # a search typed just before a restart or close
         if self.service is not None:
             self.service.detach()  # queued calls wait for the next window or time out
         super().destroy()

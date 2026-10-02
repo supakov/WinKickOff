@@ -2,7 +2,7 @@
 # request; a tag v<version> (for example v1.0.0-rc.1) also publishes a GitHub release with the zip.
 # The build needs PyInstaller from the internet, so it runs here (or in a VM), never on the customer's PC.
 # The build (tools\WinKickOff.spec) has two executables; the smoke test starts WinKickOff-mcp.exe on a copy.
-# A second job builds the image of pi-agent/ on Linux and checks the assistant's MCP-only setup.
+# A second job builds the image of pi-agent/ on Linux and checks the assistant's setup.
 name: build
 
 on:
@@ -85,13 +85,13 @@ jobs:
           path: WinKickOff/dist/WinKickOff-*.zip
           if-no-files-found: error
 
-  # The WinKickOff assistant of pi-agent/: the pi agent in a Podman image that holds no project files and works only
-  # through the MCP tools of WinKickOff. Build the image as people do, start a headless WinKickOff HTTP server from this
-  # checkout on the runner, and let pi in the container (host network) connect to it. .github/scripts/check_pi_agent.py
-  # checks the image (/work holds only AGENTS.md, no python3 or git, the wrapper that switches pi's own tools off and
-  # allows only the WinKickOff tools), "pi mcp list" (connected, exposure direct, the 18 tools) and, with a stub model
-  # server instead of a real model, the exact tools and the system prompt pi gives the model, also when the agent folder
-  # holds a second MCP server and prompt files of its own. A release does not wait for this job.
+  # The WinKickOff assistant of pi-agent/: the pi agent with its default tools in a Podman image that holds no project
+  # files; it reaches WinKickOff only over MCP, from codemode scripts. Build the image as people do, start a headless
+  # WinKickOff HTTP server from this checkout on the runner, and let pi in the container (host network) connect to it.
+  # .github/scripts/check_pi_agent.py checks the image (/work holds only AGENTS.md, no python3 or git, plain pi without
+  # a wrapper, no prompt files baked in), "pi mcp list" (connected, exposure codemode, the 18 tools) and, with a stub
+  # model server instead of a real model, that pi offers its default tools and codemode, puts AGENTS.md into the system
+  # prompt and that a codemode script reaches the WinKickOff tools. A release does not wait for this job.
   pi-agent-container:
     runs-on: ubuntu-latest
     timeout-minutes: 30

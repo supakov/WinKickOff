@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 02.10.2026 (the tree root "Unknown rules and policies" for the choices a profile keeps for rules the loaded catalog does not have, such as policies of imported templates that are not loaded; after release 1.2.0-rc.4).
+Last update: 02.10.2026 (pi-agent runs pi with its defaults and codemode, the customer removed the wrapper; the tree root "Unknown rules and policies" for the choices a profile keeps for rules the loaded catalog does not have; after release 1.2.0-rc.4).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -22,7 +22,7 @@ automatically and assembles `autounattend.xml` from the selection only, the answ
 MCP server (stdio and HTTP on 127.0.0.1, read-only by default) through which AI clients read the catalog and the profile.
 The hand-written answer file v0.2 the catalog grew from is kept in the documentation appendices as the reference.
 `pi-agent/` holds a Podman image of the pi agent with a local model that analyses and changes WinKickOff profiles
-only through the MCP server, without a cloud model, without files and without the source code.
+only through the MCP server, without a cloud model and without any file of the project.
 
 ## 2. What to read first
 
@@ -51,7 +51,8 @@ only through the MCP server, without a cloud model, without files and without th
 ├── .gitignore, .gitattributes     what is not versioned; files are stored byte for byte (CRLF)
 ├── .github/workflows/build.yml    CI: tests, checker, portable build on every push; a tag v<version> publishes a release;
 │                                  a Linux job builds pi-agent/ and checks it (.github/scripts/check_pi_agent.py)
-├── pi-agent/                      Podman image of the WinKickOff assistant (pi with a local model, MCP tools only):
+├── pi-agent/                      Podman image of the WinKickOff assistant (pi with its defaults and a local model;
+│                                  WinKickOff only over MCP, from codemode scripts):
 │                                  Dockerfile, AGENTS.md (its instructions, copied into the image), README.md (setup);
 │                                  nothing about the project itself
 ├── tools/
@@ -363,24 +364,34 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   text on request and a viewer such as the clipboard history waits for that); HTTP tests bind loopback port 0 on every
   run (no gate).
 - The pi agent container (`pi-agent/`, by a team member on 01.10.2026, reworked on 02.10.2026 at the customer's
-  request): an assistant with a local model that analyses and changes profiles ONLY through the WinKickOff MCP tools.
-  Two rules of the customer: the folder `pi-agent/` holds no information about the project (an agent that reads about
-  the source code starts exploring it), and the agent has no file, shell or editing tools. So the repository is not
-  mounted; the image holds `/work/AGENTS.md` (a copy of `pi-agent/AGENTS.md`) and nothing else of the project; a wrapper
-  `/usr/local/bin/pi` starts every session with `--no-extensions -e builtin:mcp --no-builtin-tools --exclude-tools ...`,
-  an allowlist `--tools` of the 18 `mcp__winkickoff__*` tools plus `list_mcp_resources`, `list_mcp_resource_templates`
-  and `read_mcp_resource`, and `--no-skills --no-context-files --no-prompt-templates --system-prompt /work/AGENTS.md`,
-  whatever the volume holds; Node.js comes from the official archive with a pinned SHA-256 (the NodeSource package
-  needs python3); pi is pinned to 0.99.2. Facts of pi that shaped it: with `exposure: direct` pi does not show the
-  server instructions to the model; with llama.cpp the model sees only the text of a tool error (hence the kind at the
-  start of that text since 02.10.2026); pi cuts any MCP text above 20 KB (hence every skill file stays below, checked by
-  `test_skill.py`); a fifth concurrent call gets our 503 and pi never retries a tool call. Networking: `--network=host`
-  reaches the window only where the container's loopback is the host's (on Windows only with WSL mirrored networking, a
-  system setting). The CI job `pi-agent-container` builds the image with Podman, starts a headless WinKickOff HTTP
-  server from the checkout on the runner and runs `.github/scripts/check_pi_agent.py`: the image contents, `pi mcp
-  list`, and with a stub OpenAI-compatible server instead of a model the exact tools and system prompt pi sends, also
-  when the volume holds a second MCP server and prompt files. `WinKickOff/tests/test_pi_agent.py` keeps project
-  markers out of `pi-agent/` and ties its AGENTS.md to the server (tools, error kinds, ids, resources, labels).
+  request): an assistant with a local model that analyses and changes profiles, reaching WinKickOff only through its
+  MCP server. The customer's rule: the folder `pi-agent/` holds no information about the project (an agent that reads
+  about the source code starts exploring it), so the repository is not mounted and the image holds `/work/AGENTS.md`
+  (a copy of `pi-agent/AGENTS.md`) and nothing else of the project. pi runs with its defaults: its own tools `read`,
+  `bash`, `edit`, `write`, the built-in MCP support with exposure `codemode` (the model calls
+  `tools.mcp__winkickoff__<tool>({...})` and the resource tools from JavaScript run by the `codemode` tool;
+  `"defaultTools": ["+codemode"]` in the volume's settings keeps it on even without a server entry; pi turns it on at
+  session start for the codemode entry anyway), its default system prompt with `/work/AGENTS.md` as the context file.
+  Later on 02.10.2026 the customer removed the wrapper
+  `/usr/local/bin/pi` of rc.3 and rc.4 (`--no-builtin-tools`, an allowlist `--tools`, `--system-prompt`, exposure
+  direct): it took away the additional tools and codemode, which works better, and replaced the system instructions,
+  so the whole agent worked worse. Never bring the wrapper or tool restrictions back unless the customer asks;
+  `test_pi_agent.py` fails on a wrapper, a restricting flag, a baked prompt file or an exposure in the setup. The
+  instructions of `pi-agent/AGENTS.md` keep the agent away from WinKickOff files, `~/.pi` and the token, and ask for
+  one awaited call at a time (a script could start calls together; a fifth concurrent call gets our 503 and pi never
+  retries). Node.js comes from the official archive with a pinned SHA-256 (the NodeSource package needs python3); pi is
+  pinned to 0.99.2. Facts of pi: a codemode script gets the whole `CallToolResult` (`isError`, `content`,
+  `structuredContent`) and its returned output is cut above about 10,000 tokens; a direct call shows the model only the
+  error text (hence the kind at the start of that text) and cuts any MCP text above 20 KB (hence every skill file stays
+  below, checked by `test_skill.py`); the system prompt names a codemode server with at most the first 250 characters
+  of the first line of its instructions (not the skill sentence at their end), once it has connected. Networking: `--network=host` reaches the window only where the container's loopback is the host's (on
+  Windows only with WSL mirrored networking, a system setting). The CI job `pi-agent-container` builds the image with
+  Podman, starts a headless WinKickOff HTTP server from the checkout on the runner and runs
+  `.github/scripts/check_pi_agent.py`: the image contents (plain pi, no wrapper, no baked prompt files), `pi mcp list`
+  (codemode, 18 tools), and with a stub OpenAI-compatible server instead of a model the tools and the prompt pi sends
+  and a `codemode` script of the stub that calls WinKickOff tools. `WinKickOff/tests/test_pi_agent.py` keeps project
+  markers out of `pi-agent/` and ties its AGENTS.md to the server (tools, script calls, error kinds, ids, resources,
+  labels).
   Portability fixes of 01.10.2026 stay: the reserved device names are a fixed list (`os.path.isreserved` exists only on
   Windows), the `pythonw.exe` test runs only on Windows, `McpHttpServer.allow_reuse_port` is False, `test_docs.py` skips
   `.claude`, `.venv`, `venv`, `node_modules`, `build` and `dist`.
@@ -426,7 +437,7 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 | Imported ADMX templates | T19 done: ADMX menu, store `admx/` next to the program, policies as rules with parameters, links to built-in rules; since 1.1.0-rc.2 list and multi-line elements too (20 of 3552 policies of this Windows skipped); acceptance of lists on This PC in a VM pending; T20 (1.1.0-rc.3): an import of an imported folder asks to update it or add a tree, a policy in several trees has one check mark, trees can be renamed; Back and Forward in the window; T21 (1.1.0-rc.4): an imported policy follows the built-in rule that sets the same values | 30.09.2026 | `WinKickOff/winkickoff/core/admx.py`, `docs/user/*/admx.md` |
 | Customer list MoreOptions | Done: BitLocker off in every preset; 57 rules on by default (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Edge AI and sign-in, Gallery hidden), This PC folders as options off by default; corrections in card 19 | 28.09.2026 | `docs/technical/reference/19-more-privacy.md` |
 | MCP server | T22 done in code: stdio and HTTP transports, 18 tools, resources, modes read/edit/files, monitor, second executable in CI; acceptance with real clients (Claude Code, Claude Desktop) in a VM pending | 30.09.2026 | `WinKickOff/winkickoff/mcp/`, `docs/user/*/mcp.md` |
-| pi agent container | Reworked into an MCP-only assistant (no project files or information, pi's own tools off, instructions in the image, the skill read over MCP); CI job `pi-agent-container` checks the image, the connection and the exact tools and prompt given to the model; acceptance with the window and the local model (README) pending | 02.10.2026 | `pi-agent/` |
+| pi agent container | An assistant that reaches WinKickOff only over MCP (no project files or information in the image); since the customer's decision of 02.10.2026 pi runs with its defaults and codemode, without the wrapper of rc.3 and rc.4; CI job `pi-agent-container` checks the image, the connection, the tools and prompt given to the model and a codemode script that calls WinKickOff; acceptance with the window and the local model (README) pending | 02.10.2026 | `pi-agent/` |
 | Skill for agents that use WinKickOff | `WinKickOff/skills/winkickoff` (SKILL.md, references tools, workflows, concepts) and its install README; shipped in the portable build; `test_skill.py`; user page `mcp.md` section on the skill (ru, uk, en); not yet tried with a model, Claude Desktop upload untested | 01.10.2026 | `WinKickOff/skills/` |
 | Tuning of preset defaults | Awaited from the customer | | `WinKickOff/tools/make_presets.py`, rule defaults |
 

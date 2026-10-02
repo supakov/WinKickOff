@@ -9,7 +9,7 @@ or a resource changes. These tests tie it to the code:
   or an error kind the server does not have;
 - every rule id, group id and winkickoff:// resource written in backticks exists; the mode titles are the window's;
 - the server serves the skill itself (winkickoff://skill/SKILL.md and winkickoff://skill/references/{file}) whole, for
-  agents without file tools; SKILL.md and references/workflows.md fit the 20 KB that pi shows of an MCP text, and
+  agents without the program's files; every file fits the 20 KB that pi shows of a direct MCP text, and
   SKILL.md says nothing about the source tree.
 Dashes, links and line endings of the skill files are checked by test_docs.py with every Markdown file.
 """
@@ -38,9 +38,8 @@ CLIENT_TOOLS = {"list_mcp_resources", "list_mcp_resource_templates", "read_mcp_r
 DOTTED = re.compile(r"^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+$")
 FILE_SUFFIXES = (".md", ".json", ".xml", ".ps1", ".exe", ".toml", ".py", ".log", ".cmd", ".zip", ".txt", ".yml")
 MODE_TITLES = ("Read only", "Read and change the open profile", "Change and create files")
-# pi 0.99.2 (the agent of pi-agent/) cuts every MCP text above 20 KB in the middle (MCP_OUTPUT_MAX_BYTES in
-# extensions/mcp/tools.ts), and that agent has no file tool to read the rest. These files must reach it whole;
-# references/concepts.md and references/tools.md are longer and still have to be split.
+# pi 0.99.2 cuts every MCP text above 20 KB in the middle when it gives it to the model directly (MCP_OUTPUT_MAX_BYTES
+# in extensions/mcp/tools.ts; a codemode script gets the whole result). These files must reach any pi agent whole.
 PI_MCP_OUTPUT_MAX_BYTES = 20 * 1024
 WHOLE_FOR_PI = ("SKILL.md", "references/tools.md", "references/server.md", "references/workflows.md",
                 "references/concepts.md", "references/decisions.md")  # pi cuts a longer result: split a file instead

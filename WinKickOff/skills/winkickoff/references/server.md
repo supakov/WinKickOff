@@ -5,7 +5,8 @@ Part of [tools.md](tools.md). Read it for documents served as resources, the lim
 ## Resources
 
 Readable in every mode. Prefer tools; some clients cannot read resources by themselves. pi reads them with
-`list_mcp_resources`, `list_mcp_resource_templates` and `read_mcp_resource`.
+`list_mcp_resources`, `list_mcp_resource_templates` and `read_mcp_resource`; with its default exposure `codemode` from a
+script, as `await tools.read_mcp_resource({"server": "winkickoff", "uri": "..."})`.
 
 | URI | Content |
 |---|---|
@@ -34,8 +35,8 @@ Readable in every mode. Prefer tools; some clients cannot read resources by them
 | `set_profile_info` | `name` 1-80, `author` 0-80, `comment` 0-2000 |
 | File names | 80 characters |
 | Window timeouts | reads 5 s, writes 30 s, plus 5 s grace |
-| Concurrency | tool calls run one at a time; HTTP answers 503 above 4 requests at once |
-| Client side | Claude Code warns at 10,000 tokens and stores results over about 25,000 tokens in a file; pi shows about 20 KB and cuts the middle |
+| Concurrency | tool calls run one at a time; HTTP answers 503 above 4 requests at once (also to calls a script starts together) |
+| Client side | Claude Code warns at 10,000 tokens and stores results over about 25,000 tokens in a file; pi shows about 20 KB of a direct result and cuts the middle; a pi `codemode` script gets the whole result, and what it returns is cut above about 10,000 tokens |
 
 ## Window and stdio
 

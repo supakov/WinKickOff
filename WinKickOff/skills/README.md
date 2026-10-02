@@ -26,8 +26,10 @@ and optional `references/`. The portable build ships this folder next to `WinKic
 The WinKickOff MCP server also serves this folder as resources, in every mode: `winkickoff://skill/SKILL.md` and
 `winkickoff://skill/references/{file}` (`tools.md`, `server.md`, `workflows.md`, `concepts.md`, `decisions.md`). When it serves them, the
 `instructions` the server sends at the handshake tell an agent that has not loaded the skill to read
-`winkickoff://skill/SKILL.md` first (pi shows these instructions only for `codemode` and `deferred` exposure; the pi
-container names the resource in its own instructions). So a client without a skill installer, or
+`winkickoff://skill/SKILL.md` first (pi, with its default exposure `codemode`, lists the server in its system prompt
+with at most the first 250 characters of the first line of these instructions, and only once the server has connected,
+so the sentence about the skill at their end is not among them; scripts get the whole text through `describeNamespace`,
+and the pi container names the resource in its own instructions). So a client without a skill installer, or
 an agent without file tools, can still follow the skill: it reads the resource with its resource tool (in pi,
 `read_mcp_resource`) instead of a file. The server takes the folder from next to the program (`WinKickOff/skills/winkickoff`
 from sources, `skills\winkickoff` next to `WinKickOff.exe`); without it the server simply has no skill resources.
@@ -77,12 +79,13 @@ in the copy you zip.
 - Copy or link the folder into pi's skills folder: `~/.pi/agent/skills/winkickoff/`.
 - Or list the path in `~/.pi/agent/settings.json` under `"skills"`, for example
   `"skills": ["/path/to/WinKickOff/skills/winkickoff"]`.
-- The pi container of this repository (`pi-agent/`) holds no copy of the repository and no file tools: there the agent
-  reads the skill from the server (`winkickoff://skill/SKILL.md`, see "Reading the skill over MCP" above).
+- The pi container of this repository (`pi-agent/`) holds no copy of the repository and no WinKickOff files: there the
+  agent reads the skill from the server (`winkickoff://skill/SKILL.md`, see "Reading the skill over MCP" above).
 - Run `/reload` in pi after adding it. A small local model may not load the skill by itself: start the task with
   `/skill:winkickoff`, and run it again after the conversation was compacted.
-- Expose the WinKickOff tools with `"exposure": "direct"` in `~/.pi/agent/mcp.json` (see `pi-agent/README.md`), so the
-  model sees them as `mcp__winkickoff__<tool>`.
+- pi's default exposure `codemode` needs nothing in `~/.pi/agent/mcp.json`: the model calls the tools from a `codemode`
+  script as `tools.mcp__winkickoff__<tool>({...})` (see `pi-agent/README.md`). With `"exposure": "direct"` it sees them
+  as `mcp__winkickoff__<tool>` instead.
 
 ## Updating
 
