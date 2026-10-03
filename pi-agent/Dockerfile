@@ -100,7 +100,7 @@ ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/node/
 
 # The tested pi version (MCP is built in since 0.99.0, Node.js 22.19 or later); --ignore-scripts as pi's documentation
 # installs it, so no package script runs as root during the build. Another version: --build-arg PI_VERSION=x.y.z
-ARG PI_VERSION=0.99.2
+ARG PI_VERSION=1.0.0
 # pi starts with its defaults: its own tools, the built-in MCP extension and codemode, its default system prompt with
 # /work/AGENTS.md as the context file. The customer removed the wrapper that restricted it (02.10.2026): it took away the
 # additional tools and codemode and replaced the system instructions, and the whole agent worked worse.
