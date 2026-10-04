@@ -20,7 +20,7 @@ from typing import Any
 from winkickoff.core.actions_parser import ScriptActions, extract_script, parse_script, rule_actions
 from winkickoff.core.catalog import Action, Catalog, Rule
 from winkickoff.core.profile import Account, Profile
-from winkickoff.core.render import ASK_KEY, EDITION_KEYS, substitute
+from winkickoff.core.render import ASK_KEY, EDITION_KEYS, substitute_fields
 from winkickoff.core.resources import PAIR_RE, find_keyboard
 from winkickoff.core.i18n import tr
 
@@ -174,7 +174,7 @@ def _rule_evidence(rule: Rule, profile: Profile, catalog: Catalog, facts: _Facts
     evidence = [a in found for a in rule_actions(catalog, profile, rule)]
     params = profile.params_for(catalog, rule.id)
     for action in rule.actions:
-        f = {key: substitute(value, params) for key, value in action.fields.items()}
+        f = substitute_fields(action.fields, params)
         if action.type == "xml-pe-command":
             evidence.append(str(f["command"]).strip() in facts.pe_commands)
         elif action.type == "xml-specialize-command":

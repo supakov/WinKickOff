@@ -203,7 +203,8 @@ class RevertTest(unittest.TestCase):
         self.assertIn("Save-RegState $Path $Name", script)
         self.assertIn("# [uac.baseline] Windows defaults", script)
         start = script.index("if (Mount-DefaultUser) {")
-        self.assertIn("Remove-Reg -Path \"$du\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\" -Name 'HideFileExt'", script[start:])
+        self.assertIn("Remove-Reg -Path ($du + '\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced') "
+                      "-Name 'HideFileExt'", script[start:])
         self.assertTrue(script.rstrip().endswith("exit 0"))
         if powershell_path():
             with tempfile.TemporaryDirectory() as tmp:

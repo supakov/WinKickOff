@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape as xml_escape
 
-from winkickoff.core.catalog import Action, Catalog, Rule
+from winkickoff.core.catalog import PLACEHOLDER_FIELDS, Action, Catalog, Rule
 from winkickoff.core.deps import Resolver
 from winkickoff.core.profile import Profile
 from winkickoff.core.resources import find_keyboard
@@ -86,6 +86,11 @@ def substitute(value: Any, params: dict[str, Any]) -> Any:
     return value
 
 
+def substitute_fields(fields: dict[str, Any], params: dict[str, Any]) -> dict[str, Any]:
+    """The fields of an action with its parameters filled in, only where placeholders belong (PLACEHOLDER_FIELDS)."""
+    return {key: substitute(value, params) if key in PLACEHOLDER_FIELDS else value for key, value in fields.items()}
+
+
 def render_reg_value(kind: str, value: Any) -> str:
     if kind in ("DWord", "QWord"):
         if isinstance(value, bool):
@@ -107,9 +112,11 @@ def render_reg_value(kind: str, value: Any) -> str:
 
 
 def render_reg_path(path: str) -> str:
-    """DU: paths are relative to the mounted default-user hive ($du in the runtime)."""
+    """DU: paths are relative to the mounted default-user hive ($du in the runtime). The rest of the path is a single-
+    quoted literal joined to $du, never a double-quoted string: PowerShell would expand $ and $(...) in it, and the key
+    of an imported template is untrusted text."""
     if path.startswith("DU:\\"):
-        return '"$du\\' + path[4:] + '"'
+        return "($du + " + ps_quote(path[3:]) + ")"
     return ps_quote(path)
 
 
@@ -141,7 +148,7 @@ def render_list_args(fields: dict[str, Any]) -> str:
 
 def render_action(action: Action, params: dict[str, Any]) -> str:
     """One action as PowerShell (script phases). XML actions are placed by the XML builder."""
-    f = {key: substitute(value, params) for key, value in action.fields.items()}
+    f = substitute_fields(action.fields, params)
     t = action.type
     if t == "reg":
         line = (

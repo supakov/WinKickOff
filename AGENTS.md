@@ -407,6 +407,12 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 - Built-in rules and imported policies (T21, `core/linked.py`): a policy whose registry writes an enabled built-in
   rule already covers is shown checked (tag `linked`) but stays off in the profile; the window uses `_rule_on()`
   for images and group counts, never `profile.is_enabled()` alone. An equal policy switches the built-in rule.
+- Placeholders and paths (security fix of 04.10.2026): `{param}` is filled in only in the action fields
+  `PLACEHOLDER_FIELDS` (`value`, `args`, `script`, `command`) through `render.substitute_fields`; a key, a value name
+  or a file is always literal, and the catalog refuses a placeholder elsewhere. A DU path is rendered as `($du +
+  '\...')`, a single-quoted literal, never as the double-quoted `"$du\..."` of older builds, which PowerShell
+  expanded: an imported template could put a key with `{e1}` and an enum value `$(...)` into the answer file.
+  `actions_parser` reads both forms, so older builds still import.
 - Lists of values (1.1.0-rc.2, catalog 0.5): a `list` element becomes a parameter of type `list` and a `reg-list`
   action, a `multiText` element a `list` parameter in a `reg` action of kind MultiString. `Set-RegList` gets names and
   values as two arrays that pair up by position (the generator computes the names: items, prefix and number, or

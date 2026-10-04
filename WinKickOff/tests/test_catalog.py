@@ -155,6 +155,13 @@ class BrokenCatalogTest(unittest.TestCase):
     def test_placeholder_without_param(self) -> None:
         self._expect(RULE_OK.replace("value = 1", 'value = "{n}"'), "undeclared params")
 
+    def test_placeholders_only_in_values(self) -> None:
+        """A key or a value name is never filled in: a parameter must not become part of a path."""
+        with_param = RULE_OK.replace("[[rule.actions]]", '[rule.params.n]\ntype = "string"\ntitle = "N"\ndefault = "x"\n'
+                                                         "[[rule.actions]]")
+        self._expect(with_param.replace('name = "X"', 'name = "{n}"'), "placeholders are filled in only in")
+        self._expect(with_param.replace("SOFTWARE\\Test", "SOFTWARE\\{n}"), "placeholders are filled in only in")
+
     def test_windows_default_must_fit_the_value(self) -> None:
         self._expect(RULE_OK.replace("value = 1", 'value = 1\ndefault = "5"'), "must be an integer")
         self._expect(RULE_OK.replace("value = 1", 'value = 1\ndefault = "none"'), "must be an integer")

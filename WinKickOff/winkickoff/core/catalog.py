@@ -62,6 +62,9 @@ LIST_NAME = chr(0) + "list"  # registry_values(): every value of a key (a reg-li
 
 _ID_RE = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*$")
 _PLACEHOLDER_RE = re.compile(r"\{([a-z_][a-z0-9_]*)\}")
+# The only action fields whose {param} placeholders are filled in: a key, a value name or a file is always literal, so a
+# brace in the key of an imported template stays text and a parameter value never becomes part of a path.
+PLACEHOLDER_FIELDS: tuple[str, ...] = ("value", "args", "script", "command")
 IMPORTED_PREFIX = "admx."  # rules and groups made from policy templates (core/admx.py); never used by rules/*.toml
 
 
@@ -119,7 +122,7 @@ class Action:
 
     def placeholders(self) -> set[str]:
         found: set[str] = set()
-        for value in self.fields.values():
+        for value in (self.fields.get(key) for key in PLACEHOLDER_FIELDS):
             if isinstance(value, str):
                 found.update(_PLACEHOLDER_RE.findall(value))
             elif isinstance(value, list):
@@ -547,6 +550,12 @@ def _check(catalog: Catalog, docs_root: Path | None) -> None:
             missing = action.placeholders() - set(rule.params)
             if missing:
                 raise CatalogError(f"action uses undeclared params {sorted(missing)}", file=rule.source, rule_id=rule.id)
+            stray = sorted(key for key, value in action.fields.items() if key not in PLACEHOLDER_FIELDS and key != "default"
+                           and any(isinstance(item, str) and _PLACEHOLDER_RE.search(item)
+                                   for item in (value if isinstance(value, list) else [value])))
+            if stray:
+                raise CatalogError(f"placeholders are filled in only in {', '.join(PLACEHOLDER_FIELDS)}, not in {stray}",
+                                   file=rule.source, rule_id=rule.id)
         if docs_root is not None:
             doc_path = docs_root / rule.doc.split("#", 1)[0]
             if not doc_path.exists():

@@ -33,7 +33,8 @@ from winkickoff.core.catalog import DEFAULT_ABSENT, DEFAULT_UNKNOWN, Action, Cat
 from winkickoff.core.deps import Resolver
 from winkickoff.core.i18n import N_, tr
 from winkickoff.core.profile import Profile
-from winkickoff.core.render import fill, ps_quote, render_block, render_list_args, render_reg_path, render_reg_value, substitute
+from winkickoff.core.render import (fill, ps_quote, render_block, render_list_args, render_reg_path, render_reg_value,
+                                   substitute_fields)
 
 INSTALL_ONLY_PHASES = {"windowspe", "specialize-xml", "oobe-xml"}
 USER_PHASE = "user-first-logon"
@@ -289,7 +290,7 @@ def windows_default(action: Action) -> tuple[str, Any] | None:
 
 def _revert_line(action: Action, step: tuple[str, Any], params: dict[str, Any]) -> str | None:
     kind, value = step
-    f = {key: substitute(v, params) for key, v in action.fields.items() if key != "default"}
+    f = {key: v for key, v in substitute_fields(action.fields, params).items() if key != "default"}
     if kind == "remove":
         return f"Remove-Reg -Path {render_reg_path(str(f['path']))} -Name {ps_quote(str(f['name']))}"
     if kind == "set":
@@ -345,7 +346,7 @@ def render_audit_block(rule: Rule, params: dict[str, Any]) -> str:
     rid = ps_quote(rule.id)
     lines = [f"# [{rule.id}]"]
     for action in rule.actions:
-        f = {k: substitute(v, params) for k, v in action.fields.items()}
+        f = substitute_fields(action.fields, params)
         t = action.type
         if t == "reg":
             path, note = _audit_path(str(f["path"]))

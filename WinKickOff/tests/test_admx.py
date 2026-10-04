@@ -404,7 +404,8 @@ class UseTest(AdmxTestCase):
         resources = Resources.load(ROOT / "resources")
         result = Renderer(catalog, ROOT / "templates", resources.keyboards).build(profile, app_version="test")
         self.assertIn("Set-Reg -Path 'HKLM:\\Software\\Policies\\WKTest' -Name 'Toggle' -Type DWord -Value 0", result.xml)
-        self.assertIn("Set-Reg -Path \"$du\\Software\\Policies\\WKTest\\User\" -Name 'Path' -Type ExpandString -Value '%TEMP%'", result.xml)
+        self.assertIn("Set-Reg -Path ($du + '\\Software\\Policies\\WKTest\\User') -Name 'Path' -Type ExpandString -Value '%TEMP%'",
+                      result.xml)
         self.assertIn(f"# [{ELEMENTS}]", result.xml)
         self.assertNotIn(PAIR, result.xml)
 
@@ -524,7 +525,7 @@ class ListTest(AdmxTestCase):
         self.assertIn("function Set-RegList", system)
         self.assertIn("Set-RegList -Path 'HKLM:\\Software\\Policies\\WKTest\\List\\Items' -Type String -Names "
                       "@('a.example','https://*.example.com/it''s') -Values @('a.example','https://*.example.com/it''s')", system)
-        self.assertIn("Set-RegList -Path \"$du\\Software\\Policies\\WKTest\\Pairs\" -Type ExpandString "
+        self.assertIn("Set-RegList -Path ($du + '\\Software\\Policies\\WKTest\\Pairs') -Type ExpandString "
                       "-Names @('Site','Other') -Values @('%TEMP%\\x','2') -Additive", system)
         self.assertIn("-Type String -Names @('1','2') -Values @('one','two')", system)
         self.assertIn("-Type String -Names @('Server1') -Values @('srv') -Additive", system)

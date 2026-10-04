@@ -27,7 +27,17 @@ class RenderActionTest(unittest.TestCase):
 
     def test_default_user_path_uses_du_variable(self) -> None:
         line = render_action(act("reg", path="DU:\\Software\\X", name="N", kind="DWord", value=0), {})
-        self.assertTrue(line.startswith('Set-Reg -Path "$du\\Software\\X"'))
+        self.assertTrue(line.startswith("Set-Reg -Path ($du + '\\Software\\X')"))
+
+    def test_paths_and_names_are_never_expanded(self) -> None:
+        """A parameter fills in only the value: a key or a value name of an imported template is literal text, and a DU
+        path is a single-quoted literal joined to $du, so PowerShell never expands $ or $(...) in it (it used to be a
+        double-quoted string, and a parameter could reach the key)."""
+        line = render_action(act("reg", path="DU:\\Software\\P\\{e1}\\$(Get-Date)", name="{e1}", kind="String",
+                                 value="{e1}"), {"e1": "$(Get-Date)"})
+        self.assertEqual(line, "Set-Reg -Path ($du + '\\Software\\P\\{e1}\\$(Get-Date)') -Name '{e1}' -Type String "
+                               "-Value '$(Get-Date)'")
+        self.assertNotIn('"', line)
 
     def test_placeholder_keeps_int_type(self) -> None:
         self.assertEqual(substitute("{n}", {"n": 5}), 5)

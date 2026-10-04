@@ -24,7 +24,7 @@ from typing import Any
 
 from winkickoff.core.catalog import Catalog, Rule
 from winkickoff.core.profile import Profile
-from winkickoff.core.render import RenderError, list_entries, substitute
+from winkickoff.core.render import RenderError, list_entries, substitute_fields
 
 Action = tuple[Any, ...]
 DU_PREFIX = "hku:\\unattenddefault\\"
@@ -32,6 +32,9 @@ INFRASTRUCTURE_PATH_FRAGMENTS = ("active setup",)  # written by the runtime, not
 _COMPARE = {"-gt": lambda a, b: a > b, "-ge": lambda a, b: a >= b, "-lt": lambda a, b: a < b,
             "-le": lambda a, b: a <= b, "-eq": lambda a, b: a == b, "-ne": lambda a, b: a != b}
 _LIST = r"@\((?:'(?:[^']|'')*'(?:,'(?:[^']|'')*')*)?\)"  # @('a','b''c') as rendered by ps_quote
+# -Path of a registry function: ($du + '\...') now, "$du\..." in older builds, or a quoted or bare literal
+_PATH = r"(\(\$\w+ \+ '(?:[^']|'')*'\)|\S+|\"[^\"]*\"|'[^']*')"
+_JOINED = re.compile(r"\(\$(\w+) \+ '((?:[^']|'')*)'\)")
 
 
 def extract_script(xml_text: str, name: str) -> str:
@@ -223,6 +226,10 @@ class _Scanner:
 
     def expr(self, token: str) -> str | None:
         token = token.strip()
+        joined = _JOINED.fullmatch(token)
+        if joined:
+            base = self.vars.get(joined.group(1))
+            return None if base is None else str(base) + joined.group(2).replace("''", "'")
         if token.startswith("'") and token.endswith("'"):
             return token[1:-1]
         if token.startswith('"') and token.endswith('"'):
@@ -304,19 +311,19 @@ class _Scanner:
 
     def _actions(self, s: str) -> list[Action]:
         out: list[Action] = []
-        m = re.match(r"^Set-Reg -Path (\S+|\"[^\"]*\"|'[^']*') -Name (\S+|'[^']*') -Type (\w+) -Value (.+?)(?: -Why .*)?$", s)
+        m = re.match(rf"^Set-Reg -Path {_PATH} -Name (\S+|'[^']*') -Type (\w+) -Value (.+?)(?: -Why .*)?$", s)
         if m:
             path, name, value = self.expr(m.group(1)), self.expr(m.group(2)), self.value(m.group(4))
             if path is not None and name is not None and value is not None:
                 out.append(("reg", path.lower(), name.lower(), m.group(3), str(value)))
             return out
-        m = re.match(r"^Remove-Reg -Path (\S+|\"[^\"]*\"|'[^']*') -Name (\S+|'[^']*')$", s)
+        m = re.match(rf"^Remove-Reg -Path {_PATH} -Name (\S+|'[^']*')$", s)
         if m:
             path, name = self.expr(m.group(1)), self.expr(m.group(2))
             if path is not None and name is not None:
                 out.append(("reg-remove", path.lower(), name.lower()))
             return out
-        m = re.match(rf"^Set-RegList -Path (\S+|\"[^\"]*\"|'[^']*') -Type (\w+) -Names ({_LIST}) -Values ({_LIST})( -Additive)?$", s)
+        m = re.match(rf"^Set-RegList -Path {_PATH} -Type (\w+) -Names ({_LIST}) -Values ({_LIST})( -Additive)?$", s)
         if m:
             path, names, values = self.expr(m.group(1)), self.value(m.group(3)), self.value(m.group(4))
             if path is not None and isinstance(names, list) and isinstance(values, list):
@@ -415,7 +422,7 @@ def rule_actions(catalog: Catalog, profile: Profile, rule: Rule, du_prefix: str 
     out: set[Action] = set()
     params = profile.params_for(catalog, rule.id)
     for action in rule.actions:
-        f = {k: substitute(v, params) for k, v in action.fields.items()}
+        f = substitute_fields(action.fields, params)
         t = action.type
         if t in ("reg", "reg-remove"):
             path = str(f["path"]).lower()

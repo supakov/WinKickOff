@@ -15,7 +15,7 @@ from typing import Any
 
 from winkickoff.core.catalog import Catalog, Rule, is_imported
 from winkickoff.core.profile import Profile
-from winkickoff.core.render import substitute
+from winkickoff.core.render import substitute_fields
 
 Write = tuple[str, str, str, str, Any]  # scope, key, value name, kind ("remove" for a removal), value
 
@@ -39,7 +39,7 @@ def registry_writes(rule: Rule, params: dict[str, Any]) -> frozenset[Write] | No
     """What a rule writes into the registry with these parameters; None when it also does anything else."""
     found: set[Write] = set()
     for action in rule.actions:
-        fields = {key: substitute(value, params) for key, value in action.fields.items()}
+        fields = substitute_fields(action.fields, params)
         if action.type not in ("reg", "reg-remove"):
             return None
         path = str(fields["path"])

@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from winkickoff.core.catalog import Action, Rule
-from winkickoff.core.render import RenderError, list_entries, substitute
+from winkickoff.core.render import RenderError, list_entries, substitute_fields
 from winkickoff.core.i18n import tr
 
 SERVICE_START = {0: "BOOT_START", 1: "SYSTEM_START", 2: "AUTO_START", 3: "DEMAND_START", 4: "DISABLED"}
@@ -58,7 +58,7 @@ def _value_text(kind: str, value: Any) -> str:
 
 
 def _fields(action: Action, params: dict[str, Any]) -> dict[str, Any]:
-    return {key: substitute(value, params) for key, value in action.fields.items()}
+    return substitute_fields(action.fields, params)
 
 
 def _list_step(f: dict[str, Any]) -> str:
