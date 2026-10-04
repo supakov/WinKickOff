@@ -99,7 +99,9 @@ Scenarios:
 | All four International-Core values are set | XML | Error |
 | InputLocale format `LLLL:KKKKKKKK` | profile | Error |
 | Account names are unique, not reserved, contain no forbidden characters, up to 20 characters | profile | Error |
-| At least one account in Administrators | profile | Error |
+| At least one account in Administrators (account mode "file") | profile | Error |
+| Account mode "ask": the accounts of the form are not written, Windows Setup asks for one administrator | profile | Information |
+| An unknown account mode | profile | Error |
 | Parameter out of range | profile | Error |
 | A rule of the "risky" level is enabled | profile | Warning with the risk text |
 | A password is set | profile | Warning (plain text in the XML) |

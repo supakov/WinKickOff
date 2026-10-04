@@ -43,9 +43,9 @@ level = "baseline"
 default = true
 tags = ["oobe", "microsoft account", "local account"]
 doc = "docs/technical/reference/03-oobe-accounts-languages.md"
-summary = "The screens for signing in with a Microsoft account and creating a local account are not shown: accounts are defined in the file."
-effect = "After setup, the system goes straight to the sign-in screen with the initial accounts."
-risk = "Works only together with the accounts in the \"Accounts\" section; without them, OOBE will require creating an account."
+summary = "The screens for signing in with a Microsoft account are not shown (Windows shows them only with an internet connection). The local account screen is skipped because the accounts are defined in the file."
+effect = "After setup, the system goes straight to the sign-in screen with the initial accounts. With \"Ask for the account during installation\" in the \"Accounts\" form, Windows shows only its local account screen."
+risk = "Without it, Windows 11 Pro asks for a Microsoft account when the PC is online, also when the account is asked during installation."
 
 [[rule.actions]]
 type = "xml-oobe"

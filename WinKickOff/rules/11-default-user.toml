@@ -372,3 +372,87 @@ name = "HttpAcceptLanguageOptOut"
 kind = "DWord"
 value = 1
 default = "absent"
+
+[[rule]]
+id = "default-user.input-switch-keys"
+group = "default-user"
+phase = "default-user"
+title = "Keys that switch the input language and the keyboard layout"
+level = "optional"
+default = false
+tags = ["keyboard layout", "input language", "hotkey", "hot keys", "key sequence", "alt+shift", "ctrl+shift", "language hotkey", "layout hotkey", "toggle", "sign-in screen"]
+doc = "docs/technical/reference/14-default-user-profile.md#keys-that-switch-the-input-language"
+summary = "The key sequences that switch the input languages (for example ENG, UKR, RUS) and the keyboard layouts of one language, for the sign-in screen and every account created after installation. Win+Space always works and cannot be changed."
+effect = "No answer file setting exists for these keys, so the rule writes them to the registry. Without the rule Windows keeps its own keys (Left Alt+Shift for languages, Ctrl+Shift for layouts). The user can still change them in Settings; accounts that already exist are not changed."
+risk = "\"Not assigned\" for languages leaves only Win+Space and the language indicator of the taskbar, which people who do not know them may not find. Ctrl+Shift for languages may switch by accident in programs that use Ctrl+Shift shortcuts."
+versions = "Windows 10 and 11, all editions: the values Hotkey, Language Hotkey and Layout Hotkey (REG_SZ) of Keyboard Layout\\Toggle. The numbers 1, 2 and 3 are documented with SPI_SETLANGTOGGLE; which value switches languages and which layouts is reported by third parties. The keys of the sign-in screen live in HKU\\.DEFAULT, the profile of the system account. Check in a virtual machine that Setup and the first sign-in keep the values."
+verify = "Under an account created after installation: reg query \"HKCU\\Keyboard Layout\\Toggle\" shows the chosen values, and Settings, Time & language, Typing, Advanced keyboard settings, Input language hot keys shows the same keys. Sign-in screen: reg query \"HKU\\.DEFAULT\\Keyboard Layout\\Toggle\"."
+rollback = "For one user: Settings, Time & language, Typing, Advanced keyboard settings, Input language hot keys, Change Key Sequence. For future accounts and the sign-in screen: delete the values Hotkey, Language Hotkey and Layout Hotkey in Keyboard Layout\\Toggle of the default profile and of HKU\\.DEFAULT."
+
+[rule.params.language]
+type = "enum"
+title = "Switch the input language"
+default = "1"
+values = [ { value = "1", title = "Left Alt+Shift (Windows default)" }, { value = "2", title = "Ctrl+Shift" }, { value = "3", title = "Not assigned (Win+Space and the taskbar only)" } ]
+
+[rule.params.layout]
+type = "enum"
+title = "Switch the keyboard layout of one language"
+default = "2"
+values = [ { value = "2", title = "Ctrl+Shift (Windows default)" }, { value = "1", title = "Left Alt+Shift" }, { value = "3", title = "Not assigned" } ]
+differs_from = "language"
+same_allowed = ["3"]
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Keyboard Layout\Toggle'
+name = "Language Hotkey"
+kind = "String"
+value = "{language}"
+why = "input language switch keys of new accounts"
+default = "absent"
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Keyboard Layout\Toggle'
+name = "Hotkey"
+kind = "String"
+value = "{language}"
+why = "older copy of Language Hotkey"
+default = "absent"
+
+[[rule.actions]]
+type = "reg"
+path = 'DU:\Keyboard Layout\Toggle'
+name = "Layout Hotkey"
+kind = "String"
+value = "{layout}"
+why = "keyboard layout switch keys of new accounts"
+default = "absent"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKU:\.DEFAULT\Keyboard Layout\Toggle'
+name = "Language Hotkey"
+kind = "String"
+value = "{language}"
+why = "input language switch keys of the sign-in screen"
+default = "absent"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKU:\.DEFAULT\Keyboard Layout\Toggle'
+name = "Hotkey"
+kind = "String"
+value = "{language}"
+why = "older copy of Language Hotkey, sign-in screen"
+default = "absent"
+
+[[rule.actions]]
+type = "reg"
+path = 'HKU:\.DEFAULT\Keyboard Layout\Toggle'
+name = "Layout Hotkey"
+kind = "String"
+value = "{layout}"
+why = "keyboard layout switch keys of the sign-in screen"
+default = "absent"

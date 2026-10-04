@@ -1,6 +1,6 @@
 # Rule list
 
-Every rule of the WinKickOff catalog 0.5 by group, 251 in total. This file is generated from the catalog by `python tools/make_rule_docs.py` and is not edited by hand. In the program every rule also shows its technical details, the check after installation and the rollback.
+Every rule of the WinKickOff catalog 0.6 by group, 278 in total. This file is generated from the catalog by `python tools/make_rule_docs.py` and is not edited by hand. In the program every rule also shows its technical details, the check after installation and the rollback.
 
 Levels: baseline (the core of the protection, disabling is not recommended), recommended, optional, risky (may disturb programs, enable deliberately).
 
@@ -28,7 +28,7 @@ Bypassing compatibility checks, a local account without a network connection, .N
   Effect: Installation proceeds on small disks; free space for updates must be monitored.
 - **Allow completing OOBE without internet access and a Microsoft account** (`install.bypass-nro`). Level: baseline. "Office": enabled; "Strict": enabled.
   BypassNRO key: the out-of-box experience does not require a network connection or a Microsoft account.
-  Effect: A safeguard: accounts are created from the file, but if OOBE behavior changes, the key keeps setup from getting stuck on the network screen.
+  Effect: A safeguard: accounts are created from the file, but if OOBE behavior changes, the key keeps setup from getting stuck on the network screen. Needed when the account is asked during installation: without it, OOBE may stop at the network screen.
 - **.NET Framework 3.5 from the installation media** (`install.netfx3`). Level: optional. "Office": enabled; "Strict": enabled.
   Searches connected drives for the sources\sxs folder and enables .NET Framework 3.5 (including 2.0 and 3.0) without internet access.
   Effect: Legacy accounting and banking programs and drivers for digital signature keys work right after installation.
@@ -45,9 +45,9 @@ Which OOBE screens are hidden and how the privacy settings are set.
   The OEM registration screen is not shown (it appears only on manufacturer images).
   Effect: Harmless on Microsoft images; saves a screen on OEM images.
 - **Hide the Microsoft account screens** (`oobe.hide-online-account`). Level: baseline. "Office": enabled; "Strict": enabled.
-  The screens for signing in with a Microsoft account and creating a local account are not shown: accounts are defined in the file.
-  Effect: After setup, the system goes straight to the sign-in screen with the initial accounts.
-  Risk: Works only together with the accounts in the "Accounts" section; without them, OOBE will require creating an account.
+  The screens for signing in with a Microsoft account are not shown (Windows shows them only with an internet connection). The local account screen is skipped because the accounts are defined in the file.
+  Effect: After setup, the system goes straight to the sign-in screen with the initial accounts. With "Ask for the account during installation" in the "Accounts" form, Windows shows only its local account screen.
+  Risk: Without it, Windows 11 Pro asks for a Microsoft account when the PC is online, also when the account is asked during installation.
 - **Hide the network connection screen** (`oobe.hide-wireless`). Level: recommended. "Office": enabled; "Strict": enabled.
   The "Let's connect you to a network" screen is always hidden, not only on a wired connection.
   Effect: Setup does not stop on laptops without a network cable; Wi-Fi is configured after sign-in.
@@ -748,9 +748,13 @@ Companion programs of driver installers and device apps from the internet; drive
   Windows does not use device metadata to download the vendors' related apps and their icons.
   Effect: No vendor programs without the user's knowledge. Microsoft retired the device metadata service in 2025; the policy guards against leftovers.
 
-### File Explorer: "This PC" and the navigation pane
+### File Explorer and the desktop
 
-User folders in "This PC" (hidden in Windows 11), "3D Objects", "Gallery" and "Home" in the left pane. By default the folders are hidden, as in Windows 11, and "Gallery" is hidden.
+Folders in "This PC", items of the navigation pane and icons on the desktop. Off by default, so Windows keeps its own choice, except that "Gallery" is hidden.
+
+#### Folders in "This PC"
+
+User folders (hidden in Windows 11), "3D Objects", "Recycle Bin" and "Control Panel" above the drives. Off by default: "This PC" shows the drives only, as in Windows 11.
 
 - **Show "Desktop" in "This PC"** (`thispc.desktop`). Level: optional. "Office": disabled; "Strict": disabled.
   The "Desktop" folder is visible in "This PC" above the drives, as in Windows 10.
@@ -787,7 +791,20 @@ User folders in "This PC" (hidden in Windows 11), "3D Objects", "Gallery" and "H
   Effect: Both entries lead to the same profile folder; Windows 10 showed only the first one. Do not turn it on together with the rule Show "Videos" in "This PC": the folder may appear twice.
 - **Show "3D Objects" in "This PC"** (`thispc.3d-objects`). Level: optional. "Office": disabled; "Strict": disabled.
   The "3D Objects" folder is visible in "This PC" again, as in Windows 10.
-  Effect: Windows 11 removed the entry, but the known folder remains. The rule creates the entry in both branches; the folder appears in the user profile when it is first opened. Off by default.
+  Effect: Windows 11 removed the entry, but the known folder is still registered. The rule creates the entry in both branches. Windows does not create the folder with a new profile; whether opening the entry creates it is to be checked in a virtual machine. Off by default.
+- **Show "Recycle Bin" in "This PC"** (`thispc.recycle-bin`). Level: optional. "Office": disabled; "Strict": disabled.
+  "Recycle Bin" appears in "This PC" next to the drives, for all users.
+  Effect: Adds a namespace entry; nothing is moved. Off by default: "This PC" shows only the drives, as in Windows 11.
+  Risk: Reported by third parties for Windows 10 and 11; check on 25H2 in a virtual machine.
+- **Show "Control Panel" in "This PC"** (`thispc.control-panel`). Level: optional. "Office": disabled; "Strict": disabled.
+  "Control Panel" appears in "This PC" next to the drives, for all users.
+  Effect: Adds a namespace entry; nothing is moved. Off by default: "This PC" shows only the drives, as in Windows 11.
+  Risk: Reported by third parties for Windows 10 and 11; check on 25H2 in a virtual machine.
+
+#### Navigation pane
+
+"Home", "Gallery", "Libraries", "Network", "Recycle Bin", the user folder and USB drives in the left pane of File Explorer, and the folder File Explorer opens to.
+
 - **Hide "Gallery" in the File Explorer navigation pane** (`nav.gallery-hidden`). Level: optional. "Office": enabled; "Strict": enabled.
   The "Gallery" item (a view of all photos) is not shown in the left pane of File Explorer for any user.
   Effect: Fewer unnecessary items in File Explorer; the photos themselves and the "Pictures" folder remain available.
@@ -798,6 +815,91 @@ User folders in "This PC" (hidden in Windows 11), "3D Objects", "Gallery" and "H
 - **Open File Explorer to "This PC"** (`nav.launch-to-this-pc`). Level: optional. "Office": disabled; "Strict": disabled.
   File Explorer (Win+E) opens to "This PC", not to "Home".
   Effect: Drives and folders of "This PC" are visible right away. Needed by the rule Hide "Home", otherwise File Explorer has nowhere to open.
+- **Show "Libraries" in the File Explorer navigation pane** (`nav.libraries`). Level: optional. "Office": disabled; "Strict": disabled.
+  "Libraries" is shown in the left pane of File Explorer and of file dialogs.
+  Effect: Written for each user at the first sign-in (Active Setup); the user can change it again. Accounts that already exist are not changed, and "Apply" on this PC does not run first sign-in rules.
+- **Hide "Network" in the File Explorer navigation pane** (`nav.network-hidden`). Level: optional. "Office": disabled; "Strict": disabled.
+  "Network" is not shown in the left pane of File Explorer and of file dialogs.
+  Effect: Written for each user at the first sign-in (Active Setup); the user can change it again. Accounts that already exist are not changed, and "Apply" on this PC does not run first sign-in rules.
+  Risk: Shared folders of other computers can no longer be browsed from the navigation pane of File Explorer and of file dialogs; typing \\computer\share in the address bar still works. Workgroups that share folders need the item.
+- **Show "Recycle Bin" in the File Explorer navigation pane** (`nav.recycle-bin`). Level: optional. "Office": disabled; "Strict": disabled.
+  "Recycle Bin" is shown in the left pane of File Explorer and of file dialogs.
+  Effect: Written for each user at the first sign-in (Active Setup); the user can change it again. Accounts that already exist are not changed, and "Apply" on this PC does not run first sign-in rules.
+- **Show the user folder in the File Explorer navigation pane** (`nav.user-folder`). Level: optional. "Office": disabled; "Strict": disabled.
+  The user folder is shown in the left pane of File Explorer and of file dialogs.
+  Effect: Written for each user at the first sign-in (Active Setup); the user can change it again. Accounts that already exist are not changed, and "Apply" on this PC does not run first sign-in rules.
+- **Hide "Linux" in the File Explorer navigation pane** (`nav.linux-hidden`). Level: optional. "Office": disabled; "Strict": disabled.
+  "Linux" is not shown in the left pane of File Explorer and of file dialogs.
+  Effect: Written for each user at the first sign-in (Active Setup); the user can change it again. Accounts that already exist are not changed, and "Apply" on this PC does not run first sign-in rules.
+- **Show "Control Panel" in the File Explorer navigation pane** (`nav.control-panel`). Level: optional. "Office": disabled; "Strict": disabled.
+  "Control Panel" is shown in the left pane of File Explorer and of file dialogs.
+  Effect: Written for each user at the first sign-in (Active Setup); the user can change it again. Accounts that already exist are not changed, and "Apply" on this PC does not run first sign-in rules.
+  Risk: Not verified: Windows may ignore the per-user value for this item; check in a virtual machine.
+- **Show all folders in the File Explorer navigation pane** (`nav.show-all-folders`). Level: optional. "Office": disabled; "Strict": disabled.
+  The left pane also shows Desktop, the user folder, Control Panel and Recycle Bin, as with "Show all folders".
+  Effect: For accounts created after installation; the user can change it again (right-click the navigation pane).
+- **Show USB drives only under "This PC" in the navigation pane** (`nav.removable-drives-once`). Level: optional. "Office": disabled; "Strict": disabled.
+  Removable drives no longer appear a second time as separate items at the top of the left pane.
+  Effect: Deletes the "Removable Drives" delegate folder of the desktop namespace in both branches; the drives stay under "This PC".
+  Risk: Reported by third parties; a feature update of Windows may create the key again. The automatic return to defaults cannot restore a deleted key.
+- **No cloud files and activity in File Explorer "Home"** (`nav.home-cloud-files-off`). Level: optional. "Office": disabled; "Strict": disabled.
+  File Explorer does not request the metadata of cloud files and shows no files based on the account and cloud activity in "Home" (Recent, Recommended, Shared).
+  Effect: Local recent files stay. Value 1 of the policy FileExplorer/DisableGraphRecentItems, which Microsoft calls "Turn off account-based insights, recent, favorite, and recommended files in File Explorer" (the ADMX of Windows names it "Show files based on your account and cloud provider activity").
+
+#### Desktop icons
+
+"This PC", the user folder, "Network", "Control Panel" and "Recycle Bin" (the icons of the Desktop icon settings dialog), "Libraries" and the Windows Spotlight icon on the desktop of new accounts.
+
+- **Show the "This PC" icon on the desktop** (`desktop.this-pc`). Level: optional. "Office": disabled; "Strict": disabled.
+  New accounts get the "This PC" icon on the desktop.
+  Effect: For accounts created after installation; the user can change it in Settings, Personalization, Themes, Desktop icon settings. Accounts that already exist are not changed.
+- **Show the user folder icon on the desktop** (`desktop.user-files`). Level: optional. "Office": disabled; "Strict": disabled.
+  New accounts get the user folder icon on the desktop.
+  Effect: For accounts created after installation; the user can change it in Settings, Personalization, Themes, Desktop icon settings. Accounts that already exist are not changed.
+- **Show the "Network" icon on the desktop** (`desktop.network`). Level: optional. "Office": disabled; "Strict": disabled.
+  New accounts get the "Network" icon on the desktop.
+  Effect: For accounts created after installation; the user can change it in Settings, Personalization, Themes, Desktop icon settings. Accounts that already exist are not changed.
+- **Show the "Control Panel" icon on the desktop** (`desktop.control-panel`). Level: optional. "Office": disabled; "Strict": disabled.
+  New accounts get the "Control Panel" icon on the desktop.
+  Effect: For accounts created after installation; the user can change it in Settings, Personalization, Themes, Desktop icon settings. Accounts that already exist are not changed.
+- **Hide the "Recycle Bin" icon on the desktop** (`desktop.recycle-bin-hidden`). Level: optional. "Office": disabled; "Strict": disabled.
+  New accounts do not get the "Recycle Bin" icon on the desktop.
+  Effect: For accounts created after installation; the user can change it in Settings, Personalization, Themes, Desktop icon settings. Accounts that already exist are not changed.
+- **Show the "Libraries" icon on the desktop** (`desktop.libraries`). Level: optional. "Office": disabled; "Strict": disabled.
+  New accounts get the "Libraries" icon on the desktop.
+  Effect: For accounts created after installation. Accounts that already exist are not changed. The Desktop icon settings dialog does not offer this icon; to undo it for a user, delete the value {031E4825-7B94-4dc3-B131-E946B44C8DD5} under HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons (NewStartPanel and ClassicStartMenu). The value name is the one Windows keeps for Libraries in its machine defaults.
+- **Hide the "Learn about this picture" icon on the desktop** (`desktop.spotlight-icon-hidden`). Level: optional. "Office": disabled; "Strict": disabled.
+  New accounts do not get the "Learn about this picture" icon on the desktop.
+  Effect: For accounts created after installation. Accounts that already exist are not changed. The Desktop icon settings dialog does not offer this icon; to undo it for a user, delete the value {2cc5ca98-6485-489a-920e-b3e88a6ccce3} under HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons (NewStartPanel). The icon appears only when Windows Spotlight is the desktop background and opens Bing in the browser.
+
+##### Folders on the desktop
+
+"Documents", "Downloads", "Music", "Pictures", "Videos", "Desktop", "Gallery" and "Home" as icons on the desktop of new accounts. Rarely needed.
+
+- **Show the "Documents" icon on the desktop** (`desktop.documents`). Level: optional. "Office": disabled; "Strict": disabled.
+  New accounts get the "Documents" icon on the desktop.
+  Effect: For accounts created after installation. Accounts that already exist are not changed. The Desktop icon settings dialog does not offer this icon; to undo it for a user, delete the value {A8CDFF1C-4878-43be-B5FD-F8091C1C60D0} under HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons (NewStartPanel and ClassicStartMenu).
+- **Show the "Downloads" icon on the desktop** (`desktop.downloads`). Level: optional. "Office": disabled; "Strict": disabled.
+  New accounts get the "Downloads" icon on the desktop.
+  Effect: For accounts created after installation. Accounts that already exist are not changed. The Desktop icon settings dialog does not offer this icon; to undo it for a user, delete the value {374DE290-123F-4565-9164-39C4925E467B} under HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons (NewStartPanel and ClassicStartMenu).
+- **Show the "Music" icon on the desktop** (`desktop.music`). Level: optional. "Office": disabled; "Strict": disabled.
+  New accounts get the "Music" icon on the desktop.
+  Effect: For accounts created after installation. Accounts that already exist are not changed. The Desktop icon settings dialog does not offer this icon; to undo it for a user, delete the value {1CF1260C-4DD0-4ebb-811F-33C572699FDE} under HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons (NewStartPanel and ClassicStartMenu).
+- **Show the "Pictures" icon on the desktop** (`desktop.pictures`). Level: optional. "Office": disabled; "Strict": disabled.
+  New accounts get the "Pictures" icon on the desktop.
+  Effect: For accounts created after installation. Accounts that already exist are not changed. The Desktop icon settings dialog does not offer this icon; to undo it for a user, delete the value {3ADD1653-EB32-4cb0-BBD7-DFA0ABB5ACCA} under HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons (NewStartPanel and ClassicStartMenu).
+- **Show the "Videos" icon on the desktop** (`desktop.videos`). Level: optional. "Office": disabled; "Strict": disabled.
+  New accounts get the "Videos" icon on the desktop.
+  Effect: For accounts created after installation. Accounts that already exist are not changed. The Desktop icon settings dialog does not offer this icon; to undo it for a user, delete the value {A0953C92-50DC-43bf-BE83-3742FED03C9C} under HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons (NewStartPanel and ClassicStartMenu).
+- **Show the "Desktop" icon on the desktop** (`desktop.desktop-folder`). Level: optional. "Office": disabled; "Strict": disabled.
+  New accounts get the "Desktop" icon on the desktop.
+  Effect: For accounts created after installation. Accounts that already exist are not changed. The Desktop icon settings dialog does not offer this icon; to undo it for a user, delete the value {B4BFCC3A-DB2C-424C-B029-7FE99A87C641} under HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons (NewStartPanel and ClassicStartMenu).
+- **Show the "Gallery" icon on the desktop** (`desktop.gallery`). Level: optional. "Office": disabled; "Strict": disabled.
+  New accounts get the "Gallery" icon on the desktop.
+  Effect: For accounts created after installation. Accounts that already exist are not changed. The Desktop icon settings dialog does not offer this icon; to undo it for a user, delete the value {e88865ea-0e1c-4e20-9aa6-edcd0212c87c} under HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons (NewStartPanel and ClassicStartMenu). Conflicts with hiding "Gallery" in the navigation pane, which hides the same item.
+- **Show the "Home" icon on the desktop** (`desktop.home`). Level: optional. "Office": disabled; "Strict": disabled.
+  New accounts get the "Home" icon on the desktop.
+  Effect: For accounts created after installation. Accounts that already exist are not changed. The Desktop icon settings dialog does not offer this icon; to undo it for a user, delete the value {f874310e-b6b7-47dc-bc84-b9e6b38f5903} under HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons (NewStartPanel and ClassicStartMenu). Conflicts with hiding "Home" in the navigation pane, which hides the same item.
 
 ## Services and apps
 
@@ -963,6 +1065,10 @@ Values that every new user gets at first sign-in (can be changed in Settings).
 - **User region** (`default-user.region`). Level: baseline. "Office": enabled; "Strict": enabled.
   Country (GeoID) for new users: affects the Store, weather and content offers; does not change the display language or the time zone.
   Effect: Default is Ukraine (241, UA).
+- **Keys that switch the input language and the keyboard layout** (`default-user.input-switch-keys`). Level: optional. "Office": disabled; "Strict": disabled.
+  The key sequences that switch the input languages (for example ENG, UKR, RUS) and the keyboard layouts of one language, for the sign-in screen and every account created after installation. Win+Space always works and cannot be changed.
+  Effect: No answer file setting exists for these keys, so the rule writes them to the registry. Without the rule Windows keeps its own keys (Left Alt+Shift for languages, Ctrl+Shift for layouts). The user can still change them in Settings; accounts that already exist are not changed.
+  Risk: "Not assigned" for languages leaves only Win+Space and the language indicator of the taskbar, which people who do not know them may not find. Ctrl+Shift for languages may switch by accident in programs that use Ctrl+Shift shortcuts.
 
 ## First sign-in of each user
 
@@ -980,8 +1086,8 @@ Active Setup script: display language and input language list.
 Scheduled task after OOBE completes: passwords, built-in accounts, cleanup.
 
 - **"Password never expires" flag on the initial accounts** (`post-oobe.password-never-expires`). Level: recommended. "Office": enabled; "Strict": enabled.
-  PasswordNeverExpires is set for every account in the profile. Duplicates the machine-wide net accounts setting in case it is changed.
-  Effect: The initial accounts without a password will not be required to change the password.
+  PasswordNeverExpires is set for every account the answer file creates. Duplicates the machine-wide net accounts setting in case it is changed.
+  Effect: The initial accounts without a password will not be required to change the password. An account typed during installation ("Ask for the account during installation") is covered by the machine-wide setting only.
 - **Built-in Administrator and Guest stay disabled** (`post-oobe.disable-builtin-accounts`). Level: baseline. "Office": enabled; "Strict": enabled.
   The accounts with RID 500 and 501 are found by SID (the names are localized on the Ukrainian image) and disabled if they are enabled.
   Effect: The well-known names cannot be used to sign in.

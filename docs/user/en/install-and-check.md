@@ -14,8 +14,15 @@ With Ventoy, the file is placed next to the image and connected through the Auto
 2. The disk and partition to install to. Automatic partitioning is deliberately not configured: it erases
    the disk without asking, which is dangerous for work computers.
 
-Everything else happens without anyone's involvement: the license, the key, the edition, the initial setup
-screens, account creation. After installation, the desktop opens.
+3. Only if the key mode "Choose the edition during installation" is selected in the "Installation" node: the product
+   key page. Type the key from the sticker, or click "I don't have a product key" and pick the edition from the list
+   (on a laptop that came with Windows Home pick Home, otherwise Windows does not activate).
+4. Only if "Ask for the account during installation" is selected in the "Accounts" node: the account name (it becomes
+   an administrator) and its password. The password may stay empty; if one is typed, Windows also asks three security
+   questions. Install without a network cable.
+
+Everything else happens without anyone's involvement: the license, the initial setup screens, and also the key, the
+edition and the accounts unless the forms ask for them as in items 3 and 4. After installation, the desktop opens.
 
 ## Checking the file before installation
 

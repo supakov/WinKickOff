@@ -95,7 +95,9 @@ foreach ($comp in @($xml.SelectNodes('//u:settings[@pass="oobeSystem"]/u:compone
     $bad = @($names | Where-Object { $reserved -contains $_ -or $_ -match '[\\/\[\]:;|=,+*?<>"@]' -or $_.Length -gt 20 -or $_ -eq '' })
     Add-Result "LocalAccount names valid ($arch)" ($bad.Count -eq 0) ($bad -join ',')
     $groups = @($comp.SelectNodes('.//u:LocalAccount/u:Group', $ns) | ForEach-Object { $_.InnerText })
-    Add-Result "At least one Administrators account ($arch)" ($groups -contains 'Administrators')
+    $count = @($comp.SelectNodes('.//u:LocalAccount', $ns)).Count
+    # No LocalAccount at all: OOBE asks for one account, which Windows makes an administrator
+    Add-Result "At least one Administrators account ($arch)" ($count -eq 0 -or $groups -contains 'Administrators') $(if ($count -eq 0) { 'none: OOBE asks' } else { '' })
 }
 
 # 9. Extensions: scripts extract and parse under PowerShell 5.1

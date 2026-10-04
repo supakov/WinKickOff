@@ -97,9 +97,20 @@ title = "Sites"
 default = []
 pairs = true            # optional: every item is "name=value" (the names of a reg-list with explicit = true)
 required = false        # optional: true when the list may not be empty
+
+[rule.params.layout]
+type = "enum"
+title = "Switch the keyboard layout of one language"
+default = "2"
+values = [ { value = "2", title = "Ctrl+Shift" }, { value = "1", title = "Left Alt+Shift" }, { value = "3", title = "Not assigned" } ]
+differs_from = "language"   # optional (catalog 0.6): may not take the value of this other enum of the rule ...
+same_allowed = ["3"]        # ... except these values; the check of the profile reports a clash as an error
 ```
 
 In actions, a parameter is substituted as the string `"{seconds}"`; the generator converts it to the action's type.
+Placeholders are filled in only in the fields `value`, `args`, `script` and `command` (`PLACEHOLDER_FIELDS`); a key,
+a value name or a file is always literal, and the loader refuses a placeholder there (security fix of 04.10.2026: a
+parameter of an imported template could reach a key that PowerShell expanded).
 A `list` parameter goes into the `value` of a `reg-list` action or of a `reg` action of kind `MultiString`. The
 validator requires every item to be a non-empty line of at most 4096 characters without control characters or
 `]]>`; with `pairs` every item has a name before the first `=`, the name is a safe value name (no `"`, backquote,
@@ -122,6 +133,15 @@ templates use them (section 8).
 | xml-pe-command | command, description | `RunSynchronousCommand` in windowsPE |
 | xml-specialize-command | command, description | `RunSynchronousCommand` in specialize |
 | xml-oobe | element, value | element inside `<OOBE>` |
+
+Registry paths start with `HKLM:\`, `HKCU:\` (phase user-first-logon), `DU:\` (the default profile, phase
+default-user) or `HKU:\.DEFAULT\` (catalog 0.6: the profile of the system account, which the sign-in screen uses;
+only in the phases specialize and default-user, whose script `Setup-System.ps1` creates the `HKU:` drive). A DU path is
+rendered as `($du + '\...')`, a single-quoted literal. The scripts of the phases user-first-logon (`Setup-User.ps1`)
+and post-oobe (`Post-OOBE.ps1`) define only `Set-Reg` and `Remove-Reg` (runtime 0.6), so rules of these phases may use
+only `reg`, `reg-remove` and `ps` (`PHASE_ACTION_TYPES`); `tests/test_render.py` checks every runtime against that
+table. `registry_values()` gives a `HKU:\.DEFAULT` value the scope `signin`, so it never matches a value of HKCU or
+of the default profile.
 
 `reg-list` (catalog 0.5) writes a key that holds a list of values, the `list` element of a policy template. The
 generator pairs every item with a value name: with `explicit = true` the item is `name=value` (split at the first
@@ -218,14 +238,15 @@ the frame (attribute 20), which older builds understand.
 
 ```json
 {
-  "format_version": 2,
-  "catalog_version": "0.4",
+  "format_version": 3,
+  "catalog_version": "0.6",
   "name": "Office",
   "author": "",
   "created": "2026-09-25T10:00:00",
   "modified": "2026-09-25T10:00:00",
   "comment": "",
-  "install": { "edition": "Pro", "product_key_mode": "generic", "product_key": "", "time_zone": "FLE Standard Time" },
+  "install": { "edition": "Pro", "product_key_mode": "generic", "product_key": "", "time_zone": "FLE Standard Time",
+               "account_mode": "file" },
   "languages": { "ui_language": "uk-UA", "system_locale": "uk-UA", "user_locale": "uk-UA", "input": ["en-US", "uk-UA", "ru-UA"] },
   "accounts": [
     { "name": "Admin", "display_name": "Admin", "group": "Administrators", "description": "Local administrator (starter account)", "password": "" },
@@ -240,6 +261,11 @@ the frame (attribute 20), which older builds understand.
 }
 ```
 
+- `install.product_key_mode`: `generic` (the generic key of `edition`), `custom` (`product_key`) or `ask` (Setup shows
+  the product key page and the list of editions; `edition` is ignored). `install.account_mode` (format 3): `file`
+  writes `accounts` into `UserAccounts/LocalAccounts`; `ask` writes no account, so Windows Setup asks for the name of
+  one administrator account, and `accounts` stays in the profile for the way back (`Profile.answer_file_accounts()`).
+  Format 2 profiles have no `account_mode` and load without a warning as `file`; a profile of a newer format warns.
 - `rules` lists all rules of the catalog (completeness is needed for comparing profiles and so
   that a new catalog rule is noticeable on load), except imported policies (`admx.*`, section 8): only those that
   are on or have parameters are written, an absent one is "not configured" and is not reported as new.
@@ -267,7 +293,8 @@ third-party one), the import parses the actions from the scripts and matches the
 
 ## 7. Versioning
 
-- Profile `format_version`: 2 (in 0.1 it was 1; migration: `config.*` → rule states via a mapping table).
+- Profile `format_version`: 3 (in 0.1 it was 1; migration: `config.*` → rule states via a mapping table; format 3 of
+  catalog 0.6 adds `install.account_mode`, and a format 2 profile loads as `file` without a warning).
 - `catalog_version` = the contents of `templates/VERSION`; if they differ, the profile is loaded with
   a warning and completed.
 - The application version is independent.
@@ -285,6 +312,11 @@ third-party one), the import parses the actions from the scripts and matches the
   empty MultiString. The built-in rules did not change: profiles of 0.4 load with the usual warning about the
   catalog version and give the same rule blocks; only the runtime part of `Setup-System.ps1` gained the new
   functions.
+- Catalog 0.6 (04.10.2026, customer requests of that day): the File Explorer namespaces and desktop icons
+  (`17-shell.toml`, generated by `tools/make_shell_rules.py`), the rule `default-user.input-switch-keys` with the
+  parameter fields `differs_from` and `same_allowed`, the prefix `HKU:\.DEFAULT\` (the sign-in screen) in the phases
+  specialize and default-user, and the runtime functions `Set-Reg` and `Remove-Reg` in `Setup-User.ps1` and
+  `Post-OOBE.ps1`. Profiles of 0.5 load with the usual warning; the new rules get their defaults (all off).
 
 ## 8. Imported policy templates (ADMX, ADML): `admx/<id>/`
 

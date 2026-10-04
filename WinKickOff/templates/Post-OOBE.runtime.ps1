@@ -9,6 +9,35 @@ $log = 'C:\ProgramData\Unattend\Logs\Post-OOBE.log'
 function Write-Log { param([string]$m, [string]$Level = 'INFO') try { Add-Content -Path $log -Value ('[{0}] [{1}] {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Level, $m) -Encoding UTF8 } catch {} }
 trap { Write-Log ("UNHANDLED: {0} (line {1})" -f $_.Exception.Message, $_.InvocationInfo.ScriptLineNumber) 'ERROR'; continue }
 
+# Registry writes of the rules of this script (the same as in Setup-System.ps1, logging into this script's log).
+function Set-Reg {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][ValidateSet('DWord','QWord','String','ExpandString','MultiString','Binary')][string]$Type,
+        [Parameter(Mandatory)][AllowEmptyString()][AllowEmptyCollection()][AllowNull()]$Value,
+        [string]$Why = ''
+    )
+    try {
+        if (-not (Test-Path -LiteralPath $Path)) { $null = New-Item -Path $Path -Force }
+        Set-ItemProperty -LiteralPath $Path -Name $Name -Value $Value -Type $Type -Force
+        Write-Log ("{0}\{1} = {2}  {3}" -f $Path, $Name, ($Value -join ','), $Why) 'OK'
+    } catch {
+        Write-Log ("FAILED {0}\{1}: {2}" -f $Path, $Name, $_.Exception.Message) 'ERROR'
+    }
+}
+function Remove-Reg {
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$Name)
+    try {
+        if ((Test-Path -LiteralPath $Path) -and ($null -ne (Get-ItemProperty -LiteralPath $Path -Name $Name -ErrorAction SilentlyContinue))) {
+            Remove-ItemProperty -LiteralPath $Path -Name $Name -Force
+            Write-Log ("removed {0}\{1}" -f $Path, $Name) 'OK'
+        }
+    } catch {
+        Write-Log ("FAILED to remove {0}\{1}: {2}" -f $Path, $Name, $_.Exception.Message) 'ERROR'
+    }
+}
+
 # Local accounts created by the answer file (used by rules that act on every starter account).
 $accounts = @({{accounts}})
 

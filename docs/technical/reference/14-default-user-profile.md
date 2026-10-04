@@ -69,6 +69,34 @@ documents), but without app advertising.
 | DisableCopilotAndRecall | `Software\Policies\Microsoft\Windows\WindowsCopilot\TurnOffWindowsCopilot` | 1 | User policy that turns off Copilot: the only level where it takes effect |
 | DisableAutoRun | `...\Explorer\AutoplayHandlers\DisableAutoplay` | 1 | No AutoPlay dialog for media |
 
+## Keys that switch the input language
+
+Rule `default-user.input-switch-keys` (WinKickOff only, not in v0.2; customer request of 04.10.2026), off by default.
+No answer file setting exists for these keys: Microsoft-Windows-International-Core has only InputLocale,
+SystemLocale, UILanguage, UILanguageFallback and UserLocale, the `intl.cpl` XML has no keys and no ADMX policy sets
+them. So the rule writes the registry, like the "Input language hot keys" dialog of Windows:
+
+| Where | Key | Values (REG_SZ) |
+|---|---|---|
+| Default profile (DU), every account created after installation | `Keyboard Layout\Toggle` | `Language Hotkey` and its older copy `Hotkey`: parameter `language`; `Layout Hotkey`: parameter `layout` |
+| Sign-in screen: `HKU\.DEFAULT` (`S-1-5-18`, the profile of the system account that logonui uses) | `Keyboard Layout\Toggle` | the same three values |
+
+Values: 1 Left Alt+Shift, 2 Ctrl+Shift, 3 not assigned. Microsoft documents them with `SPI_SETLANGTOGGLE`; which value
+switches languages and which the layouts of one language is reported by third parties and matches what the dialog
+writes. The value 4 (the grave accent key) is not offered: it is undocumented and takes the apostrophe key of the
+Ukrainian (enhanced) layout and the key of the Russian letter "yo". The two parameters may not take the same value,
+except "not assigned" (`differs_from` and `same_allowed` in the catalog). Win+Space always switches and cannot be
+changed.
+
+Windows defaults: the values are absent (read-only query of `HKU\.DEFAULT` on a 26300 PC; the default profile of a
+clean installation is to be confirmed in a virtual machine), which means Left Alt+Shift for languages and Ctrl+Shift
+for layouts. Writing `HKU:\.DEFAULT\` is allowed only in the phases whose script mounts the `HKU:` drive
+(specialize and default-user, both in `Setup-System.ps1`).
+
+To check in a virtual machine: that InternationalCore of the oobeSystem pass and `Set-WinUserLanguageList` in
+`Setup-User.ps1` keep the values; that the keys work in the password field of the sign-in screen and in the first
+session of a new account.
+
 ## What is intentionally not set
 
 Theme (dark/light), wallpaper, taskbar alignment, the classic context menu, showing

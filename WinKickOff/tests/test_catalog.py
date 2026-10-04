@@ -81,7 +81,7 @@ class RealCatalogTest(unittest.TestCase):
     def test_loads_with_rules_and_groups(self) -> None:
         self.assertGreater(len(self.catalog.rules), 60)
         self.assertGreater(len(self.catalog.groups), 15)
-        self.assertEqual(self.catalog.version, "0.5")
+        self.assertEqual(self.catalog.version, "0.6")
 
     def test_every_rule_has_actions_and_docs(self) -> None:
         for rule in self.catalog.rules.values():
@@ -154,6 +154,33 @@ class BrokenCatalogTest(unittest.TestCase):
 
     def test_placeholder_without_param(self) -> None:
         self._expect(RULE_OK.replace("value = 1", 'value = "{n}"'), "undeclared params")
+
+    def _load(self, rules: str) -> Catalog:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = write_catalog(tmp, rules)
+            return load_catalog(root / "rules", docs_root=root)
+
+    def test_sign_in_screen_values_only_where_hku_is_mounted(self) -> None:
+        sign_in = RULE_OK.replace("HKLM:\\SOFTWARE\\Test", "HKU:\\.DEFAULT\\Test")
+        self.assertIsNotNone(self._load(sign_in))  # phase specialize
+        self._expect(sign_in.replace('phase = "specialize"', 'phase = "user-first-logon"'), "HKU:")
+
+    def test_first_sign_in_and_post_oobe_scripts_run_only_registry_and_ps(self) -> None:
+        service = RULE_OK.replace('type = "reg"\npath', 'type = "service"\nstart = 4\npath').replace(
+            "path = 'HKLM:\\SOFTWARE\\Test'\nname = \"X\"\nkind = \"DWord\"\nvalue = 1", 'name = "Spooler"')
+        self.assertIsNotNone(self._load(service))
+        self._expect(service.replace('phase = "specialize"', 'phase = "post-oobe"'), "cannot run action type")
+
+    def test_two_enum_parameters_that_must_differ(self) -> None:
+        params = ('[rule.params.a]\ntype = "enum"\ntitle = "A"\ndefault = 1\nvalues = [ { value = 1 }, { value = 2 } ]\n'
+                  '[rule.params.b]\ntype = "enum"\ntitle = "B"\ndefault = 2\nvalues = [ { value = 1 }, { value = 2 } ]\n'
+                  'differs_from = "{other}"\nsame_allowed = [{same}]\n[[rule.actions]]')
+        good = RULE_OK.replace("[[rule.actions]]", params.replace("{other}", "a").replace("{same}", "2"), 1)
+        self.assertIsNotNone(self._load(good))
+        self._expect(RULE_OK.replace("[[rule.actions]]", params.replace("{other}", "c").replace("{same}", ""), 1),
+                     "not another enum")
+        self._expect(RULE_OK.replace("[[rule.actions]]", params.replace("{other}", "a").replace("{same}", "3"), 1),
+                     "same_allowed")
 
     def test_placeholders_only_in_values(self) -> None:
         """A key or a value name is never filled in: a parameter must not become part of a path."""

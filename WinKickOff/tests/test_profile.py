@@ -63,6 +63,27 @@ class ProfileTest(unittest.TestCase):
         self.assertTrue(any("ghost.rule" in w for w in warnings))
         self.assertIn("ghost.rule", loaded.to_dict(self.catalog)["unknown"])
 
+    def test_account_mode(self) -> None:
+        profile = Profile.from_catalog(self.catalog)
+        self.assertEqual(profile.install["account_mode"], "file")
+        self.assertEqual([a.name for a in profile.answer_file_accounts()], ["Admin", "User"])
+        profile.install["account_mode"] = "ask"
+        self.assertEqual(profile.answer_file_accounts(), [])  # the file holds no account ...
+        self.assertEqual(len(profile.accounts), 2)  # ... and the form keeps them for the way back
+        loaded, warnings = Profile.from_dict(profile.to_dict(self.catalog), self.catalog)
+        self.assertTrue(loaded.asks_for_account())
+        self.assertEqual(warnings, [])
+
+    def test_profiles_of_format_2_load_without_a_warning(self) -> None:
+        data = Profile.from_catalog(self.catalog).to_dict(self.catalog)
+        data["format_version"] = 2
+        del data["install"]["account_mode"]
+        loaded, warnings = Profile.from_dict(data, self.catalog)
+        self.assertEqual(warnings, [])
+        self.assertFalse(loaded.asks_for_account())
+        data["format_version"] = 4  # a newer program
+        self.assertTrue(Profile.from_dict(data, self.catalog)[1])
+
     def test_unknown_entries_for_the_tree(self) -> None:
         profile = Profile.from_catalog(self.catalog)
         profile.unknown = {"zeta.rule": {"enabled": True, "params": {"n": 2}}, "admx.a.b": {"params": "bad"}, "admx.a.c": 7}

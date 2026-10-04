@@ -3,7 +3,7 @@
 WinKickOff builds an `autounattend.xml` file for unattended installation of Windows 11 Pro. The file is
 placed on a USB drive with the Windows installation image; Windows Setup finds it on its own and configures
 the computer: security, updates, accounts, languages, removal of unneeded apps. All a person has to do is
-choose the disk.
+choose the disk (and, when the profile says so, type the product key, pick the edition or enter the account).
 
 The program is designed for small organizations without a Windows domain, where there is no dedicated
 administrator for each computer. Settings are grouped into ready-made sets (presets), and you can change

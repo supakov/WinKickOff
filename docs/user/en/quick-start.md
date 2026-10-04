@@ -36,9 +36,10 @@ a changed value is marked with the word "changed". The "Restore defaults" button
 
 Nodes at the top of the tree:
 
-- "Installation": Windows edition and product key (generic key, your own key, or ask during
+- "Installation": Windows edition and product key (generic key, your own key, or choose the edition during
   installation), time zone.
-- "Accounts": the initial accounts, their groups and descriptions.
+- "Accounts": the initial accounts, their groups and descriptions, or "Ask for the account during installation": then
+  Windows Setup itself asks for the name of one administrator account.
 - "Languages and region": display language (the same as the image language), formats,
   code page and the list of input languages in order.
 

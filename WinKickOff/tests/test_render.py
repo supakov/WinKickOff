@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
-from winkickoff.core.catalog import Action, load_catalog
+from winkickoff.core.catalog import PHASE_ACTION_TYPES, SCRIPT_PHASES, Action, load_catalog
 from winkickoff.core.profile import Profile
 from winkickoff.core.render import RenderError, ps_quote, render_action, render_block, substitute
 
@@ -67,6 +68,24 @@ class RenderActionTest(unittest.TestCase):
         self.assertEqual(ps_quote("a'b"), "'a''b'")
 
 
+class RuntimeFunctionsTest(unittest.TestCase):
+    FUNCTIONS = {"reg": "Set-Reg", "reg-remove": "Remove-Reg", "reg-list": "Set-RegList", "service": "Set-ServiceStart",
+                 "exe": "Invoke-Exe", "feature": "Set-Feature", "capability": "Remove-Capability", "appx": "Remove-Apps"}
+    RUNTIMES = {"specialize": "Setup-System.runtime.ps1", "default-user": "Setup-System.runtime.ps1",
+                "user-first-logon": "Setup-User.runtime.ps1", "post-oobe": "Post-OOBE.runtime.ps1"}
+
+    def test_the_script_of_every_phase_defines_the_functions_of_its_actions(self) -> None:
+        """A rule may use an action type in a phase only when the script of that phase defines its function (a reg
+        action of the per-user script used to fail with "Set-Reg is not recognized")."""
+        self.assertEqual(set(self.RUNTIMES), set(SCRIPT_PHASES))
+        for phase in SCRIPT_PHASES:
+            text = (ROOT / "templates" / self.RUNTIMES[phase]).read_text(encoding="ascii")
+            for atype in PHASE_ACTION_TYPES.get(phase, tuple(self.FUNCTIONS)):
+                if atype in self.FUNCTIONS:
+                    with self.subTest(phase=phase, type=atype):
+                        self.assertRegex(text, rf"(?m)^function {re.escape(self.FUNCTIONS[atype])}\b")
+
+
 class RenderCatalogTest(unittest.TestCase):
     def test_every_script_action_of_the_catalog_renders(self) -> None:
         catalog = load_catalog(ROOT / "rules", docs_root=ROOT.parent)
@@ -76,7 +95,9 @@ class RenderCatalogTest(unittest.TestCase):
                 continue
             block = render_block(rule, profile.params_for(catalog, rule.id))
             self.assertEqual(block.splitlines()[0], f"# [{rule.id}]", rule.id)
-            self.assertNotIn("{", block.splitlines()[1] if len(rule.actions) == 1 and rule.actions[0].type != "ps" else "", rule.id)
+            for line in block.splitlines()[1:] if not any(a.type == "ps" for a in rule.actions) else []:
+                # no placeholder is left; a CLSID such as {645FF040-...} in a key or a value name is literal text
+                self.assertNotRegex(line, r"\{[a-z_][a-z0-9_]*\}", rule.id)
 
 
 if __name__ == "__main__":

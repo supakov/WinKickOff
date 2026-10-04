@@ -8,6 +8,7 @@ All commands here are read-only checks or instructions for a person; nothing is 
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from winkickoff.core.catalog import Action, Rule
@@ -31,6 +32,8 @@ def reg_cli_path(path: str) -> str:
         return "HKCU\\" + path[6:]
     if path.startswith("DU:\\"):
         return "HKCU\\" + path[4:]
+    if path.startswith("HKU:\\"):
+        return "HKU\\" + path[5:]
     return path
 
 
@@ -40,7 +43,10 @@ REG_TYPES = {"DWord": "REG_DWORD", "QWord": "REG_QWORD", "String": "REG_SZ", "Ex
 
 def _value_arg(name: str) -> str:
     """reg.exe addresses the default value of a key with /ve instead of /v <name>."""
-    return "/ve" if name == "(Default)" else f"/v {name}"
+    if name == "(Default)":
+        return "/ve"
+    # a space or braces (a CLSID, which PowerShell would read as a script block) need quotes
+    return f"/v {name}" if re.fullmatch(r"[A-Za-z0-9_.-]+", name) else f'/v "{name}"'
 
 
 def _is_policy(path: str) -> bool:

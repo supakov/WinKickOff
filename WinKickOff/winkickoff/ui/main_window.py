@@ -62,7 +62,7 @@ from winkickoff.core.validate import Issue, has_errors, list_problem, validate_c
 from winkickoff.core.verify import rollback_steps, verify_steps
 from winkickoff.ui.checkimages import make_check_images
 from winkickoff.ui.clipboard import copy_secret
-from winkickoff.ui.data_forms import AccountsForm, InstallForm, LanguagesForm
+from winkickoff.ui.data_forms import ACCOUNT_MODE_TITLES, AccountsForm, InstallForm, LanguagesForm
 from winkickoff.ui.mcp_workspace import WindowWorkspace, install_pump
 from winkickoff.ui.winmenus import MenuMargins, colorref
 
@@ -141,7 +141,8 @@ WORKFLOW = [
             "double-click one to go to the rule.")),
     ("h2", N_("7. Installation")),
     ("", N_("Copy autounattend.xml to the root of a USB drive with the Windows 11 installation image "
-            "and boot the PC from it. Windows Setup asks only for the drive to install to. After "
+            "and boot the PC from it. Windows Setup asks for the drive to install to, and also for the product key "
+            "and the edition or for an account when the \"Installation\" or \"Accounts\" form says so. After "
             "installation, logs are in C:\\ProgramData\\Unattend\\Logs.")),
 ]
 
@@ -1640,6 +1641,7 @@ class MainWindow(tk.Tk):
 
         install_titles = {"edition": tr("Edition"), "product_key_mode": tr("Key mode"), "product_key": tr("Product key"),
                           "time_zone": tr("Time zone")}
+        account_modes = dict(ACCOUNT_MODE_TITLES)
         language_titles = {"ui_language": tr("Display language"), "system_locale": tr("Language for non-Unicode programs"),
                            "user_locale": tr("Date and number format"), "input": tr("Input languages")}
 
@@ -1660,6 +1662,9 @@ class MainWindow(tk.Tk):
                                  self._param_display(rule, param, d.before), self._param_display(rule, param, d.after)))
                 else:
                     rows.append(("", tr("parameter"), d.key, text(d.before), text(d.after)))
+            elif d.kind == "install" and d.key == "account_mode":
+                rows.append(("data:accounts", tr("accounts"), tr("Accounts"), tr(account_modes.get(d.before, str(d.before))),
+                             tr(account_modes.get(d.after, str(d.after)))))
             elif d.kind == "install":
                 rows.append(("data:install", tr("installation"), install_titles.get(d.key, d.key), text(d.before), text(d.after)))
             elif d.kind == "languages":

@@ -14,8 +14,8 @@ from typing import Any
 
 from winkickoff.core.admx import safe_name
 from winkickoff.core.catalog import Catalog, CatalogError, heading_anchors, is_imported, load_catalog
-from winkickoff.core.i18n import catalog_texts, tr
-from winkickoff.core.profile import Profile
+from winkickoff.core.i18n import N_, catalog_texts, tr
+from winkickoff.core.profile import ACCOUNT_MODES, Profile
 from winkickoff.core.render import EDITION_KEYS
 from winkickoff.core.resources import find_keyboard
 from winkickoff.core.verify import rollback_steps, verify_steps
@@ -65,8 +65,25 @@ def check_account_name(name: str) -> str | None:
     return None
 
 
+# Rules that the mode "Windows Setup asks for the account" relies on: without them OOBE shows the Microsoft account
+# screens (when online) or may stop at the network screen.
+ASK_MODE_RULES = (
+    ("oobe.hide-online-account", N_("Windows Setup asks for the account, but \"{0}\" is off: when the PC is online, "
+                                    "Setup asks for a Microsoft account")),
+    ("install.bypass-nro", N_("Windows Setup asks for the account, but \"{0}\" is off: without a network, Setup may stop "
+                              "at the network screen")),
+)
+
+
 def validate_accounts(profile: Profile) -> list[Issue]:
     issues: list[Issue] = []
+    mode = profile.install.get("account_mode", "file")
+    if mode not in ACCOUNT_MODES:
+        return [Issue("error", "accounts", tr("Unknown account mode '{0}'", mode))]
+    if mode == "ask":
+        return [Issue("info", "accounts", tr(
+            "Windows Setup will ask for the name of one account, which becomes an administrator; the accounts of the "
+            "form are not written into the file"))]
     seen: set[str] = set()
     for index, account in enumerate(profile.accounts):
         target = f"accounts[{index}]"
@@ -175,6 +192,13 @@ def validate_profile(profile: Profile, catalog: Catalog, keyboards: list[dict[st
             problem = check_param(rule, param, profile.param(catalog, rule.id, pname))
             if problem:
                 issues.append(Issue("error", rule.id, tr("\"{0}\": {1}", title, problem), rule.doc))
+            elif param.differs_from is not None:
+                value = profile.param(catalog, rule.id, pname)
+                if value == profile.param(catalog, rule.id, param.differs_from) and value not in param.same_allowed:
+                    texts = catalog_texts()
+                    issues.append(Issue("error", rule.id, tr(
+                        "\"{0}\": \"{1}\" and \"{2}\" cannot have the same value", title, texts.param(rule, param),
+                        texts.param(rule, rule.params[param.differs_from])), rule.doc))
         if enabled:
             for req in rule.requires:
                 if not profile.is_enabled(req):
@@ -193,6 +217,15 @@ def validate_profile(profile: Profile, catalog: Catalog, keyboards: list[dict[st
                             title, catalog_texts().rule(catalog.rules[other], "title"))))
         elif rule.level == "baseline":
             issues.append(Issue("warning", rule.id, tr("Baseline rule \"{0}\" is disabled", title), rule.doc))
+    if profile.asks_for_account():
+        for rule_id, text in ASK_MODE_RULES:
+            if rule_id in catalog.rules and not profile.is_enabled(rule_id):
+                issues.append(Issue("warning", rule_id, tr(text, catalog_texts().rule(catalog.rules[rule_id], "title"))))
+    if profile.install.get("product_key_mode") == "ask":
+        issues.append(Issue("info", "install.product_key_mode", tr(
+            "The edition is chosen during installation: Setup shows the product key page, and \"I don't have a product "
+            "key\" opens the list of editions. The protection of WinKickOff is made for Pro: on Home, deferred feature "
+            "updates and BitLocker do not work, and some Copilot and Recall policies are not supported.")))
     encryption = catalog.rules.get(DEVICE_ENCRYPTION_RULE)
     if encryption is not None and not profile.is_enabled(encryption.id):
         issues.append(Issue("warning", encryption.id, tr(
@@ -290,7 +323,7 @@ def validate_xml(text: str) -> list[Issue]:
                         issues.append(Issue("error", "xml", tr("InputLocale ({0}): invalid item '{1}'", arch, item)))
             if component.get("name") == "Microsoft-Windows-Shell-Setup":
                 groups = [_text(g) for g in component.iter(f"{U}Group")]
-                if groups and "Administrators" not in groups:
+                if any(True for _ in component.iter(f"{U}LocalAccount")) and "Administrators" not in groups:
                     issues.append(Issue("error", "xml", tr("LocalAccounts ({0}): no account in the Administrators group", arch)))
 
     extensions = root.find(f"{EXT}Extensions")

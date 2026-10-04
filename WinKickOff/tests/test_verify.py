@@ -20,6 +20,13 @@ def rule_with(*actions: tuple[str, dict], phase: str = "specialize") -> Rule:
 
 
 class VerifyTest(unittest.TestCase):
+    def test_value_names_with_spaces_and_the_sign_in_screen(self) -> None:
+        rule = rule_with(("reg", {"path": "HKU:\\.DEFAULT\\Keyboard Layout\\Toggle", "name": "Language Hotkey",
+                                  "kind": "String", "value": "2"}), phase="default-user")
+        steps = "\n".join(verify_steps(rule, {}))
+        self.assertIn('reg query "HKU\\.DEFAULT\\Keyboard Layout\\Toggle" /v "Language Hotkey"', steps)
+        self.assertEqual(reg_cli_path("HKU:\\.DEFAULT\\X"), "HKU\\.DEFAULT\\X")
+
     def test_every_rule_can_be_checked_and_undone(self) -> None:
         catalog = load_catalog(ROOT / "rules", docs_root=ROOT.parent)
         profile = Profile.from_catalog(catalog)
@@ -28,6 +35,15 @@ class VerifyTest(unittest.TestCase):
             with self.subTest(rule=rule.id):
                 self.assertTrue(rule.verify or verify_steps(rule, params))
                 self.assertTrue(rule.rollback or rollback_steps(rule, params))
+
+    def test_value_names_with_braces_are_quoted(self) -> None:
+        # a CLSID in braces would be a script block in PowerShell; a plain name stays unquoted as before
+        clsid = "{20D04FE0-3AEA-1069-A2D8-08002B30309D}"
+        icon = rule_with(("reg", {"path": "DU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel",
+                                  "name": clsid, "kind": "DWord", "value": 0}), phase="default-user")
+        self.assertIn(f'/v "{clsid}"', "\n".join(verify_steps(icon, {})))
+        plain = rule_with(("reg", {"path": "HKLM:\\SOFTWARE\\X", "name": "Plain_Name.1", "kind": "DWord", "value": 1}))
+        self.assertIn("/v Plain_Name.1", "\n".join(verify_steps(plain, {})))
 
     def test_registry_paths(self) -> None:
         self.assertEqual(reg_cli_path("HKLM:\\SOFTWARE\\X"), "HKLM\\SOFTWARE\\X")

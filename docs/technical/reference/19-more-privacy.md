@@ -156,10 +156,11 @@ Navigation pane (`...\Explorer\Desktop\NameSpace`, both views), also missing fro
 | `nav.home-hidden` | {f874310e-b6b7-47dc-bc84-b9e6b38f5903} «Главная» (Home), CLSID_MSGraphHomeFolder | off | Requires `nav.launch-to-this-pc` (`LaunchTo=1` in the default profile), because Explorer opens on Home. With the This PC folders hidden, users would lose the quick way to Documents; reports say Quick access pins disappear with Home |
 | `nav.launch-to-this-pc` | `HKCU\...\Explorer\Advanced` LaunchTo=1 | off | Explorer opens on This PC |
 
-Not generated: Network, Libraries, OneDrive and Linux entries of the navigation pane (Libraries are hidden by
-default, OneDrive is not installed, Linux appears only with WSL, Network is needed for shared folders);
-`ThisPCPolicy` of `FolderDescriptions` (on 22H2 and later `HiddenByDefault` decides; whether ThisPCPolicy still
-hides is unverified); the `DelegateFolders` of This PC (portable devices and similar data sources).
+Not generated here: the Network, Libraries and Linux entries of the navigation pane and the other File Explorer
+namespaces and desktop icons are rules of card 20 (`20-explorer-namespaces.md`, catalog 0.6); OneDrive in the pane is
+covered by `apps.remove.onedrive` and `onedrive.block`. Not generated at all: `ThisPCPolicy` of `FolderDescriptions`
+(on 22H2 and later `HiddenByDefault` decides; whether ThisPCPolicy still hides is unverified) and the
+`DelegateFolders` of This PC (portable devices and similar data sources).
 
 Verification: open This PC and press F5; after a feature update Windows may restore its defaults, and the
 "This PC" menu applies the rules again.

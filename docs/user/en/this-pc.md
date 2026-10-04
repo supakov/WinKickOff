@@ -47,7 +47,8 @@ depends on the build (SMB signing, for example). They are listed at the bottom o
 
 - Rules that take effect only during Windows installation (bypassing checks, OOBE screens).
 - Rules of a user's first sign-in, including the input language list: changing keyboard layouts on a
-  running system can break layout switching.
+  running system can break layout switching. For the same reason the keys that switch the input language are
+  not changed here, because that rule also changes the sign-in screen.
 - Rules without a check mark whose Windows defaults are unknown (app removal, PowerShell steps): they are listed at
   the bottom of the window. The other rules without a check mark return to the Windows defaults together with the
   rules that depend on them; rules the selected ones depend on are added automatically.

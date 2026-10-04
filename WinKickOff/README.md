@@ -13,9 +13,10 @@ Specification, architecture, data model and plan: [`../docs/technical/editor/`](
 State on 02.10.2026: version 1.2.0-rc.4 (MCP server: stdio and HTTP on 127.0.0.1, read-only by default, and the
 skill `skills/winkickoff` for assistants that use it; import of ADMX
 templates, including policies with lists of values and multi-line text; Back and Forward; imported policies follow
-the built-in rules). The catalog 0.5 (251 rules, 36 groups) carries every action of the
+the built-in rules). The catalog 0.6 (278 rules, 40 groups) carries every action of the
 hand-written answer file v0.2, the Edge, Chrome and Brave policies, the AI, telemetry, Office and OneDrive rules of
-the customer's list and the File Explorer folders; the generator, the checks, four presets, profiles, data forms,
+the customer's list, the File Explorer namespaces and desktop icons and the keys that switch the input language;
+the generator, the checks, four presets, profiles, data forms,
 import, the build from the window and the This PC menu work. The source language is English; languages and
 colour themes are files (see "Languages and themes" below).
 The Office preset equals the catalog defaults; a build passes `tools/Validate-Unattend.ps1` (36 of
@@ -91,8 +92,8 @@ WinKickOff/
   skills/            winkickoff/: the Agent Skill for AI agents that use WinKickOff over MCP (see skills/README.md);
                      shipped next to the exe in the portable build
   tests/             unittest
-  tools/             make_presets.py, make_rule_docs.py, make_browser_rules.py, run-tests.ps1,
-                     build.ps1 (T12)
+  tools/             make_presets.py, make_rule_docs.py, make_browser_rules.py (generates rules/14-browsers.toml),
+                     make_shell_rules.py (generates rules/17-shell.toml), run-tests.ps1, build.ps1 (T12)
 ```
 
 The working folders `output/`, `logs/` and `settings.json` are created next to the program on first use

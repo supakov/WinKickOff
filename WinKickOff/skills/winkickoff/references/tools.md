@@ -1,6 +1,6 @@
 # WinKickOff MCP tools and resources
 
-Exact reference for the server of WinKickOff 1.2.0-rc.4 (catalog 0.5). Server name `winkickoff`, protocol 2025-06-18.
+Exact reference for the server of WinKickOff 1.2.0-rc.4 (catalog 0.6). Server name `winkickoff`, protocol 2025-06-18.
 
 ## Contents
 
@@ -96,11 +96,13 @@ All work in every mode. They change nothing, not even the selection in the windo
 
 - Arguments: none.
 - Returns the open profile without secrets: `format_version`, `catalog_version`, `name`, `author_text`, `created`,
-  `modified`, `comment_text`, `install` `{edition, product_key_mode, has_product_key, time_zone}`, `languages`
+  `modified`, `comment_text`, `install` `{edition, product_key_mode, has_product_key, time_zone, account_mode}`, `languages`
   `{ui_language, system_locale, user_locale, input}`, `accounts` `[{name, display_name, group, description_text,
   has_password}]`, `rules` `{<id>: {enabled, params?}}`, `unknown`, plus `file`, `dirty`, `enabled_count`,
   `changed_from_defaults` (ids that differ from the catalog defaults or have parameters set).
-- `product_key_mode`: `generic`, `custom` or `ask`.
+- `product_key_mode`: `generic`, `custom` or `ask` (Setup shows the key page and the list of editions; `edition` is
+  ignored). `account_mode`: `file` (the accounts are written) or `ask` (no account in the file: Windows Setup asks for
+  one administrator account; `accounts` are kept for the way back).
 - Size: about 12 KB.
 
 ### list_profiles

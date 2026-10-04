@@ -1,7 +1,7 @@
 # WinKickOff concepts
 
-What an agent needs to explain rules and make good choices. Catalog 0.5: 251 rules in 36 groups; 214 rules are on by
-default.
+What an agent needs to explain rules and make good choices. Catalog 0.6: 278 rules in 40 groups; 214 rules are on by
+default, 190 are optional.
 
 ## Contents
 
@@ -27,7 +27,8 @@ default.
   small workgroups without a domain, where users are not professionals and the organisation is under constant attack.
 - Priorities: security and updatability. No cosmetic tweaks, no third-party programs, no "optimizers".
 - Usual path: pick a profile (Office is the recommended start), switch rules in the tree, fill the three data forms,
-  check, build, put the file on a USB stick, install. Setup then asks only for the disk.
+  check, build, put the file on a USB stick, install. Setup then asks only for the disk, unless the "Installation" form
+  asks for the key and the edition (key mode `ask`) or the "Accounts" form for the account (`account_mode` `ask`).
 - Building an answer file changes nothing on the PC it runs on, and the program writes only inside its own folder
   (`profiles`, `output`, `logs`, `admx`, `settings.json`). The exception is the window's "This PC" menu: "Apply the
   selection now..." and "Return the selection to Windows defaults now..." change this computer after the person allows
@@ -72,7 +73,7 @@ such a rule **on** turns the Windows feature **off**. Switching it off does not 
 | `windowspe` | windowsPE pass | In Setup before copying files (hardware check bypasses) |
 | `specialize-xml` | specialize pass | First boot, before OOBE |
 | `specialize` | `Setup-System.ps1` | First boot, as SYSTEM, no network, no users yet |
-| `default-user` | default user profile, inside `Setup-System.ps1` | Every profile created afterwards (Admin and User at OOBE, later accounts too). Existing profiles do not get it |
+| `default-user` | default user profile, inside `Setup-System.ps1` | Every profile created afterwards (Admin and User at OOBE, later accounts too). Existing profiles do not get it. `default-user.input-switch-keys` also writes the sign-in screen (`HKU:\.DEFAULT`) at installation; it is never applied to a running PC |
 | `user-first-logon` | `Setup-User.ps1` | First sign-in of each user (display language pin, keyboard list) |
 | `post-oobe` | `Post-OOBE.ps1` | After OOBE (password flags, built-in accounts, cleanup) |
 | `oobe-xml` | oobeSystem pass | OOBE screens |
@@ -99,6 +100,7 @@ Types: `int` (with `min` and `max`), `enum` (fixed `values`), `string`, `bool` a
 | `privacy.telemetry-minimal` | `level` | 1 | 1 Required, 0 Security (acts as 1 on Pro) |
 | `oobe.protect-your-pc` | `mode` | 3 | 3 all express settings off, 1 on |
 | `default-user.region` | `geo_id`, `geo_name` | `"241"`, `"UA"` | Strings (country of the user profile) |
+| `default-user.input-switch-keys` | `language`, `layout` | `"1"`, `"2"` | Strings: `"1"` left Alt+Shift, `"2"` Ctrl+Shift, `"3"` not assigned (Win+Space always works). The two must differ unless one is `"3"` |
 | `chrome.variations` | `mode` | 1 | 1 critical fixes only, 2 disable all |
 | `chrome.sync` | `value` | 1 | 1 Blocked, 0 user decides |
 
@@ -121,7 +123,8 @@ In the window, "Restore defaults" in the parameter panel resets the parameters o
     `privacy.widgets-off` to `default-user.widgets-button-off`; `apps.remove.maps` to `apps.maps-broker-off`;
     `accounts.password-never-expires` to `post-oobe.password-never-expires`; `user-logon.pin-ui-language` to
     `user-logon.input-languages`; `nav.launch-to-this-pc` to `nav.home-hidden`.
-- Built-in rules have no conflicts. Conflicts exist only between an imported policy and its "(Disabled)" variant.
+- Conflicts: `desktop.gallery` with `nav.gallery-hidden` and `desktop.home` with `nav.home-hidden` (each pair shows and
+  hides the same item); an imported policy and its "(Disabled)" variant. Two conflicting rules cannot both be on.
 
 ## Groups
 
@@ -158,7 +161,10 @@ In the window, "Restore defaults" in the parameter panel resets the parameters o
 | `privacy.office` | Microsoft Office |
 | `system` | System |
 | `system.drivers` | Drivers and devices |
-| `system.explorer` | File Explorer: "This PC" and the navigation pane |
+| `system.explorer` | File Explorer and the desktop |
+| `system.explorer.thispc` | Folders in "This PC" |
+| `system.explorer.nav` | Navigation pane |
+| `system.explorer.desktop` | Desktop icons (subgroup `system.explorer.desktop.folders`) |
 | `apps` | Services and apps |
 | `apps.remove` | Apps to remove (summary: one rule per app; clear it to keep the app) |
 | `apps.onedrive` | OneDrive |
@@ -167,7 +173,8 @@ In the window, "Restore defaults" in the parameter panel resets the parameters o
 | `post-oobe` | After OOBE |
 
 Prefix hints: `lsa.*` in `security.lsa`; `edge.*` in `browsers.edge`; `ai.*` and `default-user.copilot-off` in
-`privacy.ai`; `office.*` in `privacy.office`; `thispc.*` and `nav.*` in `system.explorer`;
+`privacy.ai`; `office.*` in `privacy.office`; `thispc.*` in `system.explorer.thispc`, `nav.*` in
+`system.explorer.nav`, `desktop.*` in `system.explorer.desktop`; `default-user.input-switch-keys` in `default-user`;
 `default-user.no-sync-provider-ads` and `default-user.no-consumer-content` in `privacy.ads`.
 
 ## Presets
@@ -176,14 +183,14 @@ Four presets ship with the program. They are read-only: a changed preset is save
 
 | Id | For | Difference from the catalog defaults |
 |---|---|---|
-| `office` | Ordinary work PCs. Recommended start | None (214 of 251 rules on) |
+| `office` | Ordinary work PCs. Recommended start | None (214 of 278 rules on) |
 | `strict` | Higher-risk PCs; may break older programs; test on one PC first | On: `update.other-microsoft-products`, `asr.usb-untrusted`, `uac.admin-always-notify`, `network.netbios-off`, `scripts.remove-vbscript`. Parameters: `defender.controlled-folder-access` `mode` 1 (Block), `defender.smartscreen-shell` `level` `"Block"`, `asr.prevalence` `mode` 1 (Block). 219 on |
 | `laptop` | Laptops | `accounts.inactivity-lock` `seconds` 600 instead of 900. 214 on |
 | `home` | Home PCs: installation screens, app removal and privacy only | 70 on (the list `HOME_RULES`); key mode `ask`; weakens protection (the UAC, LSA, Defender, ASR, SmartScreen, network, logging, update, browser and post-OOBE rules are off except `defender.notifications` and `update.delivery-optimization-lan` `mode` 99, Windows keeps its defaults); also off: `install.netfx3`, `printing.spooler-automatic`, `default-user.region`, `user-logon.input-languages`, `user-logon.pin-ui-language`, `removable.autorun-off`, the Notepad, Paint, Office and Edge AI rules; Check warns for each baseline rule. Not for work PCs |
 
 All presets share the data forms: edition Pro, generic key (home: ask), time zone `FLE Standard Time`
 (Kyiv), display language `uk-UA`, keyboards `en-US`, `uk-UA`, `ru-UA`, accounts Admin (Administrators) and User (Users)
-without passwords.
+without passwords (account mode `file`).
 
 ## Profiles
 
@@ -205,8 +212,8 @@ secrets). In mode `edit`, `show_item` opens them for the person.
 
 | Form | `show_item` | Content |
 |---|---|---|
-| "Installation" | `data:install` | `edition` (`Pro`; `Enterprise` or `Education` only with matching licences; Home is not supported), `product_key_mode` (`generic`: public key that selects the edition and does not activate; `custom`: own key; `ask`: asked during Setup), `time_zone` |
-| "Accounts" | `data:accounts` | Name (up to 20 characters), display name, group (Administrators or Users), description, password. At least one account in Administrators |
+| "Installation" | `data:install` | `edition` (`Pro`; `Enterprise` or `Education` only with matching licences; the Windows Home edition is not supported, and the `home` preset uses Pro too), `product_key_mode` (`generic`: public key that selects the edition and does not activate; `custom`: own key; `ask`: Setup shows the key page, and "I don't have a product key" opens the list of editions; `edition` counts only for `generic`), `time_zone` |
+| "Accounts" | `data:accounts` | Mode "Create these accounts" (`account_mode` `file`): name (up to 20 characters), display name, group (Administrators or Users), description, password; at least one account in Administrators. Mode "Ask for the account during installation" (`ask`): no account in the file, Windows Setup asks for one, which becomes an administrator |
 | "Languages and region" | `data:languages` | `ui_language` (must equal the language of the ISO), `system_locale`, `user_locale`, `input` (keyboards, first is the default) |
 
 The country is not in the forms: it is the parameter of rule `default-user.region`.
@@ -233,9 +240,12 @@ Levels: `error` blocks the build, `warning` needs a decision, `info` is a note.
 - Errors: a rule is on but a rule it requires is off; a conflict; a parameter out of range; an edition without a
   generic key; a custom key not in the form `XXXXX-XXXXX-XXXXX-XXXXX-XXXXX`; no time zone; a bad language tag; no or
   unknown keyboard; a bad or duplicate account name; a group other than Administrators or Users; no administrator;
+  two parameters that may not match have the same value (`default-user.input-switch-keys`);
   XML or build errors (Setup limits such as a command longer than 259 characters).
 - Warnings: a baseline rule is off; a risky rule is on; `encryption.prevent-auto-bitlocker` is off; a password will be
-  written in plain text; an imported policy and a built-in rule write the same value; duplicate keyboards.
+  written in plain text; an imported policy and a built-in rule write the same value; duplicate keyboards; in account
+  mode `ask`, `oobe.hide-online-account` or `install.bypass-nro` is off.
+- Info: the account is asked during installation; the edition is chosen during installation (key mode `ask`).
 - Info: the profile holds rules the catalog does not know.
 
 In the window, a double click on a message jumps to its rule or form.
@@ -268,7 +278,6 @@ work PCs. Installation erases the chosen partition. After installation the perso
   Strict); no `C:\Windows\Panther\unattend.xml` a few minutes after setup.
 
 The full checklist is the user page `install-and-check.md` (`winkickoff://docs/user/<lang>/install-and-check.md`).
-Its ASR count of 17 for Office is outdated; 16 is right for catalog 0.5.
 
 ## This PC menu
 
@@ -281,7 +290,7 @@ Window only; never through MCP. The agent may describe it:
   returned with them.
 - The menu acts only on the computer where the window runs, not on the PCs installed from the file.
 - Not applied: installation-only rules, first sign-in rules (changing keyboards on a running system can break
-  switching), and rules without a check mark whose Windows default is unknown (app removal, PowerShell steps), which
+  switching), `default-user.input-switch-keys` (it changes the keys of the sign-in screen), and rules without a check mark whose Windows default is unknown (app removal, PowerShell steps), which
   cannot be returned to defaults. App removal and PowerShell steps are not rolled back. Default
   user values reach only profiles created later. Restart after applying. Try it on a test PC or VM first.
 

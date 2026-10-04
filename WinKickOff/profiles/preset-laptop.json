@@ -1,6 +1,6 @@
 {
-  "format_version": 2,
-  "catalog_version": "0.5",
+  "format_version": 3,
+  "catalog_version": "0.6",
   "name": "Laptop",
   "author": "",
   "created": "2026-09-25T00:00:00",
@@ -10,7 +10,8 @@
     "edition": "Pro",
     "product_key_mode": "generic",
     "product_key": "",
-    "time_zone": "FLE Standard Time"
+    "time_zone": "FLE Standard Time",
+    "account_mode": "file"
   },
   "languages": {
     "ui_language": "uk-UA",
@@ -522,6 +523,9 @@
     "default-user.http-accept-language-optout": {
       "enabled": true
     },
+    "default-user.input-switch-keys": {
+      "enabled": false
+    },
     "user-logon.pin-ui-language": {
       "enabled": true
     },
@@ -793,6 +797,84 @@
       "enabled": false
     },
     "nav.launch-to-this-pc": {
+      "enabled": false
+    },
+    "thispc.recycle-bin": {
+      "enabled": false
+    },
+    "thispc.control-panel": {
+      "enabled": false
+    },
+    "nav.libraries": {
+      "enabled": false
+    },
+    "nav.network-hidden": {
+      "enabled": false
+    },
+    "nav.recycle-bin": {
+      "enabled": false
+    },
+    "nav.user-folder": {
+      "enabled": false
+    },
+    "nav.linux-hidden": {
+      "enabled": false
+    },
+    "nav.control-panel": {
+      "enabled": false
+    },
+    "nav.show-all-folders": {
+      "enabled": false
+    },
+    "nav.removable-drives-once": {
+      "enabled": false
+    },
+    "nav.home-cloud-files-off": {
+      "enabled": false
+    },
+    "desktop.this-pc": {
+      "enabled": false
+    },
+    "desktop.user-files": {
+      "enabled": false
+    },
+    "desktop.network": {
+      "enabled": false
+    },
+    "desktop.control-panel": {
+      "enabled": false
+    },
+    "desktop.recycle-bin-hidden": {
+      "enabled": false
+    },
+    "desktop.libraries": {
+      "enabled": false
+    },
+    "desktop.spotlight-icon-hidden": {
+      "enabled": false
+    },
+    "desktop.documents": {
+      "enabled": false
+    },
+    "desktop.downloads": {
+      "enabled": false
+    },
+    "desktop.music": {
+      "enabled": false
+    },
+    "desktop.pictures": {
+      "enabled": false
+    },
+    "desktop.videos": {
+      "enabled": false
+    },
+    "desktop.desktop-folder": {
+      "enabled": false
+    },
+    "desktop.gallery": {
+      "enabled": false
+    },
+    "desktop.home": {
       "enabled": false
     }
   },

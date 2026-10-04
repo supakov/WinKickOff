@@ -1,16 +1,17 @@
 {
-  "format_version": 2,
-  "catalog_version": "0.5",
+  "format_version": 3,
+  "catalog_version": "0.6",
   "name": "Home",
   "author": "",
   "created": "2026-09-25T00:00:00",
   "modified": "2026-09-25T00:00:00",
-  "comment": "A lighter setup for home PCs: the setup screens of Office (hardware checks bypassed, no Microsoft account or network screens, BitLocker prevented), extra apps, OneDrive and Quick Assist removed, ads, widgets, web search, Copilot and Recall off, minimal telemetry, file extensions shown, File Explorer opens This PC; the product key is asked during installation. The WinKickOff protection set is not applied: the UAC, LSA, Defender (except visible notifications), ASR, SmartScreen, network, logging, update (except Delivery Optimization without the cloud), browser and post-installation rules are off and Windows keeps its defaults. Also off: .NET Framework 3.5 from the media, the automatic Print Spooler start, the user region, the input language list and the display language pin, AutoRun of removable media, and the AI settings of Notepad, Paint, Office and Edge. Check shows the baseline rules that are off. Use Office for work PCs.",
+  "comment": "A lighter setup for home PCs: the setup screens of Office (hardware checks bypassed, no Microsoft account or network screens, BitLocker prevented), extra apps, OneDrive and Quick Assist removed, ads, widgets, web search, Copilot and Recall off, minimal telemetry, file extensions shown, File Explorer opens This PC; the product key and the edition are chosen during installation. The WinKickOff protection set is not applied: the UAC, LSA, Defender (except visible notifications), ASR, SmartScreen, network, logging, update (except Delivery Optimization without the cloud), browser and post-installation rules are off and Windows keeps its defaults. Also off: .NET Framework 3.5 from the media, the automatic Print Spooler start, the user region, the input language list and the display language pin, AutoRun of removable media, and the AI settings of Notepad, Paint, Office and Edge. Check shows the baseline rules that are off. Use Office for work PCs.",
   "install": {
     "edition": "Pro",
     "product_key_mode": "ask",
     "product_key": "",
-    "time_zone": "FLE Standard Time"
+    "time_zone": "FLE Standard Time",
+    "account_mode": "file"
   },
   "languages": {
     "ui_language": "uk-UA",
@@ -525,6 +526,9 @@
     "default-user.http-accept-language-optout": {
       "enabled": true
     },
+    "default-user.input-switch-keys": {
+      "enabled": false
+    },
     "user-logon.pin-ui-language": {
       "enabled": false
     },
@@ -797,6 +801,84 @@
     },
     "nav.launch-to-this-pc": {
       "enabled": true
+    },
+    "thispc.recycle-bin": {
+      "enabled": false
+    },
+    "thispc.control-panel": {
+      "enabled": false
+    },
+    "nav.libraries": {
+      "enabled": false
+    },
+    "nav.network-hidden": {
+      "enabled": false
+    },
+    "nav.recycle-bin": {
+      "enabled": false
+    },
+    "nav.user-folder": {
+      "enabled": false
+    },
+    "nav.linux-hidden": {
+      "enabled": false
+    },
+    "nav.control-panel": {
+      "enabled": false
+    },
+    "nav.show-all-folders": {
+      "enabled": false
+    },
+    "nav.removable-drives-once": {
+      "enabled": false
+    },
+    "nav.home-cloud-files-off": {
+      "enabled": false
+    },
+    "desktop.this-pc": {
+      "enabled": false
+    },
+    "desktop.user-files": {
+      "enabled": false
+    },
+    "desktop.network": {
+      "enabled": false
+    },
+    "desktop.control-panel": {
+      "enabled": false
+    },
+    "desktop.recycle-bin-hidden": {
+      "enabled": false
+    },
+    "desktop.libraries": {
+      "enabled": false
+    },
+    "desktop.spotlight-icon-hidden": {
+      "enabled": false
+    },
+    "desktop.documents": {
+      "enabled": false
+    },
+    "desktop.downloads": {
+      "enabled": false
+    },
+    "desktop.music": {
+      "enabled": false
+    },
+    "desktop.pictures": {
+      "enabled": false
+    },
+    "desktop.videos": {
+      "enabled": false
+    },
+    "desktop.desktop-folder": {
+      "enabled": false
+    },
+    "desktop.gallery": {
+      "enabled": false
+    },
+    "desktop.home": {
+      "enabled": false
     }
   },
   "unknown": {}

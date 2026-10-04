@@ -49,6 +49,7 @@ Registry paths are abbreviated: `HKLM` = `HKEY_LOCAL_MACHINE`, `Pol` = `HKLM\SOF
 | [17-cross-links.md](17-cross-links.md) | Summary cross-link matrix and known inconsistencies of version 0.2 | none |
 | [18-browsers.md](18-browsers.md) | Browser policies for Microsoft Edge, Google Chrome and Brave (issue #1), corrections to the issue scripts | WinKickOff rules only, not in v0.2 |
 | [19-more-privacy.md](19-more-privacy.md) | AI, telemetry, advertising, search, speech, Microsoft Office, OneDrive, drivers, This PC and navigation pane folders (customer list of 28.09.2026), corrections to the list | WinKickOff rules only, not in v0.2 |
+| [20-explorer-namespaces.md](20-explorer-namespaces.md) | File Explorer namespaces (This PC, navigation pane) and desktop icons (customer request of 04.10.2026) | WinKickOff rules only, not in v0.2 |
 
 ## Windows version conventions
 
@@ -58,7 +59,8 @@ The cards mention:
 - Windows 10 (1809 and later): the file is formally compatible but has not been tested; differences are noted.
 - Windows 11 21H2, 22H2, 23H2: differences are noted where a setting was introduced or changed.
 - Windows 11 24H2 and 25H2: the baseline version; where 24H2 changed the default behavior, this is stated explicitly.
-- Editions: Home is not supported (no policies, some components are missing). Pro is the main edition. Enterprise/Education:
+- Editions: the Windows Home edition is not supported (no policies, some components are missing); the "Home" preset
+  of the editor is a selection of rules for Pro, not this edition. Pro is the main edition. Enterprise/Education:
   some policies that Pro ignores work there; this is noted in the cards.
 
 ## Sources

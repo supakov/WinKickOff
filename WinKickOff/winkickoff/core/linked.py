@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from winkickoff.core.catalog import Catalog, Rule, is_imported
+from winkickoff.core.catalog import Catalog, Rule, is_imported, registry_scope
 from winkickoff.core.profile import Profile
 from winkickoff.core.render import substitute_fields
 
@@ -43,7 +43,7 @@ def registry_writes(rule: Rule, params: dict[str, Any]) -> frozenset[Write] | No
         if action.type not in ("reg", "reg-remove"):
             return None
         path = str(fields["path"])
-        scope = "machine" if path.upper().startswith("HKLM:\\") else "user"
+        scope = registry_scope(path)
         key = path.split(":\\", 1)[-1].strip("\\").lower()
         if action.type == "reg":
             found.add((scope, key, str(fields["name"]).lower(), str(fields["kind"]), _value(fields["value"])))

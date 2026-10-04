@@ -69,7 +69,7 @@ is skipped only if all four are set; otherwise OOBE asks for whatever is missing
 |---|---|---|---|
 | HideEULAPage | true | The license screen in OOBE | In Setup the license is accepted via `AcceptEula` |
 | HideOEMRegistrationScreen | true | The manufacturer registration screen | Appears only on OEM images |
-| HideOnlineAccountScreens | true | The screens for signing in with a Microsoft account and for creating a local account | Works because the accounts are defined in `LocalAccounts` |
+| HideOnlineAccountScreens | true | The screens for signing in with a Microsoft account (Windows shows them only with an internet connection) | The local account screen is skipped because the accounts are defined in `LocalAccounts`, not because of this element |
 | HideWirelessSetupInOOBE | true | The «Подключитесь к сети» (Connect to a network) screen | The screen is skipped anyway on a wired connection; here it is always hidden |
 | ProtectYourPC | 3 | The privacy settings screen | 3 = turn off all «экспресс-параметры» (express settings): data sending, advertising, location detection. SmartScreen and Defender are not affected: they are enabled separately in `Setup-System.ps1` |
 
@@ -79,10 +79,35 @@ is skipped only if all four are set; otherwise OOBE asks for whatever is missing
   the network and account screens via `HideOnlineAccountScreens` + `LocalAccounts` + `BypassNRO`.
   The screens that Windows 11 shows after sign-in («Завершим настройку устройства» (Let's finish setting up your device)) are disabled
   in the default profile (`ScoobeSystemSettingEnabled=0`, section 14).
-- Version differences: `ProtectYourPC=3` works on Windows 11 24H2; `HideLocalAccountScreen` is not
-  used (it is needed only for autologon of the built-in administrator). Windows 10 has the same elements.
+- Version differences: `ProtectYourPC=3` works on Windows 11 24H2. `HideLocalAccountScreen` is not used: Microsoft
+  documents that it applies only to the Windows Server editions, where it hides the Administrator password screen.
+  Windows 10 has the same elements.
 - Verification: installation proceeds without a single screen after disk selection.
 - Rollback: not applicable.
+
+## Accounts asked during installation (WinKickOff, account mode "ask")
+
+Since WinKickOff 1.3 the form "Accounts" has the mode "Ask for the account during installation" (profile field
+`install.account_mode` = `"ask"`, profile format 3). The answer file then has no `UserAccounts` at all, so OOBE shows
+the screen it does not get from the file: Microsoft documents that "OOBE screens that aren't configured in Unattend
+will display" (Automate OOBE). With `HideOnlineAccountScreens` and `BypassNRO` this is the local account screen: a
+name, then a password (it may stay empty); only when a password is typed, its confirmation and three security
+questions follow (third parties; confirm in a virtual machine). Windows makes that account an administrator
+("Windows setup disables the built-in Administrator account and creates another local account that is a member of the
+Administrators group", Local accounts on Microsoft Learn). Accounts of the file and an account typed by hand cannot be
+combined: any `LocalAccount` makes the page automatic.
+
+- Everything else of the file stays: International-Core and the OOBE elements still hide the language, license,
+  OEM, network and privacy screens; specialize, the default profile, Active Setup and the Post-OOBE task do not depend
+  on account names. `post-oobe.password-never-expires` has no account to act on (`$accounts = @()`); the machine-wide
+  `accounts.password-never-expires` still applies.
+- The check of the editor warns when `oobe.hide-online-account` or `install.bypass-nro` is off in this mode (online,
+  Windows 11 Pro would ask for a Microsoft account; offline, OOBE may stop at the network screen).
+  `tools/Validate-Unattend.ps1` accepts a file without any `LocalAccount` ("none: OOBE asks").
+- Risks: one administrator for everyday work until a standard account is added; security questions let anyone who
+  knows the answers reset the password from the sign-in screen; online, OOBE may download updates for 30 minutes or
+  more; Microsoft keeps closing ways to create local accounts in OOBE, so each new image needs a test. The separate
+  project that assigns passwords and groups can no longer rely on the names Admin and User.
 
 ## UserAccounts / LocalAccounts
 

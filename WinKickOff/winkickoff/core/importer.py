@@ -65,6 +65,7 @@ class _Facts:
     script: ScriptActions | None
     texts: str  # active text of Setup-System plus the full other scripts, one statement per line
     pe_commands: set[str] = field(default_factory=set)
+    actions: set[tuple[Any, ...]] = field(default_factory=set)  # of Setup-System, Setup-User and Post-OOBE (runtime 0.6)
     specialize_commands: set[str] = field(default_factory=set)
     oobe: dict[str, str] = field(default_factory=dict)
 
@@ -103,6 +104,10 @@ def _collect(root: ET.Element, text: str) -> _Facts:
         [parsed.active_text if parsed else ""] + [body for name, body in scripts.items() if name != "Setup-System.ps1"]
     )
     facts = _Facts(parsed, _normalise(texts))
+    facts.actions = set(parsed.action_set) if parsed else set()
+    for name in ("Setup-User.ps1", "Post-OOBE.ps1"):  # registry actions of the first sign-in and after OOBE
+        if name in scripts:
+            facts.actions |= parse_script(scripts[name]).action_set
     facts.pe_commands = _commands(root, "windowsPE")
     facts.specialize_commands = _commands(root, "specialize")
     shell = _first_component(root, "oobeSystem", "Microsoft-Windows-Shell-Setup")
@@ -170,7 +175,7 @@ def _infer_params(rule: Rule, profile: Profile, catalog: Catalog, found: set[tup
 def _rule_evidence(rule: Rule, profile: Profile, catalog: Catalog, facts: _Facts) -> list[bool]:
     """One entry per checkable action: present in the file or not. PowerShell fragments count only
     when found (absence of a fragment written differently proves nothing)."""
-    found = facts.script.action_set if facts.script else set()
+    found = facts.actions
     evidence = [a in found for a in rule_actions(catalog, profile, rule)]
     params = profile.params_for(catalog, rule.id)
     for action in rule.actions:
@@ -194,7 +199,7 @@ def import_by_actions(root: ET.Element, text: str, catalog: Catalog, keyboards: 
     warnings: list[str] = []
     undecided: list[str] = []
     partial: list[str] = []
-    found = facts.script.action_set if facts.script else set()
+    found = facts.actions
     for rule in catalog.rules.values():
         _infer_params(rule, profile, catalog, found)
         evidence = _rule_evidence(rule, profile, catalog, facts)
@@ -292,10 +297,8 @@ def _import_languages(root: ET.Element, text: str, profile: Profile, keyboards: 
 
 def _import_accounts(root: ET.Element, profile: Profile) -> None:
     shell = _first_component(root, "oobeSystem", "Microsoft-Windows-Shell-Setup")
-    if shell is None:
-        return
     accounts = []
-    for node in shell.iter(f"{U}LocalAccount"):
+    for node in shell.iter(f"{U}LocalAccount") if shell is not None else ():
         name = (node.findtext(f"{U}Name") or "").strip()
         if not name:
             continue
@@ -308,3 +311,5 @@ def _import_accounts(root: ET.Element, profile: Profile) -> None:
         ))
     if accounts:
         profile.accounts = accounts
+    else:
+        profile.install["account_mode"] = "ask"  # no LocalAccount (or no Shell-Setup): Windows Setup asks for the account

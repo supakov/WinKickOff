@@ -12,6 +12,7 @@ from pathlib import Path
 
 from winkickoff.core.catalog import load_catalog
 from winkickoff.core.deps import Resolver
+from winkickoff.core.importer import import_xml
 from winkickoff.core.profile import Profile
 from winkickoff.core.render import EXTRACT_COMMAND, RUN_SYSTEM_COMMAND, Renderer
 from winkickoff.core.resources import Resources
@@ -196,6 +197,63 @@ class ReferenceMatchesV02Test(BuildTestBase):
                 self.assertEqual(mine.get(key), v02.get(key))
 
 
+class AccountAndEditionModesTest(BuildTestBase):
+    def test_account_asked_during_installation(self) -> None:
+        profile = self.office.copy()
+        profile.install["account_mode"] = "ask"
+        result = self.renderer.build(profile, app_version="test")
+        self.assertNotIn("<UserAccounts>", result.xml)
+        self.assertNotIn("<LocalAccount ", result.xml)
+        self.assertIn("<HideOnlineAccountScreens>true</HideOnlineAccountScreens>", result.xml)
+        self.assertIn("Accounts: none in this file; Windows Setup asks", result.xml)
+        self.assertIn("$accounts = @()", result.scripts["Post-OOBE.ps1"])
+        self.assertIn("<UserAccounts>", self.result.xml)  # the preset itself still creates Admin and User
+
+    def test_asked_account_keeps_the_passwords_of_the_form_out_of_the_file(self) -> None:
+        profile = self.office.copy()
+        profile.accounts[0].password = "Form-Secret-123"
+        profile.install["account_mode"] = "ask"
+        xml = self.renderer.build(profile, app_version="test").xml
+        self.assertNotIn("Form-Secret-123", xml)  # neither in the XML nor in the embedded profile
+        restored, _ = import_xml(xml, self.catalog)
+        self.assertEqual(restored.install["account_mode"], "ask")
+        self.assertEqual([a.name for a in restored.accounts], [a.name for a in profile.accounts])
+        self.assertEqual({a.password for a in restored.accounts}, {""})
+        profile.install["account_mode"] = "file"  # the accounts are created: the password is in the file, as before
+        self.assertIn("Form-Secret-123", self.renderer.build(profile, app_version="test").xml)
+
+    def test_edition_chosen_during_installation(self) -> None:
+        profile = self.office.copy()
+        profile.install["product_key_mode"] = "ask"
+        result = self.renderer.build(profile, app_version="test")
+        self.assertIn("<Key>00000-00000-00000-00000-00000</Key>", result.xml)
+        self.assertIn("<WillShowUI>Always</WillShowUI>", result.xml)
+        self.assertIn("Edition: chosen during Setup", result.xml)
+
+
+class NewRuleKindsTest(BuildTestBase):
+    def test_a_first_sign_in_rule_writes_the_registry_of_the_user(self) -> None:
+        profile = self.office.copy()
+        profile.rules["nav.libraries"].enabled = True
+        script = self.renderer.build(profile, app_version="test").scripts["Setup-User.ps1"]
+        self.assertIn("function Set-Reg", script)
+        self.assertIn("Set-Reg -Path 'HKCU:\\Software\\Classes\\CLSID\\{031E4825-7B94-4dc3-B131-E946B44C8DD5}' "
+                      "-Name 'System.IsPinnedToNameSpaceTree' -Type DWord -Value 1", script)
+
+    def test_switch_keys_reach_new_accounts_and_the_sign_in_screen(self) -> None:
+        profile = self.office.copy()
+        rule_id = "default-user.input-switch-keys"
+        profile.rules[rule_id].enabled = True
+        profile.set_param(rule_id, "language", "2")
+        profile.set_param(rule_id, "layout", "1")
+        system = self.renderer.build(profile, app_version="test").scripts["Setup-System.ps1"]
+        self.assertIn("Set-Reg -Path ($du + '\\Keyboard Layout\\Toggle') -Name 'Language Hotkey' -Type String -Value '2'", system)
+        self.assertIn("Set-Reg -Path 'HKU:\\.DEFAULT\\Keyboard Layout\\Toggle' -Name 'Layout Hotkey' -Type String -Value '1'",
+                      system)
+        # both parts are inside the mounted default profile block, which creates the HKU: drive first
+        self.assertLess(system.index("New-PSDrive -Name HKU"), system.index("Keyboard Layout"))
+
+
 @unittest.skipUnless(shutil.which("powershell.exe") and VALIDATOR.exists(), "Windows PowerShell or the validator not found")
 class ExternalValidatorTest(BuildTestBase):
     def test_validator_accepts_the_build(self) -> None:
@@ -209,6 +267,21 @@ class ExternalValidatorTest(BuildTestBase):
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
         self.assertEqual(proc.returncode, 0, proc.stdout[-3000:] + proc.stderr[-2000:])
+
+    def test_validator_accepts_a_build_that_asks_for_the_account(self) -> None:
+        profile = self.office.copy()
+        profile.install["account_mode"] = "ask"
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "autounattend.xml"
+            target.write_bytes(self.renderer.build(profile, app_version="test").xml.encode("utf-8"))
+            proc = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                 "-File", str(VALIDATOR), "-Path", str(target)],
+                capture_output=True, text=True, timeout=180,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+        self.assertEqual(proc.returncode, 0, proc.stdout[-3000:] + proc.stderr[-2000:])
+        self.assertIn("none: OOBE asks", proc.stdout)
 
 
 if __name__ == "__main__":

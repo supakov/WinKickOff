@@ -21,16 +21,39 @@ there is no 32-bit Windows 11.
 - Version differences: the key is the same for Windows 10 and 11. Other editions need their own generic
   keys (Home: `YTMG3-N6DKC-DKB77-7M9GH-8HVX7`, Enterprise: `NPPR9-FWDCX-D2C8J-H872K-2YT43`);
   this is a parameter of the future constructor.
-- Verification: after installation `slmgr /dli` shows Professional; `Get-ComputerInfo | Select WindowsProductName`.
+- Verification: after installation `slmgr /dli` shows Professional; `reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v EditionID`
+  shows `Professional` (`ProductName` still says "Windows 10 Pro" on Windows 11, so it is no check).
 - Rollback: not required; changing the edition requires a reinstallation.
 
 ## ProductKey / WillShowUI
 
 - Value: `OnError`.
 - What it does: the key entry window is shown only if the key is rejected. This is the default value,
-  specified explicitly. `Always` with an empty key `00000-...` would show the key and edition selection
-  window on every installation.
+  specified explicitly. `Always` with the key `00000-00000-00000-00000-00000` shows the key and edition selection
+  window on every installation: that is the WinKickOff key mode "ask".
 - Version differences: none.
+
+## Key modes of WinKickOff: who chooses the edition
+
+The form "Installation" offers three key modes (profile field `install.product_key_mode`):
+
+| Mode | `<Key>` | `<WillShowUI>` | What Setup shows |
+|---|---|---|---|
+| `generic` | the generic key of the chosen edition (Pro `VK7JG-NPHTM-C97JM-9MPGT-3V66T`, Enterprise, Education) | OnError | Nothing: Setup matches the key to an image ("Matched Professional with Professional") |
+| `ask` | `00000-00000-00000-00000-00000` | Always | The product key page. A typed key installs the edition of that key; "I don't have a product key" opens the list of every edition in `install.wim` |
+| `custom` | the key of the profile | OnError | The edition of that key; the page only if the key is rejected |
+
+- The edition list of the form applies to `generic` only; the window disables it in the other modes, and the build
+  writes a header line "Edition: chosen during Setup" in mode `ask`. The Home preset uses `ask`.
+- Microsoft Learn ("Work with product keys and activation") names both ways: a key in `ProductKey\Key`, or typing the
+  key during Setup, where "the product key selects a Windows edition to install". The exact pages of Windows 11 Setup
+  ("I don't have a product key", then the list) are described by third parties; confirm in a virtual machine.
+- `ei.cfg` and `pid.txt` on the media do not help: "If you use an answer file during installation, Windows Setup
+  ignores the EI.cfg and PID.txt files" (Microsoft Learn). An empty `Key` is not allowed ("does not support empty
+  elements"), and without the element Setup may silently take the edition of the key in the firmware.
+- The protection of WinKickOff is made for Pro. On Home, the deferral of feature updates is ignored (Policy CSP Update
+  lists Pro, Enterprise, Education), BitLocker cannot be turned on later, and the Copilot and Recall policies are not
+  supported according to their ADMX; the check of the editor says so in mode `ask`.
 
 ## AcceptEula
 

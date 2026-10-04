@@ -13,13 +13,16 @@ from typing import Any
 from winkickoff.core.catalog import Catalog, is_imported
 from winkickoff.core.i18n import tr
 
-FORMAT_VERSION = 2
+FORMAT_VERSION = 3  # 3: install.account_mode (1.3); a profile of format 2 has no such field and means "file"
+READ_FORMATS = (2, 3)  # read without a warning
 
+ACCOUNT_MODES = ("file", "ask")  # the accounts of the profile, or Windows Setup asks for one administrator
 DEFAULT_INSTALL: dict[str, Any] = {
     "edition": "Pro",
-    "product_key_mode": "generic",  # generic | custom | ask
+    "product_key_mode": "generic",  # generic | custom | ask (Setup shows the key page and the list of editions)
     "product_key": "",
     "time_zone": "FLE Standard Time",
+    "account_mode": "file",
 }
 DEFAULT_LANGUAGES: dict[str, Any] = {
     "ui_language": "uk-UA",  # must equal the language of the installation ISO
@@ -149,6 +152,14 @@ class Profile:
     def set_param(self, rule_id: str, name: str, value: Any) -> None:
         self.rules[rule_id].params[name] = value
 
+    def asks_for_account(self) -> bool:
+        """Windows Setup asks for the account: the answer file holds no account (the list is kept for later)."""
+        return self.install.get("account_mode") == "ask"
+
+    def answer_file_accounts(self) -> list[Account]:
+        """The accounts written into the answer file and given to the scripts: none when Setup asks for one."""
+        return [] if self.asks_for_account() else list(self.accounts)
+
     def unknown_entries(self) -> list[tuple[str, bool, dict[str, Any]]]:
         """Choices kept in "unknown" (rules the loaded catalog does not have, such as policies of imported templates
         that are not loaded) as (id, enabled, params), sorted by id. The file may hold anything there: an entry that
@@ -194,7 +205,7 @@ class Profile:
     def from_dict(cls, data: dict[str, Any], catalog: Catalog) -> tuple[Profile, list[str]]:
         warnings: list[str] = []
         fmt = int(data.get("format_version", 0))
-        if fmt != FORMAT_VERSION:
+        if fmt not in READ_FORMATS:
             warnings.append(tr("profile format {0}, expected {1}: default values were applied to missing items", fmt, FORMAT_VERSION))
         raw_rules = data.get("rules", {}) if isinstance(data.get("rules"), dict) else {}
         stored_unknown = data.get("unknown") if isinstance(data.get("unknown"), dict) else {}

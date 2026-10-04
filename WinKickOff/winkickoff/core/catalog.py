@@ -26,7 +26,8 @@ PHASE_ORDER: dict[str, int] = {phase: index for index, phase in enumerate(PHASES
 LEVELS: tuple[str, ...] = ("baseline", "recommended", "optional", "risky")
 REG_KINDS: tuple[str, ...] = ("DWord", "QWord", "String", "ExpandString", "MultiString", "Binary")
 LIST_KINDS: tuple[str, ...] = ("String", "ExpandString")  # the values of a reg-list action
-REG_PREFIXES: tuple[str, ...] = ("HKLM:\\", "HKCU:\\", "DU:\\")
+SIGNIN_PREFIX = "HKU:\\.DEFAULT\\"  # the profile of the system account: the sign-in screen (logonui, winlogon)
+REG_PREFIXES: tuple[str, ...] = ("HKLM:\\", "HKCU:\\", "DU:\\", SIGNIN_PREFIX)
 PARAM_TYPES: tuple[str, ...] = ("int", "enum", "string", "bool", "list")
 REG_ACTIONS: tuple[str, ...] = ("reg", "reg-remove", "reg-list")
 
@@ -56,6 +57,11 @@ XML_ACTION_PHASE: dict[str, str] = {
     "xml-oobe": "oobe-xml",
 }
 SCRIPT_PHASES: tuple[str, ...] = ("specialize", "default-user", "user-first-logon", "post-oobe")
+# Phases whose runtime (Setup-User.ps1, Post-OOBE.ps1) defines only the registry functions; the rest of the action
+# types need Setup-System.ps1. tests/test_render.py checks every runtime against this table.
+PHASE_ACTION_TYPES: dict[str, tuple[str, ...]] = {"user-first-logon": ("reg", "reg-remove", "ps"),
+                                                  "post-oobe": ("reg", "reg-remove", "ps")}
+SIGNIN_PHASES: tuple[str, ...] = ("specialize", "default-user")  # their script mounts HKU: (Setup-System.ps1)
 DEFAULT_ABSENT = "absent"
 DEFAULT_UNKNOWN = "unknown"
 LIST_NAME = chr(0) + "list"  # registry_values(): every value of a key (a reg-list); no value name holds a NUL
@@ -94,6 +100,8 @@ class Param:
     values: tuple[tuple[Any, str], ...] = ()
     required: bool = True  # a string or a list may be empty only when False (optional text of an imported policy)
     pairs: bool = False  # a list whose items are "name=value" (an explicitValue list of a policy template)
+    differs_from: str | None = None  # an enum that must not take the value of this other enum of the rule ...
+    same_allowed: tuple[Any, ...] = ()  # ... except these values (for example "not assigned" for both)
 
 
 @dataclass(frozen=True)
@@ -394,6 +402,11 @@ def _parse_param(name: str, raw: dict[str, Any], file: str, rule_id: str) -> Par
             raise CatalogError(f"param '{name}': default outside min..max", file=file, rule_id=rule_id)
     if ptype == "bool" and not isinstance(default, bool):
         raise CatalogError(f"param '{name}': bool default must be true or false", file=file, rule_id=rule_id)
+    differs_from, same_allowed = raw.get("differs_from"), raw.get("same_allowed", [])
+    if differs_from is not None and (ptype != "enum" or not isinstance(differs_from, str)):
+        raise CatalogError(f"param '{name}': differs_from names another enum parameter of an enum", file=file, rule_id=rule_id)
+    if not isinstance(same_allowed, list) or (same_allowed and differs_from is None):
+        raise CatalogError(f"param '{name}': same_allowed is a list of values next to differs_from", file=file, rule_id=rule_id)
     if ptype == "list":
         if not isinstance(default, list) or not all(isinstance(item, str) for item in default):
             raise CatalogError(f"param '{name}': list default must be a list of strings", file=file, rule_id=rule_id)
@@ -402,7 +415,8 @@ def _parse_param(name: str, raw: dict[str, Any], file: str, rule_id: str) -> Par
                 raise CatalogError(f"param '{name}': '{key}' must be true or false", file=file, rule_id=rule_id)
         return Param(name=name, type=ptype, title=title, default=default, required=raw.get("required", False),
                      pairs=raw.get("pairs", False))
-    return Param(name=name, type=ptype, title=title, default=default, min=raw.get("min"), max=raw.get("max"), values=values)
+    return Param(name=name, type=ptype, title=title, default=default, min=raw.get("min"), max=raw.get("max"), values=values,
+                 differs_from=differs_from, same_allowed=tuple(same_allowed))
 
 
 def _parse_action(raw: dict[str, Any], file: str, rule_id: str, index: int) -> Action:
@@ -550,6 +564,17 @@ def _check(catalog: Catalog, docs_root: Path | None) -> None:
             missing = action.placeholders() - set(rule.params)
             if missing:
                 raise CatalogError(f"action uses undeclared params {sorted(missing)}", file=rule.source, rule_id=rule.id)
+            for param in rule.params.values():
+                if param.differs_from is None:
+                    continue
+                other = rule.params.get(param.differs_from)
+                if other is None or other.type != "enum" or other is param:
+                    raise CatalogError(f"param '{param.name}': differs_from '{param.differs_from}' is not another enum "
+                                       "parameter of the rule", file=rule.source, rule_id=rule.id)
+                shared = {v for v, _ in param.values} & {v for v, _ in other.values}
+                if not set(param.same_allowed) <= shared:
+                    raise CatalogError(f"param '{param.name}': same_allowed holds values that are not in both parameters",
+                                       file=rule.source, rule_id=rule.id)
             stray = sorted(key for key, value in action.fields.items() if key not in PLACEHOLDER_FIELDS and key != "default"
                            and any(isinstance(item, str) and _PLACEHOLDER_RE.search(item)
                                    for item in (value if isinstance(value, list) else [value])))
@@ -569,14 +594,20 @@ def _check_action_phase(rule: Rule, action: Action) -> None:
         raise CatalogError(f"action type '{action.type}' belongs to phase '{expected}'", file=rule.source, rule_id=rule.id)
     if expected is None and rule.phase not in SCRIPT_PHASES:
         raise CatalogError(f"action type '{action.type}' is not allowed in phase '{rule.phase}'", file=rule.source, rule_id=rule.id)
+    if rule.phase in PHASE_ACTION_TYPES and action.type not in PHASE_ACTION_TYPES[rule.phase]:
+        raise CatalogError(f"the script of phase '{rule.phase}' cannot run action type '{action.type}' (only "
+                           f"{', '.join(PHASE_ACTION_TYPES[rule.phase])})", file=rule.source, rule_id=rule.id)
     if action.type in REG_ACTIONS:
         path = str(action.fields["path"])
         if path.startswith("DU:\\") and rule.phase != "default-user":
             raise CatalogError("DU: paths are only valid in phase 'default-user'", file=rule.source, rule_id=rule.id)
         if path.startswith("HKCU:\\") and rule.phase != "user-first-logon":
             raise CatalogError("HKCU: paths are only valid in phase 'user-first-logon'", file=rule.source, rule_id=rule.id)
-        if rule.phase == "default-user" and not path.startswith("DU:\\"):
-            raise CatalogError("phase 'default-user' only writes DU: paths", file=rule.source, rule_id=rule.id)
+        if path.startswith(SIGNIN_PREFIX) and rule.phase not in SIGNIN_PHASES:
+            raise CatalogError(f"{SIGNIN_PREFIX} paths are only valid in phases {', '.join(SIGNIN_PHASES)}",
+                               file=rule.source, rule_id=rule.id)
+        if rule.phase == "default-user" and not path.startswith(("DU:\\", SIGNIN_PREFIX)):
+            raise CatalogError(f"phase 'default-user' only writes DU: and {SIGNIN_PREFIX} paths", file=rule.source, rule_id=rule.id)
 
 
 def _check_cycles(catalog: Catalog) -> None:
@@ -605,18 +636,25 @@ def iter_actions(catalog: Catalog, rule_ids: Iterable[str]) -> list[Action]:
 
 def registry_values(rule: Rule) -> set[tuple[str, str, str]]:
     """(scope, key, value name) of every registry value a rule writes or removes, in lower case; the scope is
-    "machine" for HKLM and "user" for HKCU and the default user profile (DU). A list of values (reg-list) has the
-    name LIST_NAME: it may write or delete any value of its key."""
+    "machine" for HKLM, "signin" for the sign-in screen (HKU:\\.DEFAULT) and "user" for HKCU and the default user
+    profile (DU). A list of values (reg-list) has the name LIST_NAME: it may write or delete any value of its key."""
     found: set[tuple[str, str, str]] = set()
     for action in rule.actions:
         if action.type not in REG_ACTIONS:
             continue
         path = str(action.fields.get("path", ""))
-        scope = "machine" if path.upper().startswith("HKLM:\\") else "user"
+        scope = registry_scope(path)
         key = path.split(":\\", 1)[-1].strip("\\").lower()
         name = LIST_NAME if action.type == "reg-list" else str(action.fields.get("name", "")).lower()
         found.add((scope, key, name))
     return found
+
+
+def registry_scope(path: str) -> str:
+    """"machine" (HKLM), "signin" (HKU:\\.DEFAULT, the sign-in screen) or "user" (HKCU and the default user profile)."""
+    if path.upper().startswith("HKLM:\\"):
+        return "machine"
+    return "signin" if path.upper().startswith(SIGNIN_PREFIX.upper()) else "user"
 
 
 def merge(base: Catalog, groups: dict[str, Group], rules: dict[str, Rule], origins: dict[str, RuleOrigin],

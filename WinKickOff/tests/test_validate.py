@@ -98,6 +98,32 @@ class ProfileValidationTest(unittest.TestCase):
         self.assertTrue(errors(issues, "accounts"))  # no administrator
         self.assertTrue(errors(issues, "accounts[1]"))  # duplicate, names are case-insensitive
 
+    def test_account_asked_during_installation(self) -> None:
+        self.profile.install["account_mode"] = "ask"
+        self.profile.accounts = [Account("User", "User", "Users")]  # no administrator: not used in this mode
+        issues = self.check()
+        self.assertEqual(errors(issues), [])
+        self.assertTrue(any(i.level == "info" and i.target == "accounts" for i in issues))
+        for rule_id in ("oobe.hide-online-account", "install.bypass-nro"):
+            self.profile.rules[rule_id].enabled = False
+        warned = {i.target for i in self.check() if i.level == "warning"}
+        self.assertLessEqual({"oobe.hide-online-account", "install.bypass-nro"}, warned)
+        self.profile.install["account_mode"] = "later"
+        self.assertTrue(errors(self.check(), "accounts"))
+
+    def test_edition_chosen_during_installation_is_explained(self) -> None:
+        self.profile.install["product_key_mode"] = "ask"
+        self.assertTrue(any(i.level == "info" and i.target == "install.product_key_mode" for i in self.check()))
+
+    def test_switch_keys_may_not_be_the_same(self) -> None:
+        rule_id = "default-user.input-switch-keys"
+        self.profile.rules[rule_id].enabled = True
+        self.profile.set_param(rule_id, "layout", "1")  # the language keys are "1" by default
+        self.assertTrue(errors(self.check(), rule_id))
+        self.profile.set_param(rule_id, "language", "3")
+        self.profile.set_param(rule_id, "layout", "3")  # both "not assigned" is allowed
+        self.assertEqual(errors(self.check(), rule_id), [])
+
     def test_password_is_only_a_warning(self) -> None:
         self.profile.accounts[0].password = "secret"
         issues = self.check()
@@ -172,6 +198,10 @@ class XmlValidationTest(unittest.TestCase):
 
     def test_no_administrator(self) -> None:
         self.assert_rejected(self.xml.replace("<Group>Administrators</Group>", "<Group>Users</Group>"), "Administrators")
+
+    def test_accounts_without_groups_have_no_administrator(self) -> None:
+        # an account without a Group is not an administrator; only a file without any LocalAccount leaves it to OOBE
+        self.assert_rejected(re.sub(r"<Group>[^<]*</Group>", "", self.xml), "Administrators")
 
     def test_script_must_end_with_exit_0(self) -> None:
         text = re.sub(r"exit 0(\s*)\]\]>", r"exit 1\1]]>", self.xml, count=1)

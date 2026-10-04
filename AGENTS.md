@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 02.10.2026 (pi-agent runs pi with its defaults and codemode, the customer removed the wrapper; the tree root "Unknown rules and policies" for the choices a profile keeps for rules the loaded catalog does not have; after release 1.2.0-rc.4).
+Last update: 04.10.2026 (customer requests of 04.10.2026: File Explorer namespaces and desktop icons, the account asked during installation, the switch keys of the input language, the edition chosen during installation; a security fix of placeholders in paths; catalog and runtime 0.6, profile format 3).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -60,7 +60,7 @@ only through the MCP server, without a cloud model and without any file of the p
 ├── docs/
 │   ├── README.md                  entry point to the documentation (three languages)
 │   ├── technical/                 TECHNICAL DOCUMENTATION, English
-│   │   ├── reference/             reference: a card for every installation parameter (20 files; 18 browsers, 19 more privacy)
+│   │   ├── reference/             reference: a card for every installation parameter (21 files; 18 browsers, 19 more privacy, 20 File Explorer namespaces)
 │   │   └── editor/                WinKickOff specification: problem, architecture, data model, testing,
 │   │       │                      plan (days, milestones), review of revision 0.1
 │   │       └── todo/              tasks T01-T22 with status (README.md is the index)
@@ -70,7 +70,7 @@ only through the MCP server, without a cloud model and without any file of the p
 │       ├── B-autounattend-v0.2/   our hand-written answer file v0.2 (the reference) and its README: history, VM checklist
 │       ├── C-critical-review/     the critic's report on v0.2 (docx)
 │       └── D-requirements-draft/  first requirements draft; section 6 holds open questions to the customer
-└── WinKickOff/                    EDITOR 1.2.0-rc.4 AND RULE CATALOG 0.5
+└── WinKickOff/                    EDITOR 1.2.0-rc.4 AND RULE CATALOG 0.6
     ├── README.md                  developer README: run, test, structure; links to user docs
     ├── pyproject.toml             requires-python >= 3.14, no runtime dependencies
     ├── winkickoff/                package: __main__.py (dispatcher: window or headless MCP), app.py (window start,
@@ -84,10 +84,10 @@ only through the MCP server, without a cloud model and without any file of the p
     │                              winmenus: theme colours around drop-down menus; mcp_workspace: the window as the MCP
     │                              workspace; mcp_window: the MCP monitor; clipboard: the token kept out of the
     │                              clipboard history)
-    ├── rules/                     RULE CATALOG in English: groups.toml (36 groups), 00-16-*.toml (251 rules),
+    ├── rules/                     RULE CATALOG in English: groups.toml (40 groups), 00-17-*.toml (278 rules),
     │                              lang/ru.toml and lang/uk.toml (translations; a new file adds a language)
     ├── templates/                 runtime with slots: autounattend.template.xml, Setup-System, Setup-User, Post-OOBE,
-    │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.5
+    │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.6
     ├── resources/                 keyboards.json, timezones.json, strings.ru.json and strings.uk.json (interface
     │                              translations), themes/ (light, dark, latte, matrix colour themes)
     ├── profiles/                  presets Office (= catalog defaults), Strict, Laptop, Home, README
@@ -100,7 +100,8 @@ only through the MCP server, without a cloud model and without any file of the p
     │                              v02_actions.py holds the v0.2 reference profile (V02_DIFFERENCES)
     └── tools/                     make_presets.py, make_rule_docs.py, run-tests.ps1, build.ps1 (portable zip,
                                    two executables from WinKickOff.spec),
-                                   make_browser_rules.py (generates rules/14-browsers.toml)
+                                   make_browser_rules.py (generates rules/14-browsers.toml),
+                                   make_shell_rules.py (generates rules/17-shell.toml)
 ```
 
 Working folders `WinKickOff/output/`, `WinKickOff/logs/`, `WinKickOff/settings.json`, `__pycache__/` and
@@ -248,6 +249,30 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   not `rules/14-browsers.toml`. Every policy name was checked against the vendors' definitions; several lines
   of the issue's scripts were invalid or obsolete (`docs/technical/reference/18-browsers.md`, corrections).
   `DEFAULT_ON` in the tool holds the browser rules that are on by default (commit d33fc41).
+- File Explorer namespaces and desktop icons (customer request 1 of 04.10.2026, catalog 0.6) are generated: edit the
+  tables in `WinKickOff/tools/make_shell_rules.py` and rerun it, not `rules/17-shell.toml`. Every entry is off by
+  default; card 20 lists what was checked (registry of 26300, ADMX, Microsoft Learn) and what only third parties report.
+  Groups: `system.explorer` ("File Explorer and the desktop") with `.thispc`, `.nav`, `.desktop` and
+  `.desktop.folders`; the `thispc.*` and `nav.*` rules of `16-explorer.toml` moved into them, their ids are unchanged.
+  Navigation pane pins (`System.IsPinnedToNameSpaceTree`) go to `HKCU\Software\Classes` at the first sign-in: the
+  machine registration belongs to TrustedInstaller and `UsrClass.dat` is not the default profile. Desktop icons are
+  `DU:` values of `HideDesktopIcons`. `desktop.gallery` and `desktop.home` conflict with `nav.gallery-hidden` and
+  `nav.home-hidden` both ways. Pending in a VM: whether `HiddenByDefault` under `Desktop\NameSpace` (which
+  `nav.gallery-hidden`, on by default, relies on) works at all; Windows uses it only under `MyComputer\NameSpace`.
+- Runtime 0.6 (`templates/VERSION`): `Setup-User.ps1` and `Post-OOBE.ps1` define `Set-Reg` and `Remove-Reg`; before, a
+  `reg` action of the phases user-first-logon or post-oobe failed with "Set-Reg is not recognized". These phases may use
+  only `reg`, `reg-remove` and `ps` (`PHASE_ACTION_TYPES` in `core/catalog.py`, checked against the runtimes by
+  `tests/test_render.py`). `HKU:\.DEFAULT\` (the sign-in screen) is a registry prefix of the phases specialize and
+  default-user, scope `signin` in `registry_values()`; the audit reads it as `Registry::HKEY_USERS\...`. An enum
+  parameter may name `differs_from` another enum of the rule with `same_allowed` values; the check of the profile
+  reports a clash (`default-user.input-switch-keys`: language and layout switch keys, Win+Space cannot change).
+- Accounts asked during installation (customer request 2 of 04.10.2026): profile format 3 adds `install.account_mode`
+  (`file` or `ask`). In `ask` the answer file has no `UserAccounts` (`Profile.answer_file_accounts()` is empty, also for
+  Post-OOBE and Apply), so Windows Setup asks for one account and makes it an administrator; the accounts stay in the
+  profile. The check warns when `oobe.hide-online-account` or `install.bypass-nro` is off in that mode, and
+  `tools/Validate-Unattend.ps1` accepts a file without any `LocalAccount`. Format 2 profiles load as `file` without a
+  warning. The edition is chosen during installation in the existing key mode `ask` (request 4): the form disables the
+  edition list outside `generic`, and the check adds an info about Home.
 - Since 26.09.2026 the catalog defaults, and so the Office preset, differ from v0.2: browser policies,
   `apps.remove.onedrive` on; `update.other-microsoft-products`, `asr.usb-untrusted`, `uac.admin-always-notify`
   off (Task Manager opened by Admin must not ask for UAC). Tests that compare with v0.2 use `reference_profile()`
@@ -277,7 +302,8 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   defaults. Also off: `install.netfx3`, `printing.spooler-automatic`, `default-user.region`,
   `user-logon.input-languages`, `user-logon.pin-ui-language`, `removable.autorun-off` and the AI rules of Notepad,
   Paint, Office and Edge; the check shows 13 baseline warnings. It does not turn UAC prompts, the secure desktop, Win+L or
-  real-time protection off; it only stops enforcing them. Home is not the Windows Home edition: the edition is Pro.
+  real-time protection off; it only stops enforcing them. Home is not the Windows Home edition: its key mode `ask`
+  lets the person choose the edition during Setup, and Pro is the better choice for the WinKickOff protection.
 - GitHub rejects a push with a personal e-mail in the commit author; this repository has the local address
   `265459095+stanislavperec-ua@users.noreply.github.com` (`git config user.email`, this folder only).
   Files are stored byte for byte (`.gitattributes`: `* -text`), CRLF.
@@ -432,8 +458,8 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 | GitHub repository | Renamed to WinKickOff; the local clone and `origin/main` match; CI in GitHub Actions | 26.09.2026 | https://github.com/supakov/WinKickOff |
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
 | Editor tasks | T01-T12, T14, T16-T22 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 30.09.2026 | `docs/technical/editor/todo/` |
-| Rule catalog | 0.5: 251 rules, 36 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer 15), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.5 adds the parameter type `list` and the action `reg-list` (runtime Set-RegList, Test-RegList), the rules themselves are those of 0.4 | 30.09.2026 | `WinKickOff/rules/` |
-| Editor code | 1.2.0-rc.4 and after it the tree root of unknown rules and policies (Home preset; customer specifics removed; skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 689 tests | 02.10.2026 | `WinKickOff/` |
+| Rule catalog | 0.6: 278 rules, 40 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer and the desktop 41; keys that switch the input language), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.6 adds the File Explorer namespaces and desktop icons (generated), the switch keys of the sign-in screen and new accounts, registry functions of the per-user and post-OOBE scripts | 04.10.2026 | `WinKickOff/rules/` |
+| Editor code | 1.2.0-rc.4 and after it the tree root of unknown rules and policies, the account asked during installation, File Explorer namespaces and desktop icons, the switch keys of the input language, a security fix of placeholders (Home preset; customer specifics removed; skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 718 tests | 04.10.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply (rules on are applied, rules off return to Windows defaults) and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 29.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |

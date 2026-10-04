@@ -224,6 +224,34 @@ summary = "Companion programs of driver installers and device apps from the inte
 [[group]]
 id = "system.explorer"
 parent = "system"
-title = "File Explorer: \"This PC\" and the navigation pane"
+title = "File Explorer and the desktop"
 order = 2
-summary = "User folders in \"This PC\" (hidden in Windows 11), \"3D Objects\", \"Gallery\" and \"Home\" in the left pane. By default the folders are hidden, as in Windows 11, and \"Gallery\" is hidden."
+summary = "Folders in \"This PC\", items of the navigation pane and icons on the desktop. Off by default, so Windows keeps its own choice, except that \"Gallery\" is hidden."
+
+[[group]]
+id = "system.explorer.thispc"
+parent = "system.explorer"
+title = "Folders in \"This PC\""
+order = 1
+summary = "User folders (hidden in Windows 11), \"3D Objects\", \"Recycle Bin\" and \"Control Panel\" above the drives. Off by default: \"This PC\" shows the drives only, as in Windows 11."
+
+[[group]]
+id = "system.explorer.nav"
+parent = "system.explorer"
+title = "Navigation pane"
+order = 2
+summary = "\"Home\", \"Gallery\", \"Libraries\", \"Network\", \"Recycle Bin\", the user folder and USB drives in the left pane of File Explorer, and the folder File Explorer opens to."
+
+[[group]]
+id = "system.explorer.desktop"
+parent = "system.explorer"
+title = "Desktop icons"
+order = 3
+summary = "\"This PC\", the user folder, \"Network\", \"Control Panel\" and \"Recycle Bin\" (the icons of the Desktop icon settings dialog), \"Libraries\" and the Windows Spotlight icon on the desktop of new accounts."
+
+[[group]]
+id = "system.explorer.desktop.folders"
+parent = "system.explorer.desktop"
+title = "Folders on the desktop"
+order = 1
+summary = "\"Documents\", \"Downloads\", \"Music\", \"Pictures\", \"Videos\", \"Desktop\", \"Gallery\" and \"Home\" as icons on the desktop of new accounts. Rarely needed."

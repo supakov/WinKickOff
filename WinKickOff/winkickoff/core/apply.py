@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from winkickoff.core.catalog import DEFAULT_ABSENT, DEFAULT_UNKNOWN, Action, Catalog, Rule, is_imported
+from winkickoff.core.catalog import DEFAULT_ABSENT, DEFAULT_UNKNOWN, SIGNIN_PREFIX, Action, Catalog, Rule, is_imported
 from winkickoff.core.deps import Resolver
 from winkickoff.core.i18n import N_, tr
 from winkickoff.core.profile import Profile
@@ -42,6 +42,7 @@ IRREVERSIBLE_TYPES = {"appx", "capability", "ps", "exe"}
 REBOOT_TYPES = {"feature", "capability", "service"}
 REASON_INSTALL_ONLY = N_("takes effect only during Windows installation")
 REASON_USER_PHASE = N_("runs at the first sign-in of each user; not applied to a running system")
+REASON_SIGNIN = N_("changes the keyboard keys of the sign-in screen; not applied to a running system")
 REASON_NO_DEFAULTS = N_("the Windows defaults are unknown; roll back by hand as the rule describes")
 REASON_ALREADY_DEFAULT = N_("the rule only removes values a clean Windows does not have: nothing to return")
 REASON_DISABLED_NO_DEFAULTS = N_("off in the profile, but it cannot return to the Windows defaults automatically: roll back by hand as the rule describes")
@@ -118,6 +119,8 @@ def _running_phase_reason(rule: Rule) -> str | None:
         return REASON_INSTALL_ONLY
     if rule.phase == USER_PHASE:
         return REASON_USER_PHASE
+    if any(str(a.fields.get("path", "")).upper().startswith(SIGNIN_PREFIX.upper()) for a in rule.actions):
+        return REASON_SIGNIN  # switching keys on a running system can break layout switching (as with input languages)
     return None
 
 
@@ -238,7 +241,7 @@ def _assemble(by_phase: dict[str, list[str]]) -> str:
 
 
 def _fill_apply(templates_dir: Path, profile: Profile, label: str, blocks: str, empty: str) -> str:
-    accounts = ",".join(ps_quote(a.name) for a in profile.accounts)
+    accounts = ",".join(ps_quote(a.name) for a in profile.answer_file_accounts())
     text = fill((templates_dir / "Apply.runtime.ps1").read_text(encoding="utf-8"),
                 {"build_label": label, "accounts": accounts, "blocks": blocks or empty})
     return text.replace("\r\n", "\n")
@@ -338,6 +341,8 @@ def render_revert(plan: RevertPlan, profile: Profile, templates_dir: Path, app_v
 def _audit_path(path: str) -> tuple[str, str]:
     if path.startswith("DU:\\"):
         return "HKCU:\\" + path[4:], "current user instead of the default profile"
+    if path.startswith("HKU:\\"):
+        return "Registry::HKEY_USERS\\" + path[5:], ""  # the audit script mounts no HKU: drive
     return path, ""
 
 

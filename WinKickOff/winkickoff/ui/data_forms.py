@@ -25,7 +25,12 @@ KEY_MODES = (
     ("generic", N_("Generic key for the selected edition: no product key or edition selection screens, "
                    "Windows activates on its own using this PC's digital license")),
     ("custom", N_("Your own product key (for example, from a sticker or contract)")),
-    ("ask", N_("Ask for the key and edition during installation")),
+    ("ask", N_("Choose the edition during installation: Setup asks for a product key, and \"I don't have a product "
+               "key\" opens the list of editions")),
+)
+ACCOUNT_MODE_TITLES = (
+    ("file", N_("Create these accounts")),
+    ("ask", N_("Ask for the account during installation")),
 )
 
 
@@ -67,7 +72,11 @@ class InstallForm(_Form):
         edition_box = ttk.Combobox(self, textvariable=self.edition, values=list(EDITION_KEYS), state="readonly", width=18)
         edition_box.grid(row=2, column=1, sticky="w")
         edition_box.bind("<<ComboboxSelected>>", lambda _e: self._save())
-        self.note(3, tr("Pro: the main edition of the project. Enterprise and Education only with the corresponding licenses; Home is not supported (policies do not work)."))
+        self.note(3, tr("The edition applies to the generic key only. Pro is the main edition of the project; Enterprise and "
+                        "Education only with their licenses. If the edition is chosen during installation and Home is "
+                        "picked, deferred feature updates and BitLocker do not work and some Copilot and Recall policies "
+                        "are not supported."))
+        self.edition_box = edition_box
 
         ttk.Label(self, text=tr("Product key")).grid(row=4, column=0, sticky="nw", padx=(0, 12))
         box = ttk.Frame(self)
@@ -103,6 +112,7 @@ class InstallForm(_Form):
 
     def _update_state(self) -> None:
         self.key_entry.configure(state="normal" if self.mode.get() == "custom" else "disabled")
+        self.edition_box.configure(state="readonly" if self.mode.get() == "generic" else "disabled")
 
     def _save(self) -> None:
         self._update_state()
@@ -251,8 +261,19 @@ class AccountsForm(_Form):
                "separate project after installation. A password set here is written to the answer file in "
                "plain text."),
         )
+        self.mode = tk.StringVar(value="file")
+        modes = ttk.Frame(self)
+        modes.grid(row=2, column=0, columnspan=3, sticky="w", pady=(0, 8))
+        for value, text in ACCOUNT_MODE_TITLES:
+            ttk.Radiobutton(modes, text=tr(text), value=value, variable=self.mode, command=self._set_mode).pack(anchor="w", pady=1)
+        self.ask_note = ttk.Label(modes, wraplength=WRAP, justify="left", style="Note.TLabel", text=tr(
+            "The file then holds no account, and Windows Setup asks for the name of one account, which becomes an "
+            "administrator; a standard account for everyday work has to be added after installation. If a password is "
+            "typed there, Windows also asks three security questions. Install without a network cable: online, Setup may "
+            "download updates for a long time. The accounts below are kept in the profile and come back when you switch "
+            "back."))
         table = ttk.Frame(self)
-        table.grid(row=2, column=0, columnspan=3, sticky="we")
+        table.grid(row=3, column=0, columnspan=3, sticky="we")
         self.tree = ttk.Treeview(table, columns=("name", "display", "group", "password"), show="headings", height=6, selectmode="browse")
         for column, title, width in (("name", tr("Name"), 140), ("display", tr("Display name"), 180), ("group", tr("Group"), 130), ("password", tr("Password"), 90)):
             self.tree.heading(column, text=title)
@@ -265,7 +286,8 @@ class AccountsForm(_Form):
             ttk.Button(buttons, text=text, command=cmd, width=10).pack(pady=1)
 
         edit = ttk.LabelFrame(self, text=tr("Selected account"), padding=(10, 6))
-        edit.grid(row=3, column=0, columnspan=3, sticky="we", pady=(10, 0))
+        edit.grid(row=4, column=0, columnspan=3, sticky="we", pady=(10, 0))
+        self._table, self._buttons, self._edit = table, buttons, edit
         self.name = tk.StringVar()
         self.display = tk.StringVar()
         self.group = tk.StringVar()
@@ -289,7 +311,32 @@ class AccountsForm(_Form):
     def accounts(self) -> list[Account]:
         return self.window.profile.accounts
 
+    def _set_mode(self) -> None:
+        if self._loading:
+            return
+        self.window.profile.install["account_mode"] = self.mode.get()
+        self._update_mode()
+        self.changed()
+
+    def _update_mode(self) -> None:
+        """In the mode "ask" the table and the editor are kept but cannot be used."""
+        asking = self.mode.get() == "ask"
+        if asking:
+            self.ask_note.pack(anchor="w", padx=(22, 0), pady=(2, 0))
+        else:
+            self.ask_note.pack_forget()
+        state = ["disabled"] if asking else ["!disabled"]
+        for frame in (self._buttons, self._edit):
+            for widget in frame.winfo_children():
+                if isinstance(widget, ttk.Widget):
+                    widget.state(state)
+        self.tree.state(state)
+
     def refresh(self, select: int | None = 0) -> None:
+        self._loading = True
+        self.mode.set(str(self.window.profile.install.get("account_mode", "file")))
+        self._loading = False
+        self._update_mode()
         self.tree.delete(*self.tree.get_children())
         for index, account in enumerate(self.accounts):
             self.tree.insert("", "end", iid=str(index), values=(account.name, account.display_name, account.group, tr("set") if account.password else tr("not set")))

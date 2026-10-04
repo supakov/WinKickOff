@@ -16,7 +16,7 @@ script, as `await tools.read_mcp_resource({"server": "winkickoff", "uri": "..."}
 | `winkickoff://catalog/groups` | Whole group tree, program language |
 | `winkickoff://catalog/rules` | All built-in rules `{id, title, enabled, level}` (about 33 KB) and `imports` |
 | `winkickoff://catalog/rules/{id}` | One rule as `get_rule`, always in the program language |
-| `winkickoff://docs/reference/{file}` | English reference card, `00-architecture.md` to `19-more-privacy.md` and `README.md` |
+| `winkickoff://docs/reference/{file}` | English reference card, `00-architecture.md` to `20-explorer-namespaces.md` and `README.md` |
 | `winkickoff://docs/user/{lang}/{file}` | User page; `lang` `en`, `ru`, `uk`; files `README.md`, `quick-start.md`, `profiles.md`, `install-and-check.md`, `safety.md`, `rules.md`, `admx.md`, `mcp.md`, `this-pc.md` |
 
 - A rule's `doc` maps to a card by file name: `docs/technical/reference/07-defender.md#...` is

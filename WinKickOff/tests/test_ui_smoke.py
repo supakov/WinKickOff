@@ -286,6 +286,20 @@ class MainWindowSmokeTest(unittest.TestCase):
         finally:
             window.destroy()
 
+    def test_comparison_shows_the_account_mode_under_the_accounts(self) -> None:
+        data = json.loads((ROOT / "profiles" / "preset-office.json").read_text(encoding="utf-8"))
+        data["install"]["account_mode"] = "ask"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "ask.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            window = self.win.show_comparison(path)
+            try:
+                rows = window.comparison_rows
+                self.assertEqual([row[0] for row in rows], ["data:accounts"])
+                self.assertEqual(rows[0][3:], ("Create these accounts", "Ask for the account during installation"))
+            finally:
+                window.destroy()
+
     def test_apply_now_asks_for_permission_first(self) -> None:
         self.assertFalse(self.win.settings.allow_apply)
         for index in (2, 3):  # apply and return are never greyed out
@@ -393,6 +407,30 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.assertIn("# [uac.admin-always-notify] Windows defaults", text)
         self.assertIn("-Value 5", text)
         self.assertTrue((script.parent / "Undo-Apply.ps1").exists())
+
+    def test_account_asked_during_installation(self) -> None:
+        self.win.show_item("data:accounts")
+        form = self.win.forms["data:accounts"]
+        self.win.update()
+        form.mode.set("ask")
+        form._set_mode()
+        self.assertTrue(self.win.profile.asks_for_account())
+        self.assertTrue(self.win.dirty)
+        self.assertIn("disabled", form.tree.state())
+        self.assertEqual(len(self.win.profile.accounts), 2)  # kept for the way back
+        form.mode.set("file")
+        form._set_mode()
+        self.assertNotIn("disabled", form.tree.state())
+
+    def test_edition_list_only_for_the_generic_key(self) -> None:
+        self.win.show_item("data:install")
+        form = self.win.forms["data:install"]
+        self.win.update()
+        self.assertNotIn("disabled", form.edition_box.state())
+        form.mode.set("ask")
+        form._save()
+        self.assertIn("disabled", form.edition_box.state())
+        self.assertEqual(self.win.profile.install["product_key_mode"], "ask")
 
     def test_reserved_account_name_is_refused(self) -> None:
         self.win.show_item("data:accounts")

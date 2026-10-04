@@ -410,7 +410,7 @@ text}]}`; the document is `contents[0].text`:
 | `winkickoff://skill/references/concepts.md` | Rules, levels, phases, groups, presets, data forms, the build |
 | `winkickoff://skill/references/decisions.md` | Deliberate decisions, window labels in Russian and Ukrainian |
 | `winkickoff://docs/user/<lang>/<file>` | User pages; `<lang>` is `ru`, `uk` or `en`; `<file>` is `README.md`, `quick-start.md`, `profiles.md`, `install-and-check.md`, `safety.md`, `admx.md`, `mcp.md` or `this-pc.md` |
-| `winkickoff://docs/reference/<file>` | English reference cards `01-windows-pe.md` to `19-more-privacy.md` |
+| `winkickoff://docs/reference/<file>` | English reference cards `01-windows-pe.md` to `20-explorer-namespaces.md` |
 | `winkickoff://catalog/rules/<id>` | One rule like `get_rule`, in the program language |
 
 - The skill guide was written for agents of every kind; where it differs from these instructions, these instructions
@@ -467,6 +467,7 @@ Root groups: `install`, `oobe`, `printing`, `update`, `defender`, `security`, `n
 `logging`, `privacy`, `system`, `apps`, `default-user`, `user-logon`, `post-oobe`. Frequent subgroups:
 `defender.asr`, `security.uac`, `security.accounts`, `security.lsa`, `security.remote`, `security.encryption`,
 `browsers.edge`, `browsers.chrome`, `browsers.brave`, `privacy.ai`, `privacy.telemetry`, `privacy.ads`,
-`privacy.search`, `privacy.speech`, `privacy.office`, `system.drivers`, `system.explorer`, `apps.remove`,
+`privacy.search`, `privacy.speech`, `privacy.office`, `system.drivers`, `system.explorer`, `system.explorer.thispc`,
+`system.explorer.nav`, `system.explorer.desktop`, `apps.remove`,
 `apps.onedrive`. `list_rules` with a `group` includes its subgroups. The id prefix is not always the group: `uac.*` is
 in `security.uac`, `asr.*` in `defender.asr`, `edge.*` in `browsers.edge`.

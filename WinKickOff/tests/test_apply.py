@@ -62,6 +62,16 @@ class PlanTest(unittest.TestCase):
         self.assertIn("user-logon.input-languages", excluded)
         self.assertIn("install.bypass-tpm", excluded)
 
+    def test_keys_of_the_sign_in_screen_are_never_changed_on_a_running_pc(self) -> None:
+        profile = self.office.copy()
+        profile.rules["default-user.input-switch-keys"].enabled = True
+        plan = plan_apply(self.catalog, profile, ["r:default-user.input-switch-keys"])
+        self.assertTrue(plan.empty)
+        self.assertIn("sign-in screen", plan.excluded[0][1])
+        revert = plan_revert(self.catalog, ["r:default-user.input-switch-keys"])
+        self.assertEqual(revert.rule_ids, [])
+        self.assertIn("sign-in screen", revert.excluded[0][1])
+
     def test_rule_without_check_mark_returns_to_windows_defaults(self) -> None:
         # 29.09.2026 bug: a rule that is off in the profile was dropped silently; now the PC follows the profile
         plan = self.plan("r:network.netbios-off")
@@ -125,6 +135,13 @@ class ScriptsTest(unittest.TestCase):
         end = self.apply.index("Dismount-DefaultUser\n}", start)
         self.assertIn("# [default-user.show-file-extensions]", self.apply[start:end])
         self.assertIn("$accounts = @('Admin','User')", self.apply)
+
+    def test_audit_reads_the_sign_in_screen_without_a_drive(self) -> None:
+        profile = Profile.from_catalog(self.catalog)
+        profile.rules["default-user.input-switch-keys"].enabled = True
+        audit = render_audit(["default-user.input-switch-keys"], profile, self.catalog, TEMPLATES, "test")
+        self.assertIn("Registry::HKEY_USERS\\.DEFAULT\\Keyboard Layout\\Toggle", audit)
+        self.assertNotIn("'HKU:", audit)
 
     def test_audit_only_reads(self) -> None:
         body = self.audit.split("{{", 1)[0]
