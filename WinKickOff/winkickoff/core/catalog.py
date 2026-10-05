@@ -1,17 +1,23 @@
-"""The rules catalog: groups and rules loaded from rules/*.toml and checked for integrity.
+"""The rules catalog: groups and rules loaded from rules/*.json and checked for integrity.
 
 The catalog is the single source of truth. Nothing here knows about tkinter or PowerShell text;
 rendering lives in render.py, dependency arithmetic in deps.py.
+
+File format (since editor 1.3.0, docs/technical/editor/03-data-model.md): rules/groups.json is {"comment": [...],
+"groups": [...]}, every other rules/*.json is {"comment": [...], "rules": [...]}; the optional "comment" is a list of
+lines for the people who edit the file. The files are strict JSON (core/jsonfile.py) in the canonical layout of
+tools/format_catalog.py, and every key is checked: a misspelt field is an error, not a silently ignored line.
 """
 
 from __future__ import annotations
 
 import re
-import tomllib
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from winkickoff.core import jsonfile
 
 PHASES: tuple[str, ...] = (
     "windowspe",
@@ -71,7 +77,22 @@ _PLACEHOLDER_RE = re.compile(r"\{([a-z_][a-z0-9_]*)\}")
 # The only action fields whose {param} placeholders are filled in: a key, a value name or a file is always literal, so a
 # brace in the key of an imported template stays text and a parameter value never becomes part of a path.
 PLACEHOLDER_FIELDS: tuple[str, ...] = ("value", "args", "script", "command")
-IMPORTED_PREFIX = "admx."  # rules and groups made from policy templates (core/admx.py); never used by rules/*.toml
+IMPORTED_PREFIX = "admx."  # rules and groups made from policy templates (core/admx.py); never used by rules/*.json
+GROUPS_FILE = "groups.json"
+# The keys a catalog file may hold. "note" of a rule is a remark for the people who edit the catalog (shown nowhere).
+GROUP_KEYS: tuple[str, ...] = ("id", "parent", "title", "order", "summary")
+RULE_KEYS: tuple[str, ...] = ("id", "group", "phase", "title", "level", "default", "requires", "conflicts", "tags", "doc",
+                              "summary", "effect", "risk", "versions", "verify", "rollback", "note", "params", "actions")
+PARAM_KEYS: tuple[str, ...] = ("type", "title", "default", "min", "max", "values", "pairs", "required", "differs_from",
+                               "same_allowed")
+PARAM_TYPE_KEYS: dict[str, tuple[str, ...]] = {  # the keys of a parameter beside type, title and default, by its type
+    "int": ("min", "max"),
+    "enum": ("values", "differs_from", "same_allowed"),
+    "string": ("required",),
+    "bool": (),
+    "list": ("required", "pairs"),
+}
+OPTION_KEYS: tuple[str, ...] = ("value", "title")
 
 
 def is_imported(item_id: str) -> bool:
@@ -180,6 +201,20 @@ class Group:
     source: str = ""
 
 
+# The source of an import is the first word of its id, most trusted first: the catalogs that ship with the program, the
+# templates of this Windows, a folder of templates, a catalog file (core/admx.py trust_order, core/profile.py).
+IMPORT_KINDS: tuple[str, ...] = ("bundled", "system", "folder", "package")
+
+
+def import_kind(import_id: str) -> str:
+    return import_id.split("-", 1)[0]
+
+
+def import_rank(kind: str) -> int:
+    """0 for the most trusted source; an unknown kind is less trusted than all."""
+    return IMPORT_KINDS.index(kind) if kind in IMPORT_KINDS else len(IMPORT_KINDS)
+
+
 @dataclass(frozen=True)
 class RuleOrigin:
     """Where an imported rule comes from: a policy of an ADMX template."""
@@ -189,6 +224,10 @@ class RuleOrigin:
     folder: str
     file: str
     policy: str
+
+    @property
+    def kind(self) -> str:
+        return import_kind(self.import_id)
 
 
 class Catalog:
@@ -294,19 +333,24 @@ class Catalog:
 
 
 def load_catalog(rules_dir: Path, *, docs_root: Path | None = None) -> Catalog:
-    """Load groups.toml and every NN-*.toml in rules_dir; raise CatalogError on any defect."""
+    """Load groups.json and every other *.json in rules_dir; raise CatalogError on any defect."""
     if not rules_dir.is_dir():
         raise CatalogError(f"rules folder not found: {rules_dir}")
-    groups = _load_groups(rules_dir / "groups.toml")
+    groups = _load_groups(rules_dir / GROUPS_FILE)
     version = _read_version(rules_dir)
     rules: dict[str, Rule] = {}
     position = 0
-    for path in sorted(rules_dir.glob("*.toml")):
-        if path.name == "groups.toml":
+    for path in sorted(rules_dir.glob("*.json")):
+        if path.name == GROUPS_FILE:
             continue
-        data = _read_toml(path)
-        for raw in data.get("rule", []):
-            rule = _parse_rule(raw, path.name, position)
+        for raw in read_catalog_file(path, "rules"):
+            try:
+                rule = _parse_rule(raw, path.name, position)
+            except (TypeError, ValueError, KeyError, AttributeError) as exc:  # a shape no check of the parser foresaw
+                if isinstance(exc, CatalogError):
+                    raise
+                raise CatalogError(f"a field of an unexpected type ({type(exc).__name__}: {str(exc)[:200]})", file=path.name,
+                                   rule_id=raw.get("id") if isinstance(raw.get("id"), str) else None) from exc
             if rule.id in rules:
                 raise CatalogError(f"duplicate rule id (also in {rules[rule.id].source})", file=path.name, rule_id=rule.id)
             rules[rule.id] = rule
@@ -323,31 +367,54 @@ def _read_version(rules_dir: Path) -> str:
     return "0.0"
 
 
-def _read_toml(path: Path) -> dict[str, Any]:
+def read_catalog_file(path: Path, items: str) -> list[dict[str, Any]]:
+    """The list items ("rules" or "groups") of one catalog file; "comment" is the only other key it may hold."""
     try:
-        with path.open("rb") as handle:
-            return tomllib.load(handle)
-    except tomllib.TOMLDecodeError as exc:
-        raise CatalogError(f"TOML syntax: {exc}", file=path.name) from exc
+        data = jsonfile.read(path)
+    except jsonfile.JsonFileError as exc:
+        raise CatalogError(str(exc), file=path.name) from exc
+    if not isinstance(data, dict):
+        raise CatalogError("the file must hold a JSON object", file=path.name)
+    unknown = set(data) - {items, "comment"}
+    if unknown:
+        raise CatalogError(f"unknown keys {sorted(unknown)} (expected '{items}' and 'comment')", file=path.name)
+    comment = data.get("comment", [])
+    if not isinstance(comment, list) or not all(isinstance(line, str) for line in comment):
+        raise CatalogError("'comment' must be a list of strings", file=path.name)
+    value = data.get(items, [])
+    if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
+        raise CatalogError(f"'{items}' must be a list of objects", file=path.name)
+    return value
+
+
+def _unknown_keys(raw: dict[str, Any], known: tuple[str, ...], what: str, file: str, rule_id: str | None = None) -> None:
+    unknown = set(raw) - set(known)
+    if unknown:
+        raise CatalogError(f"{what}: unknown fields {sorted(unknown)}", file=file, rule_id=rule_id)
 
 
 def _load_groups(path: Path) -> dict[str, Group]:
     if not path.exists():
-        raise CatalogError("groups.toml is missing", file=path.name)
-    data = _read_toml(path)
+        raise CatalogError(f"{GROUPS_FILE} is missing", file=path.name)
     groups: dict[str, Group] = {}
-    for raw in data.get("group", []):
+    for raw in read_catalog_file(path, "groups"):
         group_id = _require_str(raw, "id", path.name)
         if not _ID_RE.match(group_id) or is_imported(group_id):
             raise CatalogError(f"bad group id '{group_id}'", file=path.name)
         if group_id in groups:
             raise CatalogError(f"duplicate group id '{group_id}'", file=path.name)
+        _unknown_keys(raw, GROUP_KEYS, f"group '{group_id}'", path.name)
+        order, parent, summary = raw.get("order", 0), raw.get("parent"), raw.get("summary", "")
+        if not isinstance(order, int) or isinstance(order, bool):
+            raise CatalogError(f"group '{group_id}': 'order' must be an integer", file=path.name)
+        if parent is not None and not isinstance(parent, str) or not isinstance(summary, str):
+            raise CatalogError(f"group '{group_id}': 'parent' and 'summary' must be strings", file=path.name)
         groups[group_id] = Group(
             id=group_id,
             title=_require_str(raw, "title", path.name),
-            order=int(raw.get("order", 0)),
-            parent=raw.get("parent"),
-            summary=str(raw.get("summary", "")),
+            order=order,
+            parent=parent,
+            summary=summary,
             source=path.name,
         )
     for group in groups.values():
@@ -379,11 +446,18 @@ def _str_tuple(raw: dict[str, Any], key: str, file: str, rule_id: str) -> tuple[
 
 
 def _parse_param(name: str, raw: dict[str, Any], file: str, rule_id: str) -> Param:
+    if not isinstance(raw, dict):
+        raise CatalogError(f"param '{name}' must be an object", file=file, rule_id=rule_id)
+    _unknown_keys(raw, PARAM_KEYS, f"param '{name}'", file, rule_id)
     ptype = raw.get("type")
     if ptype not in PARAM_TYPES:
         raise CatalogError(f"param '{name}': unknown type '{ptype}'", file=file, rule_id=rule_id)
     if "default" not in raw:
         raise CatalogError(f"param '{name}': missing default", file=file, rule_id=rule_id)
+    misplaced = set(raw) - {"type", "title", "default"} - set(PARAM_TYPE_KEYS[ptype])
+    if misplaced:
+        raise CatalogError(f"param '{name}': {sorted(misplaced)} do not apply to a parameter of type {ptype}", file=file,
+                           rule_id=rule_id)
     title = _require_str(raw, "title", file, rule_id)
     default = raw["default"]
     values: tuple[tuple[Any, str], ...] = ()
@@ -391,35 +465,56 @@ def _parse_param(name: str, raw: dict[str, Any], file: str, rule_id: str) -> Par
         raw_values = raw.get("values")
         if not isinstance(raw_values, list) or not raw_values:
             raise CatalogError(f"param '{name}': enum needs 'values'", file=file, rule_id=rule_id)
+        for option in raw_values:
+            if not isinstance(option, dict) or not _is_option(option.get("value")) or not isinstance(option.get("title", ""), str):
+                raise CatalogError(f"param '{name}': every value is an object with a 'value' (a string or an integer) "
+                                   "and a 'title'", file=file, rule_id=rule_id)
+            _unknown_keys(option, OPTION_KEYS, f"param '{name}', value {option['value']!r}", file, rule_id)
         values = tuple((v["value"], str(v.get("title", v["value"]))) for v in raw_values)
-        if default not in {v for v, _ in values}:
+        if not _is_option(default) or default not in {v for v, _ in values}:
             raise CatalogError(f"param '{name}': default not in values", file=file, rule_id=rule_id)
     if ptype == "int":
-        if not isinstance(default, int) or isinstance(default, bool):
+        if not _is_int(default):
             raise CatalogError(f"param '{name}': int default must be an integer", file=file, rule_id=rule_id)
         lo, hi = raw.get("min"), raw.get("max")
+        if lo is not None and not _is_int(lo) or hi is not None and not _is_int(hi):
+            raise CatalogError(f"param '{name}': min and max must be integers", file=file, rule_id=rule_id)
         if lo is not None and default < lo or hi is not None and default > hi:
             raise CatalogError(f"param '{name}': default outside min..max", file=file, rule_id=rule_id)
+    if ptype == "string" and not isinstance(default, str):
+        raise CatalogError(f"param '{name}': string default must be a string", file=file, rule_id=rule_id)
     if ptype == "bool" and not isinstance(default, bool):
         raise CatalogError(f"param '{name}': bool default must be true or false", file=file, rule_id=rule_id)
     differs_from, same_allowed = raw.get("differs_from"), raw.get("same_allowed", [])
     if differs_from is not None and (ptype != "enum" or not isinstance(differs_from, str)):
         raise CatalogError(f"param '{name}': differs_from names another enum parameter of an enum", file=file, rule_id=rule_id)
-    if not isinstance(same_allowed, list) or (same_allowed and differs_from is None):
+    if not isinstance(same_allowed, list) or (same_allowed and differs_from is None) \
+            or not all(_is_option(value) for value in same_allowed):
         raise CatalogError(f"param '{name}': same_allowed is a list of values next to differs_from", file=file, rule_id=rule_id)
+    for key in ("required", "pairs"):
+        if not isinstance(raw.get(key, False), bool):
+            raise CatalogError(f"param '{name}': '{key}' must be true or false", file=file, rule_id=rule_id)
     if ptype == "list":
         if not isinstance(default, list) or not all(isinstance(item, str) for item in default):
             raise CatalogError(f"param '{name}': list default must be a list of strings", file=file, rule_id=rule_id)
-        for key in ("required", "pairs"):
-            if not isinstance(raw.get(key, False), bool):
-                raise CatalogError(f"param '{name}': '{key}' must be true or false", file=file, rule_id=rule_id)
         return Param(name=name, type=ptype, title=title, default=default, required=raw.get("required", False),
                      pairs=raw.get("pairs", False))
     return Param(name=name, type=ptype, title=title, default=default, min=raw.get("min"), max=raw.get("max"), values=values,
-                 differs_from=differs_from, same_allowed=tuple(same_allowed))
+                 required=raw.get("required", True), differs_from=differs_from, same_allowed=tuple(same_allowed))
+
+
+def _is_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _is_option(value: Any) -> bool:
+    """An enum value: a string or an integer (what a registry value of the rule takes)."""
+    return isinstance(value, str) or _is_int(value)
 
 
 def _parse_action(raw: dict[str, Any], file: str, rule_id: str, index: int) -> Action:
+    if not isinstance(raw, dict):
+        raise CatalogError(f"action {index} must be an object", file=file, rule_id=rule_id)
     atype = raw.get("type")
     if atype not in ACTION_FIELDS:
         raise CatalogError(f"action {index}: unknown type '{atype}'", file=file, rule_id=rule_id)
@@ -431,6 +526,15 @@ def _parse_action(raw: dict[str, Any], file: str, rule_id: str, index: int) -> A
     if unknown:
         raise CatalogError(f"action {index} ({atype}): unknown fields {sorted(unknown)}", file=file, rule_id=rule_id)
     fields = {k: v for k, v in raw.items() if k != "type"}
+    if atype == "ps" and isinstance(fields["script"], list):  # a script of several lines is a list of lines in the file
+        if not all(isinstance(line, str) and "\n" not in line for line in fields["script"]):
+            raise CatalogError(f"action {index}: a ps script is a string or a list of lines", file=file, rule_id=rule_id)
+        fields["script"] = "\n".join(fields["script"])
+    if atype == "ps" and not isinstance(fields["script"], str):
+        raise CatalogError(f"action {index}: a ps script is a string or a list of lines", file=file, rule_id=rule_id)
+    for key in ("path", "name", "kind", "file", "pattern", "command", "description", "element", "why", "prefix"):
+        if key in fields and not isinstance(fields[key], str):
+            raise CatalogError(f"action {index} ({atype}): '{key}' must be a string", file=file, rule_id=rule_id)
     if atype == "reg":
         if fields["kind"] not in REG_KINDS:
             raise CatalogError(f"action {index}: bad registry kind '{fields['kind']}'", file=file, rule_id=rule_id)
@@ -512,9 +616,13 @@ def _parse_rule(raw: dict[str, Any], file: str, position: int) -> Rule:
         raise CatalogError(f"unknown level '{level}'", file=file, rule_id=rule_id)
     if not isinstance(raw.get("default"), bool):
         raise CatalogError("'default' must be true or false", file=file, rule_id=rule_id)
+    _unknown_keys(raw, RULE_KEYS, "rule", file, rule_id)
+    for key in ("risk", "versions", "verify", "rollback", "note"):
+        if not isinstance(raw.get(key, ""), str):
+            raise CatalogError(f"'{key}' must be a string", file=file, rule_id=rule_id)
     params_raw = raw.get("params", {})
     if not isinstance(params_raw, dict):
-        raise CatalogError("'params' must be a table", file=file, rule_id=rule_id)
+        raise CatalogError("'params' must be an object", file=file, rule_id=rule_id)
     params = {name: _parse_param(name, p, file, rule_id) for name, p in params_raw.items()}
     actions_raw = raw.get("actions", [])
     if not isinstance(actions_raw, list) or not actions_raw:

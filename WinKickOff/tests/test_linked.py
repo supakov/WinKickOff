@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import quiet_tk  # noqa: F401 - first: every window these tests open stays invisible
 import tempfile
 import unittest
 from datetime import datetime

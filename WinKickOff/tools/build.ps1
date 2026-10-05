@@ -10,12 +10,14 @@
     Steps: unit tests, venv with PyInstaller, the build from the spec file tools\WinKickOff.spec (the window
     WinKickOff.exe without a console and the MCP server WinKickOff-mcp.exe with a console, one shared _internal
     folder with the data files: rules, templates, resources, every profiles\preset-*.json, technical reference,
-    user documentation), a copy of the documentation next to the exe, a zip dist\WinKickOff-<version>.zip.
+    user documentation), the catalogs of catalogs\ compressed with xz into _internal\catalogs (tools\pack_catalogs.py),
+    a copy of the documentation next to the exe, a zip dist\WinKickOff-<version>.zip.
 
     Layout of the result (app_paths() in frozen mode):
       dist\WinKickOff\WinKickOff.exe        the window
       dist\WinKickOff\WinKickOff-mcp.exe    the headless MCP server (a stdio server unless another flag is given)
       dist\WinKickOff\_internal\{rules,templates,resources,profiles,docs\technical\reference,docs\user}
+      dist\WinKickOff\_internal\catalogs\<name>.json.xz  the catalogs of the program (menu ADMX), if there are any
       dist\WinKickOff\docs\{user,technical}\...  (the same documentation, easy to find; user links resolve)
       dist\WinKickOff\skills\winkickoff\         the Agent Skill for AI agents that use WinKickOff (skills\README.md)
       profiles\, output\, logs\, settings.json are created next to the exe on first use, so nothing starts an
@@ -74,6 +76,12 @@ try {
     }
     $built = @(Get-ChildItem -Path (Join-Path $dist '_internal\profiles') -Filter 'preset-*.json' -File)
     if ($built.Count -ne $presets.Count) { throw "presets in the build: $($built.Count) of $($presets.Count)" }
+    # The repository keeps the catalogs as plain JSON; the build ships them compressed and checks every one.
+    $catalogs = @(Get-ChildItem -Path (Join-Path $root 'catalogs') -Filter '*.json' -File)
+    & $Python (Join-Path $root 'tools\pack_catalogs.py') (Join-Path $dist '_internal\catalogs')
+    if ($LASTEXITCODE -ne 0) { throw "packing the catalogs failed" }
+    $packed = @(Get-ChildItem -Path (Join-Path $dist '_internal\catalogs') -Filter '*.json.xz' -File)
+    if ($packed.Count -ne $catalogs.Count) { throw "catalogs in the build: $($packed.Count) of $($catalogs.Count)" }
     Copy-Item -Path (Join-Path $repo 'docs\user') -Destination (Join-Path $dist 'docs\user') -Recurse -Force
     $tech = New-Item -ItemType Directory -Force -Path (Join-Path $dist 'docs\technical')
     Copy-Item -Path (Join-Path $repo 'docs\technical\reference') -Destination $tech.FullName -Recurse -Force

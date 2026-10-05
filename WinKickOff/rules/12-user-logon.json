@@ -1,0 +1,80 @@
+{
+  "comment": [
+    "First sign-in of each user: script Setup-User.ps1 started by Active Setup.",
+    "The Active Setup registration is infrastructure: the generator adds it when at least one rule of the phase is on.",
+    "The script runtime provides Write-Log (a log per user)."
+  ],
+  "rules": [
+    {
+      "id": "user-logon.pin-ui-language",
+      "group": "user-logon",
+      "phase": "user-first-logon",
+      "title": "Pin the display language to the image language",
+      "level": "baseline",
+      "default": true,
+      "tags": ["display language", "uilanguageoverride", "iso"],
+      "doc": "docs/technical/reference/15-per-user-script.md#step-1-pinning-the-display-language",
+      "summary": "Set-WinUILanguageOverride locks the display language to the installed one so that reordering input languages (English first) does not switch the interface.",
+      "effect": "The customer's requirement \"do not change the display language\" relies on this line.",
+      "versions": "Cmdlet available since Windows 8.",
+      "verify": "Under the user account: Get-WinUILanguageOverride returns the image language (for example uk-UA); the display language has not changed after the first sign-in.",
+      "rollback": "Set-WinUILanguageOverride without a parameter removes the override.",
+      "actions": [
+        {
+          "type": "ps",
+          "script": [
+            "try {",
+            "    $ui = [System.Globalization.CultureInfo]::InstalledUICulture.Name",
+            "    if ($ui) { Set-WinUILanguageOverride -Language $ui; Write-Log \"display language pinned to $ui\" }",
+            "} catch { Write-Log \"display language override: $($_.Exception.Message)\" }"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "user-logon.input-languages",
+      "group": "user-logon",
+      "phase": "user-first-logon",
+      "title": "User input language list from the profile (including \"Russian (Ukraine)\")",
+      "level": "recommended",
+      "default": true,
+      "requires": ["user-logon.pin-ui-language"],
+      "tags": ["input languages", "keyboard layout", "ru-ua", "russian ukraine", "set-winuserlanguagelist"],
+      "doc": "docs/technical/reference/15-per-user-script.md#step-2-input-language-list",
+      "summary": "Replaces the user's input language list with the list from the \"Languages and region\" node (by default en-US, uk-UA, ru-UA). Languages without a numeric code, such as \"Russian (Ukraine)\", cannot be set in XML, so they are applied here; if Windows has not assigned them a keyboard layout, a fallback list is applied in which they are replaced with the base language.",
+      "effect": "The user's language switcher shows the same order as the profile; the sign-in screen keeps the list from XML (with the base language instead of \"Russian (Ukraine)\").",
+      "versions": "ru-UA as an input language is supported by Windows 10 1803+ and 11; on build 26200 it gets the temporary code 2000:00000419. Windows may shorten tags (uk-UA is displayed as uk).",
+      "verify": "Get-WinUserLanguageList | Select-Object LanguageTag, InputMethodTips",
+      "rollback": "Settings -> Language & region, or Set-WinUserLanguageList.",
+      "actions": [
+        {
+          "type": "ps",
+          "script": [
+            "$done = $false",
+            "try {",
+            "    $list = New-WinUserLanguageList $InputLanguages[0]",
+            "    foreach ($tag in @($InputLanguages | Select-Object -Skip 1)) { $list.Add($tag) }",
+            "    Set-WinUserLanguageList -LanguageList $list -Force 3>$null",
+            "    $applied = Get-WinUserLanguageList",
+            "    $missing = @($TransientLanguages | Where-Object { $want = $_; -not ($applied | Where-Object { $_.LanguageTag -eq $want -and @($_.InputMethodTips).Count -gt 0 }) })",
+            "    if ($missing.Count -eq 0) {",
+            "        $done = $true",
+            "        Write-Log ('applied: ' + (($applied | ForEach-Object { $_.LanguageTag + '[' + ($_.InputMethodTips -join ',') + ']' }) -join ' '))",
+            "    } else {",
+            "        Write-Log ('no keyboard layout after apply for: ' + ($missing -join ', ') + '; applying the fallback list')",
+            "    }",
+            "} catch { Write-Log \"input languages failed: $($_.Exception.Message)\" }",
+            "if (-not $done) {",
+            "    try {",
+            "        $list = New-WinUserLanguageList $InputFallback[0]",
+            "        foreach ($tag in @($InputFallback | Select-Object -Skip 1)) { $list.Add($tag) }",
+            "        Set-WinUserLanguageList -LanguageList $list -Force 3>$null",
+            "        Write-Log ('fallback applied: ' + ($InputFallback -join ', '))",
+            "    } catch { Write-Log \"fallback failed: $($_.Exception.Message)\" }",
+            "}"
+          ]
+        }
+      ]
+    }
+  ]
+}

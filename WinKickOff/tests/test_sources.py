@@ -31,7 +31,7 @@ DASHES = re.compile("[" + chr(0x2013) + chr(0x2014) + "]")  # built from code po
 
 def _text_files() -> list[Path]:
     files: list[Path] = []
-    for pattern in ("winkickoff/**/*.py", "rules/**/*.toml", "resources/*.json", "tests/*.py", "*.md", "*.toml", "templates/*"):
+    for pattern in ("winkickoff/**/*.py", "rules/**/*.json", "resources/*.json", "tests/*.py", "tools/*.py", "*.md", "*.toml", "templates/*"):
         files.extend(p for p in ROOT.glob(pattern) if p.is_file())
     return files
 
@@ -81,7 +81,7 @@ class SourceRulesTest(unittest.TestCase):
             for token in tokenize.generate_tokens(io.StringIO(source).readline):
                 if token.type in (tokenize.COMMENT, tokenize.STRING):
                     self.assertIsNone(CYRILLIC.search(token.string), f"{path.name}:{token.start[0]}: {token.string[:60]}")
-        for path in sorted((ROOT / "rules").glob("*.toml")):
+        for path in sorted((ROOT / "rules").glob("*.json")):
             for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
                 self.assertFalse(CYRILLIC.search(line), f"{path.name}:{number}: the catalog source is English")
 

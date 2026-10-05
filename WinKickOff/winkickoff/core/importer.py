@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from winkickoff.core.actions_parser import ScriptActions, extract_script, parse_script, rule_actions
+from winkickoff.core import jsonfile
 from winkickoff.core.catalog import Action, Catalog, Rule
 from winkickoff.core.profile import Account, Profile
 from winkickoff.core.render import ASK_KEY, EDITION_KEYS, substitute_fields
@@ -43,13 +44,16 @@ def import_xml(text: str, catalog: Catalog, keyboards: list[dict[str, Any]] | No
         raise ImportFailed(tr("this is not a Windows answer file: the root element is not unattend"))
     element = root.find(f"{EXT}Extensions/{EXT}Profile")
     if element is not None and (element.text or "").strip():
-        try:
-            data = json.loads(element.text or "")
-        except json.JSONDecodeError as exc:
+        try:  # strict JSON with the depth limit: the answer file may come from someone else
+            data = jsonfile.loads(element.text or "", nulls=True)
+        except jsonfile.JsonFileError as exc:
             raise ImportFailed(tr("the embedded profile is corrupted: {0}", exc)) from exc
         if not isinstance(data, dict):
             raise ImportFailed(tr("the embedded profile must be a JSON object"))
-        profile, warnings = Profile.from_dict(data, catalog)
+        try:
+            profile, warnings = Profile.from_dict(data, catalog)
+        except ValueError as exc:
+            raise ImportFailed(tr("the embedded profile is corrupted: {0}", exc)) from exc
         profile.path = None
         return profile, warnings
     return import_by_actions(root, text, catalog, keyboards or [])

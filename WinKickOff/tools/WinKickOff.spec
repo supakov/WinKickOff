@@ -11,6 +11,8 @@ Result (app_paths() in frozen mode reads the data from sys._MEIPASS, which is di
     dist\WinKickOff\WinKickOff-mcp.exe      the headless MCP server, from winkickoff\mcp_main.py, with a console
     dist\WinKickOff\_internal\              rules, templates, resources, profiles\preset-*.json,
                                             docs\technical\reference, docs\user
+    dist\WinKickOff\_internal\catalogs\     the catalogs of the program as <name>.json.xz, written by
+                                            tools\pack_catalogs.py from build.ps1 after PyInstaller
 
 Both executables derive their folder from sys.executable, so they share settings.json, profiles\, output\, logs\
 and admx\ next to them. The data sources below are the ones tools\build.ps1 used to pass with --add-data; they

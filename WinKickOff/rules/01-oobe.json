@@ -1,0 +1,83 @@
+{
+  "comment": ["<OOBE> elements of the oobeSystem pass."],
+  "rules": [
+    {
+      "id": "oobe.hide-eula",
+      "group": "oobe",
+      "phase": "oobe-xml",
+      "title": "Hide the license agreement screen",
+      "level": "baseline",
+      "default": true,
+      "tags": ["oobe", "eula", "license"],
+      "doc": "docs/technical/reference/03-oobe-accounts-languages.md",
+      "summary": "The license is accepted in Setup (AcceptEula), so the screen is not shown in OOBE.",
+      "effect": "One screen fewer; the organization is responsible for accepting the terms.",
+      "actions": [{"type": "xml-oobe", "value": "true", "element": "HideEULAPage"}]
+    },
+    {
+      "id": "oobe.hide-oem-registration",
+      "group": "oobe",
+      "phase": "oobe-xml",
+      "title": "Hide the manufacturer registration screen",
+      "level": "baseline",
+      "default": true,
+      "tags": ["oobe", "oem"],
+      "doc": "docs/technical/reference/03-oobe-accounts-languages.md",
+      "summary": "The OEM registration screen is not shown (it appears only on manufacturer images).",
+      "effect": "Harmless on Microsoft images; saves a screen on OEM images.",
+      "actions": [{"type": "xml-oobe", "value": "true", "element": "HideOEMRegistrationScreen"}]
+    },
+    {
+      "id": "oobe.hide-online-account",
+      "group": "oobe",
+      "phase": "oobe-xml",
+      "title": "Hide the Microsoft account screens",
+      "level": "baseline",
+      "default": true,
+      "tags": ["oobe", "microsoft account", "local account"],
+      "doc": "docs/technical/reference/03-oobe-accounts-languages.md",
+      "summary": "The screens for signing in with a Microsoft account are not shown (Windows shows them only with an internet connection). The local account screen is skipped because the accounts are defined in the file.",
+      "effect": "After setup, the system goes straight to the sign-in screen with the initial accounts. With \"Ask for the account during installation\" in the \"Accounts\" form, Windows shows only its local account screen.",
+      "risk": "Without it, Windows 11 Pro asks for a Microsoft account when the PC is online, also when the account is asked during installation.",
+      "actions": [{"type": "xml-oobe", "value": "true", "element": "HideOnlineAccountScreens"}]
+    },
+    {
+      "id": "oobe.hide-wireless",
+      "group": "oobe",
+      "phase": "oobe-xml",
+      "title": "Hide the network connection screen",
+      "level": "recommended",
+      "default": true,
+      "tags": ["oobe", "wi-fi", "network"],
+      "doc": "docs/technical/reference/03-oobe-accounts-languages.md",
+      "summary": "The \"Let's connect you to a network\" screen is always hidden, not only on a wired connection.",
+      "effect": "Setup does not stop on laptops without a network cable; Wi-Fi is configured after sign-in.",
+      "actions": [{"type": "xml-oobe", "value": "true", "element": "HideWirelessSetupInOOBE"}]
+    },
+    {
+      "id": "oobe.protect-your-pc",
+      "group": "oobe",
+      "phase": "oobe-xml",
+      "title": "Privacy settings screen: turn off express settings",
+      "level": "recommended",
+      "default": true,
+      "tags": ["oobe", "privacy", "telemetry", "protectyourpc"],
+      "doc": "docs/technical/reference/03-oobe-accounts-languages.md",
+      "summary": "The privacy screen is not shown; diagnostic data sending, advertising and location are turned off by default.",
+      "effect": "SmartScreen and Defender are not affected: they are enabled by separate rules.",
+      "versions": "Value 3 works on Windows 10 and 11, including 24H2.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 3,
+          "values": [
+            {"value": 3, "title": "Turn off all express settings"},
+            {"value": 1, "title": "Turn on express settings (data sending)"}
+          ]
+        }
+      },
+      "actions": [{"type": "xml-oobe", "value": "{mode}", "element": "ProtectYourPC"}]
+    }
+  ]
+}

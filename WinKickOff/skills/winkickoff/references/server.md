@@ -52,7 +52,7 @@ script, as `await tools.read_mcp_resource({"server": "winkickoff", "uri": "..."}
 
 The window's HTTP server runs only while the window is open and "Server running (HTTP, this computer only)" is checked
 in the "MCP" menu. Its address is `http://127.0.0.1:<port>/mcp` (default port 47831), with a bearer token. A headless
-`--mcp http` server (a Linux host, a virtual machine, tests) has `transport` `http` but `has_window` false and behaves
+`--mcp http` server (a Linux host or a virtual machine) has `transport` `http` but `has_window` false and behaves
 like stdio: its own profile copy, mode fixed by `--mode`. Decide by `has_window`, never by `transport`.
 
 ## Protocol and HTTP errors
@@ -74,7 +74,7 @@ These come from the client or the connection, not from a tool:
 ## Never available
 
 No tool exists for these, in any mode: applying, auditing or reverting settings on the PC; UAC prompts; running
-PowerShell (so no syntax check); deleting, replacing or renaming files; importing, updating, renaming or deleting ADMX
-templates; program settings (language, theme, permission to apply, port, token, mode, autostart); passwords and product
-keys in either direction; changing accounts, languages and installation data; paths as arguments; controlling the
-server.
+PowerShell (so no syntax check); deleting, replacing or renaming files; importing, updating, exporting, renaming or
+deleting ADMX templates and catalog files; program settings (language, theme, permission to apply, port, token, mode,
+autostart); passwords and product keys in either direction; changing accounts, languages and installation data; paths
+as arguments; controlling the server.

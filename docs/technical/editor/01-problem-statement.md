@@ -1,6 +1,7 @@
 # 01. Specification: WinKickOff, a Windows installation configuration editor
 
-Revision 0.2 of 25.09.2026 (replaces 0.1; the changes are justified in `06-critical-review-v0.1.md`).
+Revision 0.2 of 25.09.2026 (replaces 0.1; the changes are justified in `06-critical-review-v0.1.md`), updated
+04.10.2026 (T23: the catalog in JSON, catalog files of imported templates).
 Basis: answer file v0.2 and the reference `docs/technical/reference/`.
 
 ## 1. Goal
@@ -24,7 +25,7 @@ the v0.2 file becomes a profile (the base of "Office") rather than the only temp
 |---|---|---|
 | Organization administrator | An employee with basic Windows skills, no PowerShell | Opens the "Office" profile, disables "SMB signing required (server and client)" because of an old multifunction printer, sees that nothing dependent was disabled, builds the XML, copies it to a flash drive |
 | Technical specialist | Serves several organizations | Maintains profiles per site, searches for the word "NetBIOS", compares profiles, updates the rule catalog when a new version is released |
-| Catalog author (this project) | Maintains the rules and the runtime | Adds a rule to a TOML file; tests confirm catalog integrity and v0.2 coverage |
+| Catalog author (this project) | Maintains the rules and the runtime | Adds a rule to a JSON file of the catalog; tests confirm catalog integrity, the canonical layout and v0.2 coverage |
 
 Scenarios:
 
@@ -43,7 +44,8 @@ Scenarios:
 ### 3.1 Rule catalog
 
 - A rule is the unit of inclusion. Each action of the v0.2 file belongs to exactly one rule.
-  Rules are described in external files `rules/*.toml`; the code contains no rules.
+  Rules are described in external files `rules/*.json` (TOML until 1.3.0, JSON since T23); the code contains no
+  rules.
 - A rule has: an identifier, a group in the tree, an application phase, a title, a level (baseline,
   recommended, optional, risky), a default state, dependencies `requires`,
   conflicts `conflicts`, tags, parameters with types and ranges, a list of actions, a description
@@ -55,6 +57,13 @@ Scenarios:
 - The catalog is consistent: identifiers are unique, `requires` and `conflicts` point to existing
   rules, there are no cycles, groups exist, each action has a valid type and the required fields,
   each rule has a summary, an effect and a reference link. This is verified by a test and by the "Check rule catalog" command.
+  The files are read strictly (since 1.3.0): an unknown or misspelt field, a duplicate key or a value of the wrong
+  type is an error naming the file and the rule, not a silently ignored line.
+- Imported policy templates (ADMX, since 1.1.0) can be exported as a catalog file and imported by another WinKickOff,
+  and the program can ship ready catalogs (since 1.3.0). Templates, catalog files and saved imports are untrusted
+  input: reading is bounded in size, memory and time, every record is checked against what the template parser
+  writes, nothing of them runs, a broken file gives a short error and never stops the program, and an imported policy
+  writes nothing until a person switches it on.
 - Coverage: with the v0.2 reference profile (the catalog defaults with the differences listed in
   `tests/v02_actions.py`), the set of catalog actions includes every action of the v0.2 file with the same
   values (semantic golden).
@@ -124,7 +133,8 @@ Scenarios:
   selection (list below)"); the list of messages gives the reasons.
 - Menus: File (new from preset, open, save, save as, import from XML, recent),
   Profile (compare, reset group to preset), Build (check, build, open folder),
-  Help (about, reference, check catalog).
+  Help (about, reference, check catalog); since 1.1.0 ADMX (import templates; since 1.3.0 also import a catalog file,
+  import a catalog of the program and export imported templates).
 - Hotkeys: Ctrl+F search, Space toggle, Ctrl+S save, F7 check, F9 build.
 - Interface languages: Russian, Ukrainian (translations in external files).
 
@@ -133,7 +143,7 @@ Scenarios:
 | Requirement | Value |
 |---|---|
 | Platform | Windows 10 1809+ and Windows 11, x64 |
-| Language and libraries | Python 3.14; only the standard library in the application (tkinter, ttk, tomllib, json, xml.etree, logging); third-party packages only for the build (PyInstaller) |
+| Language and libraries | Python 3.14; only the standard library in the application (tkinter, ttk, json, lzma, zlib, xml.etree, logging); third-party packages only for the build (PyInstaller) |
 | Tests | `unittest` from the standard library, run with `python -m unittest`; compatible with pytest |
 | Portability | The folder can be copied anywhere; no writes to the registry, `%APPDATA%`, `%PROGRAMDATA%`; paths are relative to the executable's folder |
 | Privileges | No administrator rights |
@@ -142,7 +152,7 @@ Scenarios:
 | Offline operation | No internet access; the optional MCP server (1.2) listens on 127.0.0.1 only, when the user starts it |
 | Encodings | UTF-8; XML without BOM, CRLF; profiles in UTF-8 |
 | Logs | `logs/winkickoff.log`, rotation at 1 MB, three files |
-| Errors | Clear text for the user, stack trace to the log; the application does not crash because of a bad profile or rule |
+| Errors | Clear text for the user, stack trace to the log; the application does not crash because of a bad profile, rule, translation file, catalog file or saved import of templates (a broken import is left out with a message) |
 | Quality | Type annotations; `ruff` and `mypy --strict` for `core` in a VM or on the developer's machine, not necessarily on the customer's work PC |
 | Text style | No em or en dashes in any strings, documentation or comments |
 

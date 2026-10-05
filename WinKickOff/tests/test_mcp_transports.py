@@ -511,7 +511,7 @@ class CliHeadlessTest(unittest.TestCase):
         broken = AppPaths(root=self.tmp, data=self.tmp / "data", docs_root=ROOT.parent, profiles=self.paths.profiles,
                           output=self.paths.output, logs=self.paths.logs)
         broken.rules.mkdir(parents=True)
-        (broken.rules / "groups.toml").write_text("[broken\n", encoding="utf-8")
+        (broken.rules / "groups.json").write_text('{"groups": [', encoding="utf-8")
         with mock.patch("winkickoff.core.paths.app_paths", return_value=broken):
             code, raw = self.headless(["--mcp", "stdio", "--language", "en"], self.SESSION)
         self.assertEqual(code, 2)

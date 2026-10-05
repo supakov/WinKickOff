@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 04.10.2026 (customer requests of 04.10.2026: File Explorer namespaces and desktop icons, the account asked during installation, the switch keys of the input language, the edition chosen during installation; a security fix of placeholders in paths; catalog and runtime 0.6, profile format 3).
+Last update: 05.10.2026 (version 1.3.0-rc.1, task T23: the rule catalog in JSON instead of TOML, export and import of catalog files, catalogs of the program, and the fixes of its adversarial reviews: profiles read strictly, the provenance of imported choices, safe keys and characters, the ids of policies that share one; before it the customer requests of 04.10.2026: File Explorer namespaces and desktop icons, the account asked during installation, the switch keys of the input language, the edition chosen during installation, a security fix of placeholders in paths, catalog and runtime 0.6, profile format 3).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -34,7 +34,8 @@ only through the MCP server, without a cloud model and without any file of the p
 | Change installation behaviour | a rule in `WinKickOff/rules/` (v0.2 in Appendix B is frozen); Setup limits in `docs/technical/reference/00-architecture.md` section 3 |
 | Work on the editor | `docs/technical/editor/README.md`, then `docs/technical/editor/todo/README.md`, then `WinKickOff/README.md` |
 | Understand why the editor is built on rules, not on `$Config` | `docs/technical/editor/06-critical-review-v0.1.md` |
-| Add or change an installation rule | `docs/technical/editor/03-data-model.md`, a file `WinKickOff/rules/NN-*.toml`, then `python -m unittest` in `WinKickOff/` |
+| Add or change an installation rule | `docs/technical/editor/03-data-model.md`, a file `WinKickOff/rules/NN-*.json`, then `python tools/format_catalog.py` and `python -m unittest` in `WinKickOff/` |
+| Work on catalog files, their export and import, or the catalogs of the program | `docs/technical/editor/03-data-model.md` sections 8 and 10, `WinKickOff/winkickoff/core/package.py`, `admx.check_templates` in `WinKickOff/winkickoff/core/admx.py`, `WinKickOff/winkickoff/core/jsonfile.py`, `WinKickOff/catalogs/README.md` |
 | Write or update user documentation | `docs/user/README.md`, the Russian source in `docs/user/ru/`, then the same change in `uk` and `en` |
 | Build or release | `.github/workflows/build.yml`, `WinKickOff/tools/build.ps1`, section 5 of this file |
 | Change the skill for AI agents that use WinKickOff over MCP | `WinKickOff/skills/README.md`, then `WinKickOff/skills/winkickoff/SKILL.md` and its `references/`; `WinKickOff/tests/test_skill.py` ties it to the server |
@@ -63,20 +64,21 @@ only through the MCP server, without a cloud model and without any file of the p
 │   │   ├── reference/             reference: a card for every installation parameter (21 files; 18 browsers, 19 more privacy, 20 File Explorer namespaces)
 │   │   └── editor/                WinKickOff specification: problem, architecture, data model, testing,
 │   │       │                      plan (days, milestones), review of revision 0.1
-│   │       └── todo/              tasks T01-T22 with status (README.md is the index)
+│   │       └── todo/              tasks T01-T23 with status (README.md is the index)
 │   ├── user/                      USER DOCUMENTATION: ru (source), uk, en; the same files in each language
 │   ├── releases/                  release notes v<version>.md (ru, uk, en), used by the release job
 │   └── appendices/                APPENDICES, frozen, Russian: README describes them
 │       ├── B-autounattend-v0.2/   our hand-written answer file v0.2 (the reference) and its README: history, VM checklist
 │       ├── C-critical-review/     the critic's report on v0.2 (docx)
 │       └── D-requirements-draft/  first requirements draft; section 6 holds open questions to the customer
-└── WinKickOff/                    EDITOR 1.2.0-rc.4 AND RULE CATALOG 0.6
+└── WinKickOff/                    EDITOR 1.3.0-rc.1 AND RULE CATALOG 0.6
     ├── README.md                  developer README: run, test, structure; links to user docs
     ├── pyproject.toml             requires-python >= 3.14, no runtime dependencies
     ├── winkickoff/                package: __main__.py (dispatcher: window or headless MCP), app.py (window start,
     │                              owns the MCP service), mcp_main.py (console entry of WinKickOff-mcp.exe),
     │                              core/ (paths, log, catalog, deps, profile, resources, render, validate, verify,
-    │                              actions_parser, importer, pscheck, settings, i18n, themes, apply, admx, linked, startup),
+    │                              actions_parser, importer, pscheck, settings, i18n, themes, apply, admx, linked, startup,
+    │                              jsonfile: strict JSON, gzip and xz, canonical layout; package: catalog files),
     │                              mcp/ (MCP server: jsonrpc, schema, redact, journal, workspace, bridge, tools, resources,
     │                              protocol, stdio, httpserver, service, cli; errors),
     │                              ui/ (main_window: tree, search, description, parameters, profiles, build, MCP menu;
@@ -84,8 +86,10 @@ only through the MCP server, without a cloud model and without any file of the p
     │                              winmenus: theme colours around drop-down menus; mcp_workspace: the window as the MCP
     │                              workspace; mcp_window: the MCP monitor; clipboard: the token kept out of the
     │                              clipboard history)
-    ├── rules/                     RULE CATALOG in English: groups.toml (40 groups), 00-17-*.toml (278 rules),
-    │                              lang/ru.toml and lang/uk.toml (translations; a new file adds a language)
+    ├── rules/                     RULE CATALOG in English, strict JSON: groups.json (40 groups), 00-17-*.json (278 rules),
+    │                              lang/ru.json and lang/uk.json (translations; a new file adds a language)
+    ├── catalogs/                  catalogs of the program (catalog files of imported ADMX templates, <name>.json;
+    │                              README.md); none committed until the license check; the build ships them as xz
     ├── templates/                 runtime with slots: autounattend.template.xml, Setup-System, Setup-User, Post-OOBE,
     │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.6
     ├── resources/                 keyboards.json, timezones.json, strings.ru.json and strings.uk.json (interface
@@ -96,12 +100,17 @@ only through the MCP server, without a cloud model and without any file of the p
     │                              shipped next to the exe in the portable build
     ├── tests/                     unittest: catalog, resolver, profile, render, build against v0.2, validation,
     │                              import, presets, PowerShell, settings, portability, window smoke test, docs,
-    │                              translations, themes, ADMX import, MCP server (test_mcp_*.py);
-    │                              v02_actions.py holds the v0.2 reference profile (V02_DIFFERENCES)
+    │                              translations, themes, ADMX import, catalog files and packages (test_catalog_format.py,
+    │                              test_package.py), MCP server (test_mcp_*.py);
+    │                              v02_actions.py holds the v0.2 reference profile (V02_DIFFERENCES); quiet_tk.py keeps
+    │                              every window of the tests invisible (imported first by each window test module)
     └── tools/                     make_presets.py, make_rule_docs.py, run-tests.ps1, build.ps1 (portable zip,
                                    two executables from WinKickOff.spec),
-                                   make_browser_rules.py (generates rules/14-browsers.toml),
-                                   make_shell_rules.py (generates rules/17-shell.toml)
+                                   make_browser_rules.py (generates rules/14-browsers.json),
+                                   make_shell_rules.py (generates rules/17-shell.json),
+                                   format_catalog.py (canonical layout of the catalog JSON),
+                                   make_admx_catalogs.py (a catalog of the program from a folder of ADMX templates),
+                                   pack_catalogs.py (xz of catalogs/ for the build)
 ```
 
 Working folders `WinKickOff/output/`, `WinKickOff/logs/`, `WinKickOff/settings.json`, `__pycache__/` and
@@ -127,7 +136,7 @@ user profiles (all but `preset-*.json`) are not versioned.
    documentation in `docs/user/` in Russian (the source), Ukrainian and English with the same files and
    structure. The editor's source language is English (interface strings, rule catalog, preset names); Russian
    and Ukrainian are translation files (`WinKickOff/resources/strings.<code>.json`,
-   `WinKickOff/rules/lang/<code>.toml`, task T18); other translations only on the customer's demand.
+   `WinKickOff/rules/lang/<code>.json`, task T18); other translations only on the customer's demand.
    Identifiers, parameter names and registry keys stay in English everywhere.
 5. The starter accounts Admin and User without passwords are a deliberate decision of the customer:
    passwords and groups are assigned by a separate project after installation. Do not propose to "fix" it.
@@ -139,23 +148,43 @@ user profiles (all but `preset-*.json`) are not versioned.
    the generated rule list of the user documentation (`WinKickOff/tools/make_rule_docs.py`) and the tests. If the
    reference itself must change (customer decision), the file, its README, `test_coverage_v02.py` and the
    checksum in `docs/appendices/README.md` change together.
-8. Editor: only the Python standard library in the application; tests on `unittest`; rules in TOML,
-   profiles in JSON; rules contain no program logic. A change of the runtime templates needs a new
-   `templates/VERSION`.
+8. Editor: only the Python standard library in the application; tests on `unittest`; rules, translations, profiles
+   and catalog files in JSON (since 1.3.0, task T23; TOML is gone); rules contain no program logic. The catalog files
+   are strict JSON in the canonical layout: after a hand edit run `python tools/format_catalog.py` in `WinKickOff/`
+   (`test_catalog_format.py` fails otherwise). A change of the runtime templates needs a new `templates/VERSION`.
+   Policy templates, catalog files (packages) and the saved imports in `admx/<id>/` are untrusted input: their keys,
+   value names and values reach PowerShell scripts and an answer file that runs as SYSTEM. Read them only through
+   `core/jsonfile.py` (size, memory and nesting limits) and `admx.check_templates` (the safe characters, kinds and
+   ranges of the template parser), never let a text leave a single-quoted PowerShell string or a CDATA section, and
+   turn every defect into a short message (a broken import is left out, the program still starts), never a crash or a
+   hang of the window.
 9. The agent's file writing tools turn escape sequences of the form backslash, `u`, four hex digits into real
    characters. Characters that must not appear in a file (such as dashes in regular expressions) are built in
    code with `chr(0x2013)` or `[char]0x2013`, never with an escape. Shell here-documents may also swallow
-   doubled backslashes: edit files with backslashes through the editor tool or a script file.
+   doubled backslashes: edit files with backslashes through the editor tool or a script file. Registry paths in the
+   catalog JSON have doubled backslashes (`"HKLM:\\SOFTWARE\\..."`), so the same care applies to them. `sed -i` of
+   Git Bash writes LF: convert the file back to CRLF or edit it another way.
 10. Text files are UTF-8 without a byte order mark and use CRLF line endings; `.gitattributes` (`* -text`) stores
     them as they are, so a file written on Linux with LF reaches the repository like that. `test_docs.py` checks the
     line endings of every tracked or new text file outside `docs/appendices/` (the frozen originals keep their bytes).
-    `*.ps1`, `*.cmd`, `WinKickOff/templates/*` and `WinKickOff/rules/*.toml` are pure ASCII, because Windows
-    PowerShell 5.1 reads a file without a byte order mark in the ANSI code page; Russian and Ukrainian texts live in
-    the translation files and in `docs/user/`.
+    `*.ps1`, `*.cmd`, `WinKickOff/templates/*` and `WinKickOff/rules/*.json` (not `rules/lang/`) are pure ASCII,
+    because Windows PowerShell 5.1 reads a file without a byte order mark in the ANSI code page and the catalog source
+    is English; Russian and Ukrainian texts live in the translation files and in `docs/user/`. `WinKickOff/catalogs/`
+    keeps the texts of the templates as the vendor wrote them, so it is outside the dash check (customer decision of
+    04.10.2026).
 11. The skill `WinKickOff/skills/winkickoff` tells AI agents that use WinKickOff how the MCP tools, error kinds,
     modes, presets and rules behave. A change of any of them updates the skill in the same commit;
     `WinKickOff/tests/test_skill.py` fails on a tool, error kind, rule, group or resource the skill names wrongly or
     misses, but not on a changed behaviour, so read the skill when the behaviour changes.
+12. Tests and checks on the customer's PC run in the background and stay invisible on the customer's screen: no
+    window, console, dialog or taskbar button may appear (customer rule of 04.10.2026, after the window tests flashed
+    the editor for a moment). Every test module that opens a window imports `WinKickOff/tests/quiet_tk.py` before its
+    first `tk.Tk()` (every Tk root and Toplevel is transparent and a tool window from its creation, so the tests that
+    need a mapped window still work); subprocesses get `CREATE_NO_WINDOW`; message boxes and file dialogs are mocked;
+    a throwaway script that needs Tk (only in a temporary folder outside the repository) imports
+    `WinKickOff/tests/quiet_tk.py` first or sets `-alpha 0` and `-toolwindow` right after `tk.Tk()`, before any update;
+    `docs/technical/editor/04-testing.md` describes the module. When a check cannot
+    run invisibly, say so and propose a VM or CI; a visible run only on the customer's direct instruction.
 
 ## 5. Commands
 
@@ -174,13 +203,29 @@ python -m unittest discover -s tests -v
 ```
 
 Regenerate the presets and the rule lists of the user documentation after a catalog change
-(`test_presets.py` and `test_docs.py` fail if you forget):
+(`test_presets.py` and `test_docs.py` fail if you forget); after a hand edit of a catalog file bring it into the
+canonical layout (`test_catalog_format.py` fails otherwise; `--check` only lists the files and exits with 1 when
+there are any; a file that cannot be read is named, left as it is, and the exit code is 2):
 
 ```powershell
 cd WinKickOff
+python tools/format_catalog.py
 python tools/make_presets.py
 python tools/make_rule_docs.py
 ```
+
+A catalog of the program from a folder of ADMX templates (only reading of the templates; the target is a plain
+`.json`, which the tool reads back as the program will; commit a package only after the license check,
+`WinKickOff/catalogs/README.md`). The build packs `catalogs/*.json` with `WinKickOff/tools/pack_catalogs.py`,
+which `WinKickOff/tools/build.ps1` calls with the folder `dist\WinKickOff\_internal\catalogs`:
+
+```powershell
+cd WinKickOff
+python tools/make_admx_catalogs.py <folder with the ADMX and ADML files of the target build> "catalogs\<name>.json" --name "<tree name>" --windows <version of those templates>
+```
+
+The templates must be those of the Windows build that the name and `--windows` give (this PC has build 26300, the
+target ISO is 26200); the tool checks `--windows` and the whole package before it writes anything.
 
 Build and release (GitHub Actions, `.github/workflows/build.yml`): every push to `main` runs the tests, the
 checker and `WinKickOff/tools/build.ps1`, the zip is an artifact of the run. A release: set `APP_VERSION` in
@@ -214,7 +259,7 @@ python -m winkickoff --version
 Find em and en dashes in the whole tree (PowerShell; an empty output means none):
 
 ```powershell
-$d = "[$([char]0x2013)$([char]0x2014)]"; Get-ChildItem -Recurse -Include *.md,*.ps1,*.py,*.toml,*.json -File | Where-Object { $_.FullName -notmatch '\\(\.git|__pycache__)\\' } | ForEach-Object { $n = ([regex]::Matches([IO.File]::ReadAllText($_.FullName, [Text.Encoding]::UTF8), $d)).Count; if ($n) { "$($_.FullName): $n" } }
+$d = "[$([char]0x2013)$([char]0x2014)]"; Get-ChildItem -Recurse -Include *.md,*.ps1,*.py,*.toml,*.json -File | Where-Object { $_.FullName -notmatch '\\(\.git|__pycache__|catalogs)\\' } | ForEach-Object { $n = ([regex]::Matches([IO.File]::ReadAllText($_.FullName, [Text.Encoding]::UTF8), $d)).Count; if ($n) { "$($_.FullName): $n" } }
 ```
 
 Checks after an installation in a VM: the checklist in `docs/user/<lang>/install-and-check.md`.
@@ -246,19 +291,116 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 - Of the 153 actions of the v0.2 script, 47 ran unconditionally; in the editor every action belongs to a
   rule (130 rules for v0.2: 47 baseline, 18 ASR, 33 apps and so on) and any rule can be disabled.
 - Browser rules (issue #1) are generated: edit the table in `WinKickOff/tools/make_browser_rules.py` and rerun it,
-  not `rules/14-browsers.toml`. Every policy name was checked against the vendors' definitions; several lines
+  not `rules/14-browsers.json`. Every policy name was checked against the vendors' definitions; several lines
   of the issue's scripts were invalid or obsolete (`docs/technical/reference/18-browsers.md`, corrections).
   `DEFAULT_ON` in the tool holds the browser rules that are on by default (commit d33fc41).
 - File Explorer namespaces and desktop icons (customer request 1 of 04.10.2026, catalog 0.6) are generated: edit the
-  tables in `WinKickOff/tools/make_shell_rules.py` and rerun it, not `rules/17-shell.toml`. Every entry is off by
+  tables in `WinKickOff/tools/make_shell_rules.py` and rerun it, not `rules/17-shell.json`. Every entry is off by
   default; card 20 lists what was checked (registry of 26300, ADMX, Microsoft Learn) and what only third parties report.
   Groups: `system.explorer` ("File Explorer and the desktop") with `.thispc`, `.nav`, `.desktop` and
-  `.desktop.folders`; the `thispc.*` and `nav.*` rules of `16-explorer.toml` moved into them, their ids are unchanged.
+  `.desktop.folders`; the `thispc.*` and `nav.*` rules of `16-explorer.json` moved into them, their ids are unchanged.
   Navigation pane pins (`System.IsPinnedToNameSpaceTree`) go to `HKCU\Software\Classes` at the first sign-in: the
   machine registration belongs to TrustedInstaller and `UsrClass.dat` is not the default profile. Desktop icons are
   `DU:` values of `HideDesktopIcons`. `desktop.gallery` and `desktop.home` conflict with `nav.gallery-hidden` and
   `nav.home-hidden` both ways. Pending in a VM: whether `HiddenByDefault` under `Desktop\NameSpace` (which
   `nav.gallery-hidden`, on by default, relies on) works at all; Windows uses it only under `MyComputer\NameSpace`.
+- The catalog in JSON (T23, 1.3.0-rc.1, 04.10.2026): `core/catalog.py` and `core/i18n.py` read `rules/*.json` and
+  `rules/lang/*.json` through `core/jsonfile.py` (a duplicate key, null, NaN, nesting deeper than 32 levels or a byte
+  order mark is an error; unknown keys of a file, rule, group, parameter, option or action are a CatalogError, so a
+  misspelt field is no longer ignored; a parameter takes only the keys of its type, `PARAM_TYPE_KEYS`; a field of a
+  type no check foresaw is a CatalogError naming the file and the rule, never a crash). A translation file of a wrong
+  shape (`i18n.language_file_problem`) is not used: the window and the MCP server (`ToolRegistry.texts`) log it and
+  show English. Former TOML comments became `"comment"` of a file and `"note"` of a rule; a
+  script of several lines is a list of lines without a trailing line break. The move was proved by a snapshot: the
+  four presets and a profile with every rule on gave byte-identical builds, the catalog objects and translations were
+  equal (nine scripts lost a trailing line break the build drops anyway). The catalog version stayed 0.6. Test
+  fixtures are Python dicts written as JSON, not TOML strings.
+- Catalog files (T23, `core/package.py`): an envelope `{"format": "winkickoff-catalog", "version": 1, "kind": "admx",
+  "name", "windows", "created", "comment", "templates"}` around the records of `admx/<id>/policies.json`; plain, gzip
+  or xz (first bytes), 64 MB stored and unpacked, at most 1 000 000 values counted before parsing, 128 MB for the xz
+  decoder; null is allowed only there, in a saved `policies.json` and in profiles, which older versions may have
+  written with it (`jsonfile.read(nulls=True)`); lone surrogates and non-finite numbers are refused everywhere. Saved
+  imports are read the same way (`import.json` at most 64 KB with every field of its type, `admx._info`, and its id
+  must be the folder name: `load_import` refuses another, since the kind of an import, so its trust, and its group ids
+  come from the folder): a damaged `import.json` or `policies.json` is reported by `with_imports` (which never raises)
+  and left out, the program starts without it. `store_import` encodes both files before it creates the folder, so a
+  failed import leaves nothing; names are at most 120 characters (`save_import` cuts a long folder name so that the
+  date stays, `admx.fit_name` a longer name of an older version on export).
+  `admx.check_templates` checks every record of a package and of every saved import on load (the program folder is
+  writable): known fields, the safe names and values of the parser, kinds, ranges, unique parameters, counts. Registry
+  branches are not limited, because the templates of Windows write outside the policy branches too. Import ids
+  `package-<date>-<time>` and `bundled-<name>`; when two imports hold the same policy, `admx.trust_order` gives it to
+  bundled, then system, then folder, then package imports (before, the first loaded won). The window's ADMX menu
+  imports and exports them; MCP never does. The window reads a catalog file in a background thread
+  (`_read_catalog`); while it is busy, the other imports, show or hide, rename, delete and the language and theme
+  changes do nothing, and errors are cut by `error_text` for the message box. `WinKickOff/catalogs/` holds only its
+  README until the license check; the build packs it with `WinKickOff/tools/pack_catalogs.py` into
+  `_internal/catalogs/*.json.xz` (two files with the same import id stop it).
+- Records of imports are conformed, catalog files are not (T23, 04.10.2026): `admx.conform` brings the records of the
+  template parser (`read_templates` calls it) and of an import saved by an older version (`load_import`, before
+  `check_templates`) into the shape the check accepts: texts lose control characters (DEL included) and keys that are
+  not culture names (a culture is 2 or 3 letters and at most 4 subtags; `adml_cultures` ignores a folder such as
+  `en-US - Copy`), a chain of categories longer than `MAX_CATEGORY_DEPTH` (32) or a cycle is cut, problems lose the
+  quoted paths of this computer (`without_paths`, also on export: single- or double-quoted drive or UNC paths, a
+  pattern without nested repetition that runs in linear time, after each problem is cut to 4096 characters; an earlier
+  pattern was quadratic on a quote that never closes and could hang the start), and every policy the check would
+  refuse (class `machine`, an empty name, a check box with equal values, a key of backslashes only or with a `..`
+  segment, `]]>` in a name) becomes a skipped policy (`unsafe` or `broken`) instead of refusing the whole import.
+  `conform` checks each policy once; `load_import` then calls `check_templates(data, policies=False)`, which checks
+  only the sections. A catalog file is refused as it is. `check_templates` refuses a deeper chain of parent categories
+  or a cycle, and `safe_name` refuses `]]>`. A new check of the records needs the same rule in `conform`, otherwise an
+  odd policy of the templates of Windows stops an import.
+- Keys and characters of imported policies (05.10.2026): C1 controls (0x80-0x9F), U+FFFE and U+FFFF are unsafe in
+  keys, value names and string values (`admx._NOT_XML`: an XML document cannot hold U+FFFE and U+FFFF at all, and the
+  C1 controls are control characters that XML 1.0 discourages and XML 1.1 allows only as character references), and
+  `admx.safe_key` refuses a key with an empty, `.` or `..` segment between backslashes or slashes: PowerShell resolves
+  `..` even with `-LiteralPath`, so the key `..\.DEFAULT\Control Panel` of a user policy would write `HKU:\.DEFAULT`
+  instead of the default profile. The parser, `conform` and `check_templates` use the same functions; texts by culture
+  (titles, explanations) are checked separately and may hold C1 characters.
+- Rule ids of an import (`admx._rule_ids`): policies with the same id are numbered (`<id>-2`, ...) by their English
+  titles in lower case (`pick(title, "en")`, else the name), then by their position: the order 1.2 used for an English
+  interface, so the ids English users saved stay; 1.2 took the titles of the interface language, and now a profile
+  saved with the Russian interface names the same policies with the English one. Never number by another field
+  without a migration: profiles keep these ids. A counter per base id keeps it linear (5000 equal ids load in
+  seconds); every id reserves its `<id>.off`, so an id is never the `<id>.off` of another policy's Disabled rule.
+  `catalog_part` never lets a rule replace a rule of another import: a policy whose Disabled rule `<id>.off` is
+  already a rule (a policy named `Off` of an import made into rules before it) is left out and logged.
+  `catalog_part.group_for` remembers the group of each category, and `with_imports` reads and converts each import
+  (`load_import` and `catalog_part`) in one `try`, so it never raises.
+- Fixed string values of imported policies are literal: `admx._action` marks the action `"literal": True`, and
+  `render.substitute_fields` (used by the build, apply, audit, the importer and `core/linked.py`) returns its fields
+  unchanged without the mark, so `https://example.com/{id}` stays text. The mark cannot appear in `rules/*.json` (an
+  unknown action field). "Check" (F7), "Build autounattend.xml" (F9) and the MCP tools that build (`check_profile`,
+  `preview_build`, `write_answer_file`, through `mcp/workspace.check_and_build` or the window's checks) report a
+  `KeyError`, `ValueError` or `TypeError` of the build as a build issue.
+- Provenance of imported choices (T23): `RuleState.source` is a kind of import, the source of a choice of a policy
+  (`catalog.IMPORT_KINDS`: bundled, system, folder, package, most trusted first; `import_kind`, `import_rank` and
+  `RuleOrigin.kind` live in `core/catalog.py`, and `core/admx.py` and `core/profile.py` import them), written as
+  `"source"` of the rule entry of an imported policy only. It is the most trusted kind the choice has been in effect
+  in: `from_dict` and `to_dict(catalog)` keep the more trusted of the saved kind and the kind of the owner now, so a
+  choice made in a catalog file and used later with the templates of this Windows is saved as `system`.
+  `Profile.from_dict` holds a choice (kept unchanged in `unknown`, the policy off, one warning) when its policy now
+  comes from a less trusted kind, and gives it back when an import of that kind or a more trusted one is shown again,
+  so a catalog file never takes over a choice made in the templates of this Windows. An entry without `source` was
+  saved before 1.3 and counts as `folder` (`profile.LEGACY_SOURCE`), since catalog files did not exist then, and so
+  does an entry with an unknown kind: it is held when only a catalog file has the policy and used as before with a
+  folder, system or bundled import. The window describes a held choice under the root of unknown rules
+  (`UNKNOWN_HELD`, `KIND_TITLES`, `_held_source`), offers "Show ..." only for hidden imports of its kind or a more
+  trusted one, and after a restart of the window (`app.create_app`, `Profile.rebind`) shows the warning about held
+  choices in the message list, not only in the log. The profile format stays 3.
+- Profiles of a wrong shape (T23): `Profile.load` reads strictly through `jsonfile.read` (16 MB, `PROFILE_MAX_BYTES`;
+  `null` allowed for older files; a duplicate key, `NaN`, a lone surrogate or nesting deeper than 32 levels refused),
+  and the embedded profile of an answer file through `jsonfile.loads` (`core/importer.py`); before 05.10.2026 both used
+  the `json` module. `Profile.from_dict` checks the depth of an object given directly (`jsonfile.check_depth`) and
+  raises only `ValueError` (a profile that is not an object, or any `TypeError`, `AttributeError`, `KeyError` or
+  `RecursionError` while reading); a field of a wrong type falls back to its default (`format_version`, `install`,
+  `languages`, accounts, rule entries, `enabled`, parameter values by type through `profile._fits`), with a warning for
+  the format, rule entries, `enabled`, values of `install` and `languages`, parameter values and skipped accounts;
+  `"install": 5` loads. `enabled` 0 or 1 is false or true, as 1.2 took it; a boolean that MCP of 1.2 saved for an enum
+  becomes the option it equals (`profile._as_option`), and the MCP `set_param` refuses a boolean for an enum
+  (`True == 1` in Python). `profile.one_line` keeps the name and the author on one line, and `apply._label` writes the
+  label line of the Apply, Audit and Undo scripts through `render.ascii_text`, so a name with line breaks (also CR and
+  U+2028) stays on that comment line.
 - Runtime 0.6 (`templates/VERSION`): `Setup-User.ps1` and `Post-OOBE.ps1` define `Set-Reg` and `Remove-Reg`; before, a
   `reg` action of the phases user-first-logon or post-oobe failed with "Set-Reg is not recognized". These phases may use
   only `reg`, `reg-remove` and `ps` (`PHASE_ACTION_TYPES` in `core/catalog.py`, checked against the runtimes by
@@ -307,7 +449,7 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 - GitHub rejects a push with a personal e-mail in the commit author; this repository has the local address
   `265459095+stanislavperec-ua@users.noreply.github.com` (`git config user.email`, this folder only).
   Files are stored byte for byte (`.gitattributes`: `* -text`), CRLF.
-- The work PC has Python 3.14.3 with tkinter 8.6 and tomllib; pytest is absent and is not installed.
+- The work PC has Python 3.14.3 with tkinter 8.6; pytest is absent and is not installed.
   PyInstaller is not installed either: installing a package changes the PC, so the exe (T12) is built by
   GitHub Actions, in a VM or on a separate command of the customer.
 - A WinKickOff build matches v0.2 in meaning, not byte for byte: `test_build.py` compares the actions of
@@ -325,8 +467,8 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 - Interface translations (T18, 30.09.2026): the English source text is the key; wrap every user-facing string
   in `tr()` (or `N_()` at module level) and add its ru and uk translation to
   `WinKickOff/resources/strings.<code>.json`, otherwise `tests/test_i18n.py` fails. Rule texts, extra search tags
-  and group titles are translated in `WinKickOff/rules/lang/<code>.toml`. A language exists when one of its files
-  exists (the native name is the field `_language`); there is no `strings.en.json` or `lang/en.toml`, and every
+  and group titles are translated in `WinKickOff/rules/lang/<code>.json`. A language exists when one of its files
+  exists (the native name is the field `_language`); there is no `strings.en.json` or `lang/en.json`, and every
   gap falls back to English. The setting `language` `""` follows the Windows interface language. The Russian
   UI of this PC used to hide missing translations: window tests set `i18n.set_language("en", ...)` and
   `Settings(language="en", theme="light")` explicitly and reset the language in `tearDown`.
@@ -353,11 +495,15 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   kept in `admx/<id>/` next to the program (runtime folder, not versioned). The prefix `admx.` is reserved; such a rule
   without a check mark is "not configured": not written to the profile, not validated, not reverted by an apply,
   and its group check box only switches off. Template files are untrusted input (no DTD, size limits, unsafe
-  characters refused, `ps_quote` doubles typographic single quotes). Tests read the templates of this Windows
+  characters refused, also C1 controls and U+FFFE and U+FFFF since 05.10.2026, keys with an empty, `.` or `..` segment
+  refused by `admx.safe_key`, `ps_quote` doubles typographic single quotes). Tests read the templates of this Windows
   (`C:\Windows\PolicyDefinitions`) read-only; nothing is written outside temporary folders.
-- Several imports (T20): a policy is one rule, owned by the first loaded import; later trees show it as an alias
+- Several imports (T20): a policy is one rule, owned by the most trusted import (`admx.trust_order`, T23; before 1.3
+  the first loaded); the other trees show it as an alias
   (`Catalog.aliases`, `placements()`), with the tree item id `r:<rule>@<group>`. Code that takes a rule from a tree
   item uses `rule_of()` of `ui/main_window.py`, never `item[2:]`, and This PC gets canonical `r:<rule>` items.
+  An alias needs the same rule id; a rule of one import never replaces a rule of another (`catalog_part` leaves out a
+  policy whose Disabled rule `<id>.off` another import already holds as a policy named `Off`, and logs it).
   `import.json` `renamed: true` keeps a name given by the user when the import is updated in place.
 - Unknown choices (02.10.2026, after 1.2.0-rc.4): `Profile.unknown` holds the states of rules the loaded catalog does
   not have (policies of hidden or deleted imports, rules of another catalog version); they are never built, validated
@@ -365,7 +511,10 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   only while there are any; they cannot be toggled, search matches their ids, and the MCP `show_item` pattern does not
   accept them. The description names the hidden saved imports that have the policy (`admx.policy_ids()`, the ids
   `catalog_part` gives, read once per window) and offers "Show ..." (`show_templates(id, True, "r:<rule>")`) or the
-  import commands of the ADMX menu.
+  import commands of the ADMX menu. Since T23 the root also lists choices held by their `source` (the policy is loaded,
+  but only from a less trusted kind of import; see the provenance fact above): status "held: a less trusted source
+  holds the policy now", description `UNKNOWN_HELD`, "Show ..." only for imports of the kind of the choice or a more
+  trusted one.
 - MCP server (T22, `winkickoff/mcp/`, design in `docs/technical/editor/todo/T22-mcp-server.md`, description in
   `docs/technical/editor/07-mcp-server.md`): protocol 2025-06-18 on JSON-RPC 2.0, hand-written on the standard library;
   the HTTP listener binds the literal 127.0.0.1 (`tests/test_sources.py` allows `http.server` in `mcp/httpserver.py`
@@ -406,8 +555,9 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   instructions of `pi-agent/AGENTS.md` keep the agent away from WinKickOff files, `~/.pi` and the token, and ask for
   one awaited call at a time (a script could start calls together; a fifth concurrent call gets our 503 and pi never
   retries). Node.js comes from the official archive with a pinned SHA-256 (the NodeSource package needs python3); pi is
-  pinned to 0.99.2. Facts of pi: a codemode script gets the whole `CallToolResult` (`isError`, `content`,
-  `structuredContent`) and its returned output is cut above about 10,000 tokens; a direct call shows the model only the
+  pinned to 1.0.0 (commit ef52d8e; the facts below were checked with 0.99.2, recheck them with 1.0.0). Facts of pi:
+  a codemode script gets the whole `CallToolResult` (`isError`, `content`, `structuredContent`) and its returned
+  output is cut above about 10,000 tokens; a direct call shows the model only the
   error text (hence the kind at the start of that text) and cuts any MCP text above 20 KB (hence every skill file stays
   below, checked by `test_skill.py`); the system prompt names a codemode server with at most the first 250 characters
   of the first line of its instructions (not the skill sentence at their end), once it has connected. Networking: `--network=host` reaches the window only where the container's loopback is the host's (on
@@ -453,20 +603,20 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 |---|---|---|---|
 | Answer file v0.2 | Reference, frozen; checked by the validator and the critic | 13.09.2026 | `docs/appendices/B-autounattend-v0.2/` |
 | Critic's report and fixes | Done (9 accepted, 3 rejected) | 13.09.2026 | `docs/appendices/C-critical-review/03-critic-report-v0.2.docx` |
-| Parameter reference | Done, 19 files, English | 25.09.2026 | `docs/technical/reference/` |
+| Parameter reference | Done, 21 cards (00-20) and the index, English; card 20 (File Explorer namespaces) added for catalog 0.6 | 04.10.2026 | `docs/technical/reference/` |
 | Answer file checker | Done, 36 checks, 0 errors on v0.2 | 25.09.2026 | `tools/Validate-Unattend.ps1` |
 | GitHub repository | Renamed to WinKickOff; the local clone and `origin/main` match; CI in GitHub Actions | 26.09.2026 | https://github.com/supakov/WinKickOff |
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
-| Editor tasks | T01-T12, T14, T16-T22 done (the build runs in GitHub Actions); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 30.09.2026 | `docs/technical/editor/todo/` |
-| Rule catalog | 0.6: 278 rules, 40 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer and the desktop 41; keys that switch the input language), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.6 adds the File Explorer namespaces and desktop icons (generated), the switch keys of the sign-in screen and new accounts, registry functions of the per-user and post-OOBE scripts | 04.10.2026 | `WinKickOff/rules/` |
-| Editor code | 1.2.0-rc.4 and after it the tree root of unknown rules and policies, the account asked during installation, File Explorer namespaces and desktop icons, the switch keys of the input language, a security fix of placeholders (Home preset; customer specifics removed; skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 718 tests | 04.10.2026 | `WinKickOff/` |
+| Editor tasks | T01-T12, T14, T16-T23 done (the build runs in GitHub Actions; T23: the catalogs of the program wait for the license check); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 04.10.2026 | `docs/technical/editor/todo/` |
+| Rule catalog | 0.6: 278 rules, 40 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer and the desktop 41; keys that switch the input language), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.6 adds the File Explorer namespaces and desktop icons (generated), the switch keys of the sign-in screen and new accounts, registry functions of the per-user and post-OOBE scripts; since 1.3.0 (T23) strict JSON in a canonical layout instead of TOML, the same content | 04.10.2026 | `WinKickOff/rules/` |
+| Editor code | 1.3.0-rc.1 (T23: the catalog in JSON, export and import of catalog files, catalogs of the program, saved imports checked and conformed on load, trust order of imports and the provenance of imported choices; the tree root of unknown rules and policies, the account asked during installation, File Explorer namespaces and desktop icons, the switch keys of the input language, a security fix of placeholders; Home preset; customer specifics removed; skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 787 tests | 05.10.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply (rules on are applied, rules off return to Windows defaults) and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 29.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |
 | Documentation split | T16 done: technical in English, user documentation in ru, uk, en; since T18 the catalog is English with complete ru and uk translations | 30.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
-| GitHub issues | #1 "Web Browsers debloat" done: section "Browsers" (Edge, Chrome, Brave), 46 rules off by default, card 18. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.toml`, `docs/technical/reference/18-browsers.md` |
-| Release candidate | 1.2.0-rc.4 published (Home preset with its own list of rules, customer specifics removed, Appendix A and the review of the original deleted); earlier 1.2.0-rc.3 (the skill served over MCP, error kinds in tool error texts, pi-agent an MCP-only assistant), 1.2.0-rc.2 (skill `skills/winkickoff` in the build, clipboard fix, F9 hint), 1.2.0-rc.1 (MCP server, after the review fixes of 01.10.2026), 1.1.0-rc.4 (imported policies follow the built-in rules), 1.1.0-rc.3 (Back and Forward, shared imports), 1.1.0-rc.2 (lists of values), 1.1.0-rc.1 (import of ADMX templates) and 1.0.0-rc.1 to rc.4 of 26.09-30.09.2026: tag and GitHub release built by CI | 01.10.2026 | `docs/releases/v1.2.0-rc.3.md`, `docs/releases/v1.2.0-rc.4.md` |
-| Imported ADMX templates | T19 done: ADMX menu, store `admx/` next to the program, policies as rules with parameters, links to built-in rules; since 1.1.0-rc.2 list and multi-line elements too (20 of 3552 policies of this Windows skipped); acceptance of lists on This PC in a VM pending; T20 (1.1.0-rc.3): an import of an imported folder asks to update it or add a tree, a policy in several trees has one check mark, trees can be renamed; Back and Forward in the window; T21 (1.1.0-rc.4): an imported policy follows the built-in rule that sets the same values | 30.09.2026 | `WinKickOff/winkickoff/core/admx.py`, `docs/user/*/admx.md` |
+| GitHub issues | #1 "Web Browsers debloat" done: section "Browsers" (Edge, Chrome, Brave), 46 rules off by default, card 18. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.json`, `docs/technical/reference/18-browsers.md` |
+| Release candidate | 1.3.0-rc.1 in the code with its notes, not tagged yet (a tag only on the customer's command); 1.2.0-rc.4 published (Home preset with its own list of rules, customer specifics removed, Appendix A and the review of the original deleted); earlier 1.2.0-rc.3 (the skill served over MCP, error kinds in tool error texts, pi-agent an MCP-only assistant), 1.2.0-rc.2 (skill `skills/winkickoff` in the build, clipboard fix, F9 hint), 1.2.0-rc.1 (MCP server, after the review fixes of 01.10.2026), 1.1.0-rc.4 (imported policies follow the built-in rules), 1.1.0-rc.3 (Back and Forward, shared imports), 1.1.0-rc.2 (lists of values), 1.1.0-rc.1 (import of ADMX templates) and 1.0.0-rc.1 to rc.4 of 26.09-30.09.2026: tag and GitHub release built by CI | 04.10.2026 | `docs/releases/v1.2.0-rc.4.md`, `docs/releases/v1.3.0-rc.1.md` |
+| Imported ADMX templates | T19 done: ADMX menu, store `admx/` next to the program, policies as rules with parameters, links to built-in rules; since 1.1.0-rc.2 list and multi-line elements too (20 of 3552 policies of this Windows skipped); acceptance of lists on This PC in a VM pending; T20 (1.1.0-rc.3): an import of an imported folder asks to update it or add a tree, a policy in several trees has one check mark, trees can be renamed; Back and Forward in the window; T21 (1.1.0-rc.4): an imported policy follows the built-in rule that sets the same values; T23 (1.3.0-rc.1): export and import of catalog files, catalogs of the program (none shipped until the license check), the trust order of imports, saved imports checked on load | 04.10.2026 | `WinKickOff/winkickoff/core/admx.py`, `docs/user/*/admx.md` |
 | Customer list MoreOptions | Done: BitLocker off in every preset; 57 rules on by default (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Edge AI and sign-in, Gallery hidden), This PC folders as options off by default; corrections in card 19 | 28.09.2026 | `docs/technical/reference/19-more-privacy.md` |
 | MCP server | T22 done in code: stdio and HTTP transports, 18 tools, resources, modes read/edit/files, monitor, second executable in CI; acceptance with real clients (Claude Code, Claude Desktop) in a VM pending | 30.09.2026 | `WinKickOff/winkickoff/mcp/`, `docs/user/*/mcp.md` |
 | pi agent container | An assistant that reaches WinKickOff only over MCP (no project files or information in the image); since the customer's decision of 02.10.2026 pi runs with its defaults and codemode, without the wrapper of rc.3 and rc.4; CI job `pi-agent-container` checks the image, the connection, the tools and prompt given to the model and a codemode script that calls WinKickOff; acceptance with the window and the local model (README) pending | 02.10.2026 | `pi-agent/` |

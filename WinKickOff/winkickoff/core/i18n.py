@@ -5,10 +5,11 @@ text is the key of every translation. A language is available as soon as one of 
 user adds a language without touching the code:
 
 - resources/strings.<code>.json: {"_language": "<native name>", "<English text>": "<translation>", ...};
-- rules/lang/<code>.toml: per rule id the translated fields (title, summary, effect, risk, versions,
-  verify, rollback), parameter titles (params.<name>), option titles (values.<name>."<value>") and search
-  tags (tags = [...]); the table _groups holds group titles and summaries; an optional top-level
-  _language = "<native name>" names the language when there is no strings file.
+- rules/lang/<code>.json: {"_language": "<native name>", "_comment": [...], "<rule id>": {...}, "_groups": {...}};
+  per rule id the translated fields (title, summary, effect, risk, versions, verify, rollback), parameter titles
+  ("params": {"<name>": ...}), option titles ("values": {"<name>": {"<value>": ...}}) and search tags ("tags": [...]);
+  "_groups" holds group titles and summaries; "_language" names the language when there is no strings file and
+  "_comment" is a remark for translators. The file is strict JSON (core/jsonfile.py).
 
 Anything missing (a file, a rule, a field, a string) falls back to the English source.
 """
@@ -20,17 +21,19 @@ import locale
 import logging
 import re
 import sys
-import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from winkickoff.core import jsonfile
 from winkickoff.core.catalog import Catalog, Group, Param, Rule
 
 log = logging.getLogger(__name__)
 SOURCE_LANGUAGE = "en"
 SOURCE_NAME = "English"
 RULE_FIELDS = ("title", "summary", "effect", "risk", "versions", "verify", "rollback")
+LANG_KEYS = ("_language", "_comment", "_groups")  # the keys of a language file that are not rule ids
+GROUP_FIELDS = ("title", "summary")
 _CODE = re.compile(r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$")
 
 
@@ -45,14 +48,16 @@ class CatalogTexts:
     @classmethod
     def load(cls, rules_dir: Path, language: str) -> CatalogTexts:
         """The language file, or the English source when the language has no catalog file."""
-        path = rules_dir / "lang" / f"{language}.toml"
+        path = rules_dir / "lang" / f"{language}.json"
         if language == SOURCE_LANGUAGE or not path.exists():
             return cls(language)
-        with path.open("rb") as handle:
-            data = tomllib.load(handle)
-        data.pop("_language", None)
+        data = jsonfile.read(path)
+        problem = language_file_problem(data)
+        if problem:
+            raise ValueError(f"{path.name}: {problem}")
         groups = data.pop("_groups", {})
-        return cls(language, rules=data, groups=groups)
+        rules = {key: value for key, value in data.items() if key not in LANG_KEYS}
+        return cls(language, rules=rules, groups=groups)
 
     def rule(self, rule: Rule, name: str) -> str:
         value = self.rules.get(rule.id, {}).get(name)
@@ -102,11 +107,60 @@ class CatalogTexts:
         return sorted([r for r in self.rules if r not in catalog.rules] + [f"_groups.{g}" for g in self.groups if g not in catalog.groups])
 
 
+def language_file_problem(data: Any) -> str:
+    """What is wrong with the shape of a rules/lang/<code>.json file, or "": a misspelt field is an error, like in
+    the catalog, and a text of a wrong type never reaches the window."""
+    if not isinstance(data, dict):
+        return "the file must hold a JSON object"
+    for key, value in data.items():
+        if key == "_language" and not isinstance(value, str):
+            return "_language must be a string"
+        if key == "_comment" and not (isinstance(value, list) and all(isinstance(line, str) for line in value)):
+            return "_comment must be a list of strings"
+        if key == "_groups":
+            if not isinstance(value, dict):
+                return "_groups must be an object"
+            for group_id, entry in value.items():
+                if not isinstance(entry, dict) or set(entry) - set(GROUP_FIELDS) \
+                        or not all(isinstance(text, str) for text in entry.values()):
+                    return f"_groups.{group_id}: an object with the strings {list(GROUP_FIELDS)}"
+        elif key.startswith("_") and key not in LANG_KEYS:
+            return f"unknown key {key!r} (expected {list(LANG_KEYS)} or rule ids)"
+        elif not key.startswith("_"):
+            problem = _rule_entry_problem(value)
+            if problem:
+                return f"{key}: {problem}"
+    return ""
+
+
+def _rule_entry_problem(entry: Any) -> str:
+    if not isinstance(entry, dict):
+        return "the entry of a rule must be an object"
+    for field_name, value in entry.items():
+        if field_name in RULE_FIELDS:
+            if not isinstance(value, str):
+                return f"{field_name} must be a string"
+        elif field_name == "params":
+            if not isinstance(value, dict) or not all(isinstance(text, str) for text in value.values()):
+                return "params must be an object of strings"
+        elif field_name == "values":
+            if not isinstance(value, dict) or not all(
+                    isinstance(options, dict) and all(isinstance(text, str) for text in options.values())
+                    for options in value.values()):
+                return "values must be an object of objects of strings"
+        elif field_name == "tags":
+            if not isinstance(value, list) or not all(isinstance(tag, str) for tag in value):
+                return "tags must be a list of strings"
+        else:
+            return f"unknown field {field_name!r}"
+    return ""
+
+
 # --------------------------------------------------------------------------- languages
 
 
 def available_languages(resources_dir: Path | None, rules_dir: Path | None) -> dict[str, str]:
-    """Language code -> native name, English first: every strings.<code>.json and rules/lang/<code>.toml."""
+    """Language code -> native name, English first: every strings.<code>.json and rules/lang/<code>.json."""
     found: dict[str, str] = {}
     if resources_dir is not None:
         for path in sorted(resources_dir.glob("strings.*.json")):
@@ -120,14 +174,13 @@ def available_languages(resources_dir: Path | None, rules_dir: Path | None) -> d
                 continue
             found[code] = str(name or code)
     if rules_dir is not None:
-        for path in sorted((rules_dir / "lang").glob("*.toml")):
+        for path in sorted((rules_dir / "lang").glob("*.json")):
             code = path.stem
             if not _CODE.match(code) or code == SOURCE_LANGUAGE or code in found:
                 continue
             try:
-                with path.open("rb") as handle:
-                    name = tomllib.load(handle).get("_language")
-            except (OSError, ValueError) as exc:
+                name = jsonfile.read(path).get("_language")
+            except (OSError, ValueError, AttributeError) as exc:
                 log.warning("%s ignored: %s", path.name, exc)
                 continue
             found[code] = str(name or code)
@@ -176,6 +229,8 @@ def load_strings(resources_dir: Path, language: str) -> dict[str, str]:
         return {}
     with path.open("r", encoding="utf-8") as handle:
         data = json.load(handle)
+    if not isinstance(data, dict):
+        raise ValueError(f"{path.name}: the file must hold a JSON object")
     return {str(k): str(v) for k, v in data.items() if v and not str(k).startswith("_")}
 
 

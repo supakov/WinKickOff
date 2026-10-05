@@ -9,6 +9,7 @@ requested language; texts of imported ADMX policies always follow the language o
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -31,6 +32,8 @@ from winkickoff.mcp.redact import (EFFECT, EXPLAIN, SUMMARY, TITLE, assert_redac
                                    redact_differences, redact_profile, redacted_copy, safe_child)
 from winkickoff.mcp.workspace import (Snapshot, Workspace, check_and_build, is_preset_id, list_profile_files,
                                       profile_display, profile_file)
+
+log = logging.getLogger(__name__)
 
 ID_PATTERN = r"^[A-Za-z0-9_.:-]{1,200}$"
 ITEM_PATTERN = r"^(r:[A-Za-z0-9_.:-]{1,200}|g:[A-Za-z0-9_.:-]{1,200}|data:(accounts|languages|install))$"
@@ -511,7 +514,11 @@ class ToolRegistry:
 
     def texts(self, code: str) -> CatalogTexts:
         if code not in self._texts:
-            self._texts[code] = CatalogTexts.load(self.paths.rules, code)
+            try:
+                self._texts[code] = CatalogTexts.load(self.paths.rules, code)
+            except (OSError, ValueError) as exc:  # a broken translation: the English source, as in the window
+                log.warning("catalog translation %s ignored: %s", code, exc)
+                self._texts[code] = CatalogTexts(code)
         return self._texts[code]
 
     def listing(self) -> list[dict[str, Any]]:

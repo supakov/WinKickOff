@@ -72,6 +72,21 @@ class PlanTest(unittest.TestCase):
         self.assertEqual(revert.rule_ids, [])
         self.assertIn("sign-in screen", revert.excluded[0][1])
 
+    def test_a_profile_name_never_leaves_the_comment_line_of_the_scripts(self) -> None:
+        profile = self.office.copy()
+        profile.name = "Office\nWrite-Output 'injected'\rRemove-Item C:\\x" + chr(0x2028) + "z"
+        plan = plan_apply(self.catalog, profile, ["r:remote.registry-off"])
+        scripts = {"Apply": render_apply(plan, profile, self.catalog, TEMPLATES, "test"),
+                   "Undo": render_undo(TEMPLATES, profile, "test"),
+                   "Audit": render_audit(["remote.registry-off"], profile, self.catalog, TEMPLATES, "test")}
+        for name, script in scripts.items():
+            with self.subTest(script=name):
+                lines = script.replace("\r\n", "\n").split("\n")
+                label = [line for line in lines if line.startswith("# WinKickOff test, profile: ")]
+                self.assertEqual(len(label), 1)
+                self.assertFalse(any(line.lstrip().startswith(("Write-Output 'injected'", "Remove-Item C:")) for line in lines))
+                self.assertNotIn("\r", script.replace("\r\n", ""))
+
     def test_rule_without_check_mark_returns_to_windows_defaults(self) -> None:
         # 29.09.2026 bug: a rule that is off in the profile was dropped silently; now the PC follows the profile
         plan = self.plan("r:network.netbios-off")

@@ -3,7 +3,7 @@
 - docs/technical is English: Cyrillic only inside «quoted names» (Windows labels, data), inline code and fenced code;
 - docs/user/{ru,uk,en} have the same files with the same headings structure;
 - docs/user/<lang>/rules.md equals what tools/make_rule_docs.py generates now;
-- the catalog translations rules/lang/{ru,uk}.toml are complete (English is the source);
+- the catalog translations rules/lang/{ru,uk}.json are complete (English is the source);
 - every relative Markdown link resolves, including #anchors;
 - no em or en dash anywhere in our texts;
 - every text file of the repository uses CRLF line endings (an editor or an agent on Linux writes LF).
@@ -74,7 +74,7 @@ class DocsTest(unittest.TestCase):
         cls.catalog = load_catalog(ROOT / "rules", docs_root=REPO)
 
     def test_no_dashes(self) -> None:
-        files = markdown_files() + list((ROOT / "rules" / "lang").glob("*.toml"))
+        files = markdown_files() + list((ROOT / "rules" / "lang").glob("*.json"))
         bad = [str(p.relative_to(REPO)) for p in files if any(d in p.read_text(encoding="utf-8") for d in DASHES)]
         self.assertEqual(bad, [])
 
@@ -151,8 +151,8 @@ class DocsTest(unittest.TestCase):
                 texts = CatalogTexts.load(ROOT / "rules", lang)
                 self.assertEqual(texts.missing(self.catalog), [])
                 self.assertEqual(texts.unknown(self.catalog), [])
-        self.assertFalse((ROOT / "rules" / "lang" / "en.toml").exists(), "English is the source, not a translation")
-        ukrainian = (ROOT / "rules" / "lang" / "uk.toml").read_text(encoding="utf-8")
+        self.assertFalse((ROOT / "rules" / "lang" / "en.json").exists(), "English is the source, not a translation")
+        ukrainian = (ROOT / "rules" / "lang" / "uk.json").read_text(encoding="utf-8")
         self.assertEqual([l for l in ukrainian.splitlines() if RUSSIAN_ONLY.search(l)], [])
 
     def test_every_path_named_in_agents_md_exists(self) -> None:

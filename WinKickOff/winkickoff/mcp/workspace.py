@@ -132,7 +132,7 @@ def normalise_param_value(rule: Rule, param: Param, value: Any) -> Any:
         return value
     if param.type == "enum":
         allowed = [v for v, _ in param.values]
-        if value not in allowed:
+        if isinstance(value, bool) or value not in allowed:  # True == 1 in Python: a boolean is never an option value
             raise ToolError("invalid_arguments", f"{param.name}: the value must be one of {allowed}",
                             {"name": param.name, "values": allowed})
         return value
@@ -204,8 +204,8 @@ def check_and_build(catalog: Catalog, profile: Profile, resources: Resources, te
         return None, issues
     try:
         result = Renderer(catalog, templates, resources.keyboards).build(profile, app_version=app_version)
-    except RenderError as exc:
-        return None, issues + [Issue("error", "build", str(exc))]
+    except (RenderError, KeyError, ValueError, TypeError) as exc:  # reported as a build error, never an internal error
+        return None, issues + [Issue("error", "build", (str(exc) or type(exc).__name__)[:500])]
     return result, issues + validate_xml(result.xml)
 
 

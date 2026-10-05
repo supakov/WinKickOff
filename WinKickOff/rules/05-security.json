@@ -1,0 +1,499 @@
+{
+  "comment": ["UAC, accounts, credential protection, remote access, encryption. Section 4 of the v0.2 machine script."],
+  "rules": [
+    {
+      "id": "uac.baseline",
+      "group": "security.uac",
+      "phase": "specialize",
+      "title": "UAC enabled, prompts on the secure desktop, Win+L works",
+      "level": "baseline",
+      "default": true,
+      "tags": ["uac", "enablelua", "secure desktop", "win+l", "lock"],
+      "doc": "docs/technical/reference/08-accounts-uac-lsa-remote.md",
+      "summary": "Baseline UAC values: enabled, prompts on the secure desktop, standard users enter administrator credentials, installers require elevation, the built-in Administrator runs in Admin Approval Mode, and network logons of local administrators get a filtered token. The ban on locking the screen is removed.",
+      "effect": "UAC stays on: elevation prompts appear on the secure desktop, standard users must enter administrator credentials, and Win+L locks the screen.",
+      "versions": "The values have been the same since Windows Vista.",
+      "verify": "Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+          "name": "EnableLUA",
+          "kind": "DWord",
+          "value": 1,
+          "why": "UAC on",
+          "default": 1
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+          "name": "PromptOnSecureDesktop",
+          "kind": "DWord",
+          "value": 1,
+          "default": 1
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+          "name": "ConsentPromptBehaviorUser",
+          "kind": "DWord",
+          "value": 3,
+          "why": "standard users: ask for admin credentials on secure desktop",
+          "default": 3
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+          "name": "EnableInstallerDetection",
+          "kind": "DWord",
+          "value": 1,
+          "default": 1
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+          "name": "FilterAdministratorToken",
+          "kind": "DWord",
+          "value": 1,
+          "default": 0
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+          "name": "LocalAccountTokenFilterPolicy",
+          "kind": "DWord",
+          "value": 0,
+          "why": "no remote admin token for local accounts",
+          "default": "absent"
+        },
+        {
+          "type": "reg-remove",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+          "name": "DisableLockWorkstation"
+        },
+        {
+          "type": "reg-remove",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon",
+          "name": "DisableLockWorkstation"
+        }
+      ]
+    },
+    {
+      "id": "uac.admin-always-notify",
+      "group": "security.uac",
+      "phase": "specialize",
+      "title": "UAC for administrators: always notify",
+      "level": "recommended",
+      "default": false,
+      "requires": ["uac.baseline"],
+      "tags": ["uac", "consentpromptbehavioradmin", "uac bypass", "fodhelper"],
+      "doc": "docs/technical/reference/08-accounts-uac-lsa-remote.md#uacalwaysnotify",
+      "summary": "The administrator sees a prompt for every elevation, including system components; this closes known UAC bypasses through trusted Windows programs.",
+      "effect": "More \"Yes/No\" prompts for Admin, including when opening Task Manager (Ctrl+Shift+Esc), the Registry Editor and other Windows tools that otherwise elevate without a prompt; protection against automatic elevation by malicious code. For a standard user (User) these tools open without a prompt in any case.",
+      "risk": "With a blank password, a UAC prompt is just a \"Yes\" button: it protects against programs, not against the person at the keyboard.",
+      "versions": "The values have been the same since Windows Vista.",
+      "verify": "Control Panel -> User Accounts -> Change User Account Control settings",
+      "rollback": "Value 5 (Windows default).",
+      "params": {
+        "level": {
+          "type": "enum",
+          "title": "Level",
+          "default": 2,
+          "values": [
+            {"value": 2, "title": "Always notify"},
+            {"value": 5, "title": "Only for third-party programs (Windows default)"}
+          ]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+          "name": "ConsentPromptBehaviorAdmin",
+          "kind": "DWord",
+          "value": "{level}",
+          "why": "UAC level for admins",
+          "default": 5
+        }
+      ]
+    },
+    {
+      "id": "accounts.inactivity-lock",
+      "group": "security.accounts",
+      "phase": "specialize",
+      "title": "Lock the screen after inactivity",
+      "level": "recommended",
+      "default": true,
+      "tags": ["lock", "idle", "inactivitytimeoutsecs", "screen"],
+      "doc": "docs/technical/reference/08-accounts-uac-lsa-remote.md#inactivitylockseconds",
+      "summary": "After the specified number of seconds without input, the screen locks regardless of screen saver and power settings.",
+      "effect": "The workstation is not left open; with a blank password, unlocking is just pressing Enter, so the rule becomes meaningful once passwords are assigned.",
+      "versions": "Policy since Windows 8; maximum 599940 seconds.",
+      "verify": "Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System -Name InactivityTimeoutSecs",
+      "rollback": "Delete the value.",
+      "params": {
+        "seconds": {
+          "type": "int",
+          "title": "Seconds of inactivity before locking",
+          "default": 900,
+          "min": 60,
+          "max": 599940
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+          "name": "InactivityTimeoutSecs",
+          "kind": "DWord",
+          "value": "{seconds}",
+          "why": "lock after idle",
+          "default": "absent"
+        }
+      ]
+    },
+    {
+      "id": "lsa.baseline",
+      "group": "security.lsa",
+      "phase": "specialize",
+      "title": "Basic credential protection: no LM hashes, no anonymous access, no WDigest, SEHOP",
+      "level": "baseline",
+      "default": true,
+      "tags": ["lsa", "nolmhash", "restrictanonymous", "wdigest", "sehop", "mimikatz", "blank password"],
+      "doc": "docs/technical/reference/08-accounts-uac-lsa-remote.md",
+      "summary": "LM hashes are not stored; accounts with blank passwords are limited to console logon; anonymous enumeration of shares and accounts is not allowed; passwords are not kept in memory in plain text (WDigest); Structured Exception Handler Overwrite Protection (SEHOP) is enabled.",
+      "effect": "A stolen hash or memory dump becomes of little use.",
+      "risk": "Very old devices (printers, NAS) that browse shares anonymously may not see them.",
+      "versions": "Most values match the Windows 10/11 defaults and are set explicitly; RestrictAnonymous=1 is stricter than the client Windows default.",
+      "verify": "Get-ItemProperty HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa",
+          "name": "NoLMHash",
+          "kind": "DWord",
+          "value": 1,
+          "default": 1
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa",
+          "name": "LimitBlankPasswordUse",
+          "kind": "DWord",
+          "value": 1,
+          "why": "blank passwords: console only",
+          "default": 1
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa",
+          "name": "RestrictAnonymous",
+          "kind": "DWord",
+          "value": 1,
+          "default": 0
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa",
+          "name": "RestrictAnonymousSAM",
+          "kind": "DWord",
+          "value": 1,
+          "default": 1
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa",
+          "name": "EveryoneIncludesAnonymous",
+          "kind": "DWord",
+          "value": 0,
+          "default": 0
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\WDigest",
+          "name": "UseLogonCredential",
+          "kind": "DWord",
+          "value": 0,
+          "why": "no plaintext creds in memory",
+          "default": "absent"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel",
+          "name": "DisableExceptionChainValidation",
+          "kind": "DWord",
+          "value": 0,
+          "why": "SEHOP on",
+          "default": "absent"
+        }
+      ]
+    },
+    {
+      "id": "lsa.protection",
+      "group": "security.lsa",
+      "phase": "specialize",
+      "title": "LSA protection (RunAsPPL): LSASS as a protected process",
+      "level": "recommended",
+      "default": true,
+      "tags": ["lsa", "runasppl", "lsass", "mimikatz", "credential dumping", "digital signature", "smart cards"],
+      "doc": "docs/technical/reference/08-accounts-uac-lsa-remote.md#lsaprotection",
+      "summary": "LSASS memory is inaccessible to other processes, even with administrator rights; hashes and passwords cannot be extracted.",
+      "effect": "Mimikatz and dumps through Task Manager do not work. Value 2 has no UEFI lock, so it can be rolled back through the registry.",
+      "risk": "Plug-ins loaded into LSA (digital signature token drivers, third-party sign-in providers) must be signed by Microsoft; unsigned ones will not load (events 3033/3063). Test the organization's digital signature keys before a broad rollout.",
+      "versions": "Value 2 is recognized by Windows 11 22H2 and later; Windows 10 treats any non-zero value as 1 (with a UEFI lock).",
+      "verify": "System log, event 12 from WinInit; Get-ItemProperty HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa -Name RunAsPPL",
+      "rollback": "Delete the value or set it to 0, then restart.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 2,
+          "values": [
+            {"value": 2, "title": "Enabled without a UEFI lock (reversible)"},
+            {"value": 1, "title": "Enabled with a UEFI lock (irreversible without firmware access)"}
+          ]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa",
+          "name": "RunAsPPL",
+          "kind": "DWord",
+          "value": "{mode}",
+          "why": "LSA protection (no UEFI lock)",
+          "default": "absent"
+        }
+      ]
+    },
+    {
+      "id": "lsa.ntlmv2-only",
+      "group": "security.lsa",
+      "phase": "specialize",
+      "title": "NTLMv2 only (refuse LM and NTLMv1)",
+      "level": "recommended",
+      "default": true,
+      "tags": ["ntlm", "ntlmv2", "lmcompatibilitylevel", "nas", "mfp"],
+      "doc": "docs/technical/reference/08-accounts-uac-lsa-remote.md#ntlmv2only",
+      "summary": "The client and server use only NTLMv2 and refuse LM and NTLMv1.",
+      "effect": "Intercepted hashes cannot be used in old NTLMv1 attacks; modern PCs and NAS devices are not affected.",
+      "risk": "Very old NAS devices, printers with scan to folder, and embedded devices that use NTLMv1 will stop connecting. Relax it together with the SMB rules after an inventory.",
+      "versions": "Without the key, the Windows 10/11 default is 3; in 24H2 Microsoft started phasing out NTLM.",
+      "verify": "Get-ItemProperty HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa -Name LmCompatibilityLevel",
+      "rollback": "Value 3, or delete it.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa",
+          "name": "LmCompatibilityLevel",
+          "kind": "DWord",
+          "value": 5,
+          "why": "NTLMv2 only",
+          "default": "absent"
+        }
+      ]
+    },
+    {
+      "id": "accounts.lockout",
+      "group": "security.accounts",
+      "phase": "specialize",
+      "title": "Lock out accounts after wrong passwords",
+      "level": "recommended",
+      "default": true,
+      "tags": ["lock", "brute force", "lockout", "net accounts"],
+      "doc": "docs/technical/reference/08-accounts-uac-lsa-remote.md#accountlockout",
+      "summary": "After the specified number of consecutive wrong passwords, the account is locked for the specified time.",
+      "effect": "Password guessing over the network (SMB, RDP) becomes useless. Not relevant while passwords are blank; once passwords are assigned, it is the first line of defense.",
+      "versions": "Windows 11 22H2+ already sets 10/10/10 on a clean install; Windows 10 and upgraded systems use \"never\".",
+      "verify": "net accounts",
+      "rollback": "net accounts /lockoutthreshold:0",
+      "params": {
+        "threshold": {"type": "int", "title": "Failed attempts before lockout", "default": 10, "min": 1, "max": 999},
+        "duration": {"type": "int", "title": "Lockout duration, minutes", "default": 15, "min": 1, "max": 99999},
+        "window": {
+          "type": "int",
+          "title": "Lockout counter reset window, minutes",
+          "default": 15,
+          "min": 1,
+          "max": 99999
+        }
+      },
+      "actions": [
+        {
+          "type": "exe",
+          "file": "net.exe",
+          "args": [
+            "accounts",
+            "/lockoutthreshold:{threshold}",
+            "/lockoutduration:{duration}",
+            "/lockoutwindow:{window}"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "accounts.password-never-expires",
+      "group": "security.accounts",
+      "phase": "specialize",
+      "title": "Passwords never expire (initial accounts)",
+      "level": "recommended",
+      "default": true,
+      "tags": ["password", "expiration", "maxpwage", "42 days", "starter accounts"],
+      "doc": "docs/technical/reference/04-users-and-media.md#passwordneverexpires",
+      "summary": "The maximum password age is removed for all local accounts (the default is 42 days).",
+      "effect": "Windows will never show \"Your password has expired\" for the initial accounts with blank passwords. The user management project can restore password expiration when it assigns passwords.",
+      "versions": "No changes.",
+      "verify": "net accounts",
+      "rollback": "net accounts /maxpwage:42",
+      "actions": [{"type": "exe", "file": "net.exe", "args": ["accounts", "/maxpwage:unlimited"]}]
+    },
+    {
+      "id": "remote.assistance-off",
+      "group": "security.remote",
+      "phase": "specialize",
+      "title": "Remote Assistance turned off",
+      "level": "recommended",
+      "default": true,
+      "tags": ["remote assistance", "msra", "scammers"],
+      "doc": "docs/technical/reference/08-accounts-uac-lsa-remote.md#disableremoteassistance",
+      "summary": "Remote Assistance invitations (msra.exe) and full remote control are not allowed.",
+      "effect": "One of the built-in remote control channels is closed; support from your own administrator requires a tool chosen by the organization.",
+      "versions": "No changes.",
+      "verify": "System Properties -> Remote",
+      "rollback": "fAllowToGetHelp = 1",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Remote Assistance",
+          "name": "fAllowToGetHelp",
+          "kind": "DWord",
+          "value": 0,
+          "default": 1
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Remote Assistance",
+          "name": "fAllowFullControl",
+          "kind": "DWord",
+          "value": 0,
+          "default": 1
+        }
+      ]
+    },
+    {
+      "id": "remote.rdp-inbound-off",
+      "group": "security.remote",
+      "phase": "specialize",
+      "title": "Inbound Remote Desktop turned off",
+      "level": "recommended",
+      "default": true,
+      "tags": ["rdp", "remote desktop", "fdenytsconnections"],
+      "doc": "docs/technical/reference/08-accounts-uac-lsa-remote.md#disableremotedesktopinbound",
+      "summary": "Inbound RDP connections are not allowed (the Windows default, set explicitly); outbound connections to other PCs work.",
+      "effect": "One of the main attack vectors against small networks is closed.",
+      "versions": "No changes.",
+      "verify": "Settings -> System -> Remote Desktop",
+      "rollback": "fDenyTSConnections = 0 and the \"Remote Desktop\" firewall rule.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server",
+          "name": "fDenyTSConnections",
+          "kind": "DWord",
+          "value": 1,
+          "default": 1
+        }
+      ]
+    },
+    {
+      "id": "remote.rdp-nla",
+      "group": "security.remote",
+      "phase": "specialize",
+      "title": "Network Level Authentication (NLA) for RDP",
+      "level": "baseline",
+      "default": true,
+      "tags": ["rdp", "nla", "userauthentication"],
+      "doc": "docs/technical/reference/08-accounts-uac-lsa-remote.md",
+      "summary": "If RDP is ever enabled, connections will require authentication before the sign-in screen is shown.",
+      "effect": "Protects against attacks on the RDP sign-in screen (BlueKeep and similar).",
+      "versions": "Windows 10/11 default, set explicitly.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp",
+          "name": "UserAuthentication",
+          "kind": "DWord",
+          "value": 1,
+          "why": "NLA if RDP is ever enabled",
+          "default": 1
+        }
+      ]
+    },
+    {
+      "id": "remote.registry-off",
+      "group": "security.remote",
+      "phase": "specialize",
+      "title": "Remote Registry service disabled",
+      "level": "recommended",
+      "default": true,
+      "tags": ["remoteregistry", "remote registry", "service"],
+      "doc": "docs/technical/reference/08-accounts-uac-lsa-remote.md#disableremoteregistry",
+      "summary": "Remote reading and writing of the registry is not possible.",
+      "effect": "On client Windows the service is already disabled; the rule sets this explicitly. Old inventory agents may require it to be enabled.",
+      "versions": "On Windows 7/8 the service was set to manual.",
+      "verify": "Get-Service RemoteRegistry | Select-Object StartType",
+      "rollback": "Set-Service RemoteRegistry -StartupType Manual",
+      "actions": [{"type": "service", "name": "RemoteRegistry", "start": 4, "default": 4}]
+    },
+    {
+      "id": "encryption.prevent-auto-bitlocker",
+      "group": "security.encryption",
+      "phase": "specialize",
+      "title": "Prevent automatic device encryption (BitLocker without a saved key)",
+      "level": "recommended",
+      "default": true,
+      "tags": ["bitlocker", "device encryption", "recovery key", "24h2", "tpm"],
+      "doc": "docs/technical/reference/08-accounts-uac-lsa-remote.md#preventautodeviceencryption",
+      "summary": "Windows does not encrypt the system drive automatically. Without a domain or a Microsoft account, there is nowhere to store the recovery key.",
+      "effect": "Disk cloning and restore work; data is not lost if the TPM fails. Protection of laptops against theft is turned on deliberately, with the key saved.",
+      "risk": "Data on a stolen laptop is not protected by encryption until BitLocker is turned on manually.",
+      "versions": "On a clean install, Windows 11 24H2 encrypts the drive on any PC with a TPM; 23H2 and earlier do so only on Modern Standby devices. The registry key has been supported since Windows 8.1.",
+      "verify": "Get-BitLockerVolume C: | Select-Object ProtectionStatus, VolumeStatus",
+      "rollback": "Delete the value, then Settings -> Privacy & security -> Device encryption.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\BitLocker",
+          "name": "PreventDeviceEncryption",
+          "kind": "DWord",
+          "value": 1,
+          "why": "no silent BitLocker; enable deliberately with a saved recovery key",
+          "default": "absent"
+        }
+      ]
+    },
+    {
+      "id": "accounts.block-aad-join",
+      "group": "security.accounts",
+      "phase": "specialize",
+      "title": "No \"Allow my organization to manage my device\" prompt",
+      "level": "baseline",
+      "default": true,
+      "tags": ["azure ad", "entra", "workplace join", "office", "m365"],
+      "doc": "docs/technical/reference/08-accounts-uac-lsa-remote.md",
+      "summary": "When a user signs in to Office or Teams with a work account, Windows does not offer to join the device to Entra ID.",
+      "effect": "A non-professional user cannot put the PC under someone else's cloud management with a single click.",
+      "versions": "No changes.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WorkplaceJoin",
+          "name": "BlockAADWorkplaceJoin",
+          "kind": "DWord",
+          "value": 1,
+          "why": "no \"let your organisation manage this device\" prompts"
+        }
+      ]
+    }
+  ]
+}

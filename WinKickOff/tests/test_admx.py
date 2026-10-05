@@ -6,6 +6,7 @@ Windows is only read.
 
 from __future__ import annotations
 
+import quiet_tk  # noqa: F401 - first: every window these tests open stays invisible
 import json
 import re
 import tempfile
@@ -169,29 +170,11 @@ EVIL = """<?xml version="1.0"?>
 <policyDefinitions xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions"/>
 """
 
-GROUPS_TOML = """[[group]]
-id = "g"
-title = "G"
-"""
-
-RESERVED_RULE_TOML = r"""[[rule]]
-id = "admx.x"
-group = "g"
-phase = "specialize"
-title = "X"
-level = "optional"
-default = false
-doc = "d"
-summary = "s"
-effect = "e"
-
-[[rule.actions]]
-type = "reg"
-path = 'HKLM:\X'
-name = "n"
-kind = "DWord"
-value = 1
-"""
+GROUPS_JSON = {"groups": [{"id": "g", "title": "G"}]}
+RESERVED_RULE_JSON = {"rules": [{
+    "id": "admx.x", "group": "g", "phase": "specialize", "title": "X", "level": "optional", "default": False, "doc": "d",
+    "summary": "s", "effect": "e", "actions": [{"type": "reg", "path": "HKLM:\\X", "name": "n", "kind": "DWord", "value": 1}],
+}]}
 
 TOGGLE = "admx.winkickoff.test.simpletoggle"
 ELEMENTS = "admx.winkickoff.test.with-elements"
@@ -432,8 +415,8 @@ class UseTest(AdmxTestCase):
     def test_the_prefix_is_reserved_for_templates(self) -> None:
         rules = self.tmp / "rules"
         rules.mkdir()
-        (rules / "groups.toml").write_text(GROUPS_TOML, encoding="utf-8")
-        (rules / "01-x.toml").write_text(RESERVED_RULE_TOML, encoding="utf-8")
+        (rules / "groups.json").write_text(json.dumps(GROUPS_JSON), encoding="utf-8")
+        (rules / "01-x.json").write_text(json.dumps(RESERVED_RULE_JSON), encoding="utf-8")
         with self.assertRaisesRegex(CatalogError, "reserved"):
             load_catalog(rules)
 
@@ -900,7 +883,8 @@ class WindowTest(AdmxTestCase):
         win, _, _ = self.hidden_window(delete=True)
         win.select_node("u:" + TOGGLE)
         self.assertIn("None of the imported templates saved in the program folder has this policy", self.detail(win))
-        self.assertEqual(self.buttons(win), ["Import the templates of this Windows", "Import templates from a folder..."])
+        self.assertEqual(self.buttons(win), ["Import the templates of this Windows", "Import templates from a folder...",
+                                            "Import a catalog file..."])
         win.select_node("unknown")
         self.assertIn("2 of these policies are in none of the imported templates", self.detail(win))
 

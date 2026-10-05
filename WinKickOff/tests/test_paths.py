@@ -16,7 +16,7 @@ class PathsTest(unittest.TestCase):
         self.assertEqual(p.root.name, "WinKickOff")
         self.assertEqual(p.data, p.root)
         self.assertEqual(p.docs_root, p.root.parent)
-        self.assertTrue((p.rules / "groups.toml").exists())
+        self.assertTrue((p.rules / "groups.json").exists())
 
     def test_frozen_mode_uses_executable_folder(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

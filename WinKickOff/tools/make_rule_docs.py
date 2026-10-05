@@ -1,6 +1,6 @@
 """Generate the rule lists of the user documentation: docs/user/<lang>/rules.md for ru, uk and en.
 
-Run after changing the catalog or its translations (rules/lang/*.toml):
+Run after changing the catalog or its translations (rules/lang/*.json):
     cd WinKickOff
     python tools/make_rule_docs.py
 

@@ -40,7 +40,8 @@ In no mode and at no request of the assistant:
 - applying rules to this computer, returning to the Windows defaults, checking on this PC (an audit);
 - starting PowerShell, including the syntax check of the scripts;
 - deleting, replacing or renaming files, wherever they are;
-- importing, updating, renaming or deleting ADMX templates;
+- importing (catalog files and catalogs of the program too), updating, exporting, renaming or deleting ADMX
+  templates;
 - changing the program settings: language, theme, the permission to apply on this PC, port, token, mode, autostart;
 - reading or writing passwords and the product key; changing accounts, languages and installation data;
 - reading the files of the `profiles`, `output`, `logs` and `admx` folders and `settings.json` as they are;
@@ -209,10 +210,11 @@ the file `settings.json`.
   button of the window runs; the tool result says so in a separate line. Before using the file, open the profile in the
   window and press "Check" (F7), or build the file with "Build autounattend.xml" (F9). The file lies in `output` under
   the given name; rename it to `autounattend.xml` when copying it to the USB drive.
-- Titles and descriptions of built-in rules reach the assistant in the requested language (`en`, `ru`, `uk`). Texts of
-  imported ADMX templates were never reviewed and always come in the program language, even when another one was
-  requested; the results mark them as unreviewed, and the assistant is told to treat them as data, not instructions.
-  Check messages are in the program language as well.
+- Titles and descriptions of built-in rules reach the assistant in the requested language (`en`, `ru`, `uk` or one
+  you added); when there is no translation or the rule translation file cannot be read, in English, as in the window.
+  Texts of imported ADMX templates were never reviewed and always come in the program language, even when another
+  one was requested; the results mark them as unreviewed, and the assistant is told to treat them as data, not
+  instructions. Check messages are in the program language as well.
 - Everything the assistant changes is visible in the window as unsaved changes; saving stays with you. If the assistant
   opened another profile and dropped unsaved changes, the monitor shows it.
 - Logs: the window writes `logs\winkickoff.log`, servers without a window write `logs\mcp-stdio-<process id>.log` and

@@ -40,7 +40,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from winkickoff.core.catalog import IMPORTED_PREFIX, Action, Catalog, Group, Param, Rule, RuleOrigin, merge
+from winkickoff.core import jsonfile
+from winkickoff.core.catalog import (IMPORT_KINDS, IMPORTED_PREFIX, Action, Catalog, Group, Param, Rule, RuleOrigin,  # noqa: F401
+                                    import_kind, import_rank, merge)
 from winkickoff.core.i18n import N_, tr
 
 log = logging.getLogger(__name__)
@@ -60,8 +62,9 @@ _REF_RE = re.compile(r"^\$\((string|presentation)\.([^)]+)\)$")
 _DECLARATION_RE = re.compile(r"^\s*<\?xml[^>]*\?>")
 _TYPOGRAPHIC_QUOTES = "".join(chr(c) for c in (0x2018, 0x2019, 0x201A, 0x201B, 0x201C, 0x201D, 0x201E))
 _CONTROL = "".join(chr(c) for c in range(32)) + chr(127)
-_UNSAFE_NAME = set(_CONTROL + '"`$' + _TYPOGRAPHIC_QUOTES)
-_UNSAFE_VALUE = set(_CONTROL + _TYPOGRAPHIC_QUOTES)
+_NOT_XML = "".join(chr(c) for c in range(0x80, 0xA0)) + chr(0xFFFE) + chr(0xFFFF)  # C1 controls, non-characters
+_UNSAFE_NAME = set(_CONTROL + '"`$' + _TYPOGRAPHIC_QUOTES + _NOT_XML)
+_UNSAFE_VALUE = set(_CONTROL + _TYPOGRAPHIC_QUOTES + _NOT_XML)
 
 # why a policy was not imported; shown translated in the import summary
 SKIP_REASONS: dict[str, str] = {
@@ -107,11 +110,15 @@ def _kid(element: ET.Element | None, name: str) -> ET.Element | None:
 
 
 def read_xml(path: Path) -> ET.Element:
-    """Parse one template file; refuse big files and documents with a DTD or entities."""
-    size = path.stat().st_size
-    if size > MAX_FILE_BYTES:
-        raise AdmxError(f"{path.name}: {size} bytes, more than {MAX_FILE_BYTES}")
-    data = path.read_bytes()
+    """Parse one template file; refuse big files and documents with a DTD or entities. Messages name the file only,
+    never its folder: they are kept in the records and may travel in an exported catalog file."""
+    try:
+        size = path.stat().st_size
+        if size > MAX_FILE_BYTES:
+            raise AdmxError(f"{path.name}: {size} bytes, more than {MAX_FILE_BYTES}")
+        data = path.read_bytes()
+    except OSError as exc:
+        raise AdmxError(f"{path.name}: {exc.strerror or type(exc).__name__}") from None
     try:
         if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
             text = data.decode("utf-16")
@@ -136,7 +143,16 @@ def read_xml(path: Path) -> ET.Element:
 
 def safe_name(text: str) -> bool:
     """A registry key or value name that can go into a PowerShell string of the generated scripts."""
-    return bool(text) and not (set(text) & _UNSAFE_NAME) and len(text) <= 512
+    return bool(text) and not (set(text) & _UNSAFE_NAME) and "]]>" not in text and len(text) <= 512
+
+
+def safe_key(text: str) -> bool:
+    """A registry key: a safe name whose segments are never empty, "." or ".." (PowerShell resolves ".." even with
+    -LiteralPath, so a key "..\\.DEFAULT" of a user policy would leave the default user profile)."""
+    if not safe_name(text):
+        return False
+    segments = re.split(r"[\\/]", text.strip("\\"))
+    return all(segment not in ("", ".", "..") for segment in segments)
 
 
 def safe_value(text: str) -> bool:
@@ -214,7 +230,7 @@ def adml_cultures(folder: Path, codes: Iterable[str]) -> list[str]:
     except OSError:
         return []
     for sub in folders:
-        if sub.name.split("-")[0].lower() in wanted and any(sub.glob("*.adml")):
+        if _CULTURE_RE.match(sub.name) and sub.name.split("-")[0].lower() in wanted and any(sub.glob("*.adml")):
             found.append(sub.name)
     found.sort(key=lambda name: (name.lower() != SOURCE_CULTURE.lower(), name.lower()))
     return found
@@ -272,7 +288,7 @@ def _value(container: ET.Element | None) -> tuple[str, Any] | None:
 def _write(key: str, name: str | None, value: tuple[str, Any]) -> dict[str, Any]:
     if not name:
         raise _Skip("novalue")
-    if not safe_name(key) or not safe_name(name):
+    if not safe_key(key) or not safe_name(name):
         raise _Skip("unsafe")
     return {"key": key.strip("\\"), "name": name, "kind": value[0], "value": value[1]}
 
@@ -322,7 +338,7 @@ def _presentation_parts(presentations: dict[str, ET.Element]) -> tuple[dict[str,
 def _list_element(element: ET.Element, element_id: str, key: str, labels: dict[str, dict[str, str]],
                   taken: set[str]) -> dict[str, Any]:
     """A key with a variable number of values; the list box of the presentation has no default."""
-    if not safe_name(key):
+    if not safe_key(key):
         raise _Skip("unsafe")
     explicit = element.get("explicitValue") == "true"
     record: dict[str, Any] = {"param": _param_name(element_id, taken), "key": key.strip("\\"), "label": labels.get(element_id, {}),
@@ -348,7 +364,7 @@ def _element(element: ET.Element, key: str, labels: dict[str, dict[str, str]], c
     name = element.get("valueName")
     if not name:
         raise _Skip("novalue")
-    if not safe_name(elem_key) or not safe_name(name):
+    if not safe_key(elem_key) or not safe_name(name):
         raise _Skip("unsafe")
     control = controls.get(element_id)
     record: dict[str, Any] = {"param": _param_name(element_id, taken), "key": elem_key.strip("\\"), "name": name,
@@ -419,7 +435,7 @@ def _element(element: ET.Element, key: str, labels: dict[str, dict[str, str]], c
 
 def _policy(policy: ET.Element, stem: str, namespace: str, prefixes: dict[str, str], langs: _Languages) -> dict[str, Any]:
     key = policy.get("key") or ""
-    if not safe_name(key):
+    if not safe_key(key):
         raise _Skip("unsafe")
     value_name = policy.get("valueName") or ""
     labels, controls = _presentation_parts(langs.presentation(policy.get("presentation"), stem))
@@ -520,7 +536,7 @@ def read_templates(folder: Path, codes: Iterable[str], *, progress: Callable[[in
         if not more:
             break
         used |= more
-    return {
+    data = {
         "format": FORMAT_VERSION,
         "cultures": cultures,
         "files": len(parsed),
@@ -529,6 +545,8 @@ def read_templates(folder: Path, codes: Iterable[str], *, progress: Callable[[in
         "skipped": skipped,
         "problems": problems,
     }
+    conform(data)  # a policy the record check would refuse is skipped here, so one odd policy never stops an import
+    return data
 
 
 # --------------------------------------------------------------------------- store
@@ -548,6 +566,28 @@ class ImportInfo:
 
 
 MAX_NAME = 120
+# The source of an import is the first word of its id. When two imports hold the same policy, the rule comes from the
+# most trusted source: the catalogs that ship with the program, then the templates of this Windows, then a folder of
+# templates, then a catalog file (core/package.py); the other trees show it as an alias with the same check mark.
+def trust_order(import_ids: Iterable[str]) -> list[str]:
+    """The ids in the order their rules are made: by source (IMPORT_KINDS of core/catalog.py), then as given."""
+    ids = list(dict.fromkeys(import_ids))
+    position = {import_id: index for index, import_id in enumerate(ids)}
+    return sorted(ids, key=lambda i: (import_rank(import_kind(i)), position[i]))
+
+
+def check_name(name: str) -> str:
+    """The name of an import (the title of its tree) with single spaces; AdmxError when it cannot be one."""
+    name = " ".join(str(name).split())
+    if not name or len(name) > MAX_NAME or set(name) & set(_CONTROL):
+        raise AdmxError(f"bad name {jsonfile.short(name)}")
+    return name
+
+
+def fit_name(name: str) -> str:
+    """A name made by the program (a folder name and a date, or a name saved by an older version) cut to MAX_NAME."""
+    name = " ".join(str(name).replace(chr(0), " ").split())
+    return check_name(name if len(name) <= MAX_NAME else name[:MAX_NAME - 3].rstrip() + "...")
 
 
 def system_folder() -> Path:
@@ -598,36 +638,73 @@ def save_import(admx_root: Path, folder: Path, data: dict[str, Any], *, system: 
     import_id = replace.id if replace is not None else new_import_id(admx_root, kind, now)
     windows = platform.version() if system else ""
     label = f"PolicyDefinitions {windows}" if system and windows else folder.name or str(folder)
-    name = replace.name if replace is not None and replace.renamed else f"{label}, {now:%Y-%m-%d %H:%M}"
-    info = ImportInfo(import_id, name, str(folder), now.isoformat(timespec="seconds"), windows, tuple(data.get("cultures", [])),
-                      len(data.get("policies", [])), len(data.get("skipped", [])), replace is not None and replace.renamed)
+    stamp = f", {now:%Y-%m-%d %H:%M}"
+    if len(label) + len(stamp) > MAX_NAME:  # a long folder name: the date stays, the folder name is cut
+        label = label[:MAX_NAME - len(stamp) - 3].rstrip() + "..."
+    return store_import(admx_root, import_id, str(folder), data, label + stamp, windows, now=now, replace=replace)
+
+
+def store_import(admx_root: Path, import_id: str, source: str, data: dict[str, Any], name: str, windows: str, *,
+                 now: datetime | None = None, replace: ImportInfo | None = None) -> ImportInfo:
+    """Keep checked records as admx_root/<import_id>/ (policies.json and import.json). With replace, that import is
+    updated in place, and a name the user gave it is kept."""
+    check_templates(data)
+    now = now or datetime.now()
+    renamed = replace is not None and replace.renamed
+    info = ImportInfo(import_id, replace.name if renamed else check_name(name), source, now.isoformat(timespec="seconds"),
+                      windows, tuple(data.get("cultures", [])), len(data.get("policies", [])), len(data.get("skipped", [])),
+                      renamed)
+    records = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    meta = _meta(info, int(data.get("files", 0)))
+    records.encode("utf-8"), meta.encode("utf-8")  # a text that cannot be written fails before the folder is made
     target = admx_root / import_id
-    target.mkdir(parents=True, exist_ok=replace is not None)
-    _write_file(target / DATA_FILE, json.dumps(data, ensure_ascii=False, separators=(",", ":")))
-    _write_file(target / META_FILE, _meta(info, int(data.get("files", 0))))
-    log.info("templates imported from %s as %s%s: %d policies, %d skipped", folder, import_id,
+    target.mkdir(parents=True, exist_ok=replace is not None or import_kind(import_id) == "bundled")
+    _write_file(target / DATA_FILE, records)
+    _write_file(target / META_FILE, meta)
+    log.info("templates imported from %s as %s%s: %d policies, %d skipped", source, import_id,
              " (updated)" if replace is not None else "", info.policies, info.skipped)
     return info
 
 
 def rename_import(admx_root: Path, import_id: str, name: str) -> ImportInfo:
     """Give an import a name of the user's choice (the title of its tree)."""
-    name = " ".join(name.split())
-    if not name or len(name) > MAX_NAME or set(name) & set(_CONTROL):
-        raise AdmxError(f"bad name {name!r}")
+    name = check_name(name)
     info, data = load_import(admx_root, import_id)
     renamed = ImportInfo(info.id, name, info.folder, info.created, info.windows, info.cultures, info.policies, info.skipped, True)
     _write_file(admx_root / import_id / META_FILE, _meta(renamed, int(data.get("files", 0))))
     return renamed
 
 
-def _info(meta: dict[str, Any]) -> ImportInfo:
-    import_id = str(meta.get("id", ""))
-    if int(meta.get("format", 0)) not in READ_FORMATS or not IMPORT_ID_RE.match(import_id):
-        raise AdmxError(f"unsupported import {import_id!r}")
-    return ImportInfo(import_id, str(meta.get("name", import_id)), str(meta.get("folder", "")), str(meta.get("created", "")),
-                      str(meta.get("windows", "")), tuple(str(c) for c in meta.get("cultures", [])),
-                      int(meta.get("policies", 0)), int(meta.get("skipped", 0)), meta.get("renamed") is True)
+MAX_META_BYTES = 64 * 1024
+MAX_RECORDS_BYTES = 64 * 1024 * 1024
+
+
+def _info(meta: Any) -> ImportInfo:
+    """The description of an import from its import.json; AdmxError unless every field has the type it should."""
+    if not isinstance(meta, dict):
+        raise AdmxError("import.json must hold an object")
+    import_id = meta.get("id", "")
+    fmt = meta.get("format", 0)
+    if not isinstance(import_id, str) or not IMPORT_ID_RE.match(import_id) or fmt not in READ_FORMATS or isinstance(fmt, bool):
+        raise AdmxError(f"unsupported import {jsonfile.short(import_id)}")
+    texts = {key: meta.get(key, default) for key, default in
+             (("name", import_id), ("folder", ""), ("created", ""), ("windows", ""))}
+    counts = {key: meta.get(key, 0) for key in ("policies", "skipped", "files")}
+    cultures = meta.get("cultures", [])
+    if (not all(isinstance(v, str) and len(v) <= 4096 for v in texts.values())
+            or not all(isinstance(v, int) and not isinstance(v, bool) and v >= 0 for v in counts.values())
+            or not isinstance(cultures, list) or not all(isinstance(c, str) and len(c) <= 40 for c in cultures)
+            or not isinstance(meta.get("renamed", False), bool)):
+        raise AdmxError(f"{import_id}: import.json has a field of the wrong type")
+    return ImportInfo(import_id, texts["name"], texts["folder"], texts["created"], texts["windows"], tuple(cultures),
+                      counts["policies"], counts["skipped"], meta.get("renamed") is True)
+
+
+def _read_meta(folder: Path) -> ImportInfo:
+    try:
+        return _info(jsonfile.read(folder / META_FILE, file_limit=MAX_META_BYTES, json_limit=MAX_META_BYTES))
+    except jsonfile.JsonFileError as exc:
+        raise AdmxError(f"{folder.name}: import.json: {exc}") from exc
 
 
 def list_imports(admx_root: Path) -> list[ImportInfo]:
@@ -640,10 +717,10 @@ def list_imports(admx_root: Path) -> list[ImportInfo]:
         if not (folder.is_dir() and IMPORT_ID_RE.match(folder.name) and meta_path.is_file()):
             continue
         try:
-            info = _info(json.loads(meta_path.read_text(encoding="utf-8")))
+            info = _read_meta(folder)
             if info.id == folder.name:
                 found.append(info)
-        except (OSError, ValueError) as exc:
+        except AdmxError as exc:
             log.warning("import %s skipped: %s", folder.name, exc)
     return sorted(found, key=lambda i: (i.created, i.id))
 
@@ -652,13 +729,15 @@ def load_import(admx_root: Path, import_id: str) -> tuple[ImportInfo, dict[str, 
     if not IMPORT_ID_RE.match(import_id):
         raise AdmxError(f"bad import id {import_id!r}")
     folder = admx_root / import_id
-    try:
-        info = _info(json.loads((folder / META_FILE).read_text(encoding="utf-8")))
-        data = json.loads((folder / DATA_FILE).read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:
+    info = _read_meta(folder)
+    if info.id != import_id:  # the kind of an import and its group ids come from its folder, never from a file in it
+        raise AdmxError(f"{import_id}: import.json names another import ({jsonfile.short(info.id)})")
+    try:  # the folder is writable by anyone who can change the program folder: read and check it like a package
+        data = jsonfile.read(folder / DATA_FILE, file_limit=MAX_RECORDS_BYTES, json_limit=MAX_RECORDS_BYTES, nulls=True)
+        conform(data)  # an import of an older version may hold a policy the parser now skips; it checks each policy
+        check_templates(data, policies=False)  # so only the sections are checked again
+    except (jsonfile.JsonFileError, AdmxError) as exc:
         raise AdmxError(f"{import_id}: {exc}") from exc
-    if not isinstance(data, dict) or not isinstance(data.get("policies"), list):
-        raise AdmxError(f"{import_id}: no policies")
     return info, data
 
 
@@ -670,6 +749,350 @@ def delete_import(admx_root: Path, import_id: str) -> None:
     if folder.parent != admx_root.resolve() or not (folder / META_FILE).is_file():
         raise AdmxError(f"{import_id}: not an import folder")
     shutil.rmtree(folder)
+
+
+# --------------------------------------------------------------------------- checking stored records
+
+# A saved import and a catalog package (core/package.py) are read back without the template parser, so their records
+# are checked against what the parser produces: the same safe keys, names and values, the same kinds and ranges, known
+# fields only and size limits. The keys of the registry are not limited to the policy branches: the templates of
+# Windows themselves write elsewhere too (System\CurrentControlSet, Software\Microsoft).
+MAX_POLICIES = 20000
+MAX_ELEMENTS = 100
+MAX_WRITES = 1000
+MAX_OPTIONS = 1000
+MAX_TEXT = 65536
+MAX_TEXTS = 32
+_CULTURE_RE = re.compile(r"^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{1,8}){0,4}$")
+MAX_CATEGORY_DEPTH = 32  # categories in a chain of parents; the templates of Windows nest a few levels
+_PARAM_RE = re.compile(r"^[a-z_][a-z0-9_]{0,255}$")
+_TEXT_CONTROL = set(_CONTROL) - set("\r\n\t")
+WRITE_KINDS = ("DWord", "QWord", "String", "delete")
+POLICY_CLASSES = ("Machine", "User", "Both")
+_DATA_KEYS = {"format", "cultures", "files", "categories", "policies", "skipped", "problems"}
+_POLICY_KEYS = {"file", "namespace", "name", "class", "category", "supported", "title", "explain", "enabled", "disabled",
+                "elements"}
+_ELEMENT_KEYS: dict[str, set[str]] = {  # by element kind; "label" and "id" are common
+    "list": {"param", "key", "label", "id", "element", "type", "kind", "default", "required", "explicit", "additive", "prefix"},
+    "multiText": {"param", "key", "name", "label", "id", "element", "type", "kind", "default", "required"},
+    "int": {"param", "key", "name", "label", "id", "type", "kind", "min", "max", "default"},
+    "string": {"param", "key", "name", "label", "id", "type", "kind", "default", "required"},
+    "bool": {"param", "key", "name", "label", "id", "type", "kind", "default"},
+    "enum": {"param", "key", "name", "label", "id", "type", "kind", "values", "default"},
+}
+
+
+class _Bad(Exception):
+    pass
+
+
+def _need(condition: bool, where: str, what: str) -> None:
+    if not condition:
+        raise _Bad(f"{where}: {what}")
+
+
+def _check_text(value: Any, where: str, limit: int = MAX_TEXT) -> None:
+    _need(isinstance(value, str) and len(value) <= limit and not (set(value) & _TEXT_CONTROL), where,
+          f"a text of at most {limit} characters without control characters")
+
+
+def _check_texts(value: Any, where: str) -> None:
+    _need(isinstance(value, dict) and len(value) <= MAX_TEXTS, where, "texts by culture")
+    for culture, text in value.items():
+        _need(bool(_CULTURE_RE.match(culture)), where, f"bad culture {jsonfile.short(culture)}")
+        _check_text(text, f"{where}.{culture}")
+
+
+def _check_int(value: Any, low: int, high: int, where: str) -> None:
+    _need(isinstance(value, int) and not isinstance(value, bool) and low <= value <= high, where,
+          f"an integer from {low} to {high}")
+
+
+def _check_flag(value: Any, where: str) -> None:
+    _need(isinstance(value, bool), where, "true or false")
+
+
+def _check_key(value: Any, where: str) -> None:
+    _need(isinstance(value, str) and safe_key(value) and value == value.strip("\\"), where,
+          "a registry key without unsafe characters")
+
+
+def _check_name(value: Any, where: str) -> None:
+    _need(isinstance(value, str) and safe_name(value), where, "a value name without unsafe characters")
+
+
+def _check_value(kind: str, value: Any, where: str) -> None:
+    if kind == "DWord":
+        _check_int(value, 0, MAX_DWORD, where)
+    elif kind == "QWord":
+        _check_int(value, 0, MAX_QWORD, where)
+    elif kind == "delete":
+        _need(value is None, where, "null for a deleted value")
+    else:
+        _need(isinstance(value, str) and safe_value(value), where, "a string without unsafe characters")
+
+
+def _check_write(write: Any, where: str) -> None:
+    _need(isinstance(write, dict) and set(write) == {"key", "name", "kind", "value"}, where,
+          "an object with key, name, kind and value")
+    _check_key(write["key"], f"{where}.key")
+    _check_name(write["name"], f"{where}.name")
+    _need(write["kind"] in WRITE_KINDS, f"{where}.kind", f"one of {WRITE_KINDS}")
+    _check_value(write["kind"], write["value"], f"{where}.value")
+
+
+def _check_strings(value: Any, where: str) -> None:
+    _need(isinstance(value, list) and len(value) <= MAX_OPTIONS, where, "a list of strings")
+    for index, item in enumerate(value):
+        _need(isinstance(item, str) and safe_value(item), f"{where}[{index}]", "a string without unsafe characters")
+
+
+def _check_element(element: Any, where: str, params: set[str]) -> None:
+    _need(isinstance(element, dict), where, "an object")
+    kind = element.get("element") or element.get("type")
+    _need(isinstance(kind, str) and kind in _ELEMENT_KEYS, where, f"unknown element {jsonfile.short(kind)}")
+    allowed = _ELEMENT_KEYS[kind]
+    required = allowed - {"prefix"}
+    _need(required <= set(element) <= allowed, where, f"the fields {sorted(required)}")
+    param = element["param"]
+    _need(isinstance(param, str) and bool(_PARAM_RE.match(param)) and param != "state" and param not in params,
+          f"{where}.param", "a unique parameter name")
+    params.add(param)
+    _check_key(element["key"], f"{where}.key")
+    _check_texts(element["label"], f"{where}.label")
+    _check_text(element["id"], f"{where}.id", 512)
+    if "name" in allowed:
+        _check_name(element["name"], f"{where}.name")
+    etype, ekind, default = element["type"], element["kind"], element["default"]
+    if kind == "list":
+        _need((element["element"], etype) == ("list", "list") and ekind in ("String", "ExpandString"), where, "a list element")
+        _check_strings(default, f"{where}.default")
+        for flag in ("required", "explicit", "additive"):
+            _check_flag(element[flag], f"{where}.{flag}")
+        if "prefix" in element:
+            prefix = element["prefix"]
+            _need(isinstance(prefix, str) and (prefix == "" or safe_name(prefix)) and not element["explicit"],
+                  f"{where}.prefix", "a safe prefix, not with explicit names")
+    elif kind == "multiText":
+        _need((element["element"], etype, ekind) == ("multiText", "list", "MultiString"), where, "a multiText element")
+        _check_strings(default, f"{where}.default")
+        _check_flag(element["required"], f"{where}.required")
+    elif kind == "int":
+        _need(ekind in ("DWord", "QWord", "String"), f"{where}.kind", "DWord, QWord or String")
+        limit = MAX_DWORD if ekind == "DWord" else MAX_QWORD
+        _check_int(element["min"], 0, limit, f"{where}.min")
+        _check_int(element["max"], element["min"], limit, f"{where}.max")
+        _check_int(default, element["min"], element["max"], f"{where}.default")
+    elif kind == "string":
+        _need(ekind in ("String", "ExpandString"), f"{where}.kind", "String or ExpandString")
+        _need(isinstance(default, str) and safe_value(default), f"{where}.default", "a string without unsafe characters")
+        _check_flag(element["required"], f"{where}.required")
+    elif kind == "bool":
+        _need(ekind == "DWord", f"{where}.kind", "DWord")
+        _check_flag(default, f"{where}.default")
+    else:  # enum: [value, texts] pairs, texts null for the two states of a check box with its own values
+        _need(ekind in ("DWord", "QWord", "String"), f"{where}.kind", "DWord, QWord or String")
+        values = element["values"]
+        _need(isinstance(values, list) and 0 < len(values) <= MAX_OPTIONS, f"{where}.values", "a list of options")
+        seen: set[str] = set()
+        for index, option in enumerate(values):
+            _need(isinstance(option, list) and len(option) == 2, f"{where}.values[{index}]", "a pair [value, texts]")
+            _check_value(ekind, option[0], f"{where}.values[{index}]")
+            if option[1] is not None:
+                _check_texts(option[1], f"{where}.values[{index}]")
+            _need(repr(option[0]) not in seen, f"{where}.values[{index}]", "a value given once")
+            seen.add(repr(option[0]))
+        _need(repr(default) in seen and not isinstance(default, bool), f"{where}.default", "one of the values")
+
+
+def _check_policy(policy: Any, where: str) -> None:
+    _need(isinstance(policy, dict) and set(policy) == _POLICY_KEYS, where, f"an object with the fields {sorted(_POLICY_KEYS)}")
+    file = policy["file"]
+    _need(isinstance(file, str) and file.lower().endswith(".admx") and len(file) <= 260
+          and not (set(file) & set('\\/:*?"<>|' + _CONTROL)), f"{where}.file", "the name of an .admx file")
+    for key in ("namespace", "name"):
+        _check_text(policy[key], f"{where}.{key}", 512)
+        _need(bool(policy[key].strip()), f"{where}.{key}", "not empty")
+    _need(policy["class"] in POLICY_CLASSES, f"{where}.class", f"one of {POLICY_CLASSES}")
+    _check_text(policy["category"], f"{where}.category", 1024)
+    for key in ("supported", "title", "explain"):
+        _check_texts(policy[key], f"{where}.{key}")
+    for key in ("enabled", "disabled"):
+        _need(isinstance(policy[key], list) and len(policy[key]) <= MAX_WRITES, f"{where}.{key}", "a list of writes")
+        for index, write in enumerate(policy[key]):
+            _check_write(write, f"{where}.{key}[{index}]")
+    _need(isinstance(policy["elements"], list) and len(policy["elements"]) <= MAX_ELEMENTS, f"{where}.elements",
+          "a list of elements")
+    params: set[str] = set()
+    for index, element in enumerate(policy["elements"]):
+        _check_element(element, f"{where}.elements[{index}]", params)
+    _need(bool(policy["enabled"] or policy["elements"]), where, "nothing to write")
+
+
+def check_templates(data: Any, *, policies: bool = True) -> None:
+    """Raise AdmxError when the records of a saved import or a package are not what the template parser writes.
+    policies=False leaves out the check of each policy, for records that conform() has just checked one by one."""
+    check_each = policies
+    try:
+        _need(isinstance(data, dict) and "policies" in data and set(data) <= _DATA_KEYS, "templates",
+              f"an object with the fields {sorted(_DATA_KEYS)}")
+        _check_int(data.get("format", FORMAT_VERSION), min(READ_FORMATS), max(READ_FORMATS), "templates.format")
+        cultures = data.get("cultures", [])
+        _need(isinstance(cultures, list) and len(cultures) <= MAX_TEXTS
+              and all(isinstance(c, str) and _CULTURE_RE.match(c) for c in cultures), "templates.cultures", "culture names")
+        _check_int(data.get("files", 0), 0, MAX_FILES, "templates.files")
+        categories = data.get("categories", {})
+        _need(isinstance(categories, dict) and len(categories) <= MAX_POLICIES, "templates.categories", "an object")
+        for key, category in categories.items():
+            where = f"category {jsonfile.short(key)}"
+            _check_text(key, where, 1024)
+            _need(isinstance(category, dict) and set(category) == {"title", "parent"}, where, "title and parent")
+            _check_texts(category["title"], f"{where}.title")
+            _check_text(category["parent"], f"{where}.parent", 1024)
+        for key in categories:
+            _need(_chain_fits(categories, key), f"category {jsonfile.short(key)}",
+                  f"a chain of parent categories of at most {MAX_CATEGORY_DEPTH} levels, without a cycle")
+        policies = data["policies"]
+        _need(isinstance(policies, list) and len(policies) <= MAX_POLICIES, "templates.policies",
+              f"a list of at most {MAX_POLICIES} policies")
+        for index, policy in enumerate(data["policies"] if check_each else ()):
+            _check_policy(policy, _policy_where(index, policy))
+        skipped = data.get("skipped", [])
+        _need(isinstance(skipped, list) and len(skipped) <= MAX_POLICIES, "templates.skipped", "a list")
+        for index, item in enumerate(skipped):
+            _need(isinstance(item, dict) and set(item) == {"file", "policy", "reason"}, f"skipped[{index}]",
+                  "file, policy and reason")
+            for key in ("file", "policy", "reason"):
+                _check_text(item[key], f"skipped[{index}].{key}", 512)
+        problems = data.get("problems", [])
+        _need(isinstance(problems, list) and len(problems) <= MAX_POLICIES, "templates.problems", "a list")
+        for index, problem in enumerate(problems):
+            _check_text(problem, f"problems[{index}]", 4096)
+    except _Bad as exc:
+        raise AdmxError(str(exc)) from None
+    except (TypeError, KeyError, AttributeError, ValueError, RecursionError) as exc:  # a shape no check above foresaw
+        raise AdmxError(f"templates: a record of an unexpected shape ({type(exc).__name__})") from None
+
+
+def _policy_where(index: int, policy: Any) -> str:
+    name = policy.get("name") if isinstance(policy, dict) else None
+    return f"policy {index}" + (f" ({name[:80]})" if isinstance(name, str) else "")
+
+
+def _chain_fits(categories: dict[str, Any], key: str) -> bool:
+    """The chain of parents of one category is at most MAX_CATEGORY_DEPTH long and has no cycle."""
+    seen: set[str] = set()
+    current = key
+    while current in categories:
+        if current in seen or len(seen) >= MAX_CATEGORY_DEPTH:
+            return False
+        seen.add(current)
+        parent = categories[current].get("parent") if isinstance(categories[current], dict) else ""
+        current = parent if isinstance(parent, str) else ""
+    return True
+
+
+# a quote, a drive or two slashes, anything up to the closing quote of the same kind: one pass, never backtracking
+_QUOTED_PATH = re.compile(r"'((?:[A-Za-z]:|[\\/]{2})[^']*)'|\"((?:[A-Za-z]:|[\\/]{2})[^\"]*)\"")
+
+
+def without_paths(text: str) -> str:
+    """A message with the quoted paths of this computer reduced to their file names ('C:\\...\\a.adml' to 'a.adml'):
+    the problems of an import made by an older version may carry them, and an exported catalog file travels."""
+    def file_name(match: re.Match[str]) -> str:
+        quote = "'" if match.group(1) is not None else '"'
+        path = match.group(1) if match.group(1) is not None else match.group(2)
+        return quote + re.split(r"[\\/]+", path.rstrip("\\/"))[-1] + quote
+
+    return _QUOTED_PATH.sub(file_name, text)
+
+
+def _clean_text(value: Any, limit: int) -> str:
+    text = value if isinstance(value, str) else ""
+    text = "".join(" " if ch in _TEXT_CONTROL else ch for ch in text) if set(text) & _TEXT_CONTROL else text
+    return text[:limit]
+
+
+def _clean_texts(value: Any) -> dict[str, str]:
+    """Texts by culture as the check expects them: culture names only, no control characters, cut to MAX_TEXT."""
+    if not isinstance(value, dict):
+        return {}
+    out = {culture: _clean_text(text, MAX_TEXT) for culture, text in value.items()
+           if isinstance(culture, str) and _CULTURE_RE.match(culture) and isinstance(text, str)}
+    return dict(list(out.items())[:MAX_TEXTS])
+
+
+def _clean_policy_texts(policy: dict[str, Any]) -> None:
+    for key in ("supported", "title", "explain"):
+        if key in policy:
+            policy[key] = _clean_texts(policy[key])
+    for element in policy.get("elements", []) if isinstance(policy.get("elements"), list) else []:
+        if not isinstance(element, dict):
+            continue
+        if "label" in element:
+            element["label"] = _clean_texts(element["label"])
+        if isinstance(element.get("id"), str):
+            element["id"] = _clean_text(element["id"], 512)
+        for option in element.get("values", []) if isinstance(element.get("values"), list) else []:
+            if isinstance(option, list) and len(option) == 2 and option[1] is not None:
+                option[1] = _clean_texts(option[1])
+
+
+def conform(data: Any) -> int:
+    """Bring the records of the template parser, or of an import saved by an older version, into the shape that
+    check_templates accepts, in place: texts lose control characters and cultures that are not culture names, a chain
+    of categories that is too deep or a cycle is cut, paths in problems become file names, and every policy the check
+    would refuse becomes a skipped policy (reason "unsafe" or "broken") instead of refusing the whole import. Returns
+    the number of policies moved to skipped. A catalog file is never conformed: it is refused as it is."""
+    if not isinstance(data, dict) or not isinstance(data.get("policies"), list):
+        raise AdmxError("templates: no list of policies")
+    for key in [k for k in data if k not in _DATA_KEYS]:
+        del data[key]
+    fmt = data.get("format", FORMAT_VERSION)
+    data["format"] = fmt if isinstance(fmt, int) and not isinstance(fmt, bool) and fmt in READ_FORMATS else FORMAT_VERSION
+    cultures = data.get("cultures", [])
+    data["cultures"] = ([c for c in cultures if isinstance(c, str) and _CULTURE_RE.match(c)][:MAX_TEXTS]
+                        if isinstance(cultures, list) else [])
+    files = data.get("files", 0)
+    data["files"] = files if isinstance(files, int) and not isinstance(files, bool) and 0 <= files <= MAX_FILES else 0
+    categories: dict[str, dict[str, Any]] = {}
+    raw_categories = data.get("categories", {})
+    for key, category in (raw_categories.items() if isinstance(raw_categories, dict) else ()):
+        if not (isinstance(key, str) and key == _clean_text(key, 1024) and isinstance(category, dict)):
+            continue
+        parent = category.get("parent", "")
+        categories[key] = {"title": _clean_texts(category.get("title")),
+                           "parent": parent if isinstance(parent, str) and parent == _clean_text(parent, 1024) else ""}
+        if len(categories) >= MAX_POLICIES:
+            break
+    for key in categories:  # one pass is enough: cutting a parent only shortens the chains of later categories
+        if not _chain_fits(categories, key):
+            categories[key]["parent"] = ""
+    data["categories"] = categories
+    skipped = [{field: _clean_text(item.get(field, ""), 512) for field in ("file", "policy", "reason")}
+               for item in (data.get("skipped") if isinstance(data.get("skipped"), list) else []) if isinstance(item, dict)]
+    kept: list[dict[str, Any]] = []
+    for index, policy in enumerate(data["policies"]):
+        if isinstance(policy, dict):
+            _clean_policy_texts(policy)
+        try:
+            _need(len(kept) < MAX_POLICIES, "templates.policies", f"at most {MAX_POLICIES} policies")
+            _check_policy(policy, _policy_where(index, policy))
+        except (_Bad, TypeError, KeyError, AttributeError, ValueError) as exc:
+            reason = "unsafe" if "unsafe" in str(exc) else "broken"
+            name = policy.get("name") if isinstance(policy, dict) else ""
+            file = policy.get("file") if isinstance(policy, dict) else ""
+            skipped.append({"file": _clean_text(file, 512), "policy": _clean_text(name, 512), "reason": reason})
+            log.info("policy %s skipped: %s", _clean_text(name, 80), str(exc)[:200])
+            continue
+        kept.append(policy)
+    moved = len(data["policies"]) - len(kept)
+    data["policies"] = kept
+    data["skipped"] = skipped[:MAX_POLICIES]
+    problems = data.get("problems", [])
+    data["problems"] = [_clean_text(without_paths(str(problem)[:4096]), 4096)
+                        for problem in (problems if isinstance(problems, list) else [])[:MAX_POLICIES]]
+    return moved
 
 
 # --------------------------------------------------------------------------- policy records to rules
@@ -685,6 +1108,9 @@ def _action(write: dict[str, Any], prefix: str, rule_id: str, value: Any = None)
     path = prefix + str(write["key"])
     if write["kind"] == "delete":
         return Action("reg-remove", {"path": path, "name": write["name"]}, rule_id)
+    if value is None and isinstance(write["value"], str):  # a fixed text of the template: "{id}" in it is text, never a
+        return Action("reg", {"path": path, "name": write["name"], "kind": write["kind"], "value": write["value"],  # parameter
+                              "literal": True}, rule_id)
     return Action("reg", {"path": path, "name": write["name"], "kind": write["kind"],
                           "value": write["value"] if value is None else value}, rule_id)
 
@@ -787,23 +1213,44 @@ def policy_rules(policy: dict[str, Any], rule_id: str, group: str, language: str
     ]
 
 
+def _rule_ids(policies: list[dict[str, Any]]) -> list[str]:
+    """The rule id of every policy (by position): the namespace and the name. Two policies with the same id are
+    numbered (base, base-2, ...) in the order of their English titles, then of their position, so the ids never
+    depend on the interface language; an id is never the "<id>.off" of another policy's Disabled state. Linear in the number of
+    policies. Profiles keep these ids, so they fit any import of the same templates."""
+    # 1.2 numbered by the title in the interface language; the English title keeps the ids of English users and never
+    # changes with the language (no template of Windows has two policies with one id, so their ids are the same anyway)
+    titles = [(pick(p.get("title"), "en") or str(p.get("name", ""))).lower() for p in policies]
+    order = sorted(range(len(policies)), key=lambda i: (titles[i], i))
+    reserved: set[str] = set()
+    counters: dict[str, int] = {}
+    ids = [""] * len(policies)
+    for i in order:
+        base = f"{IMPORTED_PREFIX}{_id_part(policies[i]['namespace'], True)}.{_id_part(policies[i]['name'], False)}"
+        index = counters.get(base, 1)
+        rule_id = base if index == 1 else f"{base}-{index}"
+        while rule_id in reserved or rule_id + ".off" in reserved:
+            index += 1
+            rule_id = f"{base}-{index}"
+        counters[base] = index
+        reserved.update((rule_id, rule_id + ".off"))
+        ids[i] = rule_id
+    return ids
+
+
 def _named_policies(data: dict[str, Any], language: str) -> Iterator[tuple[dict[str, Any], str]]:
-    """The policies of an import with the ids of their rules: the namespace and the name, numbered when two policies
-    get the same id. Profiles keep these ids, so they fit any import of the same templates."""
-    ids: set[str] = set()
-    ordered = sorted(data.get("policies", []), key=lambda p: (pick(p.get("title"), language) or p.get("name", "")).lower())
-    for policy in ordered:
-        base = f"{IMPORTED_PREFIX}{_id_part(policy['namespace'], True)}.{_id_part(policy['name'], False)}"
-        rule_id, index = base, 2
-        while rule_id in ids:
-            rule_id, index = f"{base}-{index}", index + 1
-        ids.add(rule_id)
-        yield policy, rule_id
+    """The policies of an import with the ids of their rules (_rule_ids), in the order of their titles in the
+    interface language (the order of the tree)."""
+    policies = data.get("policies", [])
+    ids = _rule_ids(policies)
+    titles = [(pick(p.get("title"), language) or p.get("name", "")).lower() for p in policies]
+    for i in sorted(range(len(policies)), key=lambda i: (titles[i], ids[i])):
+        yield policies[i], ids[i]
 
 
-def policy_ids(data: dict[str, Any], language: str) -> set[str]:
+def policy_ids(data: dict[str, Any], language: str = "en") -> set[str]:
     """The ids of the policies of an import, as their rules get them (without the "<id>.off" of a Disabled state)."""
-    return {rule_id for _, rule_id in _named_policies(data, language)}
+    return set(_rule_ids(data.get("policies", [])))
 
 
 def has_policy(ids: set[str], rule_id: str) -> bool:
@@ -830,25 +1277,32 @@ def catalog_part(info: ImportInfo, data: dict[str, Any], language: str, taken: s
     rank = {key: index for index, key in enumerate(sorted(titles, key=lambda k: (titles[k].lower(), k)))}
     number = {key: index for index, key in enumerate(sorted(categories))}
     part.groups[root] = Group(root, info.name, order, None, "", f"admx:{info.id}")
+    made: dict[tuple[str, str], str] = {}  # (side, category) -> group id, so a chain is walked once per category
 
     def group_for(side: str, category: str) -> str:
+        if (side, category) in made:
+            return made[(side, category)]
         side_id = f"{root}.{side}"
         if side_id not in part.groups:
             part.groups[side_id] = Group(side_id, tr(SIDE_TITLES[side]), 1 if side == "machine" else 2, root, "", f"admx:{info.id}")
         if category not in categories:
             other = f"{side_id}.none"
             part.groups.setdefault(other, Group(other, tr(NO_CATEGORY), 1_000_000, side_id, "", f"admx:{info.id}"))
+            made[(side, category)] = other
             return other
         chain: list[str] = []
+        seen: set[str] = set()
         current = category
-        while current in categories and current not in chain:
+        while current in categories and current not in seen and len(chain) < MAX_CATEGORY_DEPTH:
             chain.append(current)
+            seen.add(current)
             current = categories[current]["parent"]
         parent = side_id
         for key in reversed(chain):
             group_id = f"{side_id}.c{number[key]}"
             part.groups.setdefault(group_id, Group(group_id, titles[key], rank[key], parent, "", f"admx:{info.id}"))
             parent = group_id
+        made[(side, category)] = parent
         return parent
 
     for policy, rule_id in _named_policies(data, language):
@@ -865,13 +1319,19 @@ def catalog_part(info: ImportInfo, data: dict[str, Any], language: str, taken: s
         except (KeyError, TypeError, ValueError) as exc:
             log.warning("import %s: policy %s skipped: %s", info.id, policy.get("name"), exc)
             continue
+        if any(rule.id in taken for rule in rules):  # its Disabled rule would replace a rule of another import
+            log.warning("import %s: policy %s skipped: its rule id is taken by another import", info.id, policy.get("name"))
+            continue
         origin = RuleOrigin(info.id, info.name, info.folder, str(policy.get("file", "")), str(policy.get("name", "")))
         for rule in rules:
             part.rules[rule.id] = rule
             part.origins[rule.id] = origin
-    counts = tr("{0} policies as {1} rules; {2} skipped", info.policies, len(part.rules) + len(part.aliases), info.skipped)
+    # counted from the records: a policy that an older version kept and this one skips (conform) is among the skipped
+    counts = tr("{0} policies as {1} rules; {2} skipped", len(data.get("policies", [])), len(part.rules) + len(part.aliases),
+                len(data.get("skipped", [])))
     if part.shared:
-        counts += tr("; {0} of the policies are also in another imported tree loaded earlier, with one check mark for both",
+        counts += tr("; {0} of the policies come from another imported tree of a more trusted source or shown higher, "
+                     "with one check mark for both",
                      part.shared)
     older = sum(1 for item in data.get("skipped", []) if item.get("reason") in LEGACY_SKIPS)
     if older:
@@ -889,13 +1349,14 @@ def with_imports(base: Catalog, admx_root: Path, import_ids: Iterable[str], lang
     rules: dict[str, Rule] = {}
     origins: dict[str, RuleOrigin] = {}
     aliases: dict[str, list[str]] = {}
-    for index, import_id in enumerate(dict.fromkeys(import_ids)):
+    shown = list(dict.fromkeys(import_ids))  # the order of the trees
+    for import_id in trust_order(shown):  # the order in which they take the policies they share
         try:
             info, data = load_import(admx_root, import_id)
-        except AdmxError as exc:
-            problems.append(tr("Imported templates {0} were not loaded: {1}", import_id, exc))
+            part = catalog_part(info, data, language, set(base.rules) | set(rules), 10000 + shown.index(import_id))
+        except Exception as exc:  # noqa: BLE001 - a broken import is reported, the program starts without it
+            problems.append(tr("Imported templates {0} were not loaded: {1}", import_id, str(exc)[:500]))
             continue
-        part = catalog_part(info, data, language, set(base.rules) | set(rules), 10000 + index)
         groups.update(part.groups)
         rules.update(part.rules)
         origins.update(part.origins)

@@ -1,0 +1,69 @@
+{
+  "comment": ["Printing. Section 1 of the v0.2 machine script."],
+  "rules": [
+    {
+      "id": "printing.spooler-automatic",
+      "group": "printing",
+      "phase": "specialize",
+      "title": "Print Spooler starts automatically",
+      "level": "baseline",
+      "default": true,
+      "tags": ["printing", "spooler", "printer", "service"],
+      "doc": "docs/technical/reference/05-printing.md#ensureprintspooler",
+      "summary": "The Spooler service is set to automatic startup (registry and Set-Service); PrintNotify stays manual.",
+      "effect": "Printing works right after installation: USB and network printers, \"Print to PDF\". The service starts with Windows even if it was set to manual start before.",
+      "risk": "Print Spooler has historically been a source of vulnerabilities (PrintNightmare); this is mitigated by the rule that restricts driver installation to administrators and by the firewall.",
+      "versions": "No changes across versions. 24H2 has Windows Protected Print mode (WPP); it is not enabled because older printers require their own drivers.",
+      "verify": "Get-Service Spooler | Select-Object Status, StartType",
+      "rollback": "Set-Service Spooler -StartupType Manual",
+      "actions": [
+        {"type": "service", "name": "Spooler", "start": 2, "default": 2},
+        {"type": "service", "name": "PrintNotify", "start": 3, "default": 3},
+        {
+          "type": "ps",
+          "script": "try { Set-Service -Name Spooler -StartupType Automatic -ErrorAction Stop; Write-Log 'Spooler startup type = Automatic' 'OK' } catch { Write-Log \"Set-Service Spooler: $($_.Exception.Message)\" 'WARN' }\n"
+        }
+      ]
+    },
+    {
+      "id": "printing.point-and-print-admins",
+      "group": "printing",
+      "phase": "specialize",
+      "title": "Only administrators can install printer drivers",
+      "level": "recommended",
+      "default": true,
+      "tags": ["printing", "printnightmare", "point and print", "driver"],
+      "doc": "docs/technical/reference/05-printing.md#restrictprinterdriverinstalltoadmins",
+      "summary": "Point and Print policy: installing and updating printer drivers requires administrator rights and shows a warning.",
+      "effect": "A standard user cannot install a printer driver; drivers that are already installed and class drivers are available to everyone.",
+      "risk": "An administrator must connect a network printer that needs a new driver. While Admin has a blank password, the credential prompt in a user session will not succeed.",
+      "versions": "Windows default since August 2021 (KB5005652); the rule enforces it through policy.",
+      "verify": "Get-ItemProperty 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\\PointAndPrint' ",
+      "rollback": "RestrictDriverInstallationToAdministrators = 0 (reopens the PrintNightmare attack vector).",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\\PointAndPrint",
+          "name": "RestrictDriverInstallationToAdministrators",
+          "kind": "DWord",
+          "value": 1,
+          "why": "PrintNightmare"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\\PointAndPrint",
+          "name": "NoWarningNoElevationOnInstall",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\\PointAndPrint",
+          "name": "UpdatePromptSettings",
+          "kind": "DWord",
+          "value": 0
+        }
+      ]
+    }
+  ]
+}

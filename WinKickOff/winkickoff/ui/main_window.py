@@ -25,7 +25,7 @@ from tkinter import font as tkfont
 from typing import Any
 
 from winkickoff import APP_NAME, APP_VERSION
-from winkickoff.core.catalog import IMPORTED_PREFIX, Action, Catalog, Group, Param, Rule, is_imported
+from winkickoff.core.catalog import IMPORTED_PREFIX, Action, Catalog, Group, Param, Rule, import_kind, import_rank, is_imported
 from winkickoff.core.apply import (
     ApplyPlan,
     RevertPlan,
@@ -44,11 +44,12 @@ from winkickoff.core.apply import (
 from winkickoff.core import admx as admx_module
 from winkickoff.core import apply as apply_module
 from winkickoff.core import linked
+from winkickoff.core import package as package_module
 from winkickoff.core.deps import Change, Resolver
 from winkickoff.core.i18n import SOURCE_LANGUAGE, N_, available_languages, catalog_texts, language, tr
 from winkickoff.core.importer import IMPORTED_NAME, ImportFailed, import_xml
 from winkickoff.core.paths import AppPaths, display_path
-from winkickoff.core.profile import Profile
+from winkickoff.core.profile import LEGACY_SOURCE, Profile
 from winkickoff.core.pscheck import PsCheckResult, check_scripts
 from winkickoff.core.render import BuildResult, Renderer, RenderError, render_action, substitute, write_answer_file
 from winkickoff.core.resources import Resources
@@ -101,6 +102,12 @@ UNKNOWN_SUMMARY = N_("The open profile keeps choices for rules that the loaded c
 UNKNOWN_POLICY = N_("A policy of imported templates that are not loaded now. The profile keeps its state and parameters and "
                     "brings them back when the templates are shown or imported again (menu \"ADMX\"). Until then the policy "
                     "is not written to autounattend.xml, not checked and not applied to this PC.")
+UNKNOWN_HELD = N_("The choice was made with the source \"{0}\", and the policy now comes only from the less trusted source "
+                  "\"{1}\". The profile keeps the choice but does not use it, so a catalog file cannot take over a choice "
+                  "made in trusted templates. Show templates of that kind again to use it, or choose the policy again in "
+                  "its branch to use it from there.")
+KIND_TITLES = {"bundled": N_("a catalog of the program"), "system": N_("the templates of this Windows"),
+               "folder": N_("templates from a folder"), "package": N_("a catalog file")}
 UNKNOWN_RULE = N_("A rule that is not in rule catalog {0}: the profile was probably saved by another version of WinKickOff. "
                   "The profile keeps its state and parameters and brings them back when the catalog has the rule. Until "
                   "then the rule is not written to autounattend.xml, not checked and not applied to this PC.")
@@ -169,6 +176,11 @@ def _profile_name(path: Path) -> str:
     except (OSError, ValueError):
         return path.stem
 
+
+def error_text(exc: BaseException, limit: int = 1500) -> str:
+    """The text of an error for a message box, cut: a file can make an error message of any length."""
+    text = str(exc) or type(exc).__name__
+    return text if len(text) <= limit else text[:limit] + "..."
 
 class MainWindow(tk.Tk):
     MODE_TITLES = MODE_TITLES
@@ -466,9 +478,16 @@ class MainWindow(tk.Tk):
             self.config(menu=self.menu_bar)
 
     def _build_admx_menu(self, menu: tk.Menu) -> None:
-        """Imported policy templates (core/admx.py): import, show or hide the saved imports, delete them."""
+        """Imported policy templates (core/admx.py) and catalog files (core/package.py): import, show or hide the saved
+        imports, export, rename and delete them."""
         menu.add_command(label=tr("Import the templates of this Windows"), command=lambda: self.import_templates(True))
         menu.add_command(label=tr("Import templates from a folder..."), command=lambda: self.import_templates(False))
+        menu.add_command(label=tr("Import a catalog file..."), command=lambda: self.import_catalog_file())
+        bundled = package_module.bundled_catalogs(self.paths.catalogs)
+        shipped = tk.Menu(menu, tearoff=False)
+        for catalog in bundled:
+            shipped.add_command(label=catalog.label, command=lambda c=catalog: self.import_bundled_catalog(c))
+        menu.add_cascade(label=tr("Import a catalog of the program"), menu=shipped, state=tk.NORMAL if bundled else tk.DISABLED)
         menu.add_separator()
         imports = admx_module.list_imports(self.paths.admx)
         self.import_vars: dict[str, tk.BooleanVar] = {}
@@ -484,6 +503,10 @@ class MainWindow(tk.Tk):
         for info in imports:
             rename.add_command(label=info.name, command=lambda i=info.id, n=info.name: self.rename_templates(i, n))
         menu.add_cascade(label=tr("Rename imported templates"), menu=rename, state=tk.NORMAL if imports else tk.DISABLED)
+        export = tk.Menu(menu, tearoff=False)
+        for info in imports:
+            export.add_command(label=info.name, command=lambda i=info.id, n=info.name: self.export_templates(i, n))
+        menu.add_cascade(label=tr("Export imported templates"), menu=export, state=tk.NORMAL if imports else tk.DISABLED)
         delete = tk.Menu(menu, tearoff=False)
         for info in imports:
             delete.add_command(label=info.name, command=lambda i=info.id, n=info.name: self.delete_templates(i, n))
@@ -1090,12 +1113,29 @@ class MainWindow(tk.Tk):
         self._write_detail(parts)
         self._build_unknown_buttons(item, sources, missing)
 
+    def _held_source(self, rule_id: str) -> str | None:
+        """The kind a held choice was made in (core/profile.py: the policy is loaded, but from a less trusted
+        import), or None for a choice of a rule that is not loaded."""
+        if rule_id not in self.catalog.rules:
+            return None
+        entry = self.profile.unknown.get(rule_id)
+        source = entry.get("source") if isinstance(entry, dict) else None
+        return source if source in KIND_TITLES else LEGACY_SOURCE
+
     def _unknown_entry_parts(self, entry: tuple[str, bool, dict[str, Any]]) -> list[tuple[str, str]]:
         rule_id, enabled, params = entry
+        held = self._held_source(rule_id)
+        origin = self.catalog.origins.get(rule_id)
+        if held is not None and origin is not None:
+            status = tr("{0}   |   held: a less trusted source holds the policy now", tr("Enabled") if enabled else tr("Disabled"))
+            text = tr(UNKNOWN_HELD, tr(KIND_TITLES[held]), tr(KIND_TITLES.get(origin.kind, KIND_TITLES["package"])))
+        else:
+            status = tr("{0}   |   not in the loaded catalog", tr("Enabled") if enabled else tr("Disabled"))
+            text = tr(UNKNOWN_POLICY) if is_imported(rule_id) else tr(UNKNOWN_RULE, self.catalog.version)
         parts: list[tuple[str, str]] = [
             ("h1", rule_id),
-            ("muted", tr("{0}   |   not in the loaded catalog", tr("Enabled") if enabled else tr("Disabled"))),
-            ("", tr(UNKNOWN_POLICY) if is_imported(rule_id) else tr(UNKNOWN_RULE, self.catalog.version)),
+            ("muted", status),
+            ("", text),
             ("h2", tr("Kept in the profile")),
             ("", tr("State: {0}", tr("enabled") if enabled else tr("disabled"))),
         ]
@@ -1141,6 +1181,9 @@ class MainWindow(tk.Tk):
                 self._import_ids[info.id] = ids
             if admx_module.has_policy(ids, rule_id):
                 found.append(info)
+        held = self._held_source(rule_id)
+        if held is not None:  # only an import of that kind or a more trusted one brings a held choice back
+            found = [info for info in found if import_rank(import_kind(info.id)) <= import_rank(held)]
         return found
 
     def _unknown_sources(self, rule_ids: list[str]) -> tuple[list[tuple[admx_module.ImportInfo, int]], int]:
@@ -1171,7 +1214,8 @@ class MainWindow(tk.Tk):
             buttons.append((tr("Show \"{0}\"", info.name), lambda i=info.id, t=target: self.show_templates(i, True, t)))
         if missing:
             buttons += [(tr("Import the templates of this Windows"), lambda: self.import_templates(True)),
-                        (tr("Import templates from a folder..."), lambda: self.import_templates(False))]
+                        (tr("Import templates from a folder..."), lambda: self.import_templates(False)),
+                        (tr("Import a catalog file..."), lambda: self.import_catalog_file())]
         for text, command in buttons:
             ttk.Button(self.params_frame, text=text, command=command).pack(side=tk.LEFT, padx=(0, 6))
 
@@ -1746,8 +1790,8 @@ class MainWindow(tk.Tk):
             return None, issues
         try:
             result = self.renderer.build(self.profile, app_version=APP_VERSION)
-        except RenderError as exc:
-            return None, issues + [Issue("error", "build", tr("Cannot build: {0}", exc))]
+        except (RenderError, KeyError, ValueError, TypeError) as exc:  # never a silent failure of Check or Build
+            return None, issues + [Issue("error", "build", tr("Cannot build: {0}", error_text(exc, 500)))]
         issues += validate_xml(result.xml)
         if with_powershell and not has_errors(issues):
             issues += self._ps_issues(check_scripts(result.scripts, self.paths.logs / "tmp"))
@@ -1774,7 +1818,7 @@ class MainWindow(tk.Tk):
         return issues
 
     def check_catalog(self) -> list[Issue]:
-        """Re-read the rule files from disk and report defects (useful while editing the TOML)."""
+        """Re-read the rule files from disk and report defects (useful while editing the catalog JSON)."""
         catalog, issues = validate_catalog(self.paths.rules, self.paths.docs_root)
         if catalog is not None:
             issues.append(Issue("info", "catalog", tr("Catalog {0} is readable: {1} rules, {2} groups. Changes to catalog files take effect after the program is restarted.", catalog.version, len(catalog.rules), len(catalog.groups))))
@@ -2188,6 +2232,9 @@ class MainWindow(tk.Tk):
     def change_language(self, code: str) -> None:
         """Save the choice and rebuild the window in the new language; the open profile, its unsaved
         changes and the selected node survive (app.run creates the new window from restart_state)."""
+        if self._busy:  # a rebuild would drop the work of the background thread
+            self.language_var.set(self.settings.language)
+            return
         if code == self.settings.language:
             return
         self.settings.language = code
@@ -2197,6 +2244,9 @@ class MainWindow(tk.Tk):
 
     def change_theme(self, theme_id: str) -> None:
         """Save the choice and rebuild the window in the new colours, like a language change."""
+        if self._busy:
+            self.theme_var.set(self.settings.theme)
+            return
         if theme_id == self.settings.theme:
             return
         self.settings.theme = theme_id
@@ -2287,8 +2337,9 @@ class MainWindow(tk.Tk):
         data = outcome["data"]
         try:
             info = admx_module.save_import(self.paths.admx, folder, data, system=system, replace=replace)
-        except OSError as exc:
-            self._dialog(messagebox.showerror, APP_NAME, tr("The imported templates were not saved:\n{0}", exc), parent=self)
+        except (OSError, ValueError) as exc:  # ValueError: AdmxError of the record check, an encoding error
+            self._dialog(messagebox.showerror, APP_NAME, tr("The imported templates were not saved:\n{0}", error_text(exc)),
+                         parent=self)
             return
         issues = [Issue("info", "", tr("Not imported: {0} policies with {1}", count, reason)) for reason, count in admx_module.skip_summary(data)]
         issues += [Issue("warning", "", tr("Template file not read: {0}", problem)) for problem in data.get("problems", [])[:50]]
@@ -2298,15 +2349,106 @@ class MainWindow(tk.Tk):
             else tr("Imported templates \"{0}\": {1} policies, {2} skipped", info.name, info.policies, info.skipped)
         self._restart("g:" + IMPORTED_PREFIX + info.id, issues, text)
 
+    def import_catalog_file(self, path: Path | None = None) -> None:
+        """A catalog file (core/package.py: exported templates, plain or compressed), read and checked in a background
+        thread, kept in admx/ and shown as a new subtree like imported templates."""
+        if self._busy:
+            return
+        if path is None:
+            chosen = self._dialog(filedialog.askopenfilename, parent=self, title=tr("Import a catalog file"),
+                                  filetypes=[(tr("WinKickOff catalog"), "*.json *.json.gz *.json.xz"), (tr("All files"), "*.*")])
+            if not chosen:
+                return
+            path = Path(chosen)
+        replace = None
+        existing = package_module.find_package_imports(self.paths.admx, path)
+        if existing:
+            answer = self._dialog(messagebox.askyesnocancel, APP_NAME, tr(
+                "The catalog file {0} is already imported as \"{1}\".\n\n"
+                "Yes: update that import; its tree and the choices in profiles stay.\n"
+                "No: add one more tree; the policies it shares with the other are shown in both with one check mark.\n"
+                "Cancel: do not import.", path.name, existing[-1].name), parent=self)
+            if answer is None:
+                return
+            replace = existing[-1] if answer else None
+        self._read_catalog(path, lambda package: package_module.import_package(self.paths.admx, path, package, replace=replace),
+                           replace is not None)
+
+    def import_bundled_catalog(self, catalog: package_module.BundledCatalog) -> None:
+        """A catalog that ships with the program; importing it again updates the same tree."""
+        if self._busy:
+            return
+        updated = catalog.import_id in {info.id for info in admx_module.list_imports(self.paths.admx)}
+        self._read_catalog(catalog.path, lambda package: package_module.import_bundled(self.paths.admx, catalog, package),
+                           updated)
+
+    def _read_catalog(self, path: Path, store: Any, updated: bool) -> None:
+        outcome: dict[str, Any] = {}
+
+        def work() -> None:
+            try:
+                outcome["package"] = package_module.read_package(path)
+            except Exception as exc:  # noqa: BLE001 - reported to the user, never lost in the thread
+                outcome["error"] = exc
+
+        thread = threading.Thread(target=work, name="catalog", daemon=True)
+        self.set_busy(True, tr("Reading the catalog file {0}...", path.name))
+        thread.start()
+
+        def poll() -> None:
+            if thread.is_alive():
+                self.after(150, poll)
+                return
+            self.set_busy(False)
+            self.finish_catalog(outcome, store, updated)
+
+        self.after(150, poll)
+
+    def finish_catalog(self, outcome: dict[str, Any], store: Any, updated: bool) -> None:
+        if "error" in outcome:
+            self._dialog(messagebox.showerror, APP_NAME, tr("The catalog was not imported:\n{0}", error_text(outcome["error"])),
+                         parent=self)
+            return
+        try:
+            info = store(outcome["package"])
+        except (OSError, ValueError) as exc:
+            self._dialog(messagebox.showerror, APP_NAME, tr("The imported templates were not saved:\n{0}", error_text(exc)),
+                         parent=self)
+            return
+        issues = [Issue("info", "", tr("Not imported: {0} policies with {1}", count, reason))
+                  for reason, count in admx_module.skip_summary(outcome["package"].templates)]
+        self.settings.admx = [i for i in self.settings.admx if i != info.id] + [info.id]
+        self.save_settings()
+        text = tr("Catalog \"{0}\" updated: {1} policies, {2} skipped", info.name, info.policies, info.skipped) if updated \
+            else tr("Catalog \"{0}\" imported: {1} policies, {2} skipped", info.name, info.policies, info.skipped)
+        self._restart("g:" + IMPORTED_PREFIX + info.id, issues, text)
+
+    def export_templates(self, import_id: str, name: str) -> None:
+        """Write a saved import as a catalog file that another WinKickOff imports (menu ADMX)."""
+        chosen = self._dialog(filedialog.asksaveasfilename, parent=self, title=tr("Export imported templates"),
+                              defaultextension=".json", initialfile=package_module.package_id(name) + ".json",
+                              filetypes=[(tr("WinKickOff catalog"), "*.json")])
+        if not chosen:
+            return
+        try:
+            package_module.export_package(self.paths.admx, import_id, Path(chosen))
+        except (OSError, ValueError) as exc:
+            self._dialog(messagebox.showerror, APP_NAME, tr("The imported templates were not exported:\n{0}", error_text(exc)),
+                         parent=self)
+            return
+        self.set_status(tr("Imported templates \"{0}\" exported to {1}", name, chosen))
+
     def rename_templates(self, import_id: str, name: str) -> None:
         """A name of the user's choice for an imported tree; an update of the import keeps it."""
+        if self._busy:
+            return
         new = self._dialog(simpledialog.askstring, APP_NAME, tr("New name of the imported tree:"), initialvalue=name, parent=self)
         if new is None or " ".join(new.split()) == name:
             return
         try:
             info = admx_module.rename_import(self.paths.admx, import_id, new)
         except (OSError, admx_module.AdmxError) as exc:
-            self._dialog(messagebox.showerror, APP_NAME, tr("The name was not changed:\n{0}", exc), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("The name was not changed:\n{0}", error_text(exc)), parent=self)
             return
         shown = import_id in self.settings.admx
         self._restart("g:" + IMPORTED_PREFIX + import_id if shown else None, status=tr("Imported tree renamed: \"{0}\"", info.name))
@@ -2314,6 +2456,11 @@ class MainWindow(tk.Tk):
     def show_templates(self, import_id: str, shown: bool, item: str | None = None) -> None:
         """Show or hide a saved import; the choice is remembered for the next start. item: the node to open then
         (by default the shown tree)."""
+        if self._busy:  # a rebuild would drop the work of the background thread; the check box shows the setting again
+            var = getattr(self, "import_vars", {}).get(import_id)
+            if var is not None:
+                var.set(import_id in self.settings.admx)
+            return
         wanted = [i for i in self.settings.admx if i != import_id] + ([import_id] if shown else [])
         if wanted == self.settings.admx:
             return
@@ -2322,13 +2469,15 @@ class MainWindow(tk.Tk):
         self._restart(item or ("g:" + IMPORTED_PREFIX + import_id if shown else None))
 
     def delete_templates(self, import_id: str, name: str) -> None:
+        if self._busy:
+            return
         if not self._dialog(messagebox.askyesno, APP_NAME, tr("Delete the imported templates \"{0}\" from the program folder? Profiles "
                                                 "keep the choices made in them.", name), parent=self):
             return
         try:
             admx_module.delete_import(self.paths.admx, import_id)
         except (OSError, admx_module.AdmxError) as exc:
-            self._dialog(messagebox.showerror, APP_NAME, tr("The imported templates were not deleted:\n{0}", exc), parent=self)
+            self._dialog(messagebox.showerror, APP_NAME, tr("The imported templates were not deleted:\n{0}", error_text(exc)), parent=self)
             return
         self.settings.admx = [i for i in self.settings.admx if i != import_id]
         self.save_settings()

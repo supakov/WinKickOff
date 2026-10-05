@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import re
 import tempfile
-import textwrap
 import unittest
 from pathlib import Path
 
@@ -208,36 +207,14 @@ class XmlValidationTest(unittest.TestCase):
         self.assert_rejected(text, "exit 0")
 
 
-GROUPS = """
-[[group]]
-id = "a"
-title = "A"
-order = 1
-"""
+GROUPS = {"groups": [{"id": "a", "title": "A", "order": 1}]}
+REG = {"type": "reg", "path": "HKLM:\\SOFTWARE\\Policies\\Test", "name": "X", "kind": "DWord", "value": 1}
+PS = {"type": "ps", "script": "Write-Log 1"}
 
-RULE = """
-[[rule]]
-id = "a.{name}"
-group = "a"
-phase = "{phase}"
-title = "{name}"
-level = "optional"
-default = true
-doc = "README.md{anchor}"
-summary = "s"
-effect = "e"
-[[rule.actions]]
-{action}
-"""
 
-REG = """type = 'reg'
-path = 'HKLM:\\SOFTWARE\\Policies\\Test'
-name = 'X'
-kind = 'DWord'
-value = 1"""
-
-PS = """type = 'ps'
-script = 'Write-Log 1'"""
+def rule(name: str, anchor: str, action: dict) -> dict:
+    return {"id": f"a.{name}", "group": "a", "phase": "specialize", "title": name, "level": "optional", "default": True,
+            "doc": f"README.md{anchor}", "summary": "s", "effect": "e", "actions": [action]}
 
 README = """# Title
 
@@ -246,12 +223,13 @@ README = """# Title
 
 
 class CatalogValidationTest(unittest.TestCase):
-    def check(self, rules: str) -> list:
+    def check(self, rules: list[dict] | str) -> list:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "rules").mkdir()
-            (root / "rules" / "groups.toml").write_text(textwrap.dedent(GROUPS), encoding="utf-8")
-            (root / "rules" / "10-test.toml").write_text(rules, encoding="utf-8")
+            (root / "rules" / "groups.json").write_text(json.dumps(GROUPS), encoding="utf-8")
+            text = rules if isinstance(rules, str) else json.dumps({"rules": rules})
+            (root / "rules" / "10-test.json").write_text(text, encoding="utf-8")
             (root / "README.md").write_text(README, encoding="utf-8")
             _, issues = validate_catalog(root / "rules", root)
             return issues
@@ -262,19 +240,17 @@ class CatalogValidationTest(unittest.TestCase):
         self.assertEqual([(i.target, i.message) for i in issues], [])
 
     def test_loader_error_is_reported_not_raised(self) -> None:
-        issues = self.check("[[rule]]\nid = ")
+        issues = self.check('{"rules": [{"id": ')
         self.assertEqual([i.level for i in issues], ["error"])
-        self.assertIn("TOML", issues[0].message)
+        self.assertIn("JSON", issues[0].message)
 
     def test_missing_anchor_is_a_warning(self) -> None:
-        good = RULE.format(name="one", phase="specialize", anchor="#section-one", action=REG)
-        bad = RULE.format(name="two", phase="specialize", anchor="#no-such-section", action=REG)
-        issues = self.check(good + bad)
+        issues = self.check([rule("one", "#section-one", REG), rule("two", "#no-such-section", REG)])
         self.assertEqual([i.target for i in issues], ["a.two"])
         self.assertEqual(issues[0].level, "warning")
 
     def test_script_rule_without_texts_is_a_warning(self) -> None:
-        issues = self.check(RULE.format(name="one", phase="specialize", anchor="", action=PS))
+        issues = self.check([rule("one", "", PS)])
         self.assertEqual(sorted(i.level for i in issues), ["warning", "warning"])
 
 

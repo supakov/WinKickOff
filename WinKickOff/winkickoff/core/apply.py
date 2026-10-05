@@ -33,7 +33,7 @@ from winkickoff.core.catalog import DEFAULT_ABSENT, DEFAULT_UNKNOWN, SIGNIN_PREF
 from winkickoff.core.deps import Resolver
 from winkickoff.core.i18n import N_, tr
 from winkickoff.core.profile import Profile
-from winkickoff.core.render import (fill, ps_quote, render_block, render_list_args, render_reg_path, render_reg_value,
+from winkickoff.core.render import (ascii_text, fill, ps_quote, render_block, render_list_args, render_reg_path, render_reg_value,
                                    substitute_fields)
 
 INSTALL_ONLY_PHASES = {"windowspe", "specialize-xml", "oobe-xml"}
@@ -222,7 +222,8 @@ def audit_rules(catalog: Catalog, items: list[str]) -> tuple[list[str], list[tup
 
 
 def _label(profile: Profile, app_version: str) -> str:
-    return f"# WinKickOff {app_version}, profile: {profile.name}".encode("ascii", "replace").decode("ascii")
+    # ascii_text escapes line breaks (also CR, U+2028): the name of a profile someone sent stays on this comment line
+    return f"# WinKickOff {ascii_text(app_version)}, profile: {ascii_text(profile.name)}"
 
 
 def _revert_block(planned: PlannedRevert) -> str:

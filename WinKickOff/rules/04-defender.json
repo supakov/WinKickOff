@@ -1,0 +1,925 @@
+{
+  "comment": [
+    "Microsoft Defender, ASR rules, SmartScreen. Section 3 of the v0.2 machine script.",
+    "Every setting is written as a policy (HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender):",
+    "Defender reads them without its service running, and the matching switches in the interface turn grey."
+  ],
+  "rules": [
+    {
+      "id": "defender.realtime",
+      "group": "defender",
+      "phase": "specialize",
+      "title": "Real-time protection enabled and enforced",
+      "level": "baseline",
+      "default": true,
+      "tags": ["defender", "antivirus", "real-time", "amsi", "behavior monitoring"],
+      "doc": "docs/technical/reference/07-defender.md",
+      "summary": "Removes the values that third-party scripts use to disable Defender, and enforces real-time protection, behavior monitoring, and scanning of downloads and scripts.",
+      "effect": "The antivirus cannot be turned off through the registry; the toggles in Windows Security are managed by policy.",
+      "versions": "No changes; Tamper Protection additionally prevents the protection from being weakened.",
+      "verify": "Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled, BehaviorMonitorEnabled",
+      "actions": [
+        {
+          "type": "reg-remove",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender",
+          "name": "DisableAntiSpyware"
+        },
+        {
+          "type": "reg-remove",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender",
+          "name": "DisableAntiVirus"
+        },
+        {
+          "type": "reg-remove",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection",
+          "name": "DisableRealtimeMonitoring"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection",
+          "name": "DisableRealtimeMonitoring",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection",
+          "name": "DisableBehaviorMonitoring",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection",
+          "name": "DisableIOAVProtection",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection",
+          "name": "DisableScriptScanning",
+          "kind": "DWord",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "defender.cloud",
+      "group": "defender",
+      "phase": "specialize",
+      "title": "Cloud protection: MAPS, sample submission, block level",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.realtime"],
+      "tags": ["defender", "cloud", "maps", "spynet", "cloud block level", "samples"],
+      "doc": "docs/technical/reference/07-defender.md#defendercloudprotection",
+      "summary": "MAPS membership at the \"Advanced\" level, automatic submission of safe samples, \"High\" cloud block level, and waiting up to 50 seconds for a verdict.",
+      "effect": "New malicious files without signatures are blocked by cloud reputation within seconds; a suspicious file is held for up to a minute before its first run.",
+      "risk": "The \"High\" level increases false positives on rare in-house programs; the fix is a file exclusion or level 0. Requires internet access.",
+      "versions": "Windows 10 1607 (block level) and 1703 (timeout); no changes in 24H2.",
+      "verify": "Get-MpPreference | Select-Object MAPSReporting, SubmitSamplesConsent, CloudBlockLevel, CloudExtendedTimeout",
+      "rollback": "Delete the four values; Defender returns to its defaults.",
+      "params": {
+        "block_level": {
+          "type": "enum",
+          "title": "Cloud block level",
+          "default": 2,
+          "values": [
+            {"value": 2, "title": "High"},
+            {"value": 0, "title": "Default"},
+            {"value": 4, "title": "High plus (more false positives)"},
+            {"value": 6, "title": "Zero tolerance (blocks everything unknown)"}
+          ]
+        },
+        "timeout": {
+          "type": "int",
+          "title": "Extended wait for the cloud verdict, seconds",
+          "default": 50,
+          "min": 0,
+          "max": 50
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Spynet",
+          "name": "SpynetReporting",
+          "kind": "DWord",
+          "value": 2,
+          "why": "MAPS advanced"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Spynet",
+          "name": "SubmitSamplesConsent",
+          "kind": "DWord",
+          "value": 1,
+          "why": "send safe samples automatically"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\MpEngine",
+          "name": "MpCloudBlockLevel",
+          "kind": "DWord",
+          "value": "{block_level}",
+          "why": "cloud block level High"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\MpEngine",
+          "name": "MpBafsExtendedTimeout",
+          "kind": "DWord",
+          "value": "{timeout}"
+        }
+      ]
+    },
+    {
+      "id": "defender.pua",
+      "group": "defender",
+      "phase": "specialize",
+      "title": "Block potentially unwanted apps (PUA)",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.realtime"],
+      "tags": ["defender", "pua", "adware", "bundleware", "miners"],
+      "doc": "docs/technical/reference/07-defender.md#defenderpuaprotection",
+      "summary": "Defender blocks adware, bundling installers, miners and \"optimizers\" on download and launch.",
+      "effect": "Closes the most common infection channel for non-professional users: \"a free program from a website with a Download button\".",
+      "risk": "Legitimate utilities flagged as PUA (some remote access tools) require an exclusion.",
+      "versions": "Policy since Windows 10 1607; toggle in Settings since 2004.",
+      "verify": "Get-MpPreference | Select-Object PUAProtection",
+      "rollback": "Delete the PUAProtection value.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender",
+          "name": "PUAProtection",
+          "kind": "DWord",
+          "value": 1,
+          "why": "block potentially unwanted apps"
+        }
+      ]
+    },
+    {
+      "id": "defender.network-protection",
+      "group": "defender",
+      "phase": "specialize",
+      "title": "Network protection: block connections to dangerous addresses",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.realtime"],
+      "tags": ["defender", "network protection", "phishing", "command and control"],
+      "doc": "docs/technical/reference/07-defender.md#defendernetworkprotection",
+      "summary": "No app, not just Edge, can connect to domains that have a poor reputation according to SmartScreen.",
+      "effect": "Phishing sites and command-and-control servers are blocked with a \"Connection blocked\" notification.",
+      "risk": "Works only when Defender is the primary antivirus; may conflict with VPN clients that have their own filters (use audit mode in that case).",
+      "versions": "Windows 10 1709+.",
+      "verify": "Get-MpPreference | Select-Object EnableNetworkProtection",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit (log only)"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\Network Protection",
+          "name": "EnableNetworkProtection",
+          "kind": "DWord",
+          "value": "{mode}"
+        }
+      ]
+    },
+    {
+      "id": "defender.asr",
+      "group": "defender",
+      "phase": "specialize",
+      "title": "Attack surface reduction (ASR) rules engine enabled",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.realtime"],
+      "tags": ["defender", "asr", "attack surface reduction", "exploit guard"],
+      "doc": "docs/technical/reference/07-defender.md#defenderasrrules",
+      "summary": "Enables the ASR engine; the rules themselves are listed in a subgroup and configured one by one.",
+      "effect": "Without this rule, no ASR rule takes effect.",
+      "versions": "Available in all editions with Defender (including Home); managed only through policies or PowerShell.",
+      "verify": "Get-MpPreference | Select-Object AttackSurfaceReductionRules_Ids",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR",
+          "name": "ExploitGuard_ASR_Rules",
+          "kind": "DWord",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "asr.vulnerable-drivers",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: block abuse of exploited vulnerable signed drivers",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.asr"],
+      "tags": ["asr", "drivers", "byovd", "56a863a9"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "Prevents drivers from the Microsoft vulnerable driver list from being written to disk (the BYOVD technique used to disable antivirus).",
+      "effect": "Drivers that are already installed are not affected.",
+      "risk": "Low: old RGB lighting and overclocking utilities.",
+      "versions": "Windows 10 1709+.",
+      "note": "ASR rules",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}, {"value": 6, "title": "Warn"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "56a863a9-875e-4185-98a7-b882c64b5ce5",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.wmi-persistence",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: block persistence through WMI event subscriptions",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.asr"],
+      "tags": ["asr", "wmi", "persistence", "fileless", "e6db77e5"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "Fileless malware cannot establish persistence in the WMI repository.",
+      "effect": "Closes a hidden autostart technique.",
+      "risk": "Low; interferes with the SCCM client, which is not present in a workgroup.",
+      "versions": "Windows 10 1903+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}, {"value": 6, "title": "Warn"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "e6db77e5-3df2-4cf1-b95a-636979351e5b",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.adobe-reader-child",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: Adobe Reader cannot create child processes",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.asr"],
+      "tags": ["asr", "adobe", "pdf", "7674ba52"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "An exploit in a PDF cannot launch anything from Adobe Reader.",
+      "effect": "Opening PDF files works as before.",
+      "risk": "Low.",
+      "versions": "Windows 10 1809+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}, {"value": 6, "title": "Warn"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "7674ba52-37eb-4a4f-a9a1-f0f9a1619a2c",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.office-child",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: Office apps cannot create child processes",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.asr"],
+      "tags": ["asr", "office", "macros", "word", "excel", "d4f940ab"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "A macro in Word or Excel cannot launch cmd, PowerShell or an installer.",
+      "effect": "Applies only if Office is installed in Program Files.",
+      "risk": "Medium: add-ins that launch external programs.",
+      "versions": "Windows 10 1709+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}, {"value": 6, "title": "Warn"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "d4f940ab-401b-4efc-aadc-ad5f3c50688a",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.email-executable",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: block executable content from email client and webmail",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.asr"],
+      "tags": ["asr", "mail", "outlook", "attachments", "be9ba2d9"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": ".exe, .js and .zip files saved from Outlook and webmail do not run.",
+      "effect": "Stops attachments that act as downloaders.",
+      "risk": "Low.",
+      "versions": "Windows 10 1709+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}, {"value": 6, "title": "Warn"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "be9ba2d9-53ea-4cdc-84e5-9b1eeee46550",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.obfuscated-scripts",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: block execution of obfuscated scripts",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.asr", "defender.cloud"],
+      "tags": ["asr", "powershell", "obfuscation", "scripts", "5beb7efe"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "PowerShell, JS and VBS scripts that show signs of obfuscation do not run. Requires cloud protection.",
+      "effect": "Stops downloaders that hide their code from antivirus.",
+      "risk": "Medium: some program installers use obfuscation.",
+      "versions": "Windows 10 1709+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}, {"value": 6, "title": "Warn"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "5beb7efe-fd9a-4556-801d-275e5ffc04cc",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.script-download",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: JavaScript and VBScript cannot launch downloaded content",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.asr"],
+      "tags": ["asr", "javascript", "vbscript", "downloader", "d3e037e1"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "A downloader script cannot launch a file it has just downloaded.",
+      "effect": "The typical \"archive with a script inside\" scheme stops working.",
+      "risk": "Low.",
+      "versions": "Windows 10 1709+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}, {"value": 6, "title": "Warn"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "d3e037e1-3eb8-44c8-a917-57927947596d",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.office-executable",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: Office cannot create executable files",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.asr"],
+      "tags": ["asr", "office", "macros", "3b576869"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "Macros cannot write .exe, .dll or .vbs files to disk.",
+      "effect": "Closes persistence through documents.",
+      "risk": "Low.",
+      "versions": "Windows 10 1709+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}, {"value": 6, "title": "Warn"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "3b576869-a4ec-4529-8536-b80a7769e899",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.office-injection",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: Office cannot inject code into other processes",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.asr"],
+      "tags": ["asr", "office", "injection", "75668c1f"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "Word, Excel, PowerPoint and OneNote cannot inject code into other processes.",
+      "effect": "There is no legitimate reason for such injection.",
+      "risk": "Low; incompatible with BeyondTrust Privilege Guard and Heimdal. Warn mode is not supported.",
+      "versions": "Windows 10 1709+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "75668c1f-73b5-4cf0-bb93-3ecf5cb7cc84",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.office-comm-child",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: Outlook cannot create child processes",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.asr"],
+      "tags": ["asr", "outlook", "rules and forms", "26190899"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "Protects against exploits of Outlook rules and forms when credentials have been stolen.",
+      "effect": "Regular Outlook features keep working.",
+      "risk": "Low.",
+      "versions": "Windows 10 1709+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}, {"value": 6, "title": "Warn"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "26190899-1602-49e8-8b27-eb1d0a1ce869",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.usb-untrusted",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: block untrusted and unsigned programs from USB",
+      "level": "recommended",
+      "default": false,
+      "requires": ["defender.asr"],
+      "tags": ["asr", "usb", "usb flash drive", "unsigned", "b2b3f03d"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "Unsigned .exe, .dll and .scr files do not run directly from USB flash drives and SD cards.",
+      "effect": "Copying files from a USB flash drive is not blocked, only running them.",
+      "risk": "Medium: unsigned portable utilities.",
+      "versions": "Windows 10 1709+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}, {"value": 6, "title": "Warn"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "b2b3f03d-6a65-4f7b-a9c7-1c7ef74a9ba4",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.office-win32-api",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: block Win32 API calls from Office macros",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.asr"],
+      "tags": ["asr", "office", "vba", "macros", "92e97fa1"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "VBA macros cannot call the Win32 API (shellcode that is never written to disk).",
+      "effect": "Regular macros do not need such calls.",
+      "risk": "Low.",
+      "versions": "Windows 10 1709+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}, {"value": 6, "title": "Warn"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "92e97fa1-2edf-4476-bdd6-9dd0b4dddc7b",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.ransomware",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: use advanced protection against ransomware",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.asr", "defender.cloud"],
+      "tags": ["asr", "ransomware", "crypto ransomware", "c1db55ab"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "Files that resemble ransomware according to cloud heuristics and have no positive reputation are blocked. Requires cloud protection.",
+      "effect": "An additional layer on top of signatures and behavior monitoring.",
+      "risk": "Medium: rare in-house programs are blocked until they build a reputation.",
+      "versions": "Windows 10 1803+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}, {"value": 6, "title": "Warn"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "c1db55ab-c21a-4637-bb3f-a12568109d35",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.safe-mode-reboot",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: block programs from restarting the PC in safe mode",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.asr"],
+      "tags": ["asr", "safe mode", "bcdedit", "33ddedf1"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "Malicious code cannot put the PC into safe mode, where the antivirus does not run.",
+      "effect": "Safe mode is still available from the recovery environment.",
+      "risk": "Low.",
+      "versions": "Windows 10 1709+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}, {"value": 6, "title": "Warn"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "33ddedf1-c6e0-47cb-833e-de6133960387",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.copied-system-tools",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: warn about copied or impersonated system tools",
+      "level": "recommended",
+      "default": true,
+      "requires": ["defender.asr"],
+      "tags": ["asr", "system32", "lolbin", "c0033c00"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "Copies of system32 utilities that run from other folders are blocked, with an option to allow them.",
+      "effect": "Warn mode by default because the rule is heuristic.",
+      "risk": "Elevated: legitimate programs that have system utility names and run from non-standard paths.",
+      "versions": "Windows 10 1709+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 6,
+          "values": [{"value": 6, "title": "Warn"}, {"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "c0033c00-d16d-4114-a5a0-dc9b3a7d2ceb",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.prevalence",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: executable files without a reputation (audit)",
+      "level": "optional",
+      "default": true,
+      "requires": ["defender.asr", "defender.cloud"],
+      "tags": ["asr", "reputation", "prevalence", "01443614"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "Launches of rare or new .exe files are logged (audit). In block mode, the rule would shut out the organization's internal programs.",
+      "effect": "Event 1122 in the Defender log shows what would have been blocked.",
+      "risk": "High in block mode: in-house programs without a reputation. Enable it in the Strict profile after a month of auditing.",
+      "versions": "Windows 10 1803+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 2,
+          "values": [{"value": 2, "title": "Audit"}, {"value": 6, "title": "Warn"}, {"value": 1, "title": "Block"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "01443614-cd74-433a-b99e-2ecdc07bfc25",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.psexec-wmi",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: processes created by PsExec and WMI (audit)",
+      "level": "optional",
+      "default": true,
+      "requires": ["defender.asr"],
+      "tags": ["asr", "psexec", "wmi", "lateral movement", "d1e49aac"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "Remote execution through PsExec and WMI is logged. In block mode, the rule would interfere with remote administration by your own IT specialist.",
+      "effect": "Auditing reveals attempts at lateral movement across the network.",
+      "risk": "High in block mode if administration relies on PsExec/WMI.",
+      "versions": "Windows 10 1803+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 2,
+          "values": [{"value": 2, "title": "Audit"}, {"value": 6, "title": "Warn"}, {"value": 1, "title": "Block"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "d1e49aac-8f56-4280-b9ba-993a6d77406c",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "asr.lsass",
+      "group": "defender.asr",
+      "phase": "specialize",
+      "title": "ASR: block credential stealing from LSASS",
+      "level": "optional",
+      "default": false,
+      "requires": ["defender.asr"],
+      "tags": ["asr", "lsass", "mimikatz", "9e6c4e1f"],
+      "doc": "docs/technical/reference/07-defender.md#rules-table",
+      "summary": "Duplicates the LSA protection rule (RunAsPPL) and produces a lot of noise in the log; off by default.",
+      "effect": "Makes sense only where LSA protection cannot be enabled (unsigned smart card plug-ins).",
+      "risk": "Many events from legitimate programs (the Chrome updater and others). Warn mode is not supported.",
+      "versions": "Windows 10 1803+.",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 1,
+          "values": [{"value": 1, "title": "Block"}, {"value": 2, "title": "Audit"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+          "name": "9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2",
+          "kind": "String",
+          "value": "{mode}",
+          "why": "ASR rule"
+        }
+      ]
+    },
+    {
+      "id": "defender.controlled-folder-access",
+      "group": "defender",
+      "phase": "specialize",
+      "title": "Controlled Folder Access (mode)",
+      "level": "optional",
+      "default": true,
+      "requires": ["defender.realtime"],
+      "tags": ["defender", "controlled folder access", "crypto ransomware", "documents"],
+      "doc": "docs/technical/reference/07-defender.md#controlledfolderaccess",
+      "summary": "Sets the protection mode for the Documents, Pictures and Desktop folders. The default is 0 (off), set as a policy so the user cannot turn it on by accident.",
+      "effect": "In block mode, only trusted apps can write to protected folders; ransomware launched by the user cannot damage documents.",
+      "risk": "Mode 1 breaks accounting and banking programs, older versions of Office and any in-house programs that write to Documents. Recommended path: a month in audit mode (2), review of events 1123/1124, then block mode.",
+      "versions": "Windows 10 1709+.",
+      "verify": "Get-MpPreference | Select-Object EnableControlledFolderAccess",
+      "rollback": "Value 0.",
+      "note": "other Defender settings",
+      "params": {
+        "mode": {
+          "type": "enum",
+          "title": "Mode",
+          "default": 0,
+          "values": [
+            {"value": 0, "title": "Off"},
+            {"value": 2, "title": "Audit"},
+            {"value": 1, "title": "Block (breaks older programs)"}
+          ]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\Controlled Folder Access",
+          "name": "EnableControlledFolderAccess",
+          "kind": "DWord",
+          "value": "{mode}"
+        }
+      ]
+    },
+    {
+      "id": "defender.notifications",
+      "group": "defender",
+      "phase": "specialize",
+      "title": "Windows Security notifications are shown",
+      "level": "baseline",
+      "default": true,
+      "tags": ["defender", "notifications", "security center"],
+      "doc": "docs/technical/reference/07-defender.md",
+      "summary": "Security Center notification policies are enforced in the enabled state.",
+      "effect": "The user sees messages about threats and scan results; no Defender notification is turned off.",
+      "versions": "No changes.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender Security Center\\Notifications",
+          "name": "DisableNotifications",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender Security Center\\Notifications",
+          "name": "DisableEnhancedNotifications",
+          "kind": "DWord",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "defender.smartscreen-shell",
+      "group": "defender",
+      "phase": "specialize",
+      "title": "SmartScreen for downloaded programs and files",
+      "level": "recommended",
+      "default": true,
+      "tags": ["smartscreen", "downloads", "mark of the web", "reputation"],
+      "doc": "docs/technical/reference/07-defender.md#smartscreenlevel",
+      "summary": "Running a program downloaded from the internet that has no reputation shows a warning (Warn) or is blocked (Block).",
+      "effect": "Works based on the Internet zone mark; files from USB flash drives and the local network are not checked (they are covered by the ASR rule for USB and by cloud protection).",
+      "risk": "Block mode prevents installing any uncommon program, including accounting software from developer websites.",
+      "versions": "ShellSmartScreenLevel policy since Windows 10 1703.",
+      "verify": "Windows Security -> App & browser control -> Check apps and files",
+      "rollback": "Delete ShellSmartScreenLevel; the default Warn remains, but the user will be able to turn it off.",
+      "params": {
+        "level": {
+          "type": "enum",
+          "title": "Level",
+          "default": "Warn",
+          "values": [{"value": "Warn", "title": "Warn"}, {"value": "Block", "title": "Block"}]
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System",
+          "name": "EnableSmartScreen",
+          "kind": "DWord",
+          "value": 1
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System",
+          "name": "ShellSmartScreenLevel",
+          "kind": "String",
+          "value": "{level}"
+        }
+      ]
+    }
+  ]
+}

@@ -1,17 +1,18 @@
 # 02. WinKickOff architecture
 
-Revision 0.2 of 25.09.2026.
+Revision 0.2 of 25.09.2026, updated 04.10.2026 (T23: the catalog in JSON, catalog files).
 
 ## 1. Principles
 
-1. The rule catalog (`rules/*.toml`) is the single source of truth about what the installation
+1. The rule catalog (`rules/*.json`) is the single source of truth about what the installation
    can do. The interface, generator, validator, descriptions and tests read it; the code contains no rules.
 2. The runtime is separate from the rules: immutable PowerShell and XML fragments live in `templates/`.
 3. Logic without the interface: `core/` does not import tkinter and is tested with `unittest`.
 4. A single path function `app_paths()`; nobody builds paths on their own.
 5. No dependencies outside the standard library in the application itself.
-6. Any data error (rule, profile, template) turns into a message naming the file and the
-   identifier; the application does not crash.
+6. Any data error (rule, profile, template, catalog file, saved import of templates) turns into a message naming the
+   file and the identifier; the application does not crash. Imported templates and catalog files are untrusted input:
+   they are read with limits of size, memory and nesting, every record is checked, and nothing of them runs.
 
 ## 2. Structure of the `WinKickOff/` directory
 
@@ -21,12 +22,16 @@ WinKickOff/
   pyproject.toml             metadata, requires-python >= 3.14, ruff/mypy settings
   winkickoff/
     __init__.py              APP_VERSION
-    __main__.py              python -m winkickoff
-    app.py                   startup: paths, log, catalog, window
+    __main__.py              python -m winkickoff; dispatcher: --mcp, --mcp-config and --version run without tkinter
+    app.py                   startup: paths, log, catalog, saved imports of templates, window
     core/
       paths.py               AppPaths, app_paths()
       log.py                 logging to logs/
-      catalog.py             Rule, Action, Group, Param models; TOML loading; integrity verification
+      catalog.py             Rule, Action, Group, Param models; loading of the JSON files with known fields only;
+                             integrity verification
+      jsonfile.py            strict JSON reading (no duplicate keys, null, NaN, numbers too large, lone surrogates,
+                             deep nesting, more than 1 000 000 values, BOM), gzip and xz unpacking with size and
+                             memory limits, the canonical layout writer
       deps.py                Resolver: enable/disable with cascade, application order
       profile.py             Profile: rule and parameter state, installation data; JSON
       render.py              building scripts and XML from the runtime and the enabled rules
@@ -35,41 +40,55 @@ WinKickOff/
       pscheck.py             syntax verification via powershell.exe, if available
       i18n.py                translations: languages found from files, English fallback
       themes.py              colour themes from resources/themes, following the Windows light or dark mode
-      admx.py                policy templates (ADMX, ADML) imported into admx/<id>/ and turned into rules
+      admx.py                policy templates (ADMX, ADML) imported into admx/<id>/ and turned into rules; the check
+                             of stored records (check_templates), strict reading of saved imports, the trust order
+                             of imports (trust_order)
+      package.py             catalog files: envelope, export and import of imported templates, the catalogs of the
+                             program (bundled_catalogs, import_bundled)
       linked.py              imported policies that follow a built-in rule with the same registry values
       startup.py             the profile a session starts with (shared by the window and the headless MCP server)
     mcp/                     MCP server (task T22, see 07-mcp-server.md): jsonrpc, schema, redact, journal,
                              workspace, bridge, tools, resources, protocol, stdio, httpserver (the only listener,
                              127.0.0.1), service, cli
-    __main__.py              dispatcher: --mcp, --mcp-config and --version run without tkinter
     mcp_main.py              console entry of WinKickOff-mcp.exe (a stdio server)
     ui/
-      main_window.py         window, menu, three areas, hotkeys
-      rule_tree.py           tree with check boxes, search, filter
-      detail_panel.py        rule description, action table, parameter editor
+      main_window.py         window, menus (the ADMX menu with catalog files), three areas, hotkeys; tree with
+                             check boxes, search, description, action table, parameter editor, dialogs
       data_forms.py          data node forms: installation, accounts, languages
-      dialogs.py             about, profile comparison, cascade list
+      checkimages.py         check box images of the tree
+      winmenus.py            theme colours around the drop-down menus
+      mcp_workspace.py, mcp_window.py   the window as the MCP workspace; the MCP monitor
+      clipboard.py           the MCP token kept out of the clipboard history
   rules/
-    groups.toml              group tree
-    NN-<area>.toml           rules by area (English), file order = application order
-    lang/<code>.toml         translations of rule strings (ru, uk; a new file adds a language)
+    groups.json              group tree
+    NN-<area>.json           rules by area (English, ASCII), file order = application order
+    lang/<code>.json         translations of rule strings (ru, uk; a new file adds a language)
+  catalogs/
+    README.md                catalogs of the program: packages <name>.json of imported templates (none committed yet)
   templates/
     autounattend.template.xml      skeleton with slot markers
     Setup-System.runtime.ps1       functions, trap, header, hive mounting
     Setup-User.runtime.ps1         header and log of the first sign-in script
     Post-OOBE.runtime.ps1          waiting for OOBE, reading the profile, completion
-    VERSION                        catalog and runtime version (0.3)
+    VERSION                        catalog and runtime version (0.6)
   resources/
     strings.<code>.json                interface translations keyed by the English text (ru, uk)
     themes/<id>.json                   colour themes (light, dark, latte, matrix)
     keyboards.json, timezones.json     reference data
   profiles/
-    preset-office.json, preset-strict.json
+    preset-office.json, preset-strict.json, preset-laptop.json, preset-home.json
   tests/
-    test_catalog.py, test_deps.py, test_profile.py, test_render.py, test_validate.py,
-    test_coverage_v02.py (semantic golden), test_ui_smoke.py
+    test_catalog.py, test_catalog_format.py, test_deps.py, test_profile.py, test_render.py, test_validate.py,
+    test_coverage_v02.py (semantic golden), test_package.py, test_ui_smoke.py, ...
+    quiet_tk.py              imported first by every test module that opens a window: the windows stay invisible
   tools/
     build.ps1, run-tests.ps1
+    format_catalog.py        rewrites the catalog files in the canonical layout (--check only lists them)
+    make_browser_rules.py    generates rules/14-browsers.json
+    make_shell_rules.py      generates rules/17-shell.json
+    make_presets.py, make_rule_docs.py   presets and the rule lists of the user documentation
+    make_admx_catalogs.py    makes a catalog of the program from a folder of ADMX templates
+    pack_catalogs.py         compresses catalogs/*.json with xz for the portable build
 ```
 
 ## 3. In-memory data model
@@ -114,24 +133,32 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class AppPaths:
-    root: Path      # exe folder (build) or WinKickOff/ (sources)
-    data: Path      # rules/, templates/, resources/ (in the build: root/_internal)
+    root: Path       # exe folder (build) or WinKickOff/ (sources)
+    data: Path       # rules/, templates/, resources/, catalogs/ (in the build: root/_internal)
+    docs_root: Path  # docs/technical/reference and docs/user (in the build: data; from sources: the repository root)
     profiles: Path
     output: Path
     logs: Path
+    # properties: rules, templates, resources, catalogs (data/...: read only), settings_file and admx (root/...)
 
-def app_paths() -> AppPaths:
+def app_paths(*, create: bool = True) -> AppPaths:
     if getattr(sys, "frozen", False):
         root = Path(sys.executable).resolve().parent
         data = Path(getattr(sys, "_MEIPASS", root / "_internal"))
+        docs_root = data
     else:
         root = Path(__file__).resolve().parents[2]
         data = root
-    paths = AppPaths(root, data, root / "profiles", root / "output", root / "logs")
-    for p in (paths.profiles, paths.output, paths.logs):
-        p.mkdir(parents=True, exist_ok=True)
+        docs_root = root.parent
+    paths = AppPaths(root, data, docs_root, root / "profiles", root / "output", root / "logs")
+    if create:
+        for p in (paths.profiles, paths.output, paths.logs):
+            p.mkdir(parents=True, exist_ok=True)
     return paths
 ```
+
+`catalogs` is `data/catalogs` (the catalogs of the program, `03-data-model.md` section 10); `admx` is `root/admx`,
+the saved imports of templates, created on the first import next to `settings.json`.
 
 The rules are the same as in 0.1: no `os.getcwd()`, `%APPDATA%`, `%TEMP%`; temporary files go to
 `logs/tmp/`; `settings.json` next to the exe.
@@ -139,13 +166,17 @@ The rules are the same as in 0.1: no `os.getcwd()`, `%APPDATA%`, `%TEMP%`; tempo
 ## 5. Data flow
 
 ```
-rules/*.toml ──> Catalog ──┬──> Validator.catalog
+rules/*.json ──> Catalog ──┬──> Validator.catalog
+admx/<id>/ ──> with_imports┤
                            ├──> Resolver
 profiles/*.json ──> Profile┴──> Renderer ──> XML + scripts ──> Validator.xml ──> file
 templates/* ───────────────────────┘                 └──> pscheck (optional)
 ```
 
-1. Startup: loading the catalog and integrity verification; on error, a window with a message and exit.
+1. Startup: loading the catalog and integrity verification; on error, a window with a message and exit. Then the
+   saved imports of templates listed in `settings.json` (`admx/<id>/`) are read, checked and merged into the catalog
+   (`admx.with_imports`, in the trust order of `03-data-model.md` section 8); an import that fails the check is left
+   out and named in the messages, and the program starts without it.
 2. Profile: from a preset or a file; unknown rules go to `unknown`, new ones get `default`.
 3. The tree is built by groups; states come from the profile; search filters using a string index built
    when the catalog is loaded (identifier, title, tags, summary, action strings).
@@ -218,12 +249,21 @@ on the unpacked text.
   the reference card (`os.startfile`) if the file is in the build.
 - Parameters: widgets by type (Spinbox, Combobox, Entry) below the description; a change goes straight into the profile.
 - Data nodes: "Installation: edition, key, time zone", "Accounts", "Languages and region" open forms in the right panel.
-- "Unknown rules and policies": the last root, only while the profile keeps choices for rules the catalog does not
-  have (`unknown`: policies of imported templates that are not loaded, rules of another version). Its items show the
-  kept state and parameters, cannot be toggled and offer to show the hidden import that has the policy.
+- "Unknown rules and policies": the last root, only while the profile keeps choices in `unknown`: for rules the
+  catalog does not have (policies of imported templates that are not loaded, rules of another version) and, since
+  1.3.0, choices held back by their `source` because only a less trusted import holds the policy now
+  (`03-data-model.md` section 4). Its items show the kept state and parameters, cannot be toggled and offer to show
+  the hidden import that has the policy (for a held choice, only an import of its kind or a more trusted one).
+- Menu "ADMX": import the templates of this Windows or of a folder, a catalog file or a catalog of the program; show
+  or hide, rename, export and delete the saved imports. Templates and catalog files are read in a background thread;
+  meanwhile the window is busy, and the commands that would rebuild it (other imports, show or hide, rename, delete,
+  language, theme) do nothing. A change of the imports rebuilds the window with the open profile.
 - DPI: `SetProcessDpiAwareness(1)` before Tk is created; theme `vista`.
 
 ## 9. Build
 
 PyInstaller onedir, `--noconsole`, data `rules`, `templates`, `resources`, `profiles`, and
 `docs/technical/reference` and `docs/user` from the repository root for the "More details" links. Output: `dist/WinKickOff/`.
+Since 1.3.0 the catalogs of the program (`catalogs/<name>.json`) are written into `_internal/catalogs` compressed
+with xz by `tools/pack_catalogs.py`, which `tools/build.ps1` runs after PyInstaller (`03-data-model.md`, section 10);
+the rule catalog is copied as it is.

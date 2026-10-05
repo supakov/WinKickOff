@@ -7,6 +7,7 @@ from the files, so an added file adds a language, and anything missing falls bac
 
 from __future__ import annotations
 
+import quiet_tk  # noqa: F401 - first: every window these tests open stays invisible
 import ast
 import json
 import re
@@ -99,8 +100,8 @@ class TranslatorTest(unittest.TestCase):
             (rules / "lang").mkdir(parents=True)
             resources.mkdir()
             (resources / "strings.de.json").write_text(json.dumps({"_language": "Deutsch", "Save": "Speichern"}), encoding="utf-8")
-            (rules / "lang" / "de.toml").write_text('["defender.pua"]\ntitle = "PUA blockiert"\n', encoding="utf-8")
-            shutil.copy(ROOT / "rules" / "lang" / "uk.toml", rules / "lang" / "uk.toml")  # a catalog file alone is enough
+            (rules / "lang" / "de.json").write_text(json.dumps({"defender.pua": {"title": "PUA blockiert"}}), encoding="utf-8")
+            shutil.copy(ROOT / "rules" / "lang" / "uk.json", rules / "lang" / "uk.json")  # a catalog file alone is enough
             self.assertEqual(i18n.available_languages(resources, rules), {"en": "English", "de": "Deutsch", "uk": "Українська"})
             i18n.set_language("de", resources, rules)
             self.assertEqual(i18n.tr("Save"), "Speichern")
@@ -110,6 +111,45 @@ class TranslatorTest(unittest.TestCase):
             self.assertEqual(texts.rule(catalog.rules["defender.pua"], "title"), "PUA blockiert")
             self.assertEqual(texts.rule(catalog.rules["defender.pua"], "summary"), catalog.rules["defender.pua"].summary)
             self.assertEqual(texts.rule(catalog.rules["uac.baseline"], "title"), catalog.rules["uac.baseline"].title)
+
+    def test_a_translation_file_of_a_wrong_shape_falls_back_to_english(self) -> None:
+        good = {"_language": "Deutsch", "_comment": ["x"], "defender.pua": {"title": "PUA blockiert", "tags": ["pua"]},
+                "_groups": {"defender": {"title": "Defender"}}}
+        self.assertEqual(i18n.language_file_problem(good), "")
+        bad = [({"defender.pua": {"params": "x"}}, "params"), ({"defender.pua": {"values": {"mode": "x"}}}, "values"),
+               ({"defender.pua": {"titel": "x"}}, "unknown field 'titel'"), ({"defender.pua": {"tags": "x"}}, "tags"),
+               ({"defender.pua": {"title": 5}}, "title"), ({"_group": {}}, "unknown key '_group'"),
+               ({"_groups": {"defender": {"titel": "x"}}}, "_groups.defender"), ({"defender.pua": "x"}, "object"),
+               ({"_comment": "x"}, "_comment"), ([], "object")]
+        for data, fragment in bad:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, i18n.language_file_problem(data))
+        with tempfile.TemporaryDirectory() as tmp:
+            resources, rules = Path(tmp) / "resources", Path(tmp) / "rules"
+            (rules / "lang").mkdir(parents=True)
+            resources.mkdir()
+            (rules / "lang" / "de.json").write_text(json.dumps({"_language": "Deutsch", "defender.pua": {"params": "x"}}),
+                                                    encoding="utf-8")
+            self.assertIn("de", i18n.available_languages(resources, rules))
+            with self.assertRaises(ValueError):
+                i18n.CatalogTexts.load(rules, "de")
+            i18n.set_language("de", resources, rules)
+            catalog = load_catalog(ROOT / "rules", docs_root=ROOT.parent)
+            rule = catalog.rules["defender.pua"]
+            self.assertEqual(i18n.catalog_texts().rules, {})  # the English source, nothing breaks later
+            self.assertEqual(i18n.catalog_texts().rule(rule, "title"), rule.title)
+
+    def test_an_interface_strings_file_that_is_not_an_object_falls_back_to_english(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            resources, rules = Path(tmp) / "resources", Path(tmp) / "rules"
+            (rules / "lang").mkdir(parents=True)
+            resources.mkdir()
+            (resources / "strings.de.json").write_text(json.dumps(["Speichern"]), encoding="utf-8")
+            (rules / "lang" / "de.json").write_text(json.dumps({"_language": "Deutsch"}), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                i18n.load_strings(resources, "de")
+            i18n.set_language("de", resources, rules)
+            self.assertEqual(i18n.tr("Save"), "Save")
 
     def test_empty_choice_follows_windows(self) -> None:
         code = i18n.resolve_language("", ROOT / "resources", ROOT / "rules")

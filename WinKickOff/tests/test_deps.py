@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
-import textwrap
 import unittest
 from pathlib import Path
 
@@ -11,38 +11,14 @@ from winkickoff.core.catalog import load_catalog
 from winkickoff.core.deps import Resolver
 from winkickoff.core.profile import Profile
 
-GROUPS = """
-[[group]]
-id = "g"
-title = "G"
-[[group]]
-id = "g.sub"
-parent = "g"
-title = "Sub"
-"""
+GROUPS = {"groups": [{"id": "g", "title": "G"}, {"id": "g.sub", "parent": "g", "title": "Sub"}]}
 
 
-def rule(rid: str, group: str = "g", phase: str = "specialize", requires: str = "", conflicts: str = "", default: str = "true") -> str:
-    return textwrap.dedent(f"""
-    [[rule]]
-    id = "{rid}"
-    group = "{group}"
-    phase = "{phase}"
-    title = "{rid}"
-    level = "optional"
-    default = {default}
-    requires = [{requires}]
-    conflicts = [{conflicts}]
-    doc = "README.md"
-    summary = "s"
-    effect = "e"
-    [[rule.actions]]
-    type = "reg"
-    path = 'HKLM:\\\\SOFTWARE\\\\T'
-    name = "{rid}"
-    kind = "DWord"
-    value = 1
-    """)
+def rule(rid: str, group: str = "g", phase: str = "specialize", requires: tuple[str, ...] = (),
+         conflicts: tuple[str, ...] = (), default: bool = True) -> dict:
+    return {"id": rid, "group": group, "phase": phase, "title": rid, "level": "optional", "default": default,
+            "requires": list(requires), "conflicts": list(conflicts), "doc": "README.md", "summary": "s", "effect": "e",
+            "actions": [{"type": "reg", "path": "HKLM:\\SOFTWARE\\T", "name": rid, "kind": "DWord", "value": 1}]}
 
 
 class ResolverTest(unittest.TestCase):
@@ -51,17 +27,17 @@ class ResolverTest(unittest.TestCase):
         root = Path(self.tmp.name)
         (root / "rules").mkdir()
         (root / "README.md").write_text("doc", encoding="utf-8")
-        (root / "rules" / "groups.toml").write_text(GROUPS, encoding="utf-8")
-        rules = (
-            rule("c")
-            + rule("b", requires='"c"')
-            + rule("a", requires='"b"')
-            + rule("x", conflicts='"y"', default="false")
-            + rule("y")
-            + rule("z", group="g.sub", requires='"y"')
-            + rule("late", phase="post-oobe", requires='"a"')
-        )
-        (root / "rules" / "10-t.toml").write_text(rules, encoding="utf-8")
+        (root / "rules" / "groups.json").write_text(json.dumps(GROUPS), encoding="utf-8")
+        rules = [
+            rule("c"),
+            rule("b", requires=("c",)),
+            rule("a", requires=("b",)),
+            rule("x", conflicts=("y",), default=False),
+            rule("y"),
+            rule("z", group="g.sub", requires=("y",)),
+            rule("late", phase="post-oobe", requires=("a",)),
+        ]
+        (root / "rules" / "10-t.json").write_text(json.dumps({"rules": rules}), encoding="utf-8")
         self.catalog = load_catalog(root / "rules", docs_root=root)
         self.resolver = Resolver(self.catalog)
         self.profile = Profile.from_catalog(self.catalog)

@@ -1,7 +1,7 @@
 ---
 name: winkickoff
 description: Uses the WinKickOff MCP server to explain rules, adjust a profile, check it and prepare an autounattend.xml for a test install. Use for WinKickOff rules, presets and profiles; not for WinKickOff code.
-compatibility: Needs the WinKickOff MCP server (WinKickOff 1.2.0-rc.4 or later) connected to the agent over stdio or HTTP on 127.0.0.1.
+compatibility: Needs the WinKickOff MCP server (WinKickOff 1.3.0-rc.1 or later) connected to the agent over stdio or HTTP on 127.0.0.1.
 metadata:
   version: "1.0"
 ---
@@ -239,7 +239,7 @@ Adapt this text to the person's language:
 ## References
 
 - [references/tools.md](references/tools.md): read before calling a tool you have not used yet, or when an argument is
-  refused. Exact arguments, enums, returns, errors, resources and limits.
+  refused. Exact arguments, enums, returns, errors and file names.
 - [references/workflows.md](references/workflows.md): read when the person asks for a concrete task (explain, compare,
   switch telemetry or AI off, keep an app, set a parameter, prepare a profile, open, save, check, build, ADMX, This PC).
 - [references/server.md](references/server.md): the documents served as resources, limits, a server with or

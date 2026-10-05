@@ -10,9 +10,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from winkickoff.core.catalog import Catalog, is_imported
+from winkickoff.core import jsonfile
+from winkickoff.core.catalog import IMPORT_KINDS, Catalog, Param, import_rank, is_imported
 from winkickoff.core.i18n import tr
 
+PROFILE_MAX_BYTES = 16 * 1024 * 1024
+LEGACY_SOURCE = "folder"  # an imported choice saved before 1.3 (no "source"): catalog files did not exist then
 FORMAT_VERSION = 3  # 3: install.account_mode (1.3); a profile of format 2 has no such field and means "file"
 READ_FORMATS = (2, 3)  # read without a warning
 
@@ -71,6 +74,7 @@ DEFAULT_ACCOUNTS: list[Account] = [
 class RuleState:
     enabled: bool
     params: dict[str, Any] = field(default_factory=dict)
+    source: str = ""  # an imported policy: the kind of import it was chosen in (catalog.IMPORT_KINDS), kept in the file
 
 
 @dataclass(frozen=True)
@@ -105,6 +109,38 @@ def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+def one_line(text: str) -> str:
+    """A name or an author on one line: control characters and line separators become spaces."""
+    return "".join(" " if ord(ch) < 32 or 0x7F <= ord(ch) <= 0x9F or ch in (chr(0x2028), chr(0x2029)) else ch for ch in text)
+
+
+def _owner_kind(catalog: Catalog, rule_id: str) -> str:
+    origin = catalog.origins.get(rule_id)
+    return origin.kind if origin is not None else ""
+
+
+def _as_option(param: Param, value: Any) -> Any:
+    """A boolean saved for an enum of 0 and 1 (MCP of 1.2 accepted true and false there) as the option it equals."""
+    if param.type == "enum" and isinstance(value, bool):
+        for option, _title in param.values:
+            if not isinstance(option, bool) and isinstance(option, int) and option == value:
+                return option
+    return value
+
+
+def _fits(param: Param, value: Any) -> bool:
+    """A saved parameter value has the JSON type the parameter takes (the check of the profile tells the rest)."""
+    if param.type == "list":
+        return isinstance(value, list) and all(isinstance(item, str) for item in value)
+    if param.type == "bool":
+        return isinstance(value, bool)
+    if param.type == "int":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if param.type == "string":
+        return isinstance(value, str)
+    return isinstance(value, (str, int)) and not isinstance(value, bool)  # enum
+
+
 @dataclass
 class Profile:
     name: str
@@ -125,7 +161,7 @@ class Profile:
 
     @classmethod
     def from_catalog(cls, catalog: Catalog, name: str = "Office") -> Profile:
-        rules = {rule.id: RuleState(enabled=rule.default) for rule in catalog.rules.values()}
+        rules = {rule.id: RuleState(enabled=rule.default, source=_owner_kind(catalog, rule.id)) for rule in catalog.rules.values()}
         return cls(name=name, catalog_version=catalog.version, rules=rules)
 
     def copy(self) -> Profile:
@@ -185,6 +221,11 @@ class Profile:
             entry: dict[str, Any] = {"enabled": state.enabled}
             if state.params:
                 entry["params"] = dict(state.params)
+            source = state.source
+            if catalog is not None and is_imported(rule_id):  # the more trusted of the kind kept and the owner now
+                source = min((kind for kind in (source, _owner_kind(catalog, rule_id)) if kind), key=import_rank, default="")
+            if is_imported(rule_id) and source:
+                entry["source"] = source
             ordered_rules[rule_id] = entry
         return {
             "format_version": self.format_version,
@@ -203,8 +244,21 @@ class Profile:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], catalog: Catalog) -> tuple[Profile, list[str]]:
+        """A profile from its JSON object. A field of the wrong type falls back to its default with a warning; a file
+        that cannot be read at all raises ValueError, never another error (a profile may come from someone else)."""
+        if not isinstance(data, dict):
+            raise ValueError(tr("the profile must be a JSON object"))
+        try:
+            jsonfile.check_depth(data)  # also for a profile given as an object (embedded in an answer file, MCP)
+            return cls._from_dict(data, catalog)
+        except (TypeError, AttributeError, KeyError, RecursionError) as exc:
+            raise ValueError(tr("the profile has a field of an unexpected type: {0}", str(exc)[:200])) from exc
+
+    @classmethod
+    def _from_dict(cls, data: dict[str, Any], catalog: Catalog) -> tuple[Profile, list[str]]:
         warnings: list[str] = []
-        fmt = int(data.get("format_version", 0))
+        raw_fmt = data.get("format_version", 0)
+        fmt = raw_fmt if isinstance(raw_fmt, int) and not isinstance(raw_fmt, bool) else 0
         if fmt not in READ_FORMATS:
             warnings.append(tr("profile format {0}, expected {1}: default values were applied to missing items", fmt, FORMAT_VERSION))
         raw_rules = data.get("rules", {}) if isinstance(data.get("rules"), dict) else {}
@@ -215,20 +269,49 @@ class Profile:
         stored_unknown = {rid: entry for rid, entry in stored_unknown.items() if rid not in returning}
         rules: dict[str, RuleState] = {}
         new_rules: list[str] = []
+        held: dict[str, Any] = {}  # imported choices made in a more trusted source than the one that holds the policy now
         for rule in catalog.rules.values():
             entry = raw_rules.get(rule.id)
+            owner = _owner_kind(catalog, rule.id)
+            if entry is not None and not isinstance(entry, dict):
+                warnings.append(tr("{0}: the saved state is not an object; the default is used", rule.id))
+                entry = None
             if entry is None:
-                rules[rule.id] = RuleState(enabled=rule.default)
+                rules[rule.id] = RuleState(enabled=rule.default, source=owner)
                 if raw_rules and not is_imported(rule.id):  # an imported policy not in the file is "not configured"
                     new_rules.append(rule.id)
                 continue
+            source = entry.get("source") if entry.get("source") in IMPORT_KINDS else (LEGACY_SOURCE if is_imported(rule.id) else "")
+            if is_imported(rule.id) and owner and import_rank(owner) > import_rank(source):
+                held[rule.id] = entry  # kept as it is in "unknown" until the templates of that source are shown again
+                rules[rule.id] = RuleState(enabled=False, source=owner)
+                continue
             params: dict[str, Any] = {}
-            for pname, pvalue in (entry.get("params") or {}).items():
-                if pname in rule.params:
-                    params[pname] = pvalue
-                else:
+            raw_params = entry.get("params") if isinstance(entry.get("params"), dict) else {}
+            for pname, pvalue in raw_params.items():
+                if pname not in rule.params:
                     warnings.append(tr("{0}: unknown parameter {1} skipped", rule.id, pname))
-            rules[rule.id] = RuleState(enabled=bool(entry.get("enabled", rule.default)), params=params)
+                    continue
+                pvalue = _as_option(rule.params[pname], pvalue)
+                if not _fits(rule.params[pname], pvalue):
+                    warnings.append(tr("{0}: the value of parameter {1} has the wrong type; the default is used", rule.id, pname))
+                else:
+                    params[pname] = pvalue
+            enabled = entry.get("enabled", rule.default)
+            if enabled in (0, 1) and not isinstance(enabled, bool) and isinstance(enabled, int):
+                enabled = bool(enabled)  # 1.2 took bool() of the value
+            if not isinstance(enabled, bool):
+                warnings.append(tr("{0}: the saved state is not true or false; the default is used", rule.id))
+                enabled = rule.default
+            # the most trusted kind the choice was in effect in: chosen in a catalog file, used later from the templates
+            # of this Windows, it must not go back to a catalog file without a word
+            kept = min((kind for kind in (source, owner) if kind), key=import_rank, default="")
+            rules[rule.id] = RuleState(enabled=enabled, params=params, source=kept)
+        if held:
+            shown = ", ".join(sorted(held)[:8]) + (", ..." if len(held) > 8 else "")
+            warnings.append(tr("{0} policies were chosen in templates of a more trusted source than the one that holds them "
+                               "now (for example a catalog file instead of the templates of this Windows); the choices are "
+                               "kept but not used until those templates are shown again: {1}", len(held), shown))
         if new_rules:
             enabled = sum(1 for r in new_rules if rules[r].enabled)
             shown = ", ".join(new_rules[:12]) + (", ..." if len(new_rules) > 12 else "")
@@ -242,24 +325,39 @@ class Profile:
             shown = ", ".join(policies[:8]) + (", ..." if len(policies) > 8 else "")
             warnings.append(tr("{0} policies of imported templates that are not loaded were kept: {1}. Load the templates "
                                "in the ADMX menu to use them.", len(policies), shown))
-        unknown = {**stored_unknown, **unknown}
+        unknown = {**stored_unknown, **unknown, **held}
         install = dict(DEFAULT_INSTALL)
-        install.update({k: v for k, v in (data.get("install") or {}).items() if k in DEFAULT_INSTALL})
+        raw_install = data.get("install") if isinstance(data.get("install"), dict) else {}
+        for key, value in raw_install.items():
+            if key in DEFAULT_INSTALL and isinstance(value, str):
+                install[key] = value
+            elif key in DEFAULT_INSTALL:
+                warnings.append(tr("install.{0} has the wrong type; the default is used", key))
         languages = copy.deepcopy(DEFAULT_LANGUAGES)
-        raw_languages = data.get("languages") or {}
-        languages.update({k: v for k, v in raw_languages.items() if k in DEFAULT_LANGUAGES})
-        _migrate_catalog_02(data, raw_languages, rules, catalog, warnings)
+        raw_languages = data.get("languages") if isinstance(data.get("languages"), dict) else {}
+        for key, value in raw_languages.items():
+            if key == "input" and isinstance(value, list) and all(isinstance(item, str) for item in value) \
+                    or key in DEFAULT_LANGUAGES and key != "input" and isinstance(value, str):
+                languages[key] = value
+            elif key in DEFAULT_LANGUAGES:
+                warnings.append(tr("languages.{0} has the wrong type; the default is used", key))
+        _migrate_catalog_02(dict(data, install=raw_install), raw_languages, rules, catalog, warnings)
         accounts_raw = data.get("accounts")
-        accounts = [Account.from_dict(a) for a in accounts_raw] if isinstance(accounts_raw, list) else [copy.copy(a) for a in DEFAULT_ACCOUNTS]
+        if isinstance(accounts_raw, list):
+            accounts = [Account.from_dict(a) for a in accounts_raw if isinstance(a, dict)]
+            if len(accounts) != len(accounts_raw):
+                warnings.append(tr("accounts that are not objects were skipped"))
+        else:
+            accounts = [copy.copy(a) for a in DEFAULT_ACCOUNTS]
         catalog_version = str(data.get("catalog_version", catalog.version))
         if catalog_version != catalog.version:
             warnings.append(tr("the profile was saved with catalog {0}, the current catalog is {1}", catalog_version, catalog.version))
         profile = cls(
-            name=str(data.get("name", tr("Profile"))),
+            name=one_line(str(data.get("name", tr("Profile")))),
             catalog_version=catalog.version,
             rules=rules,
             format_version=FORMAT_VERSION,
-            author=str(data.get("author", "")),
+            author=one_line(str(data.get("author", ""))),
             created=str(data.get("created", _now())),
             modified=str(data.get("modified", _now())),
             comment=str(data.get("comment", "")),
@@ -279,8 +377,8 @@ class Profile:
 
     @classmethod
     def load(cls, path: Path, catalog: Catalog) -> tuple[Profile, list[str]]:
-        with path.open("r", encoding="utf-8") as handle:
-            data = json.load(handle)
+        # strict JSON with a depth and size limit: a profile may come from someone else (nulls of old files are allowed)
+        data = jsonfile.read(path, file_limit=PROFILE_MAX_BYTES, json_limit=PROFILE_MAX_BYTES, nulls=True)
         if not isinstance(data, dict):
             raise ValueError(f"{path}: profile must be a JSON object")
         profile, warnings = cls.from_dict(data, catalog)

@@ -1,6 +1,7 @@
 # WinKickOff: installation configuration editor. Project documents
 
-Status: specification and plan at revision 0.2 (25.09.2026). Code and rule catalog: `../../../WinKickOff/`.
+Status: specification and plan at revision 0.2 (25.09.2026), brought up to date with editor 1.3.0-rc.1 on 04.10.2026
+(T23). Code and rule catalog: `../../../WinKickOff/`.
 
 What it is: a Windows desktop program that shows all Windows 11 Pro installation configuration rules
 in a single tree with check boxes and search, lets you disable any rule with automatic
@@ -10,12 +11,12 @@ disabling of dependent rules, stores the selection in a JSON profile and builds 
 |---|---|
 | [01-problem-statement.md](01-problem-statement.md) | Specification: goal, scenarios, requirements for the catalog, dependencies, generation, interface; acceptance criteria; risks |
 | [02-architecture.md](02-architecture.md) | Architecture: `WinKickOff/` structure, in-memory model, data flows, per-phase generator, resolver, interface, build |
-| [03-data-model.md](03-data-model.md) | Format of TOML rules, groups, translations; JSON profile; reference data; embedded profile in XML |
-| [04-testing.md](04-testing.md) | `unittest`, semantic golden against v0.2, per-module tests, checklists |
-| [05-plan.md](05-plan.md) | Stages, dependencies, estimate, milestones |
+| [03-data-model.md](03-data-model.md) | Format of the JSON catalog (groups, rules, translations; strict reading, canonical layout); JSON profile; reference data; embedded profile in XML; imported templates; catalog files (packages) |
+| [04-testing.md](04-testing.md) | `unittest`, invisible window tests (`tests/quiet_tk.py`), semantic golden against v0.2, per-module tests (catalog files and packages too), checklists |
+| [05-plan.md](05-plan.md) | Stages (with stages 7-9 added later: imported templates, MCP server, catalog files), dependencies, estimate, milestones |
 | [06-critical-review-v0.1.md](06-critical-review-v0.1.md) | Why revision 0.1 did not meet the requirements and what was changed |
 | [07-mcp-server.md](07-mcp-server.md) | MCP server (task T22): protocol subset, HTTP and stdio transports, token ownership, modes, the bridge to the window, tools, resources, redaction, limits, headless operation, tests |
-| [todo/](todo/README.md) | Tasks T01-T22 with statuses |
+| [todo/](todo/README.md) | Tasks T01-T23 with statuses |
 
 Technologies fixed by the customer: Python 3.14, tkinter from the standard library, Windows
 only, a portable application without installation and without ties to system paths.

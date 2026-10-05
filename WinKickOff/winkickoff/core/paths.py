@@ -40,6 +40,11 @@ class AppPaths:
         return self.root / "settings.json"
 
     @property
+    def catalogs(self) -> Path:
+        """Catalog packages that ship with the program (core/package.py); read only."""
+        return self.data / "catalogs"
+
+    @property
     def admx(self) -> Path:
         """Imported policy templates (core/admx.py), next to the settings; created on the first import."""
         return self.root / "admx"

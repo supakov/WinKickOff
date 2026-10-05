@@ -151,7 +151,8 @@ Example: "every rule about USB drives".
    `privacy.telemetry-minimal` matches "usb" through a task name). Check each hit with `get_rule`.
 
 Expected for USB: `asr.usb-untrusted` (off in Office, on in Strict), `removable.autorun-off`,
-`default-user.autoplay-off`, `logging.audit-policy` (audits removable storage).
+`default-user.autoplay-off`, `logging.audit-policy` (audits removable storage), `nav.removable-drives-once` (changes
+only where File Explorer shows USB drives; off by default).
 
 Tell: copying from a flash drive is never blocked; `asr.usb-untrusted` blocks only running untrusted and unsigned
 programs from it.
@@ -329,7 +330,7 @@ RDP is a main attack path; the organisation chooses its own support tool.
 
 ## 22. An imported ADMX policy
 
-1. The person imports templates in the window ("ADMX" menu). MCP cannot.
+1. The person imports templates or a catalog file in the window ("ADMX" menu). MCP cannot import or export them.
 2. `get_status`: `imports_shown`.
 3. `list_rules` `{"imported": true, "query": "homepage", "limit": 20}`.
 4. `get_rule` on the policy: check `origin`, `linked`, `same_values`, `params`.

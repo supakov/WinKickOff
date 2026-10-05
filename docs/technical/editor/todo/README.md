@@ -1,10 +1,10 @@
 # WinKickOff plan tasks
 
-Revision 0.2 of 25.09.2026 (reworked for the rule model, see `../06-critical-review-v0.1.md`); statuses as of the evening of 25.09.2026.
+Revision 0.2 of 25.09.2026 (reworked for the rule model, see `../06-critical-review-v0.1.md`); statuses of 04.10.2026.
 One file per task. Statuses: `todo`, `in-progress`, `done`, `blocked`. When a status changes,
 update this index and the root `AGENTS.md` (the "Work status" section).
 
-Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in the `WinKickOff/` folder (718 tests).
+Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in the `WinKickOff/` folder (787 tests).
 
 | Task | Title | Stage | Depends on | Status |
 |---|---|---|---|---|
@@ -30,6 +30,7 @@ Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in t
 | [T20](T20-navigation-and-shared-imports.md) | Back and Forward; rename, update and shared policies of imported templates | 7 | T19 | done (1.1.0-rc.3) |
 | [T21](T21-linked-built-in-rules.md) | Imported policies follow the built-in rules that set the same values | 7 | T20 | done (1.1.0-rc.4) |
 | [T22](T22-mcp-server.md) | MCP server inside the editor: stdio and HTTP, read-only by default | 8 | T21 | done in code (30.09.2026, 1.2.0-rc.1; 43 findings of an adversarial review fixed 01.10.2026); acceptance with real clients in a VM pending |
+| [T23](T23-catalog-json.md) | Catalog in JSON; catalog files of imported templates: export, import, catalogs of the program | 9 | T19, T20 | done in code (04.10.2026, 1.3.0-rc.1); catalogs of the program wait for the license check |
 
 Rules for the implementer of any task:
 
@@ -37,3 +38,5 @@ Rules for the implementer of any task:
 2. No em dashes or en dashes in code, data, strings and documents.
 3. Only the Python standard library in the application; tests with `unittest`.
 4. After a task, update its file, this index and `AGENTS.md`; commit and push.
+5. Tests stay invisible on the customer's screen: a test module that opens a window imports `tests/quiet_tk.py`
+   first (`../04-testing.md`, `AGENTS.md` section 4, rule 12).

@@ -7,16 +7,21 @@ where the computers are used by non-professionals and the organisation is under 
 The goal: Windows hardened and updatable from the first boot, without configuring every PC by hand and
 without third-party programs.
 
-State on 02.10.2026: version 1.2.0-rc.4 (release candidate; MCP server for AI clients, read-only by default, with a
-skill that teaches assistants to use it; import of ADMX policy templates, including policies with lists of values; Back and Forward; imported policies follow the built-in rules). Installation from a built answer file has been
-confirmed by the customer on real hardware. Downloads: the GitHub releases of the repository (portable zip,
-no installation, no administrator rights).
+State on 04.10.2026: version 1.3.0-rc.1 in the repository (release candidate, not published yet; the rule catalog in
+strict JSON; export and import of catalog files of imported ADMX templates, plain or compressed; catalogs that ship
+with the program, prepared and waiting for a license check; File Explorer namespaces and desktop icons; the account,
+the product key and the edition asked during installation when the profile says so; the keys that switch the input
+language). The last published release is 1.2.0-rc.4 (MCP server for AI clients, read-only by default, with a skill that
+teaches assistants to use it; import of ADMX policy templates, including policies with lists of values; Back and
+Forward; imported policies follow the built-in rules). Installation from a built answer file has been confirmed by the
+customer on real hardware. Downloads: the GitHub releases of the repository (portable zip, no installation, no
+administrator rights).
 
 ## Tools
 
 | Tool | What it does |
 |---|---|
-| Editor (`WinKickOff/`) | Every installation rule in a searchable tree with descriptions; dependent rules are disabled automatically; profiles and presets; the output is `autounattend.xml` built from the selection only; interface in English with Russian and Ukrainian translations (more languages are added as files), light, dark, Latte and Matrix colour themes; optional import of ADMX policy templates (Windows, Edge, Chrome, Office) as a subtree of selectable policies; an MCP server (stdio and HTTP on 127.0.0.1, read-only by default) for AI clients such as Claude Code and Claude Desktop |
+| Editor (`WinKickOff/`) | Every installation rule in a searchable tree with descriptions; dependent rules are disabled automatically; profiles and presets; the output is `autounattend.xml` built from the selection only; interface in English with Russian and Ukrainian translations (more languages are added as files), light, dark, Latte and Matrix colour themes; optional import of ADMX policy templates (Windows, Edge, Chrome, Office) as a subtree of selectable policies, and export and import of such imports as catalog files to move them to another PC; an MCP server (stdio and HTTP on 127.0.0.1, read-only by default) for AI clients such as Claude Code and Claude Desktop |
 | This PC (menu of the editor) | Read-only check of an installed Windows; apply the selected rules or return them to Windows defaults, with a backup and rollback |
 | Validate-Unattend (`tools/Validate-Unattend.ps1`) | Static check of any answer file against the limits of Windows Setup (36 checks), read-only |
 

@@ -30,6 +30,17 @@ profile under a new name. The names `preset-*.json` are reserved.
 Copy the profile file from the `profiles` folder to the same folder of WinKickOff on the other computer. If
 the profile contains passwords, keep the file secret: the passwords are stored in plain text.
 
+When the profile has policies of imported ADMX templates chosen, move the templates too: export them to a catalog
+file and import it on the other computer ([Policy templates (ADMX)](admx.md#catalog-files)). Without them the
+choices of these policies stay in the profile but do not go into the answer file.
+
+A profile remembers in templates of which kind a policy was chosen. A choice made in the templates of this Windows
+or in templates from a folder is not used from a catalog file on the other computer: the program warns about it at
+the bottom of the window and keeps the choice until a source of the same kind or a more trusted one has the policy
+there (for example the templates of that Windows, imported on it). A choice in a profile saved before version 1.3
+behaves the same way. When the policy has to be used from the catalog file, choose it again in the branch of the
+file ([Policy templates (ADMX)](admx.md#profiles)).
+
 ## Restoring from a finished file
 
 "File, Open profile from autounattend.xml" restores a profile:
@@ -52,6 +63,11 @@ A new version of the program opens profiles saved by an older one:
 - rules no longer in the catalog are not lost: they are kept in the `unknown` section of the profile and come
   back if the rule reappears; until then they are listed in the last branch of the tree, "Unknown rules and
   policies" (with the policies of ADMX templates that are not loaded), and are not written to the answer file;
+- a choice of a policy of imported templates in a profile saved before version 1.3 counts as made in templates
+  from a folder, because catalog files did not exist then: with a catalog of the program, the templates of this
+  Windows or templates from a folder it is used as before, and when only a catalog file has the policy now, the
+  choice is kept but not used, and the program warns about it at the bottom of the window
+  ([Policy templates (ADMX)](admx.md#profiles));
 - outdated fields are migrated (the country of catalog 0.2, for example), with a message as well.
 
 Presets always match their program version. To bring new recommendations into your profile, open a preset

@@ -10,6 +10,7 @@ for the audit.
 
 from __future__ import annotations
 
+import quiet_tk  # noqa: F401 - first: every window these tests open stays invisible
 import http.client
 import json
 import logging

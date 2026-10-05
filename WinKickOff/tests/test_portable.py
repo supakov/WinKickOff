@@ -7,6 +7,7 @@ must hold only the program's own working files. Dialogs are replaced by mocks.
 
 from __future__ import annotations
 
+import quiet_tk  # noqa: F401 - first: every window these tests open stays invisible
 import logging
 import tempfile
 import time

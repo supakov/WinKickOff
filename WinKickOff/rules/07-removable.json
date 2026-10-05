@@ -1,0 +1,235 @@
+{
+  "comment": [
+    "Removable media, script files, Microsoft Edge. Section 6 of the v0.2 machine script.",
+    "The Edge rules belong to the group browsers.edge (the \"Browsers\" section)."
+  ],
+  "rules": [
+    {
+      "id": "removable.autorun-off",
+      "group": "removable",
+      "phase": "specialize",
+      "title": "AutoRun and AutoPlay disabled for all media",
+      "level": "recommended",
+      "default": true,
+      "tags": ["autorun", "autoplay", "usb flash drive", "usb", "cd", "phone"],
+      "doc": "docs/technical/reference/10-removable-scripts-browser.md#disableautorun",
+      "summary": "AutoRun is disabled for all drive types, autorun.inf files are ignored even on CDs, and AutoPlay is turned off for devices without a drive letter (phones, cameras).",
+      "effect": "Connecting a USB flash drive, disk or phone launches nothing and asks nothing. Running a file manually is covered by the ASR rule for USB.",
+      "versions": "Since Windows 7, autorun.inf on USB drives is always ignored; on CDs it still works, so NoAutorun is needed.",
+      "verify": "Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer",
+      "rollback": "Delete the three values.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer",
+          "name": "NoDriveTypeAutoRun",
+          "kind": "DWord",
+          "value": 255,
+          "why": "AutoRun off for all drives",
+          "default": "absent"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer",
+          "name": "NoAutorun",
+          "kind": "DWord",
+          "value": 1,
+          "default": "absent"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer",
+          "name": "NoAutoplayfornonVolume",
+          "kind": "DWord",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "scripts.open-in-notepad",
+      "group": "removable.scripts",
+      "phase": "specialize",
+      "title": "Script files (.js .vbs .hta and others) open in Notepad",
+      "level": "recommended",
+      "default": true,
+      "tags": ["js", "vbs", "hta", "wsf", "phishing", "notepad", "file associations"],
+      "doc": "docs/technical/reference/10-removable-scripts-browser.md#scriptfilesopeninnotepad",
+      "summary": "Double-clicking a .js, .jse, .vbs, .vbe, .wsf, .wsh or .hta file shows its text in Notepad instead of running it.",
+      "effect": "The classic \"archive with a script inside\" phishing (invoice.pdf.js) does not work. cscript, wscript and mshta still work from the command line and from programs.",
+      "risk": "Installers that run .vbs files through the shell (rare) will open Notepad. A file association in the user profile (Open with) overrides this one.",
+      "versions": "The ProgIds have been the same since Windows XP.",
+      "verify": "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Classes\\VBSFile\\Shell\\Open\\Command').'(default)' ",
+      "rollback": "Restore the default values, for example for VBS: \"%SystemRoot%\\System32\\WScript.exe\" \"%1\" %*",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Classes\\JSFile\\Shell\\Open\\Command",
+          "name": "(Default)",
+          "kind": "ExpandString",
+          "value": "\"%SystemRoot%\\System32\\notepad.exe\" \"%1\"",
+          "why": "double-click opens in Notepad, cscript/wscript still work from a command line"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Classes\\JSEFile\\Shell\\Open\\Command",
+          "name": "(Default)",
+          "kind": "ExpandString",
+          "value": "\"%SystemRoot%\\System32\\notepad.exe\" \"%1\"",
+          "why": "double-click opens in Notepad, cscript/wscript still work from a command line"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Classes\\VBSFile\\Shell\\Open\\Command",
+          "name": "(Default)",
+          "kind": "ExpandString",
+          "value": "\"%SystemRoot%\\System32\\notepad.exe\" \"%1\"",
+          "why": "double-click opens in Notepad, cscript/wscript still work from a command line"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Classes\\VBEFile\\Shell\\Open\\Command",
+          "name": "(Default)",
+          "kind": "ExpandString",
+          "value": "\"%SystemRoot%\\System32\\notepad.exe\" \"%1\"",
+          "why": "double-click opens in Notepad, cscript/wscript still work from a command line"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Classes\\WSFFile\\Shell\\Open\\Command",
+          "name": "(Default)",
+          "kind": "ExpandString",
+          "value": "\"%SystemRoot%\\System32\\notepad.exe\" \"%1\"",
+          "why": "double-click opens in Notepad, cscript/wscript still work from a command line"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Classes\\WSHFile\\Shell\\Open\\Command",
+          "name": "(Default)",
+          "kind": "ExpandString",
+          "value": "\"%SystemRoot%\\System32\\notepad.exe\" \"%1\"",
+          "why": "double-click opens in Notepad, cscript/wscript still work from a command line"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Classes\\htafile\\Shell\\Open\\Command",
+          "name": "(Default)",
+          "kind": "ExpandString",
+          "value": "\"%SystemRoot%\\System32\\notepad.exe\" \"%1\"",
+          "why": "double-click opens in Notepad, cscript/wscript still work from a command line"
+        }
+      ]
+    },
+    {
+      "id": "scripts.remove-vbscript",
+      "group": "removable.scripts",
+      "phase": "specialize",
+      "title": "Remove the VBScript engine",
+      "level": "risky",
+      "default": false,
+      "tags": ["vbscript", "capability", "legacy installers"],
+      "doc": "docs/technical/reference/10-removable-scripts-browser.md#removevbscript",
+      "summary": "The VBScript interpreter is removed as an optional feature.",
+      "effect": "Neither .vbs files, nor VBScript macros in old programs, nor the MSScriptControl component work.",
+      "risk": "Program installers from the 2000s, some printer drivers and old business applications use VBScript. The Notepad association provides most of the protection without breaking anything.",
+      "versions": "The feature exists only in Windows 11 24H2 and later; on 23H2 and Windows 10 the engine cannot be removed separately (WARN in the log).",
+      "verify": "Get-WindowsCapability -Online -Name 'VBSCRIPT*' ",
+      "rollback": "Add-WindowsCapability -Online -Name VBSCRIPT~~~~ (requires an internet connection or a source).",
+      "actions": [{"type": "capability", "pattern": "VBSCRIPT*"}]
+    },
+    {
+      "id": "edge.smartscreen-locked",
+      "group": "browsers.edge",
+      "phase": "specialize",
+      "title": "SmartScreen in Edge on, bypass not allowed",
+      "level": "recommended",
+      "default": true,
+      "tags": ["edge", "smartscreen", "phishing", "downloads", "pua"],
+      "doc": "docs/technical/reference/10-removable-scripts-browser.md#edgesmartscreenlocked-and-unconditional-edge-policies",
+      "summary": "Reputation checks for sites and downloads, blocking of potentially unwanted downloads; after a warning the user cannot \"continue to the site\" or \"keep anyway\".",
+      "effect": "Edge protects against phishing and malicious downloads, and the warning cannot be bypassed with a single click.",
+      "versions": "Edge 79 and later policies; they are updated with the browser regardless of the Windows version.",
+      "verify": "edge://policy",
+      "rollback": "Delete the values from the Edge policy key.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "SmartScreenEnabled",
+          "kind": "DWord",
+          "value": 1
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "SmartScreenPuaEnabled",
+          "kind": "DWord",
+          "value": 1
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "PreventSmartScreenPromptOverride",
+          "kind": "DWord",
+          "value": 1
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "PreventSmartScreenPromptOverrideForFiles",
+          "kind": "DWord",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "edge.baseline",
+      "group": "browsers.edge",
+      "phase": "specialize",
+      "title": "Edge without first-run experience, ads and background processes",
+      "level": "baseline",
+      "default": true,
+      "tags": ["edge", "first run", "ads", "startup boost", "background"],
+      "doc": "docs/technical/reference/10-removable-scripts-browser.md#edgesmartscreenlocked-and-unconditional-edge-policies",
+      "summary": "The first-run experience is hidden; recommendations, reporting for personalization, startup boost and background mode are turned off.",
+      "effect": "Edge remains the emergency browser: without it you cannot download another browser. It shows no ads and uses no memory in the background.",
+      "versions": "Edge 77 and later policies.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "HideFirstRunExperience",
+          "kind": "DWord",
+          "value": 1
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "ShowRecommendationsEnabled",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "PersonalizationReportingEnabled",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "StartupBoostEnabled",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+          "name": "BackgroundModeEnabled",
+          "kind": "DWord",
+          "value": 0
+        }
+      ]
+    }
+  ]
+}

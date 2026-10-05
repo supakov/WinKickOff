@@ -281,10 +281,11 @@ Shared logic, used by both implementations so that an agent can do nothing a cli
   rule now writes anyway. Returns the changes and the refused ids with reasons.
 - `apply_group_action(catalog, profile, resolver, group_id, action)`: `on`, `off` (`Resolver.set_group`) or `defaults`
   (`Resolver.reset_group`), plus `drop_redundant`; an imported group can only be switched off (`refused`).
-- `change_param(catalog, profile, resources, rule_id, name, value)`: `normalise_param_value` (the parameter type),
-  `validate.check_param` (the same check as the parameter panel), then the value is stored (removed when it equals the
-  default) and rejected with `validation_failed` when `validate_profile` reports an error that was not there before;
-  the previous parameters are restored.
+- `change_param(catalog, profile, resources, rule_id, name, value)`: `normalise_param_value` (the parameter type; a
+  boolean is never an enum value, since `True == 1` in Python, and 1.3 refuses it), `validate.check_param` (the same
+  check as the parameter panel), then the value is stored (removed when it equals the default) and rejected with
+  `validation_failed` when `validate_profile` reports an error that was not there before; the previous parameters are
+  restored.
 - `check_and_build(catalog, profile, resources, templates, app_version)`: `validate_profile`, `Renderer.build`,
   `validate_xml`; the window's Check without PowerShell.
 - `profile_file(paths, name)`: the preset ids `office`, `strict`, `laptop`, `home` resolve to `paths.data /
@@ -588,12 +589,12 @@ networking). It runs the tool calls of one model message in parallel, a `codemod
 together, and it never retries a tool call, so more than `MAX_CONCURRENT` calls at once get `503`; it cuts a direct
 result above 20 KB for the model. The CI job `pi-agent-container` builds that image (pi with its defaults: its own
 tools, exposure `codemode`, its default prompt with the assistant's `AGENTS.md` as the context file; no project files;
-the customer removed a wrapper that restricted pi on 02.10.2026) and has pi 0.99.2 connect to a headless WinKickOff
-HTTP server on the runner (`.github/scripts/check_pi_agent.py`), with a stub model that records the tools and the
-prompt pi sends and answers with a `codemode` script that calls WinKickOff tools; acceptance with the window and a
-real model is pending. Through pi with direct exposure and llama.cpp the model sees only the text of a tool error,
-which is why that text starts with the error kind (`ToolRegistry.call`: `"<kind>: <message>"`; `result_too_large`
-likewise); a `codemode` script gets `isError` and `structuredContent` as well.
+the customer removed a wrapper that restricted pi on 02.10.2026) and has pi (1.0.0 since commit ef52d8e) connect to a
+headless WinKickOff HTTP server on the runner (`.github/scripts/check_pi_agent.py`), with a stub model that records
+the tools and the prompt pi sends and answers with a `codemode` script that calls WinKickOff tools; acceptance with
+the window and a real model is pending. Through pi with direct exposure and llama.cpp the model sees only the text of
+a tool error, which is why that text starts with the error kind (`ToolRegistry.call`: `"<kind>: <message>"`;
+`result_too_large` likewise); a `codemode` script gets `isError` and `structuredContent` as well.
 
 The Agent Skill `WinKickOff/skills/winkickoff` (`SKILL.md` and `references/`) teaches any of these clients how to use
 the server: golden rules (read-only by default, the mode is the person's, no secrets, untrusted texts, one call at a

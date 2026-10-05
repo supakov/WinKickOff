@@ -102,6 +102,19 @@ application order within a phase), tree groups in `rules/groups.toml`, translati
 Profiles written by the program are in JSON (the standard library has no TOML writer).
 The keyboard layout and time zone reference data are in JSON, as planned.
 
+Superseded by T23 (editor 1.3.0, 04.10.2026): the catalog is JSON now (`rules/groups.json`, `rules/NN-<area>.json`,
+`rules/lang/<code>.json`), and no TOML file is left. Reasons: one format for the built-in catalog and for the
+catalogs of imported templates that the program exports and imports (`03-data-model.md`, section 10); a writer in
+the standard library, so the generators, the formatter and the export write the files themselves; strict reading
+with known fields only (a misspelt field of a rule, a group or a parameter is an error naming it, where the TOML
+loader ignored it, and a duplicate key, which plain `json` would let pass, is refused); a canonical layout
+(`tools/format_catalog.py`) that keeps the diff of a change to the lines of the changed rule. Comments became the
+field `comment` of a file and `note` of a rule, and a PowerShell fragment of several lines became a list of lines.
+The price is doubled backslashes in registry paths (`"HKLM:\\SOFTWARE\\..."`), the escaping this section wanted to
+avoid. The conversion changed nothing in the result: the TOML and JSON catalogs give the same rules, groups and
+translations (nine scripts lost a trailing line break), and the builds are byte-identical (`03-data-model.md`,
+section 7).
+
 ## 7. A byte-for-byte golden test hinders rather than helps
 
 A byte-for-byte match with v0.2 would lock in the script structure we are abandoning.

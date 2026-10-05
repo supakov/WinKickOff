@@ -1,6 +1,6 @@
-# WinKickOff MCP tools and resources
+# WinKickOff MCP tools
 
-Exact reference for the server of WinKickOff 1.2.0-rc.4 (catalog 0.6). Server name `winkickoff`, protocol 2025-06-18.
+Exact reference for the server of WinKickOff 1.3.0-rc.1 (catalog 0.6). Server name `winkickoff`, protocol 2025-06-18.
 
 ## Contents
 
@@ -21,7 +21,7 @@ Exact reference for the server of WinKickOff 1.2.0-rc.4 (catalog 0.6). Server na
 - `id` arguments: 1-200 characters of `A-Z a-z 0-9 _ . : -`. Rule and group ids are English and never translated.
 - `language` argument: `en`, `ru` or `uk` (the languages the program has). It changes the texts of built-in rules and
   groups only. Without it the program language is used. Imported ADMX texts and check messages are always in the program
-  language.
+  language. A translation the program cannot read gives the English texts.
 - Profile `name` argument: a preset id (`office`, `strict`, `laptop`, `home`, any case) or the name of a saved
   profile (the file name without `.json`), 1-80 characters.
 - Free texts written by people: keys ending in `_text`, and also the profile name and the account names and display
@@ -69,7 +69,8 @@ All work in every mode. They change nothing, not even the selection in the windo
   - `limit`: 1-500, default 100. `offset`: 0 or more, default 0.
 - Returns: `total`, `offset`, `limit`, `language`, `rules`
   `[{id, group, title, level, phase, enabled, default, risky, imported, covered_by, text_language}]`.
-- Size: about 250 bytes per row (more in Cyrillic). 100 rows are about 25 KB. Use `limit` 40 or less with small models.
+- Size: about 250 bytes per row in English, about 290 in Russian or Ukrainian. 100 rows are about 25-29 KB. Use
+  `limit` 40 or less with small models.
 - Example: `{"group": "privacy.telemetry", "language": "uk", "limit": 40}`.
 - Error: `unknown_id` "unknown group X".
 
@@ -89,7 +90,8 @@ All work in every mode. They change nothing, not even the selection in the windo
   - `doc`: the reference card, for example `docs/technical/reference/07-defender.md#...`, or null;
   - `origin`: null, or `{import, name, file, policy, unreviewed_text: true}` for an imported policy;
   - `text_language`.
-- Size: 2-4 KB.
+- Size: usually 1-4 KB; a few rules with many actions or parameters up to about 14 KB (`network.firewall`,
+  `default-user.no-consumer-content`).
 - Error: `unknown_id` "unknown rule X" with `suggestions` (up to 3, may be unrelated).
 
 ### get_profile
@@ -98,12 +100,17 @@ All work in every mode. They change nothing, not even the selection in the windo
 - Returns the open profile without secrets: `format_version`, `catalog_version`, `name`, `author_text`, `created`,
   `modified`, `comment_text`, `install` `{edition, product_key_mode, has_product_key, time_zone, account_mode}`, `languages`
   `{ui_language, system_locale, user_locale, input}`, `accounts` `[{name, display_name, group, description_text,
-  has_password}]`, `rules` `{<id>: {enabled, params?}}`, `unknown`, plus `file`, `dirty`, `enabled_count`,
+  has_password}]`, `rules` `{<id>: {enabled, params?, source?}}`, `unknown`, plus `file`, `dirty`, `enabled_count`,
   `changed_from_defaults` (ids that differ from the catalog defaults or have parameters set).
+- `source` of an imported policy: the most trusted kind of import the choice has been used from, usually the one it
+  was chosen in (`bundled`, `system`, `folder`, `package`, most trusted first).
+  `unknown` holds choices of policies that are not loaded, and also choices held because only a less trusted import
+  has the policy now (a catalog file instead of the templates of this Windows): they are not used until templates of
+  that kind or a more trusted one are shown again in the window, or until the policy is chosen again in its tree.
 - `product_key_mode`: `generic`, `custom` or `ask` (Setup shows the key page and the list of editions; `edition` is
   ignored). `account_mode`: `file` (the accounts are written) or `ask` (no account in the file: Windows Setup asks for
   one administrator account; `accounts` are kept for the way back).
-- Size: about 12 KB.
+- Size: about 13 KB with the Office preset, about 17 KB with Home (more rules differ from the defaults).
 
 ### list_profiles
 
@@ -140,7 +147,7 @@ All work in every mode. They change nothing, not even the selection in the windo
 - Text block: the file text, cut with a final line `[truncated]` when too long. `structuredContent`: `part`, `parts`,
   `bytes`, `truncated`, `redacted: true`, `rules`.
 - Sizes with preset Office: `autounattend.xml` about 100 KB, `Setup-System.ps1` about 64 KB, `Setup-User.ps1` and
-  `Post-OOBE.ps1` about 3 KB.
+  `Post-OOBE.ps1` about 4 KB.
 - Errors: `validation_failed` "the profile has errors; run check_profile" (data `errors`), `redaction_failed`.
 
 ### get_messages

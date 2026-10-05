@@ -6,6 +6,7 @@ only for a mapped window); all files go to a temporary folder. Dialogs are repla
 
 from __future__ import annotations
 
+import quiet_tk  # noqa: F401 - first: every window these tests open stays invisible
 import json
 import tempfile
 import time

@@ -150,6 +150,42 @@ class ProfileTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 Profile.load(path, self.catalog)
 
+    def test_a_profile_of_an_unexpected_shape_loads_with_warnings_or_raises_value_error(self) -> None:
+        """A profile may come from someone else: a field of a wrong type falls back to its default, never an error
+        that the window does not expect."""
+        good = Profile.from_catalog(self.catalog).to_dict(self.catalog)
+        cases = {
+            "format_version": {},
+            "accounts": ["Admin", {"name": "Operator", "display_name": "Operator", "group": "Users"}],
+            "install": ["x"],
+            "languages": {"input": "en-US", "ui_language": 5},
+            "rules": {"defender.pua": "on", "accounts.inactivity-lock": {"enabled": "yes", "params": {"seconds": {"a": 1}}},
+                      "defender.smartscreen-shell": {"enabled": True, "params": {"level": ["Block"]}}},
+        }
+        for key, value in cases.items():
+            with self.subTest(field=key):
+                data = dict(good, **{key: value})
+                profile, warnings = Profile.from_dict(data, self.catalog)
+                self.assertIsInstance(profile, Profile)
+        profile, warnings = Profile.from_dict(dict(good, rules=cases["rules"]), self.catalog)
+        self.assertEqual(profile.param(self.catalog, "accounts.inactivity-lock", "seconds"), 900)
+        self.assertEqual(profile.param(self.catalog, "defender.smartscreen-shell", "level"), "Warn")
+        self.assertTrue(any("wrong type" in w for w in warnings))
+        profile, warnings = Profile.from_dict(dict(good, accounts=cases["accounts"]), self.catalog)
+        self.assertEqual([a.name for a in profile.accounts], ["Operator"])
+        self.assertEqual(Profile.from_dict(dict(good, languages=cases["languages"]), self.catalog)[0].languages["input"],
+                         ["en-US", "uk-UA", "ru-UA"])
+        for broken in ([], "text"):
+            with self.assertRaises(ValueError):
+                Profile.from_dict(broken, self.catalog)  # type: ignore[arg-type]
+
+    def test_the_name_and_the_author_stay_on_one_line(self) -> None:
+        data = dict(Profile.from_catalog(self.catalog).to_dict(self.catalog), name="Office\nWrite-Output 'x'",
+                    author="A\r\nB" + chr(0x2028) + "C", comment="line 1\nline 2")
+        profile, _ = Profile.from_dict(data, self.catalog)
+        self.assertEqual((profile.name, profile.author), ("Office Write-Output 'x'", "A  B C"))
+        self.assertEqual(profile.comment, "line 1\nline 2")  # a comment may have lines
+
 
 if __name__ == "__main__":
     unittest.main()

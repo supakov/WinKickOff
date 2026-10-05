@@ -1,0 +1,195 @@
+{
+  "comment": [
+    "Microsoft 365 Apps (Office 16.0): AI, connected experiences and telemetry, per user (default profile).",
+    "28.09.2026, customer list MoreOptions; card 19, section \"Microsoft Office\". For the privacy values 2 means Disabled."
+  ],
+  "rules": [
+    {
+      "id": "office.connected-ai-off",
+      "group": "privacy.office",
+      "phase": "default-user",
+      "title": "Office: turn off connected experiences that analyze content (including Copilot)",
+      "level": "optional",
+      "default": true,
+      "tags": ["office", "copilot", "connected experiences", "usercontentdisabled", "ai"],
+      "doc": "docs/technical/reference/19-more-privacy.md#microsoft-office",
+      "summary": "The policy \"Allow the use of connected experiences in Office that analyze content\" is turned off: Copilot in Word, Excel, PowerPoint, Outlook and OneNote is unavailable.",
+      "effect": "Document content is not sent to Microsoft cloud AI services. This is the only documented way to remove Copilot from Office apps with any account.",
+      "risk": "Also unavailable: dictation, Translator, the cloud Editor (basic spell checking remains), Designer in PowerPoint, text predictions, transcription, data types, map charts and Python in Excel.",
+      "versions": "Microsoft 365 Apps 1904 and later, Office 2021 and 2024 (retail and LTSC).",
+      "verify": "reg query \"HKCU\\Software\\Policies\\Microsoft\\office\\16.0\\common\\privacy\"",
+      "rollback": "Delete the value in the user profile.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "DU:\\Software\\Policies\\Microsoft\\office\\16.0\\common\\privacy",
+          "name": "usercontentdisabled",
+          "kind": "DWord",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": "office.optional-connected-off",
+      "group": "privacy.office",
+      "phase": "default-user",
+      "title": "Office: turn off additional optional connected experiences",
+      "level": "optional",
+      "default": true,
+      "tags": ["office", "bing", "connected experiences", "controllerconnectedservicesenabled"],
+      "doc": "docs/technical/reference/19-more-privacy.md#microsoft-office",
+      "summary": "Additional Bing-based Office features are turned off: Smart Lookup, Researcher, online pictures and videos, 3D Maps, and Copilot web search.",
+      "effect": "Selected text and queries from documents are not sent to Bing.",
+      "risk": "No inserting pictures from the internet and no looking up information right from a document.",
+      "versions": "Microsoft 365 Apps 1904 and later, Office 2021 and 2024.",
+      "verify": "reg query \"HKCU\\Software\\Policies\\Microsoft\\office\\16.0\\common\\privacy\" /v controllerconnectedservicesenabled",
+      "rollback": "Delete the value in the user profile.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "DU:\\Software\\Policies\\Microsoft\\office\\16.0\\common\\privacy",
+          "name": "controllerconnectedservicesenabled",
+          "kind": "DWord",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": "office.download-content-off",
+      "group": "privacy.office",
+      "phase": "default-user",
+      "title": "Office: do not download content from the internet",
+      "level": "optional",
+      "default": false,
+      "tags": ["office", "templates", "downloadcontentdisabled"],
+      "doc": "docs/technical/reference/19-more-privacy.md#microsoft-office",
+      "summary": "Office does not download templates, icons, images, cloud fonts and help from the internet.",
+      "effect": "Fewer Office requests to Microsoft servers. This is not AI, so the rule is off by default.",
+      "risk": "No online templates, icons, stock images, cloud fonts or F1 help.",
+      "versions": "Microsoft 365 Apps 1904 and later, Office 2021 and 2024.",
+      "verify": "reg query \"HKCU\\Software\\Policies\\Microsoft\\office\\16.0\\common\\privacy\" /v downloadcontentdisabled",
+      "rollback": "Delete the value in the user profile.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "DU:\\Software\\Policies\\Microsoft\\office\\16.0\\common\\privacy",
+          "name": "downloadcontentdisabled",
+          "kind": "DWord",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": "office.telemetry-off",
+      "group": "privacy.office",
+      "phase": "default-user",
+      "title": "Office: do not send diagnostic data",
+      "level": "optional",
+      "default": true,
+      "tags": ["office", "telemetry", "sendtelemetry", "diagnostics"],
+      "doc": "docs/technical/reference/19-more-privacy.md#microsoft-office",
+      "summary": "Office diagnostic data level \"Neither\" (do not send): neither required nor optional data goes to Microsoft.",
+      "effect": "Only the service data that Office cannot work without is still sent.",
+      "versions": "Microsoft 365 Apps 1904 and later, Office 2021 and 2024. The path has no 16.0: Software\\Policies\\Microsoft\\office\\common\\clienttelemetry.",
+      "verify": "reg query \"HKCU\\Software\\Policies\\Microsoft\\office\\common\\clienttelemetry\" /v sendtelemetry",
+      "rollback": "Delete the value in the user profile.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "DU:\\Software\\Policies\\Microsoft\\office\\common\\clienttelemetry",
+          "name": "sendtelemetry",
+          "kind": "DWord",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "id": "office.feedback-off",
+      "group": "privacy.office",
+      "phase": "default-user",
+      "title": "Office: no feedback or surveys",
+      "level": "optional",
+      "default": true,
+      "tags": ["office", "feedback", "surveys"],
+      "doc": "docs/technical/reference/19-more-privacy.md#microsoft-office",
+      "summary": "The send feedback button and surveys in Office apps are turned off.",
+      "effect": "Screenshots, logs and content fragments (including Copilot prompts) do not go to Microsoft together with feedback.",
+      "versions": "Microsoft 365 Apps, Office 2019 and later.",
+      "verify": "reg query \"HKCU\\Software\\Policies\\Microsoft\\office\\16.0\\common\\feedback\"",
+      "rollback": "Delete the values in the user profile.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "DU:\\Software\\Policies\\Microsoft\\office\\16.0\\common\\feedback",
+          "name": "enabled",
+          "kind": "DWord",
+          "value": 0
+        },
+        {
+          "type": "reg",
+          "path": "DU:\\Software\\Policies\\Microsoft\\office\\16.0\\common\\feedback",
+          "name": "surveyenabled",
+          "kind": "DWord",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "office.copilot-checkbox-off",
+      "group": "privacy.office",
+      "phase": "default-user",
+      "title": "Office: the \"Enable Copilot\" check box cleared in Word, Excel and OneNote",
+      "level": "optional",
+      "default": true,
+      "tags": ["office", "copilot", "enablecopilot", "word", "excel", "onenote"],
+      "doc": "docs/technical/reference/19-more-privacy.md#microsoft-office",
+      "summary": "The user's Copilot settings in Word, Excel and OneNote are turned off in advance: the EnableCopilot values from the customer's list.",
+      "effect": "The \"Enable Copilot\" check box in the app options exists only when Office is signed in with a personal Microsoft account. The values are not documented by Microsoft and are not locked: the user can turn Copilot on again. Copilot is reliably turned off by the rule \"turn off connected experiences that analyze content\".",
+      "versions": "Word 2412, Excel 2501, OneNote 2502 and later.",
+      "verify": "reg query \"HKCU\\Software\\Microsoft\\Office\\16.0\\Word\\Options\" /v EnableCopilot",
+      "rollback": "File -> Options -> Copilot, the \"Enable Copilot\" check box.",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "DU:\\Software\\Microsoft\\Office\\16.0\\Word\\Options",
+          "name": "EnableCopilot",
+          "kind": "DWord",
+          "value": 0,
+          "default": "absent"
+        },
+        {
+          "type": "reg",
+          "path": "DU:\\Software\\Microsoft\\Office\\16.0\\Excel\\Options",
+          "name": "EnableCopilot",
+          "kind": "DWord",
+          "value": 0,
+          "default": "absent"
+        },
+        {
+          "type": "reg",
+          "path": "DU:\\Software\\Microsoft\\Office\\16.0\\OneNote\\Options\\Other",
+          "name": "EnableCopilot",
+          "kind": "DWord",
+          "value": 0,
+          "default": "absent"
+        },
+        {
+          "type": "reg",
+          "path": "DU:\\Software\\Microsoft\\Office\\16.0\\OneNote\\Options\\Other",
+          "name": "EnableCopilotNotebooks",
+          "kind": "DWord",
+          "value": 0,
+          "default": "absent"
+        },
+        {
+          "type": "reg",
+          "path": "DU:\\Software\\Microsoft\\Office\\16.0\\OneNote\\Options\\Other",
+          "name": "EnableCopilotSkittle",
+          "kind": "DWord",
+          "value": 0,
+          "default": "absent"
+        }
+      ]
+    }
+  ]
+}

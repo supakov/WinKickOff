@@ -79,6 +79,10 @@ def create_app(*, withdraw: bool = False, state: dict[str, object] | None = None
         profile, warnings = state["profile"].rebind(catalog)  # type: ignore[attr-defined]
         for warning in warnings:
             log.info("profile after a restart: %s", warning)
+        # choices held because a less trusted import holds their policy now (a tree hidden, a catalog file imported):
+        # the person must see why they left the build, not only the log
+        held = sorted(rule_id for rule_id in profile.unknown if rule_id in catalog.rules)
+        problems += [warning for warning in warnings if held and held[0] in warning]
     else:
         profile = initial_profile(paths, catalog, settings)
 

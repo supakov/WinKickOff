@@ -12,7 +12,7 @@ It is not for developers of WinKickOff; they follow `AGENTS.md` in the repositor
 | Path | What it is |
 |---|---|
 | `winkickoff/SKILL.md` | The skill: golden rules, first steps, tools by mode, errors, short workflows |
-| `winkickoff/references/tools.md` | Exact reference of the 18 tools and the resources of the MCP server |
+| `winkickoff/references/tools.md` | Exact reference of the 18 tools of the MCP server: arguments, returns, errors, file names |
 | `winkickoff/references/workflows.md` | Recipes for 23 typical requests |
 | `winkickoff/references/server.md` | Resources, limits, a server with or without a window, protocol errors |
 | `winkickoff/references/concepts.md` | Rules, levels, phases, groups, presets, data forms, the build |
@@ -83,11 +83,11 @@ in the copy you zip.
   agent reads the skill from the server (`winkickoff://skill/SKILL.md`, see "Reading the skill over MCP" above).
 - Run `/reload` in pi after adding it. A small local model may not load the skill by itself: start the task with
   `/skill:winkickoff`, and run it again after the conversation was compacted.
-- pi's default exposure `codemode` needs nothing in `~/.pi/agent/mcp.json`: the model calls the tools from a `codemode`
-  script as `tools.mcp__winkickoff__<tool>({...})` (see `pi-agent/README.md`). With `"exposure": "direct"` it sees them
-  as `mcp__winkickoff__<tool>` instead.
+- pi's default exposure `codemode` needs no `exposure` key in the WinKickOff entry of `~/.pi/agent/mcp.json`: the model
+  calls the tools from a `codemode` script as `tools.mcp__winkickoff__<tool>({...})` (see `pi-agent/README.md`). With
+  `"exposure": "direct"` it sees them as `mcp__winkickoff__<tool>` instead.
 
 ## Updating
 
-The skill describes WinKickOff 1.2.0-rc.4 and catalog 0.6. When the MCP tools, the presets or the rule catalog change,
+The skill describes WinKickOff 1.3.0-rc.1 and catalog 0.6. When the MCP tools, the presets or the rule catalog change,
 update the skill together with the code, and copy the folder again to every place where it is installed.

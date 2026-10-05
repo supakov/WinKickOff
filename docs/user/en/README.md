@@ -41,10 +41,14 @@ the "Theme" menu: "As in Windows" (light or dark, as set in Windows), "Light", "
 The program remembers the choice and keeps the open profile when switching.
 
 Adding a language needs no change to the program: a file `strings.<code>.json` in the `resources` folder (for
-example `strings.pl.json` with the field `"_language": "Polski"`) and a file `<code>.toml` with the rule
-translations in `rules\lang`. Use the Russian or Ukrainian files as a sample. Untranslated strings are shown in
-English. A colour scheme of your own: a file `resources\themes\<name>.json` modelled on `dark.json`. In the
-portable build these folders are inside `_internal`.
+example `strings.pl.json` with the field `"_language": "Polski"`) and a file `<code>.json` with the rule
+translations in `rules\lang`. The second file is strict JSON (no comments, no extra commas, no repeated keys, no
+null values and no byte order mark at the start): the field `"_language"`, the texts of the rules under their ids
+and the texts of the groups in the section `"_groups"`. The easiest way is to copy the Ukrainian files
+(`strings.uk.json` and `uk.json`) and translate the texts without changing the keys. When the second file has an
+error (a misspelt field name, for example), the program shows the rule texts in English and writes the reason to
+the log `logs\winkickoff.log`. Untranslated strings are shown in English. A colour scheme of your own: a file
+`resources\themes\<name>.json` modelled on `dark.json`. In the portable build these folders are inside `_internal`.
 
 ## Documents
 
@@ -55,7 +59,7 @@ portable build these folders are inside `_internal`.
 | [Installation and checks](install-and-check.md) | Preparing the USB drive, what Windows Setup will ask, how to check the result and where to find the logs |
 | [Safety](safety.md) | What you must do before using the file on work computers, and which decisions were made deliberately |
 | [This PC](this-pc.md) | Checking an already installed Windows and applying selected rules without reinstalling, rollback |
-| [Policy templates (ADMX)](admx.md) | Importing the administrative templates of Windows, Edge, Chrome, Office and building any of their policies |
+| [Policy templates (ADMX)](admx.md) | Importing the administrative templates of Windows, Edge, Chrome, Office, moving them in a catalog file and building any of their policies |
 | [MCP server](mcp.md) | Access of AI assistants (Claude Code, Claude Desktop) to the catalog and the open profile: modes, token, connection, monitor |
 | [Rule list](rules.md) | All installation rules by group: what each one does, whether it is enabled in "Office", risks |
 

@@ -8,7 +8,7 @@ a cloud model: the model runs on a llama.cpp server of the same machine.
 
 | File | Purpose |
 |---|---|
-| `Dockerfile` | The image: Ubuntu 26.04, Node.js 22, pi 0.99.2 with its defaults |
+| `Dockerfile` | The image: Ubuntu 26.04, Node.js 22, pi 1.0.0 with its defaults |
 | `AGENTS.md` | The instructions of the assistant; the image copies them to `/work/AGENTS.md`, and pi loads them as its context file after its default system prompt |
 | `README.md` | This file |
 
@@ -188,7 +188,7 @@ the person's language.
 In the second shell:
 
 ```bash
-pi --version     # 0.99.2
+pi --version     # 1.0.0
 pi mcp list      # winkickoff: connected (codemode, ...) and its 18 tools; exit code 1 when a server fails
 ```
 

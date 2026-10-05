@@ -87,7 +87,10 @@ def substitute(value: Any, params: dict[str, Any]) -> Any:
 
 
 def substitute_fields(fields: dict[str, Any], params: dict[str, Any]) -> dict[str, Any]:
-    """The fields of an action with its parameters filled in, only where placeholders belong (PLACEHOLDER_FIELDS)."""
+    """The fields of an action with its parameters filled in, only where placeholders belong (PLACEHOLDER_FIELDS).
+    An action marked "literal" (a fixed value of an imported template) is taken as it is: braces in it are text."""
+    if fields.get("literal"):
+        return {key: value for key, value in fields.items() if key != "literal"}
     return {key: substitute(value, params) if key in PLACEHOLDER_FIELDS else value for key, value in fields.items()}
 
 
