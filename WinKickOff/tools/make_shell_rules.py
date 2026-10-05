@@ -119,7 +119,7 @@ def catalog_file() -> dict:
                     f'reg query "{HKLM_NS.format(view="")[:-1].replace(":", "")}\\{clsid}"',
                     f"Delete the {clsid} key in both NameSpace branches (the automatic return to defaults does not "
                     "delete keys).")
-        rule["actions"] = [reg(f"{HKLM_NS.format(view=view)}{clsid}", "HiddenByDefault", 0, "unknown")
+        rule["actions"] = [reg(f"{HKLM_NS.format(view=view)}{clsid}", "HiddenByDefault", 0, 1)
                            for view in ("", "WOW6432Node\\")]
         rules.append(rule)
     for suffix, clsid, value, name, risk, extra in PINS:
