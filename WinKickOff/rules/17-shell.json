@@ -26,7 +26,7 @@
           "name": "HiddenByDefault",
           "kind": "DWord",
           "value": 0,
-          "default": "unknown"
+          "default": 1
         },
         {
           "type": "reg",
@@ -34,7 +34,7 @@
           "name": "HiddenByDefault",
           "kind": "DWord",
           "value": 0,
-          "default": "unknown"
+          "default": 1
         }
       ]
     },
@@ -60,7 +60,7 @@
           "name": "HiddenByDefault",
           "kind": "DWord",
           "value": 0,
-          "default": "unknown"
+          "default": 1
         },
         {
           "type": "reg",
@@ -68,7 +68,7 @@
           "name": "HiddenByDefault",
           "kind": "DWord",
           "value": 0,
-          "default": "unknown"
+          "default": 1
         }
       ]
     },
