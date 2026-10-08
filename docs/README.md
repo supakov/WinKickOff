@@ -6,6 +6,7 @@
 | [technical/reference/](technical/reference/README.md) | administrators, developers | English | Reference: a card for every installation parameter (registry keys, mechanism, effect, Windows versions, verification, rollback). Every WinKickOff rule links to it |
 | [technical/editor/](technical/editor/README.md) | developers | English | WinKickOff specification, architecture, data model, testing, plan and tasks |
 | [releases/](releases/) | everyone | Русский, Українська, English | Release notes of every published version (the text of the GitHub release) |
+| [reports/](reports/README.md) | the customer | Русский | Reports the customer asked for or the plan needs (the license of the ADMX templates, 08.10.2026) |
 | [appendices/](appendices/README.md) | everyone | Русский | Our answer file v0.2, the critic's report, the first requirements draft |
 
 **Русский.** Документация пользователя: [user/ru](user/ru/README.md). Техническая документация на английском,

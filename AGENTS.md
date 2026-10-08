@@ -67,6 +67,7 @@ only through the MCP server, without a cloud model and without any file of the p
 │   │       └── todo/              tasks T01-T24 with status (README.md is the index)
 │   ├── user/                      USER DOCUMENTATION: ru (source), uk, en; the same files in each language
 │   ├── releases/                  release notes v<version>.md (ru, uk, en), used by the release job
+│   ├── reports/                   reports to the customer, Russian (README.md lists them)
 │   └── appendices/                APPENDICES, frozen, Russian: README describes them
 │       ├── B-autounattend-v0.2/   our hand-written answer file v0.2 (the reference) and its README: history, VM checklist
 │       ├── C-critical-review/     the critic's report on v0.2 (docx)
@@ -656,6 +657,9 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 | pi agent container | An assistant that reaches WinKickOff only over MCP (no project files or information in the image); since the customer's decision of 02.10.2026 pi runs with its defaults and codemode, without the wrapper of rc.3 and rc.4; CI job `pi-agent-container` checks the image, the connection, the tools and prompt given to the model and a codemode script that calls WinKickOff; acceptance with the window and the local model (README) pending | 02.10.2026 | `pi-agent/` |
 | Skill for agents that use WinKickOff | `WinKickOff/skills/winkickoff` (SKILL.md, references tools, workflows, concepts) and its install README; shipped in the portable build; `test_skill.py`; user page `mcp.md` section on the skill (ru, uk, en); not yet tried with a model, Claude Desktop upload untested | 01.10.2026 | `WinKickOff/skills/` |
 | Tuning of preset defaults | Awaited from the customer | | `WinKickOff/tools/make_presets.py`, rule defaults |
+
+Awaited from the customer: the decision on the catalogs of the program after the license report
+`docs/reports/2026-10-08-admx-license.md` (it recommends shipping none made from Microsoft templates).
 
 Open questions to the customer: `docs/appendices/D-requirements-draft/02-constructor-requirements-draft.md`,
 section 6; whether Appendix D should get a sample WinKickOff build.

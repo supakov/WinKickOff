@@ -205,6 +205,9 @@ Decisions of the customer:
 ## Open points
 
 - The license check of the Microsoft templates, which the customer asked for, before a package is committed to
-  `catalogs/`; until then "Import a catalog of the program" is greyed out.
+  `catalogs/`; until then "Import a catalog of the program" is greyed out. Done on 08.10.2026
+  (`docs/reports/2026-10-08-admx-license.md`, Russian): section 2.c of the Windows license forbids publishing or
+  copying the software, and the templates of `PolicyDefinitions` are part of it, so the report recommends shipping no
+  catalog made from Microsoft templates; the decision of the customer is awaited.
 - A portable build with a catalog in `_internal/catalogs` has not run yet, since there is no package; the pack step is
   covered by `tests/test_package.py`.
