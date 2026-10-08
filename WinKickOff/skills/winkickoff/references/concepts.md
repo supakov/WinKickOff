@@ -1,6 +1,6 @@
 # WinKickOff concepts
 
-Catalog 0.6: 278 rules in 40 groups; 214 rules are on by default, 190 are optional.
+Catalog 0.7: 278 rules in 40 groups; 214 rules are on by default, 190 are optional.
 
 ## Contents
 
@@ -31,7 +31,7 @@ Catalog 0.6: 278 rules in 40 groups; 214 rules are on by default, 190 are option
 - Building an answer file changes nothing on the PC it runs on, and the program writes only inside its own folder
   (`profiles`, `output`, `logs`, `admx`, `settings.json`) or to a file the person picks in a dialog. The exception is
   the window's "This PC" menu: "Apply the selection now..." and "Return the selection to Windows defaults now..."
-  change this computer after the person allows it, confirms and accepts a UAC prompt. MCP can never do that.
+  change this computer after the person allows it and accepts a UAC prompt; never through MCP.
 
 ## Rules
 
@@ -53,7 +53,7 @@ A rule is one switch in the tree. The answer file contains **only the rules that
 
 **On and off.** A rule that is off is not configured: Windows keeps its own default. Many ids end in `-off`; switching
 such a rule **on** turns the Windows feature **off**. Switching it off does not turn the feature on. Example:
-`remote.rdp-inbound-off` off does not enable remote desktop, because inbound RDP is off in Windows anyway.
+`remote.rdp-inbound-off` off does not enable remote desktop.
 
 ## Levels
 
@@ -113,7 +113,7 @@ In the window, "Restore defaults" in the parameter panel resets the parameters o
   - `defender.realtime` is needed by `defender.cloud`, `defender.pua`, `defender.network-protection`, `defender.asr`
     and `defender.controlled-folder-access`; `defender.asr` by all 18 `asr.*`; `defender.cloud` by
     `asr.obfuscated-scripts`, `asr.ransomware`, `asr.prevalence`. Switching `defender.realtime` off switches off up
-    to 23 rules (only those that are on: 21 in Office, where `asr.usb-untrusted` and `asr.lsass` are off).
+    to 23 rules (21 in Office).
   - `update.unblock` is needed by `update.automatic`, `update.other-microsoft-products`, `update.defer-feature`.
   - Single links: `uac.baseline` to `uac.admin-always-notify`; `logging.eventlog-sizes` to `logging.audit-policy` and
     `logging.powershell`; `removable.autorun-off` to `default-user.autoplay-off`; `privacy.copilot-recall-off` to
@@ -184,10 +184,10 @@ Four presets ship with the program. They are read-only: a changed preset is save
 | `office` | Ordinary work PCs. Recommended start | None (214 of 278 rules on) |
 | `strict` | Higher-risk PCs; may break older programs; test on one PC first | On: `update.other-microsoft-products`, `asr.usb-untrusted`, `uac.admin-always-notify`, `network.netbios-off`, `scripts.remove-vbscript`. Parameters: `defender.controlled-folder-access` `mode` 1 (Block), `defender.smartscreen-shell` `level` `"Block"`, `asr.prevalence` `mode` 1 (Block). 219 on |
 | `laptop` | Laptops | `accounts.inactivity-lock` `seconds` 600 instead of 900. 214 on |
-| `home` | Home PCs: installation screens, app removal and privacy only | 70 on; key mode `ask`; `privacy.telemetry-minimal` `level` 0; weakens protection (the UAC, LSA, Defender, ASR, SmartScreen, network, logging, update, browser and post-OOBE rules are off except `defender.notifications` and `update.delivery-optimization-lan` `mode` 99, Windows keeps its defaults); also off: `install.netfx3`, `printing.spooler-automatic`, `default-user.region`, `user-logon.input-languages`, `user-logon.pin-ui-language`, `removable.autorun-off`, the Notepad, Paint, Office and Edge AI rules; Check warns for each baseline rule. Not for work PCs |
+| `home` | Home PCs: installation screens, app removal and privacy only | 70 on; key mode `ask`; `privacy.telemetry-minimal` `level` 0; of the protection rules only `defender.notifications` and `update.delivery-optimization-lan` (`mode` 99) stay on, Windows keeps its defaults; also off: `install.netfx3`, `printing.spooler-automatic`, `default-user.region`, `user-logon.input-languages`, `user-logon.pin-ui-language`, `removable.autorun-off`, the AI rules of Notepad, Paint, Office and Edge; Check warns per baseline rule. Not for work PCs |
 
 All presets share the data forms: edition Pro, generic key (home: ask), time zone `FLE Standard Time`
-(Kyiv), display language `uk-UA`, keyboards `en-US`, `uk-UA`, `ru-UA`, accounts Admin (Administrators) and User (Users)
+(Kyiv), computer name chosen by Windows, display language `uk-UA`, keyboards `en-US`, `uk-UA`, `ru-UA`, accounts Admin (Administrators) and User (Users)
 without passwords (account mode `file`).
 
 ## Profiles
@@ -195,8 +195,8 @@ without passwords (account mode `file`).
 - A profile is a JSON file in `profiles/` next to the program: rule states, parameters, data forms, name, author,
   comment. Passwords in a profile are stored in plain text.
 - `get_profile` `changed_from_defaults` lists differences from the catalog defaults, that is from Office.
-- "File, Open profile from autounattend.xml..." in the window restores a profile from a WinKickOff build completely;
-  other answer files are reconstructed from their actions and the rest is listed in the messages.
+- "File, Open profile from autounattend.xml..." in the window restores a WinKickOff build completely; other
+  answer files are rebuilt from their actions, the rest is listed in the messages.
 - An older profile opens in a newer program: new rules get their defaults, unknown rules are kept aside, old fields
   are migrated with a message (`load_profile` `warnings`).
 - "File, Compare with profile..." in the window equals `diff_profile`.
@@ -210,8 +210,8 @@ secrets). In mode `edit`, `show_item` opens them for the person.
 
 | Form | `show_item` | Content |
 |---|---|---|
-| "Installation" | `data:install` | `edition` (`Pro`; other editions of the form only with their licences and media, all but `Education` with KMS client keys; the Windows Home edition is not supported, and the `home` preset uses Pro too), `product_key_mode` (`generic`: public key that selects the edition and does not activate; `custom`: own key; `ask`: Setup shows the key page, and "I don't have a product key" opens the list of editions; `edition` counts only for `generic`), `time_zone` |
-| "Accounts" | `data:accounts` | Mode "Create these accounts" (`account_mode` `file`): name (up to 20 characters), display name, group (Administrators or Users), description, password; at least one account in Administrators. Mode "Ask for the account during installation" (`ask`): no account in the file, Windows Setup asks for one, which becomes an administrator |
+| "Installation" | `data:install` | `edition` (`Pro`; other editions only with their licences and media, all but `Education` with KMS client keys; Windows Home is not supported, the `home` preset uses Pro too), `product_key_mode` (`generic`: a public key that selects the edition, no activation; `custom`: own key; `ask`: Setup shows the key page and, after "I don't have a product key", the editions; `edition` counts only for `generic`), `time_zone`, `computer_name_mode` (`random`: Windows chooses; `fixed`: `computer_name`; `template`: `computer_name` like `OFFICE-{serial:6}` with `{serial}`, `{mac}`, `{random}`, computed at installation) |
+| "Accounts" | `data:accounts` | Mode "Create these accounts" (`account_mode` `file`): name (up to 20 characters), display name, group (Administrators or Users), description, password; name and password ASCII only (Setup 24H2 makes others `?`); at least one account in Administrators. Mode "Ask for the account during installation" (`ask`): no account in the file, Windows Setup asks for one, which becomes an administrator |
 | "Languages and region" | `data:languages` | `ui_language` (must equal the language of the ISO), `system_locale`, `user_locale`, `input` (keyboards, first is the default) |
 
 The country is not in the forms: it is the parameter of rule `default-user.region`.
@@ -242,7 +242,7 @@ Levels: `error` blocks the build, `warning` needs a decision, `info` is a note.
 
 - Errors: a rule is on but a rule it requires is off; a conflict; a parameter out of range; an edition without a
   generic key; a custom key not in the form `XXXXX-XXXXX-XXXXX-XXXXX-XXXXX`; no time zone; a bad language tag; no or
-  unknown keyboard; a bad or duplicate account name; a group other than Administrators or Users; no administrator;
+  unknown keyboard; a bad or duplicate account name, or a name or password outside ASCII; a bad computer name or template; a group other than Administrators or Users; no administrator;
   two parameters that may not match have the same value (`default-user.input-switch-keys`);
   XML or build errors (Setup limits such as a command longer than 259 characters).
 - Warnings: a baseline rule is off; a risky rule is on; `encryption.prevent-auto-bitlocker` is off; a password will be
@@ -256,7 +256,7 @@ In the window, a double click on a message jumps to its rule or form.
 ## The build
 
 - `autounattend.xml` holds the Setup answers and up to three embedded scripts: `Setup-System.ps1` (always),
-  `Setup-User.ps1` (if there are first sign-in rules), `Post-OOBE.ps1` (if there are post-OOBE rules).
+  `Setup-User.ps1` (if there are first sign-in rules), `Post-OOBE.ps1` (post-OOBE rules, account texts outside ASCII).
 - Setup looks for exactly the name `autounattend.xml` in the root of removable drives. With Ventoy the file goes next
   to the image through the Auto Install plugin.
 - Setup still asks for the Setup language and keyboard on the first screen and for the disk. Disk partitioning is
@@ -276,9 +276,9 @@ work PCs. Installation erases the chosen partition. After installation the perso
 - logs in `C:\ProgramData\Unattend\Logs`: `Setup-System.log` (no `ERROR` or `UNHANDLED` lines; `WARN` about missing
   components is acceptable), `Setup-User.<name>.log`, `Post-OOBE.log`; also `C:\Windows\Panther\setuperr.log`;
 - the `verify` command of each rule that matters;
-- for Office: Print Spooler running and automatic; Admin and User passwords never expire; keyboards en-US, uk-UA,
-  ru-UA; PUA and network protection on; the number of ASR rules equals the enabled `asr.*` rules (16 in Office, 17 in
-  Strict); no `C:\Windows\Panther\unattend.xml` a few minutes after setup.
+- for Office: Print Spooler automatic; Admin and User passwords never expire; keyboards en-US, uk-UA, ru-UA; PUA and
+  network protection on; ASR rules as the enabled `asr.*` (16 in Office, 17 in Strict); no
+  `C:\Windows\Panther\unattend.xml` a few minutes after setup.
 
 The full checklist is the user page `install-and-check.md` (`winkickoff://docs/user/<lang>/install-and-check.md`).
 
@@ -292,8 +292,8 @@ Window only; never through MCP. The agent may describe it:
 - "Return the selection to Windows defaults now...": undo with a backup; rules that depend on the selected ones are
   returned with them.
 - The menu acts only on the computer where the window runs, not on the PCs installed from the file.
-- Not applied: installation-only rules, first sign-in rules (changing keyboards on a running system can break
-  switching), `default-user.input-switch-keys` (it changes the keys of the sign-in screen), and rules without a check
+- Not applied: installation-only rules, first sign-in rules (they can break keyboard switching),
+  `default-user.input-switch-keys` (keys of the sign-in screen), and rules without a check
   mark whose Windows default is unknown (app removal, PowerShell steps); these two are never rolled back. Default user
   values reach only profiles created later. Restart after applying. Try it on a test PC or VM first.
 

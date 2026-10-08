@@ -3,6 +3,8 @@ disabled rules leave no trace."""
 
 from __future__ import annotations
 
+import base64
+import re
 import shutil
 import subprocess
 import tempfile
@@ -11,6 +13,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from winkickoff.core.catalog import load_catalog
+from winkickoff.core.computername import TEMPORARY_NAME
 from winkickoff.core.deps import Resolver
 from winkickoff.core.importer import import_xml
 from winkickoff.core.profile import Profile
@@ -222,6 +225,53 @@ class AccountAndEditionModesTest(BuildTestBase):
         profile.install["account_mode"] = "file"  # the accounts are created: the password is in the file, as before
         self.assertIn("Form-Secret-123", self.renderer.build(profile, app_version="test").xml)
 
+    def computer_names(self, xml: str) -> list[str | None]:
+        root = ET.fromstring(xml)
+        return [c.findtext(f"{U}ComputerName") for c in
+                root.findall(f"{U}settings[@pass='specialize']/{U}component[@name='Microsoft-Windows-Shell-Setup']")]
+
+    def test_windows_chooses_the_computer_name_by_default(self) -> None:
+        self.assertEqual(self.computer_names(self.result.xml), [None, None])
+        self.assertNotIn("COMPUTER NAME FROM THE TEMPLATE", self.result.scripts["Setup-System.ps1"])
+
+    def test_a_fixed_computer_name(self) -> None:
+        profile = self.office.copy()
+        profile.install["computer_name_mode"], profile.install["computer_name"] = "fixed", "BUH-01"
+        result = self.renderer.build(profile, app_version="test")
+        self.assertEqual(self.computer_names(result.xml), ["BUH-01", "BUH-01"])
+        self.assertNotIn("COMPUTER NAME FROM THE TEMPLATE", result.scripts["Setup-System.ps1"])
+        restored, _ = import_xml(result.xml, self.catalog)
+        self.assertEqual((restored.install["computer_name_mode"], restored.install["computer_name"]), ("fixed", "BUH-01"))
+
+    def test_a_computer_name_template(self) -> None:
+        profile = self.office.copy()
+        profile.install["computer_name_mode"], profile.install["computer_name"] = "template", "KANC-{serial:5}{random:2}"
+        result = self.renderer.build(profile, app_version="test")
+        self.assertEqual(self.computer_names(result.xml), [TEMPORARY_NAME, TEMPORARY_NAME])
+        system = result.scripts["Setup-System.ps1"]
+        self.assertIn("foreach ($part in @('text:KANC-','serial:5','random:2'))", system)
+        self.assertLess(system.index("COMPUTER NAME FROM THE TEMPLATE"), system.index("# RULES"))  # the loop starts early
+        self.assertIn("-WindowStyle Hidden", system)
+
+    def test_account_texts_outside_ascii_are_set_after_oobe(self) -> None:
+        profile, _ = self.build_with_phase_disabled("post-oobe")  # the texts alone need Post-OOBE.ps1 and its task
+        account = profile.accounts[0]
+        account.display_name = "\u0410\u0434\u043c\u0456\u043d\u0456\u0441\u0442\u0440\u0430\u0442\u043e\u0440"
+        account.description = "\u041e\u0431\u043b\u0456\u043a\u043e\u0432\u0438\u0439 \u0437\u0430\u043f\u0438\u0441 \u00ab1\u00bb"
+        result = self.renderer.build(profile, app_version="test")
+        self.assertTrue(result.xml.isascii())  # the embedded profile is escaped, the scripts carry Base64
+        written = next(a for a in ET.fromstring(result.xml).iter(f"{U}LocalAccount") if a.findtext(f"{U}Name") == account.name)
+        self.assertEqual(written.findtext(f"{U}DisplayName"), account.name)
+        self.assertIsNone(written.find(f"{U}Description"))
+        line = next(line for line in result.scripts["Post-OOBE.ps1"].splitlines() if line.startswith("Set-AccountText"))
+        texts = [base64.b64decode(text).decode("utf-8") for text in re.findall(r"ConvertFrom-Base64Text '([^']+)'", line)]
+        self.assertEqual(texts, [account.display_name, account.description])
+        self.assertIn("Unattend-PostOOBE", result.scripts["Setup-System.ps1"])  # the task that runs it
+        restored, _ = import_xml(result.xml, self.catalog)
+        self.assertEqual((restored.accounts[0].display_name, restored.accounts[0].description),
+                         (account.display_name, account.description))
+        self.assertNotIn("Set-AccountText -Name", self.result.scripts["Post-OOBE.ps1"])  # ASCII texts stay in the file
+
     def test_edition_chosen_during_installation(self) -> None:
         profile = self.office.copy()
         profile.install["product_key_mode"] = "ask"
@@ -267,6 +317,23 @@ class ExternalValidatorTest(BuildTestBase):
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
         self.assertEqual(proc.returncode, 0, proc.stdout[-3000:] + proc.stderr[-2000:])
+
+    def test_validator_accepts_a_computer_name_and_account_texts(self) -> None:
+        profile = self.office.copy()
+        profile.install["computer_name_mode"], profile.install["computer_name"] = "fixed", "BUH-01"
+        profile.accounts[0].description = "\u041e\u043f\u0438\u0441"
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "autounattend.xml"
+            target.write_bytes(self.renderer.build(profile, app_version="test").xml.encode("utf-8"))
+            proc = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                 "-File", str(VALIDATOR), "-Path", str(target)],
+                capture_output=True, text=True, timeout=180,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+        self.assertEqual(proc.returncode, 0, proc.stdout[-3000:] + proc.stderr[-2000:])
+        self.assertIn("ComputerName valid (amd64)", proc.stdout)
+        self.assertIn("LocalAccount texts in ASCII", proc.stdout)
 
     def test_validator_accepts_a_build_that_asks_for_the_account(self) -> None:
         profile = self.office.copy()

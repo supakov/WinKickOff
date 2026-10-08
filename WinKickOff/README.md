@@ -19,7 +19,7 @@ installation; parameters are filled in only in values, never in registry paths o
 choices of imported policies held back because only a less trusted import has the policy now. Since 1.2:
 the MCP server (stdio and HTTP on 127.0.0.1, read-only by default) and the skill `skills/winkickoff` for assistants
 that use it. Since 1.1: import of ADMX templates, including policies with lists of values and multi-line text; Back
-and Forward; imported policies follow the built-in rules. The catalog 0.6 (278 rules, 40 groups) carries every action
+and Forward; imported policies follow the built-in rules. The catalog 0.7 (278 rules, 40 groups) carries every action
 of the hand-written answer file v0.2, the Edge, Chrome and Brave policies, the AI, telemetry, Office and OneDrive rules
 of the customer's list, the File Explorer namespaces and desktop icons and the keys that switch the input language;
 the generator, the checks, four presets, profiles, data forms, import, the build from the window and the This PC menu

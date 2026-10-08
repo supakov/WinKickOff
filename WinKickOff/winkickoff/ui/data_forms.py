@@ -28,6 +28,11 @@ KEY_MODES = (
     ("ask", N_("Choose the edition during installation: Setup asks for a product key, and \"I don't have a product "
                "key\" opens the list of editions")),
 )
+NAME_MODES = (
+    ("random", N_("Windows chooses a name (DESKTOP- and random characters)")),
+    ("fixed", N_("This name")),
+    ("template", N_("A name from a template, computed on each computer during installation")),
+)
 ACCOUNT_MODE_TITLES = (
     ("file", N_("Create these accounts")),
     ("ask", N_("Ask for the account during installation")),
@@ -62,12 +67,14 @@ class InstallForm(_Form):
             master,
             window,
             tr("Installation"),
-            tr("Windows edition, product key and time zone. The display language and input languages are set in the \"Languages and region\" node."),
+            tr("Windows edition, product key, time zone and computer name. The display language and input languages are set in the \"Languages and region\" node."),
         )
         self.edition = tk.StringVar()
         self.mode = tk.StringVar()
         self.key = tk.StringVar()
         self.zone = tk.StringVar()
+        self.name_mode = tk.StringVar()
+        self.computer_name = tk.StringVar()
         ttk.Label(self, text=tr("Windows edition")).grid(row=2, column=0, sticky="w", padx=(0, 12))
         edition_box = ttk.Combobox(self, textvariable=self.edition, values=list(EDITION_KEYS), state="readonly",
                                    width=max(18, *(len(name) for name in EDITION_KEYS)))
@@ -97,12 +104,29 @@ class InstallForm(_Form):
         self.note(6, tr("The correct time zone matters for logs: during an investigation, events are matched by time."))
         self._zones: list[tuple[str, str]] = []
 
+        ttk.Label(self, text=tr("Computer name")).grid(row=7, column=0, sticky="nw", padx=(0, 12))
+        names = ttk.Frame(self)
+        names.grid(row=7, column=1, sticky="w")
+        for value, text in NAME_MODES:
+            ttk.Radiobutton(names, text=tr(text), value=value, variable=self.name_mode, command=self._save).pack(anchor="w", pady=1)
+        self.name_entry = ttk.Entry(names, textvariable=self.computer_name, width=34)
+        self.name_entry.pack(anchor="w", padx=(22, 0), pady=(2, 0))
+        self.computer_name.trace_add("write", lambda *_: self._save())
+        self.note(8, tr("Up to 15 Latin letters, digits and hyphens, not only digits; computers of one network need "
+                        "different names. A template adds parts computed on each computer: {serial} the end of the "
+                        "serial number of the BIOS, {mac} the end of the address of the network adapter, {random} random "
+                        "letters and digits; a number sets the length, for example OFFICE-{serial:6} (without a number: "
+                        "6, 6 and 4 characters). A part that cannot be read becomes random characters. The name is set "
+                        "during installation only."))
+
     def refresh(self) -> None:
         self._loading = True
         install = self.window.profile.install
         self.edition.set(str(install.get("edition", "Pro")))
         self.mode.set(str(install.get("product_key_mode", "generic")))
         self.key.set(str(install.get("product_key", "")))
+        self.name_mode.set(str(install.get("computer_name_mode", "random")))
+        self.computer_name.set(str(install.get("computer_name", "")))
         title_key = "title" if language() == "ru" else f"title_{language()}"
         self._zones = [(str(z["id"]), str(z.get(title_key) or z["title"])) for z in self.window.resources.timezones]
         current = str(install.get("time_zone", ""))
@@ -116,6 +140,7 @@ class InstallForm(_Form):
     def _update_state(self) -> None:
         self.key_entry.configure(state="normal" if self.mode.get() == "custom" else "disabled")
         self.edition_box.configure(state="readonly" if self.mode.get() == "generic" else "disabled")
+        self.name_entry.configure(state="disabled" if self.name_mode.get() == "random" else "normal")
 
     def _save(self) -> None:
         self._update_state()
@@ -125,6 +150,8 @@ class InstallForm(_Form):
         install["edition"] = self.edition.get()
         install["product_key_mode"] = self.mode.get()
         install["product_key"] = self.key.get().strip().upper()
+        install["computer_name_mode"] = self.name_mode.get()
+        install["computer_name"] = self.computer_name.get().strip()
         title = self.zone.get()
         install["time_zone"] = next((z for z, t in self._zones if t == title), title)
         self.changed()

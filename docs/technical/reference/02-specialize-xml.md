@@ -1,4 +1,4 @@
-# 02. specialize pass in XML: extraction, BypassNRO, script launch, time zone
+# 02. specialize pass in XML: extraction, BypassNRO, script launch, time zone, computer name
 
 The specialize pass runs at the first boot of the installed system, as SYSTEM,
 before any screens appear, without user profiles and, as a rule, without a network (network adapter
@@ -83,3 +83,40 @@ Component `Microsoft-Windows-Shell-Setup` in specialize.
 - Version differences: the identifier is the same in all versions; list: `tzutil /l`.
 - Verification: `tzutil /g`.
 - Rollback: `tzutil /s "<other time zone>"`.
+
+## ComputerName
+
+Component `Microsoft-Windows-Shell-Setup` in specialize; the form "Installation" (`install.computer_name_mode` and
+`install.computer_name`, profile format 4, task T24).
+
+| Mode | `ComputerName` | What happens |
+|---|---|---|
+| `random` (default, as before 1.3.0-rc.2) | absent | Windows Setup makes up a name (`DESKTOP-` and random characters) |
+| `fixed` | the name of the profile | Windows Setup gives the computer that name in this pass |
+| `template` | `WINKICKOFF-TMP` | `Setup-System.ps1` computes the name and keeps writing it until the restart that ends the pass |
+
+- Value: up to 15 characters (the NetBIOS limit); WinKickOff allows Latin letters, digits and hyphens, not only digits
+  and no hyphen at the start or the end, which is also a valid DNS host name. Microsoft Learn lists the characters a
+  name may not contain and says that an asterisk or an empty value makes Windows create a random 15-character name.
+- Template: text with parts in braces, `{serial}` (the end of `Win32_BIOS.SerialNumber`, letters and digits only),
+  `{mac}` (the end of the address of the first physical adapter of `Win32_NetworkAdapter`) and `{random}` (letters
+  and digits without 0, 1, I and O), each with an optional length: `OFFICE-{serial:6}`. Without a length: 6, 6 and 4.
+  The text must hold a letter and the longest result at most 15 characters (`core/computername.py`). A part that
+  cannot be read (an empty serial number or one such as "To be filled by O.E.M.", no adapter) becomes random
+  characters of its length.
+- How a template works (`templates/section-computer-name.ps1`, at the start of `Setup-System.ps1`): the answer file
+  names the computer `WINKICKOFF-TMP`; the script computes the name and starts a hidden PowerShell process that writes
+  it every 50 ms to `HKLM\SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName` (`ComputerName`) and
+  `HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters` (`Hostname`, `NV Hostname`) until the restart after
+  specialize stops it, so the name that Windows Setup writes in the same pass does not stay. The same technique is
+  used by the answer file generator of Christoph Schneegans (`modifier/ComputerName.cs`, `resource/SetComputerName.ps1`
+  of github.com/cschneegans/unattend-generator); the code of WinKickOff is its own. Forum reports say that writing
+  the registry alone, without the loop, takes effect only after one more restart.
+- Expected effect: the name of the form or of the template from the first sign-in; `Setup-System.log` has the line
+  "computer name from the template: ...".
+- Cross-links: computers of one workgroup need different names; a fixed name suits a profile made for one PC. The
+  apply of "This PC" never renames a running computer.
+- Verification: `$env:COMPUTERNAME`, `hostname`.
+- Rollback: Settings, System, About, "Rename this PC", or `Rename-Computer -NewName <name>` and a restart.
+- Pending in a virtual machine: a template on 25H2 (the name after the first sign-in, the log line), `{mac}` on a PC
+  whose network driver is missing in specialize (random characters expected).

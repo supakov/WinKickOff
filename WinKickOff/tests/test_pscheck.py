@@ -26,6 +26,22 @@ class PsCheckTest(unittest.TestCase):
             self.assertFalse(any("Good.ps1" in e for e in result.errors), result.errors)
             self.assertEqual([p.name for p in Path(tmp).iterdir()], [], "work folder must be cleaned up")
 
+    def test_a_name_template_and_account_texts_parse(self) -> None:
+        from winkickoff.core.catalog import load_catalog
+        from winkickoff.core.profile import Profile
+        from winkickoff.core.render import Renderer
+        from winkickoff.core.resources import Resources
+
+        root = Path(__file__).resolve().parents[1]
+        catalog = load_catalog(root / "rules", docs_root=root.parent)
+        profile, _ = Profile.load(root / "profiles" / "preset-office.json", catalog)
+        profile.install["computer_name_mode"], profile.install["computer_name"] = "template", "PC-{serial:4}{mac:2}{random}"
+        profile.accounts[0].description = "\u041e\u043f\u0438\u0441 'x'"
+        scripts = Renderer(catalog, root / "templates", Resources.load(root / "resources").keyboards).build(profile).scripts
+        with tempfile.TemporaryDirectory() as tmp:
+            result = check_scripts(scripts, Path(tmp))
+        self.assertTrue(result.ok, result)
+
     def test_all_good(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             result = check_scripts({"Good.ps1": "exit 0\n"}, Path(tmp))

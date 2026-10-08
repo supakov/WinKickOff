@@ -348,7 +348,7 @@ the frame (attribute 20), which older builds understand.
   "modified": "2026-09-25T10:00:00",
   "comment": "",
   "install": { "edition": "Pro", "product_key_mode": "generic", "product_key": "", "time_zone": "FLE Standard Time",
-               "account_mode": "file" },
+               "account_mode": "file", "computer_name_mode": "random", "computer_name": "" },
   "languages": { "ui_language": "uk-UA", "system_locale": "uk-UA", "user_locale": "uk-UA", "input": ["en-US", "uk-UA", "ru-UA"] },
   "accounts": [
     { "name": "Admin", "display_name": "Admin", "group": "Administrators", "description": "Local administrator (starter account)", "password": "" },
@@ -369,6 +369,13 @@ the frame (attribute 20), which older builds understand.
   writes `accounts` into `UserAccounts/LocalAccounts`; `ask` writes no account, so Windows Setup asks for the name of
   one administrator account, and `accounts` stays in the profile for the way back (`Profile.answer_file_accounts()`).
   Format 2 profiles have no `account_mode` and load without a warning as `file`; a profile of a newer format warns.
+- `install.computer_name_mode` (format 4, 1.3.0-rc.2): `random` (no `ComputerName`, Windows chooses), `fixed`
+  (`computer_name` is the name) or `template` (`computer_name` is a template such as `OFFICE-{serial:6}`, computed by
+  `Setup-System.ps1` during installation); `core/computername.py` holds the rules, reference card 02 the technique.
+  Profiles of formats 2 and 3 load without a warning as `random`.
+- Account texts: `name` and `password` must be ASCII (Windows Setup 24H2 and later turns other characters into
+  question marks); `display_name` and `description` may hold any text, and the build sets those outside ASCII after
+  OOBE (reference card 03).
 - `rules` lists all rules of the catalog (completeness is needed for comparing profiles and so
   that a new catalog rule is noticeable on load), except imported policies (`admx.*`, section 8): only those that
   are on or have parameters are written, an absent one is "not configured" and is not reported as new.
@@ -441,8 +448,9 @@ third-party one), the import parses the actions from the scripts and matches the
 
 ## 7. Versioning
 
-- Profile `format_version`: 3 (in 0.1 it was 1; migration: `config.*` → rule states via a mapping table; format 3 of
-  catalog 0.6 adds `install.account_mode`, and a format 2 profile loads as `file` without a warning).
+- Profile `format_version`: 4 (in 0.1 it was 1; migration: `config.*` → rule states via a mapping table; format 3 of
+  catalog 0.6 adds `install.account_mode`, and a format 2 profile loads as `file` without a warning; format 4 of catalog
+  0.7 adds `install.computer_name_mode` and `install.computer_name`, and formats 2 and 3 load as `random`).
 - `catalog_version` = the contents of `templates/VERSION`; if they differ, the profile is loaded with
   a warning and completed.
 - The application version is independent.
@@ -474,6 +482,10 @@ third-party one), the import parses the actions from the scripts and matches the
   saved imports on load and the trust order of imports (section 8), the field `source` of the entries of imported
   policies (an entry without it counts as `folder`), the strict reading of profiles and the tolerance of wrong shapes
   (section 4); older versions ignore `source`.
+- Catalog 0.7 (08.10.2026, editor 1.3.0-rc.2, task T24): the computer name of the form "Installation" (`ComputerName`
+  of specialize, or a template computed by `templates/section-computer-name.ps1`) and the display names and
+  descriptions outside ASCII set by `Post-OOBE.ps1` (`Set-AccountText`); profile format 4. The rules did not change:
+  profiles of 0.6 load with the usual warning about the catalog version and give the same rule blocks.
 
 ## 8. Imported policy templates (ADMX, ADML): `admx/<id>/`
 

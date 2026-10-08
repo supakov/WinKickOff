@@ -16,6 +16,7 @@ Everything the generator writes by itself (header, block markers, embedded profi
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 from collections import defaultdict
@@ -24,9 +25,10 @@ from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape as xml_escape
 
+from winkickoff.core import computername
 from winkickoff.core.catalog import PLACEHOLDER_FIELDS, Action, Catalog, Rule
 from winkickoff.core.deps import Resolver
-from winkickoff.core.profile import Profile
+from winkickoff.core.profile import Account, Profile
 from winkickoff.core.resources import find_keyboard
 
 _PLACEHOLDER_RE = re.compile(r"\{([a-z_][a-z0-9_]*)\}")
@@ -228,6 +230,59 @@ def ascii_text(text: str) -> str:
     return encoded
 
 
+def ps_text(text: str) -> str:
+    """A PowerShell expression for a text that may be outside ASCII, itself ASCII: the answer file never depends on how
+    Windows Setup treats national characters. ConvertFrom-Base64Text is defined by the scripts that use it."""
+    value = str(text)
+    if value.isascii():
+        return ps_quote(value)
+    return "(ConvertFrom-Base64Text '" + base64.b64encode(value.encode("utf-8")).decode("ascii") + "')"
+
+
+def account_xml_texts(account: Account) -> tuple[str, str]:
+    """The display name and the description written to the answer file. Windows Setup 24H2 and later turns their
+    characters outside ASCII into question marks, so such a text is left to Post-OOBE.ps1 (account_text_lines): the
+    file has the account name as the display name and no description."""
+    display = account.display_name or account.name
+    return (display if display.isascii() else account.name), (account.description if account.description.isascii() else "")
+
+
+def account_text_lines(profile: Profile) -> list[str]:
+    """Calls of Set-AccountText (Post-OOBE.runtime.ps1) for the accounts whose texts the answer file cannot carry."""
+    lines = []
+    for account in profile.answer_file_accounts():
+        display = account.display_name or account.name
+        if display.isascii() and account.description.isascii():
+            continue
+        lines.append(f"Set-AccountText -Name {ps_quote(account.name)} -FullName {ps_text(display)} "
+                     f"-Description {ps_text(account.description)}")
+    return lines
+
+
+def computer_name_parts(profile: Profile) -> list[str]:
+    """The parts of the computer name template for section-computer-name.ps1 ('text:...', 'serial:6'), or [] when the
+    profile does not use a template."""
+    if profile.install.get("computer_name_mode") != "template":
+        return []
+    try:
+        parts = computername.parse_template(str(profile.install.get("computer_name", "")))
+    except ValueError as exc:
+        raise RenderError(f"computer name template: {exc}") from exc
+    return [ps_quote(f"{kind}:{value}") for kind, value in parts]
+
+
+def answer_file_computer_name(profile: Profile) -> str:
+    """ComputerName of the specialize pass: the name, the temporary name of a template, or "" (Windows chooses)."""
+    mode = profile.install.get("computer_name_mode", "random")
+    if mode == "fixed":
+        name = str(profile.install.get("computer_name", ""))
+        problem = computername.name_problem(name)
+        if problem:
+            raise RenderError(f"computer name: {problem}")
+        return name
+    return computername.TEMPORARY_NAME if mode == "template" else ""
+
+
 # --------------------------------------------------------------------------- build
 
 
@@ -323,18 +378,21 @@ class Renderer:
         default_user_blocks = blocks("default-user")
         user_blocks = blocks("user-first-logon")
         post_blocks = blocks("post-oobe")
+        account_texts = account_text_lines(profile)
+        name_parts = computer_name_parts(profile)
+        has_post = bool(post_blocks or account_texts)
         languages = self.languages(profile)
         label = f"WinKickOff {app_version}, catalog {self.catalog.version}, {len(order)} rules enabled"
 
         scripts: dict[str, str] = {}
-        if system_blocks or default_user_blocks or user_blocks or post_blocks:
+        if system_blocks or default_user_blocks or user_blocks or has_post or name_parts:
             scripts["Setup-System.ps1"] = self._setup_system(
-                system_blocks, default_user_blocks, bool(user_blocks), bool(post_blocks), label
+                system_blocks, default_user_blocks, bool(user_blocks), has_post, label, name_parts
             )
         if user_blocks:
             scripts["Setup-User.ps1"] = self._setup_user(user_blocks, languages)
-        if post_blocks:
-            scripts["Post-OOBE.ps1"] = self._post_oobe(post_blocks, profile)
+        if has_post:
+            scripts["Post-OOBE.ps1"] = self._post_oobe(post_blocks, profile, account_texts)
         for name, text in scripts.items():
             if "]]>" in text:
                 raise RenderError(f"{name} contains ']]>' which cannot be placed into CDATA")
@@ -344,14 +402,19 @@ class Renderer:
 
     # ----------------------------------------------------------------- scripts
 
-    def _setup_system(self, blocks: list[str], du_blocks: list[str], has_user: bool, has_post: bool, label: str) -> str:
+    def _setup_system(self, blocks: list[str], du_blocks: list[str], has_user: bool, has_post: bool, label: str,
+                      name_parts: list[str] | None = None) -> str:
         du_section = ""
         if du_blocks:
             du_section = fill(self._template("section-default-user.ps1"), {"blocks": _indent("\n\n".join(du_blocks), 4)})
+        name_section = ""
+        if name_parts:
+            name_section = fill(self._template("section-computer-name.ps1"), {"name_parts": ",".join(name_parts)})
         text = fill(
             self._template("Setup-System.runtime.ps1"),
             {
                 "build_label": label.replace("'", ""),
+                "computer_name_section": name_section,
                 "blocks": "\n\n".join(blocks),
                 "default_user_section": du_section,
                 "active_setup_section": self._template("section-active-setup.ps1") if has_user else "",
@@ -372,11 +435,12 @@ class Renderer:
         )
         return _tidy(text)
 
-    def _post_oobe(self, blocks: list[str], profile: Profile) -> str:
+    def _post_oobe(self, blocks: list[str], profile: Profile, account_texts: list[str] | None = None) -> str:
         text = fill(
             self._template("Post-OOBE.runtime.ps1"),
             {
                 "accounts": ",".join(ps_quote(a.name) for a in profile.answer_file_accounts()),
+                "account_texts": "\n".join(account_texts or []),
                 "blocks": "\n\n".join(blocks),
             },
         )
@@ -461,6 +525,7 @@ class Renderer:
         commands += specialize_commands
         if "Setup-System.ps1" in scripts:
             commands.append(("Apply machine-wide settings", RUN_SYSTEM_COMMAND))
+        computer_name = answer_file_computer_name(profile)
         out.append('  <settings pass="specialize">')
         for arch in ARCHITECTURES:
             if commands:
@@ -468,6 +533,8 @@ class Renderer:
                 out += self._run_synchronous(commands, 6)
                 out.append("    </component>")
             out.append(self._component("Microsoft-Windows-Shell-Setup", arch))
+            if computer_name:
+                out.append(f"      <ComputerName>{xml_escape(computer_name)}</ComputerName>")
             out.append(f"      <TimeZone>{xml_escape(str(profile.install.get('time_zone', 'UTC')))}</TimeZone>")
             out.append("    </component>")
         out.append("  </settings>")
@@ -492,6 +559,7 @@ class Renderer:
                 if accounts:
                     out += ["      <UserAccounts>", "        <LocalAccounts>"]
                     for account in accounts:
+                        display, description = account_xml_texts(account)
                         out += [
                             '          <LocalAccount wcm:action="add">',
                             "            <Password>",
@@ -499,10 +567,10 @@ class Renderer:
                             "              <PlainText>true</PlainText>",
                             "            </Password>",
                         ]
-                        if account.description:
-                            out.append(f"            <Description>{xml_escape(account.description)}</Description>")
+                        if description:
+                            out.append(f"            <Description>{xml_escape(description)}</Description>")
                         out += [
-                            f"            <DisplayName>{xml_escape(account.display_name or account.name)}</DisplayName>",
+                            f"            <DisplayName>{xml_escape(display)}</DisplayName>",
                             f"            <Group>{xml_escape(account.group)}</Group>",
                             f"            <Name>{xml_escape(account.name)}</Name>",
                             "          </LocalAccount>",

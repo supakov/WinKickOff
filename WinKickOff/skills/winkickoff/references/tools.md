@@ -1,6 +1,6 @@
 # WinKickOff MCP tools
 
-Exact reference for the server of WinKickOff 1.3.0-rc.1 (catalog 0.6). Server name `winkickoff`, protocol 2025-06-18.
+Exact reference for the server of WinKickOff 1.3.0-rc.2 (catalog 0.7). Server name `winkickoff`, protocol 2025-06-18.
 
 ## Contents
 

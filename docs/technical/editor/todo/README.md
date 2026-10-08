@@ -1,10 +1,10 @@
 # WinKickOff plan tasks
 
-Revision 0.2 of 25.09.2026 (reworked for the rule model, see `../06-critical-review-v0.1.md`); statuses of 04.10.2026.
+Revision 0.2 of 25.09.2026 (reworked for the rule model, see `../06-critical-review-v0.1.md`); statuses of 08.10.2026.
 One file per task. Statuses: `todo`, `in-progress`, `done`, `blocked`. When a status changes,
 update this index and the root `AGENTS.md` (the "Work status" section).
 
-Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in the `WinKickOff/` folder (787 tests).
+Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in the `WinKickOff/` folder (799 tests).
 
 | Task | Title | Stage | Depends on | Status |
 |---|---|---|---|---|
@@ -31,6 +31,7 @@ Code: `../../../WinKickOff/`. Tests: `python -m unittest discover -s tests` in t
 | [T21](T21-linked-built-in-rules.md) | Imported policies follow the built-in rules that set the same values | 7 | T20 | done (1.1.0-rc.4) |
 | [T22](T22-mcp-server.md) | MCP server inside the editor: stdio and HTTP, read-only by default | 8 | T21 | done in code (30.09.2026, 1.2.0-rc.1; 43 findings of an adversarial review fixed 01.10.2026); acceptance with real clients in a VM pending |
 | [T23](T23-catalog-json.md) | Catalog in JSON; catalog files of imported templates: export, import, catalogs of the program | 9 | T19, T20 | done in code (04.10.2026, 1.3.0-rc.1); catalogs of the program wait for the license check |
+| [T24](T24-computer-name-account-texts.md) | Computer name of the form "Installation" (name or template); account texts outside ASCII | 9 | T05, T15 | done in code (08.10.2026, 1.3.0-rc.2); acceptance in a VM pending |
 
 Rules for the implementer of any task:
 

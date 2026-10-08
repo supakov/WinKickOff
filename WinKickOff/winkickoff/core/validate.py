@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from winkickoff.core import jsonfile
+from winkickoff.core import computername, jsonfile
 from winkickoff.core.admx import safe_name
 from winkickoff.core.catalog import Catalog, CatalogError, heading_anchors, is_imported, load_catalog
 from winkickoff.core.i18n import N_, catalog_texts, tr
@@ -63,7 +63,16 @@ def check_account_name(name: str) -> str | None:
         return tr("reserved Windows name")
     if name.strip(". ") != name:
         return tr("cannot begin or end with a period or space")
+    if not name.isascii():
+        return tr(NOT_ASCII)
     return None
+
+
+# Windows Setup 24H2 and later writes the characters of an account of the answer file that are outside ASCII as
+# question marks (the customer saw it in a description; others report it for names and display names). Display names
+# and descriptions are set again after OOBE (render: Set-AccountText in Post-OOBE.ps1); a name or a password cannot be.
+NOT_ASCII = N_("has characters outside Latin letters, digits and punctuation, which Windows Setup 24H2 and later turns "
+               "into question marks")
 
 
 # Rules that the mode "Windows Setup asks for the account" relies on: without them OOBE shows the Microsoft account
@@ -96,7 +105,10 @@ def validate_accounts(profile: Profile) -> list[Issue]:
         seen.add(account.name.lower())
         if account.group not in ("Administrators", "Users"):
             issues.append(Issue("error", target, tr("Group '{0}' is not allowed (Administrators or Users)", account.group)))
-        if account.password:
+        if account.password and not account.password.isascii():
+            issues.append(Issue("error", target, tr("Password of account '{0}' {1}; set such a password after installation",
+                                                    account.name, tr(NOT_ASCII))))
+        elif account.password:
             issues.append(Issue("warning", target, tr("Password '{0}' will be written to the XML in plain text; keep the file secret", account.name)))
     if not any(a.group == "Administrators" for a in profile.accounts):
         issues.append(Issue("error", "accounts", tr("At least one account in the Administrators group is required")))
@@ -169,6 +181,14 @@ def validate_profile(profile: Profile, catalog: Catalog, keyboards: list[dict[st
         issues.append(Issue("error", "install.product_key", tr("The product key must be in the format XXXXX-XXXXX-XXXXX-XXXXX-XXXXX")))
     if not str(profile.install.get("time_zone", "")).strip():
         issues.append(Issue("error", "install.time_zone", tr("Time zone is not set")))
+    name_mode = profile.install.get("computer_name_mode", "random")
+    computer_name = str(profile.install.get("computer_name", ""))
+    if name_mode not in computername.MODES:
+        issues.append(Issue("error", "install.computer_name_mode", tr("Unknown computer name mode '{0}'", name_mode)))
+    problem = (computername.name_problem(computer_name) if name_mode == "fixed" else
+               computername.template_problem(computer_name) if name_mode == "template" else None)
+    if problem:
+        issues.append(Issue("error", "install.computer_name", tr("Computer name: {0}", problem)))
 
     for key, title in (("ui_language", tr("Display language")), ("system_locale", tr("Language for non-Unicode programs")), ("user_locale", tr("Date and number format"))):
         value = str(profile.languages.get(key, ""))
@@ -337,6 +357,14 @@ def validate_xml(text: str) -> list[Issue]:
         if len(description) > MAX_PATH:
             issues.append(Issue("error", "xml", tr("Description is longer than {0} characters", MAX_PATH)))
 
+    for component in root.findall(f"{U}settings[@pass='specialize']/{U}component[@name='Microsoft-Windows-Shell-Setup']"):
+        name_node = component.find(f"{U}ComputerName")
+        if name_node is not None and _text(name_node) != "*":  # * : Windows Setup chooses a random name
+            problem = computername.name_problem(_text(name_node))
+            if problem:
+                issues.append(Issue("error", "xml", tr("ComputerName ({0}): {1}", component.get("processorArchitecture", "?"),
+                                                       problem)))
+
     for settings in root.findall(f"{U}settings"):
         if settings.get("pass") != "oobeSystem":
             continue
@@ -353,6 +381,12 @@ def validate_xml(text: str) -> list[Issue]:
                 groups = [_text(g) for g in component.iter(f"{U}Group")]
                 if any(True for _ in component.iter(f"{U}LocalAccount")) and "Administrators" not in groups:
                     issues.append(Issue("error", "xml", tr("LocalAccounts ({0}): no account in the Administrators group", arch)))
+                for account in component.iter(f"{U}LocalAccount"):
+                    for field in ("Name", "DisplayName", "Description", "Password/Value"):
+                        node = account.find("/".join(U + part for part in field.split("/")))
+                        if not _text(node).isascii():
+                            issues.append(Issue("error", "xml", tr("LocalAccount {0} ({1}): {2} {3}", _text(account.find(f"{U}Name")),
+                                                                   arch, field, tr(NOT_ASCII))))
 
     extensions = root.find(f"{EXT}Extensions")
     files = extensions.findall(f"{EXT}File") if extensions is not None else []

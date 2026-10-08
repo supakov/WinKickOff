@@ -1,6 +1,6 @@
 # WinKickOff workflows
 
-Step-by-step recipes for typical requests. Every id and argument below exists in catalog 0.6. Argument examples are
+Step-by-step recipes for typical requests. Every id and argument below exists in catalog 0.7. Argument examples are
 JSON objects passed to the named tool.
 
 ## Contents

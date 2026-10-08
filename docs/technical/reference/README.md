@@ -31,7 +31,7 @@ Registry paths are abbreviated: `HKLM` = `HKEY_LOCAL_MACHINE`, `Pol` = `HKLM\SOF
 |---|---|---|
 | [00-architecture.md](00-architecture.md) | File structure: passes, order, application mechanisms, Setup constraints, logs, overall cross-link map | none |
 | [01-windows-pe.md](01-windows-pe.md) | windowsPE pass: key, edition, license, hardware check bypass | ProductKey, WillShowUI, AcceptEula, LabConfig |
-| [02-specialize-xml.md](02-specialize-xml.md) | specialize pass in XML: script extraction, BypassNRO, launching Setup-System.ps1, time zone | Order 1..3, TimeZone |
+| [02-specialize-xml.md](02-specialize-xml.md) | specialize pass in XML: script extraction, BypassNRO, launching Setup-System.ps1, time zone, computer name | Order 1..3, TimeZone, ComputerName |
 | [03-oobe-accounts-languages.md](03-oobe-accounts-languages.md) | oobeSystem pass: languages and region, OOBE screens, starter accounts | InputLocale, SystemLocale, UILanguage, UserLocale, OOBE, LocalAccounts |
 | [04-users-and-media.md](04-users-and-media.md) | Accounts in `$Config`, .NET 3.5 from the installation media | AdminAccount, UserAccount, PasswordNeverExpires, EnableNetFx3 |
 | [05-printing.md](05-printing.md) | Printing | EnsurePrintSpooler, RestrictPrinterDriverInstallToAdmins |

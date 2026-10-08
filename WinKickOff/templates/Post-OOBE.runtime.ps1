@@ -41,6 +41,23 @@ function Remove-Reg {
 # Local accounts created by the answer file (used by rules that act on every starter account).
 $accounts = @({{accounts}})
 
+# Display names and descriptions outside ASCII: Windows Setup 24H2 and later turns such characters of the answer file
+# into question marks, so the answer file holds the account name and no description, and this script sets the texts
+# (UTF-8 in Base64, which keeps the answer file ASCII). ADSI, since Set-LocalUser takes at most 48 characters.
+function ConvertFrom-Base64Text { param([string]$Text) [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Text)) }
+function Set-AccountText {
+    param([Parameter(Mandatory)][string]$Name, [string]$FullName, [string]$Description)
+    try {
+        $user = [ADSI]('WinNT://{0}/{1},user' -f $env:COMPUTERNAME, $Name)
+        if ($FullName) { $user.Put('FullName', $FullName) }
+        if ($Description) { $user.Put('Description', $Description) }
+        $user.SetInfo()
+        Write-Log ("account {0}: display name and description set" -f $Name) 'OK'
+    } catch {
+        Write-Log ("FAILED account {0}: {1}" -f $Name, $_.Exception.Message) 'ERROR'
+    }
+}
+
 Write-Log 'Post-OOBE.ps1 started'
 $stateKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Setup\State'
 $state = $null
@@ -51,6 +68,7 @@ while ((Get-Date) -lt $deadline) {
     Start-Sleep -Seconds 30
 }
 if ($state -ne 'IMAGE_STATE_COMPLETE') { Write-Log "OOBE still not complete ($state), will retry at next startup"; exit 0 }
+{{account_texts}}
 Write-Log 'OOBE complete, waiting 2 minutes for the first sign-in to settle'
 Start-Sleep -Seconds 120
 

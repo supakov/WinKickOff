@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 08.10.2026 (version 1.3.0-rc.1: the customer's commits of 05.10.2026, 14 editions of the generic key and `HiddenByDefault` 1 as the Windows default of every `thispc.*` rule, and the fixes of the last review of T23: a profile saved through a temporary file, held choices at every start, a policy named Off; before it task T23: the rule catalog in JSON instead of TOML, export and import of catalog files, catalogs of the program, and the fixes of its adversarial reviews: profiles read strictly, the provenance of imported choices, safe keys and characters, the ids of policies that share one; before it the customer requests of 04.10.2026: File Explorer namespaces and desktop icons, the account asked during installation, the switch keys of the input language, the edition chosen during installation, a security fix of placeholders in paths, catalog and runtime 0.6, profile format 3).
+Last update: 08.10.2026 (version 1.3.0-rc.2, task T24: the computer name of the form "Installation" (a name or a template) and the account texts outside ASCII set after OOBE, catalog and runtime 0.7, profile format 4; before it 1.3.0-rc.1, published on 08.10.2026: the customer's commits of 05.10.2026, 14 editions of the generic key and `HiddenByDefault` 1 as the Windows default of every `thispc.*` rule, and the fixes of the last review of T23: a profile saved through a temporary file, held choices at every start, a policy named Off; before it task T23: the rule catalog in JSON instead of TOML, export and import of catalog files, catalogs of the program, and the fixes of its adversarial reviews: profiles read strictly, the provenance of imported choices, safe keys and characters, the ids of policies that share one; before it the customer requests of 04.10.2026: File Explorer namespaces and desktop icons, the account asked during installation, the switch keys of the input language, the edition chosen during installation, a security fix of placeholders in paths, catalog and runtime 0.6, profile format 3).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -57,27 +57,28 @@ only through the MCP server, without a cloud model and without any file of the p
 │                                  Dockerfile, AGENTS.md (its instructions, copied into the image), README.md (setup);
 │                                  nothing about the project itself
 ├── tools/
-│   └── Validate-Unattend.ps1      answer file checker (36 checks), read-only; without -Path it checks Appendix B
+│   └── Validate-Unattend.ps1      answer file checker (37 checks), read-only; without -Path it checks Appendix B
 ├── docs/
 │   ├── README.md                  entry point to the documentation (three languages)
 │   ├── technical/                 TECHNICAL DOCUMENTATION, English
 │   │   ├── reference/             reference: a card for every installation parameter (21 files; 18 browsers, 19 more privacy, 20 File Explorer namespaces)
 │   │   └── editor/                WinKickOff specification: problem, architecture, data model, testing,
 │   │       │                      plan (days, milestones), review of revision 0.1
-│   │       └── todo/              tasks T01-T23 with status (README.md is the index)
+│   │       └── todo/              tasks T01-T24 with status (README.md is the index)
 │   ├── user/                      USER DOCUMENTATION: ru (source), uk, en; the same files in each language
 │   ├── releases/                  release notes v<version>.md (ru, uk, en), used by the release job
 │   └── appendices/                APPENDICES, frozen, Russian: README describes them
 │       ├── B-autounattend-v0.2/   our hand-written answer file v0.2 (the reference) and its README: history, VM checklist
 │       ├── C-critical-review/     the critic's report on v0.2 (docx)
 │       └── D-requirements-draft/  first requirements draft; section 6 holds open questions to the customer
-└── WinKickOff/                    EDITOR 1.3.0-rc.1 AND RULE CATALOG 0.6
+└── WinKickOff/                    EDITOR 1.3.0-rc.2 AND RULE CATALOG 0.7
     ├── README.md                  developer README: run, test, structure; links to user docs
     ├── pyproject.toml             requires-python >= 3.14, no runtime dependencies
     ├── winkickoff/                package: __main__.py (dispatcher: window or headless MCP), app.py (window start,
     │                              owns the MCP service), mcp_main.py (console entry of WinKickOff-mcp.exe),
     │                              core/ (paths, log, catalog, deps, profile, resources, render, validate, verify,
     │                              actions_parser, importer, pscheck, settings, i18n, themes, apply, admx, linked, startup,
+    │                              computername: names and templates of the computer name,
     │                              jsonfile: strict JSON, gzip and xz, canonical layout; package: catalog files),
     │                              mcp/ (MCP server: jsonrpc, schema, redact, journal, workspace, bridge, tools, resources,
     │                              protocol, stdio, httpserver, service, cli; errors),
@@ -91,7 +92,7 @@ only through the MCP server, without a cloud model and without any file of the p
     ├── catalogs/                  catalogs of the program (catalog files of imported ADMX templates, <name>.json;
     │                              README.md); none committed until the license check; the build ships them as xz
     ├── templates/                 runtime with slots: autounattend.template.xml, Setup-System, Setup-User, Post-OOBE,
-    │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.6
+    │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.7
     ├── resources/                 keyboards.json, timezones.json, strings.ru.json and strings.uk.json (interface
     │                              translations), themes/ (light, dark, latte, matrix colour themes)
     ├── profiles/                  presets Office (= catalog defaults), Strict, Laptop, Home, README
@@ -417,6 +418,19 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   default-user, scope `signin` in `registry_values()`; the audit reads it as `Registry::HKEY_USERS\...`. An enum
   parameter may name `differs_from` another enum of the rule with `same_allowed` values; the check of the profile
   reports a clash (`default-user.input-switch-keys`: language and layout switch keys, Win+Space cannot change).
+- Computer name and account texts (task T24, 08.10.2026, catalog and runtime 0.7, profile format 4):
+  `install.computer_name_mode` `random` (no `ComputerName`, the default), `fixed` or `template`, `install.computer_name`
+  the name or the template; `core/computername.py` holds the rules (15 characters, Latin letters, digits and hyphens,
+  not only digits, `{serial}`, `{mac}`, `{random}` with lengths). A template: `ComputerName` `WINKICKOFF-TMP` and
+  `templates/section-computer-name.ps1` at the start of `Setup-System.ps1` (slot `computer_name_section`), which
+  starts a hidden PowerShell process that writes the name to the three registry values every 50 ms until the restart
+  after specialize, the technique of the Schneegans generator (card 02); nothing on the customer's PC may run it.
+  Windows Setup 24H2 and later turns the characters of a `LocalAccount` outside ASCII into question marks (the
+  customer's Cyrillic description of 08.10.2026): `render.account_xml_texts` writes ASCII only, and
+  `render.account_text_lines` adds `Set-AccountText` calls (ADSI, the text as UTF-8 in Base64 through `ps_text`, so the
+  answer file stays ASCII) to `Post-OOBE.ps1`, which the build then creates with its task even without post-oobe rules.
+  An account name or a password outside ASCII is a check error (`validate.NOT_ASCII`), and both XML checks refuse such
+  texts. The other paths of Cyrillic were checked and keep it (T24 lists them). Acceptance in a VM pending.
 - Accounts asked during installation (customer request 2 of 04.10.2026): profile format 3 adds `install.account_mode`
   (`file` or `ask`). In `ask` the answer file has no `UserAccounts` (`Profile.answer_file_accounts()` is empty, also for
   Post-OOBE and Apply), so Windows Setup asks for one account and makes it an administrator; the accounts stay in the
@@ -453,8 +467,8 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   KMS client keys (GVLK) of the Microsoft Learn table "Key Management Services (KMS) client activation and product
   keys", compared key by key on 08.10.2026: without a KMS host such a Windows stays unactivated until the key of the
   licence is typed. The form sizes the edition list to the longest name and says so under it; card 01 lists them. The
-  file `skills/winkickoff/references/concepts.md` is 11 bytes below the pi limit of 20 KB (`test_skill.py`): shorten
-  something before adding text there.
+  file `skills/winkickoff/references/concepts.md` is 9 bytes below the pi limit of 20 KB (`test_skill.py`; 08.10.2026,
+  after the computer name): shorten something before adding text there.
 - The Home preset is an allowlist: `HOME_RULES` in `WinKickOff/tools/make_presets.py` names its 70 rules (the hardware
   check bypasses and OOBE screens of Office, removal of extra apps, ads, Copilot and user privacy, File Explorer opens
   This PC), with Delivery Optimization `mode` 99, telemetry `level` 0 and the product key asked. A new catalog rule
@@ -624,18 +638,18 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 | Answer file v0.2 | Reference, frozen; checked by the validator and the critic | 13.09.2026 | `docs/appendices/B-autounattend-v0.2/` |
 | Critic's report and fixes | Done (9 accepted, 3 rejected) | 13.09.2026 | `docs/appendices/C-critical-review/03-critic-report-v0.2.docx` |
 | Parameter reference | Done, 21 cards (00-20) and the index, English; card 20 (File Explorer namespaces) added for catalog 0.6 | 04.10.2026 | `docs/technical/reference/` |
-| Answer file checker | Done, 36 checks, 0 errors on v0.2 | 25.09.2026 | `tools/Validate-Unattend.ps1` |
+| Answer file checker | Done, 37 checks, 0 errors on v0.2 (since 08.10.2026: computer name, account texts in ASCII) | 08.10.2026 | `tools/Validate-Unattend.ps1` |
 | GitHub repository | Renamed to WinKickOff; the local clone and `origin/main` match; CI in GitHub Actions | 26.09.2026 | https://github.com/supakov/WinKickOff |
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
-| Editor tasks | T01-T12, T14, T16-T23 done (the build runs in GitHub Actions; T23: the catalogs of the program wait for the license check); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 04.10.2026 | `docs/technical/editor/todo/` |
+| Editor tasks | T01-T12, T14, T16-T24 done (the build runs in GitHub Actions; T23: the catalogs of the program wait for the license check); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 04.10.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.6: 278 rules, 40 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer and the desktop 41; keys that switch the input language), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.6 adds the File Explorer namespaces and desktop icons (generated), the switch keys of the sign-in screen and new accounts, registry functions of the per-user and post-OOBE scripts; since 1.3.0 (T23) strict JSON in a canonical layout instead of TOML, the same content | 04.10.2026 | `WinKickOff/rules/` |
-| Editor code | 1.3.0-rc.1 (T23: the catalog in JSON, export and import of catalog files, catalogs of the program, saved imports checked and conformed on load, trust order of imports and the provenance of imported choices; the tree root of unknown rules and policies, the account asked during installation, File Explorer namespaces and desktop icons, the switch keys of the input language, a security fix of placeholders; Home preset; customer specifics removed; skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 790 tests | 08.10.2026 | `WinKickOff/` |
+| Editor code | 1.3.0-rc.2 (T24: the computer name, a name or a template, and account texts outside ASCII; T23: the catalog in JSON, export and import of catalog files, catalogs of the program, saved imports checked and conformed on load, trust order of imports and the provenance of imported choices; the tree root of unknown rules and policies, the account asked during installation, File Explorer namespaces and desktop icons, the switch keys of the input language, a security fix of placeholders; Home preset; customer specifics removed; skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 799 tests | 08.10.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply (rules on are applied, rules off return to Windows defaults) and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 29.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |
 | Documentation split | T16 done: technical in English, user documentation in ru, uk, en; since T18 the catalog is English with complete ru and uk translations | 30.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
 | GitHub issues | #1 "Web Browsers debloat" done: section "Browsers" (Edge, Chrome, Brave), 46 rules off by default, card 18. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.json`, `docs/technical/reference/18-browsers.md` |
-| Release candidate | 1.3.0-rc.1 in the code with its notes, not tagged yet (a tag only on the customer's command); 1.2.0-rc.4 published (Home preset with its own list of rules, customer specifics removed, Appendix A and the review of the original deleted); earlier 1.2.0-rc.3 (the skill served over MCP, error kinds in tool error texts, pi-agent an MCP-only assistant), 1.2.0-rc.2 (skill `skills/winkickoff` in the build, clipboard fix, F9 hint), 1.2.0-rc.1 (MCP server, after the review fixes of 01.10.2026), 1.1.0-rc.4 (imported policies follow the built-in rules), 1.1.0-rc.3 (Back and Forward, shared imports), 1.1.0-rc.2 (lists of values), 1.1.0-rc.1 (import of ADMX templates) and 1.0.0-rc.1 to rc.4 of 26.09-30.09.2026: tag and GitHub release built by CI | 04.10.2026 | `docs/releases/v1.2.0-rc.4.md`, `docs/releases/v1.3.0-rc.1.md` |
+| Release candidate | 1.3.0-rc.2 in the code with its notes, not tagged yet (a tag only on the customer's command); 1.3.0-rc.1 published on 08.10.2026 (tag on 7e25d20, prerelease built by CI); 1.2.0-rc.4 published (Home preset with its own list of rules, customer specifics removed, Appendix A and the review of the original deleted); earlier 1.2.0-rc.3 (the skill served over MCP, error kinds in tool error texts, pi-agent an MCP-only assistant), 1.2.0-rc.2 (skill `skills/winkickoff` in the build, clipboard fix, F9 hint), 1.2.0-rc.1 (MCP server, after the review fixes of 01.10.2026), 1.1.0-rc.4 (imported policies follow the built-in rules), 1.1.0-rc.3 (Back and Forward, shared imports), 1.1.0-rc.2 (lists of values), 1.1.0-rc.1 (import of ADMX templates) and 1.0.0-rc.1 to rc.4 of 26.09-30.09.2026: tag and GitHub release built by CI | 04.10.2026 | `docs/releases/v1.2.0-rc.4.md`, `docs/releases/v1.3.0-rc.1.md` |
 | Imported ADMX templates | T19 done: ADMX menu, store `admx/` next to the program, policies as rules with parameters, links to built-in rules; since 1.1.0-rc.2 list and multi-line elements too (20 of 3552 policies of this Windows skipped); acceptance of lists on This PC in a VM pending; T20 (1.1.0-rc.3): an import of an imported folder asks to update it or add a tree, a policy in several trees has one check mark, trees can be renamed; Back and Forward in the window; T21 (1.1.0-rc.4): an imported policy follows the built-in rule that sets the same values; T23 (1.3.0-rc.1): export and import of catalog files, catalogs of the program (none shipped until the license check), the trust order of imports, saved imports checked on load | 04.10.2026 | `WinKickOff/winkickoff/core/admx.py`, `docs/user/*/admx.md` |
 | Customer list MoreOptions | Done: BitLocker off in every preset; 57 rules on by default (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Edge AI and sign-in, Gallery hidden), This PC folders as options off by default; corrections in card 19 | 28.09.2026 | `docs/technical/reference/19-more-privacy.md` |
 | MCP server | T22 done in code: stdio and HTTP transports, 18 tools, resources, modes read/edit/files, monitor, second executable in CI; acceptance with real clients (Claude Code, Claude Desktop) in a VM pending | 30.09.2026 | `WinKickOff/winkickoff/mcp/`, `docs/user/*/mcp.md` |

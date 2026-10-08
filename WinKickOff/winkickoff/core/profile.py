@@ -18,8 +18,8 @@ from winkickoff.core.i18n import tr
 
 PROFILE_MAX_BYTES = 16 * 1024 * 1024
 LEGACY_SOURCE = "folder"  # an imported choice saved before 1.3 (no "source"): catalog files did not exist then
-FORMAT_VERSION = 3  # 3: install.account_mode (1.3); a profile of format 2 has no such field and means "file"
-READ_FORMATS = (2, 3)  # read without a warning
+FORMAT_VERSION = 4  # 3: install.account_mode (1.3.0-rc.1); 4: install.computer_name_mode and computer_name (rc.2)
+READ_FORMATS = (2, 3, 4)  # read without a warning: a missing field means its default
 
 ACCOUNT_MODES = ("file", "ask")  # the accounts of the profile, or Windows Setup asks for one administrator
 DEFAULT_INSTALL: dict[str, Any] = {
@@ -28,6 +28,8 @@ DEFAULT_INSTALL: dict[str, Any] = {
     "product_key": "",
     "time_zone": "FLE Standard Time",
     "account_mode": "file",
+    "computer_name_mode": "random",  # random | fixed | template (core/computername.py)
+    "computer_name": "",  # the name in mode fixed, the template in mode template
 }
 DEFAULT_LANGUAGES: dict[str, Any] = {
     "ui_language": "uk-UA",  # must equal the language of the installation ISO

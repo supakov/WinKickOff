@@ -23,7 +23,7 @@ administrator rights).
 |---|---|
 | Editor (`WinKickOff/`) | Every installation rule in a searchable tree with descriptions; dependent rules are disabled automatically; profiles and presets; the output is `autounattend.xml` built from the selection only; interface in English with Russian and Ukrainian translations (more languages are added as files), light, dark, Latte and Matrix colour themes; optional import of ADMX policy templates (Windows, Edge, Chrome, Office) as a subtree of selectable policies, and export and import of such imports as catalog files to move them to another PC; an MCP server (stdio and HTTP on 127.0.0.1, read-only by default) for AI clients such as Claude Code and Claude Desktop |
 | This PC (menu of the editor) | Read-only check of an installed Windows; apply the selected rules or return them to Windows defaults, with a backup and rollback |
-| Validate-Unattend (`tools/Validate-Unattend.ps1`) | Static check of any answer file against the limits of Windows Setup (36 checks), read-only |
+| Validate-Unattend (`tools/Validate-Unattend.ps1`) | Static check of any answer file against the limits of Windows Setup (37 checks), read-only |
 
 Passwords and groups of the accounts are assigned by a separate project of the customer after installation.
 

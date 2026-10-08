@@ -99,6 +99,21 @@ foreach ($comp in @($xml.SelectNodes('//u:settings[@pass="oobeSystem"]/u:compone
     # No LocalAccount at all: OOBE asks for one account, which Windows makes an administrator
     Add-Result "At least one Administrators account ($arch)" ($count -eq 0 -or $groups -contains 'Administrators') $(if ($count -eq 0) { 'none: OOBE asks' } else { '' })
 }
+# Windows Setup 24H2 and later turns the characters of an account outside ASCII into question marks
+$nonAscii = @(foreach ($a in $accounts) {
+    $who = [string]$a.SelectSingleNode('u:Name', $ns).InnerText
+    foreach ($f in 'Name', 'DisplayName', 'Description', 'Password/u:Value') {
+        $node = $a.SelectSingleNode("u:$f", $ns)
+        if ($node -and $node.InnerText -match '[^\x00-\x7F]') { '{0}/{1}' -f $who, ($f -replace 'u:', '') }
+    }
+})
+Add-Result 'LocalAccount texts in ASCII' ($nonAscii.Count -eq 0) ($nonAscii -join ',')
+# ComputerName of the specialize pass: up to 15 Latin letters, digits and hyphens, not only digits, or * (random)
+foreach ($node in @($xml.SelectNodes('//u:settings[@pass="specialize"]/u:component[@name="Microsoft-Windows-Shell-Setup"]/u:ComputerName', $ns))) {
+    $n = $node.InnerText
+    $ok = $n -eq '*' -or ($n -match '^[A-Za-z0-9-]{1,15}$' -and $n -notmatch '^[0-9]+$' -and $n -notmatch '^-|-$')
+    Add-Result ("ComputerName valid ({0})" -f $node.ParentNode.GetAttribute('processorArchitecture')) $ok $n
+}
 
 # 9. Extensions: scripts extract and parse under PowerShell 5.1
 $ext = $xml.unattend.Extensions

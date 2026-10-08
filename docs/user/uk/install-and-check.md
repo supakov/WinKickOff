@@ -42,7 +42,8 @@ Get-Content C:\ProgramData\Unattend\Logs\Setup-System.log | Select-String 'ERROR
 Get-ChildItem C:\ProgramData\Unattend\Logs\Setup-User.*.log | Get-Content
 Get-Content C:\ProgramData\Unattend\Logs\Post-OOBE.log
 Get-Service Spooler | Select-Object Status, StartType
-Get-LocalUser Admin, User | Select-Object Name, Enabled, PasswordExpires
+Get-LocalUser Admin, User | Select-Object Name, FullName, Description, Enabled, PasswordExpires
+$env:COMPUTERNAME
 Get-WinUserLanguageList | Select-Object LanguageTag, InputMethodTips
 Get-MpPreference | Select-Object PUAProtection, MAPSReporting, EnableNetworkProtection, AttackSurfaceReductionRules_Ids
 Test-Path C:\Windows\Panther\unattend.xml
@@ -51,7 +52,9 @@ Test-Path C:\Windows\Panther\unattend.xml
 Очікуваний результат для пресету «Офіс»: у журналах немає ERROR; служба друку працює і
 запускається автоматично; строк дії пароля для Admin і User не обмежено; мови введення en-US, uk-UA,
 ru-UA; захист від небажаних програм і мережевий захист увімкнено; кількість правил ASR: 16 (у пресеті «Строгий» 17); файлу
-`unattend.xml` у Panther немає.
+`unattend.xml` у Panther немає. Відображувані імена й описи облікових записів такі, як у формі «Облікові записи»
+(кирилицю в них задає `Post-OOBE.ps1`, див. `Post-OOBE.log`), а ім'я комп'ютера таке, як задано у формі
+«Інсталяція»: ім'я, ім'я за шаблоном або випадкове `DESKTOP-...`.
 
 Для кожного правила в програмі є розділ «Перевірка після інсталяції»
 з точною командою.

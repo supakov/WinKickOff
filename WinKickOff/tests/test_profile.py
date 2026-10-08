@@ -53,6 +53,16 @@ class ProfileTest(unittest.TestCase):
             self.assertEqual(loaded.comment, "smile " + chr(0xFFFD))
             self.assertTrue(path.read_bytes().endswith(b"}\r\n"))
 
+    def test_format_3_loads_without_a_warning_and_lets_windows_choose_the_name(self) -> None:
+        data = Profile.from_catalog(self.catalog).to_dict(self.catalog)
+        data["format_version"] = 3
+        for key in ("computer_name_mode", "computer_name"):
+            del data["install"][key]
+        profile, warnings = Profile.from_dict(data, self.catalog)
+        self.assertEqual(warnings, [])
+        self.assertEqual((profile.install["computer_name_mode"], profile.install["computer_name"]), ("random", ""))
+        self.assertEqual(profile.to_dict(self.catalog)["format_version"], 4)
+
     def test_round_trip(self) -> None:
         profile = Profile.from_catalog(self.catalog, name="Тест")
         profile.rules["network.netbios-off"].enabled = True
@@ -107,7 +117,7 @@ class ProfileTest(unittest.TestCase):
         loaded, warnings = Profile.from_dict(data, self.catalog)
         self.assertEqual(warnings, [])
         self.assertFalse(loaded.asks_for_account())
-        data["format_version"] = 4  # a newer program
+        data["format_version"] = 5  # a newer program
         self.assertTrue(Profile.from_dict(data, self.catalog)[1])
 
     def test_unknown_entries_for_the_tree(self) -> None:

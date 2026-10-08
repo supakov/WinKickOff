@@ -42,7 +42,8 @@ Get-Content C:\ProgramData\Unattend\Logs\Setup-System.log | Select-String 'ERROR
 Get-ChildItem C:\ProgramData\Unattend\Logs\Setup-User.*.log | Get-Content
 Get-Content C:\ProgramData\Unattend\Logs\Post-OOBE.log
 Get-Service Spooler | Select-Object Status, StartType
-Get-LocalUser Admin, User | Select-Object Name, Enabled, PasswordExpires
+Get-LocalUser Admin, User | Select-Object Name, FullName, Description, Enabled, PasswordExpires
+$env:COMPUTERNAME
 Get-WinUserLanguageList | Select-Object LanguageTag, InputMethodTips
 Get-MpPreference | Select-Object PUAProtection, MAPSReporting, EnableNetworkProtection, AttackSurfaceReductionRules_Ids
 Test-Path C:\Windows\Panther\unattend.xml
@@ -51,7 +52,10 @@ Test-Path C:\Windows\Panther\unattend.xml
 Expected result for the "Office" preset: no ERROR in the logs; the Print Spooler service is running
 and starts automatically; the Admin and User passwords never expire; the input languages are en-US, uk-UA,
 ru-UA; protection against potentially unwanted apps and network protection are turned on; there are 16 ASR
-rules (17 in the "Strict" preset); there is no `unattend.xml` file in Panther.
+rules (17 in the "Strict" preset); there is no `unattend.xml` file in Panther. The display names and
+descriptions of the accounts are those of the "Accounts" form (`Post-OOBE.ps1` sets the Cyrillic ones, see
+`Post-OOBE.log`), and the computer name is the one the "Installation" form sets: the name, a name from the
+template or a random `DESKTOP-...`.
 
 For every rule, the program has a "Check after installation" section with the
 exact command.

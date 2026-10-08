@@ -123,6 +123,14 @@ Two accounts; the order of the child elements follows the example in the Microso
 | Password/Value | empty | empty |
 | Password/PlainText | true | true |
 
+- Texts outside ASCII (08.10.2026): Windows Setup 24H2 and later writes the characters of an account that are not
+  ASCII as question marks. The customer saw it with a Cyrillic description; users of NTLite and Eleven Forum report it
+  for a Russian name of the built-in administrator and for a Czech display name, and say that 23H2 kept them. WinKickOff
+  therefore writes such a display name as the account name and leaves such a description out; `Post-OOBE.ps1` sets
+  both after OOBE through ADSI (`Set-AccountText`; `Set-LocalUser` takes at most 48 characters of a description), with
+  the text as UTF-8 in Base64, so the answer file stays ASCII. A name or a password outside ASCII cannot be repaired
+  that way (the profile folder takes the name at the first sign-in, a password must work at once): the check of the
+  profile refuses them, and `tools/Validate-Unattend.ps1` and the XML check refuse such texts in any file.
 - What it does: OOBE creates both accounts before the first sign-in. The profiles (the `C:\Users\Admin`,
   `C:\Users\User` folders) are created at each account's first sign-in, so they inherit the default user profile
   modified in specialize (section 14).

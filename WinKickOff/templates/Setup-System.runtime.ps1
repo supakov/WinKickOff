@@ -185,6 +185,8 @@ Write-Log '================================================================'
 Write-Log 'Setup-System.ps1 started: {{build_label}}'
 Write-Log ("Build: {0}  User: {1}" -f [System.Environment]::OSVersion.Version.Build, $env:USERNAME)
 
+{{computer_name_section}}
+
 # ============================================================================
 # RULES
 # ============================================================================

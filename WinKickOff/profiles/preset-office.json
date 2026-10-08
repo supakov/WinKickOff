@@ -1,6 +1,6 @@
 {
-  "format_version": 3,
-  "catalog_version": "0.6",
+  "format_version": 4,
+  "catalog_version": "0.7",
   "name": "Office",
   "author": "",
   "created": "2026-09-25T00:00:00",
@@ -11,7 +11,9 @@
     "product_key_mode": "generic",
     "product_key": "",
     "time_zone": "FLE Standard Time",
-    "account_mode": "file"
+    "account_mode": "file",
+    "computer_name_mode": "random",
+    "computer_name": ""
   },
   "languages": {
     "ui_language": "uk-UA",

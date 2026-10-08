@@ -42,7 +42,8 @@ Get-Content C:\ProgramData\Unattend\Logs\Setup-System.log | Select-String 'ERROR
 Get-ChildItem C:\ProgramData\Unattend\Logs\Setup-User.*.log | Get-Content
 Get-Content C:\ProgramData\Unattend\Logs\Post-OOBE.log
 Get-Service Spooler | Select-Object Status, StartType
-Get-LocalUser Admin, User | Select-Object Name, Enabled, PasswordExpires
+Get-LocalUser Admin, User | Select-Object Name, FullName, Description, Enabled, PasswordExpires
+$env:COMPUTERNAME
 Get-WinUserLanguageList | Select-Object LanguageTag, InputMethodTips
 Get-MpPreference | Select-Object PUAProtection, MAPSReporting, EnableNetworkProtection, AttackSurfaceReductionRules_Ids
 Test-Path C:\Windows\Panther\unattend.xml
@@ -51,6 +52,9 @@ Test-Path C:\Windows\Panther\unattend.xml
 Ожидаемый результат для пресета «Офис»: в журналах нет ERROR; служба печати запущена и запускается
 автоматически; у Admin и User не ограничен срок пароля; языки ввода en-US, uk-UA, ru-UA; защита от
 нежелательных программ и сетевая защита включены; правил ASR 16 (в пресете «Строгий» 17); файла `unattend.xml` в Panther нет.
+Отображаемые имена и описания учётных записей такие, как в форме «Учётные записи» (кириллицу в них задаёт
+`Post-OOBE.ps1`, см. `Post-OOBE.log`), а имя компьютера такое, как задано в форме «Установка»: имя, имя по
+шаблону или случайное `DESKTOP-...`.
 
 Для каждого правила в программе есть раздел «Проверка после установки» с точной командой.
 

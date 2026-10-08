@@ -37,11 +37,14 @@ a changed value is marked with the word "changed". The "Restore defaults" button
 Nodes at the top of the tree:
 
 - "Installation": Windows edition and product key (generic key, your own key, or choose the edition during
-  installation), time zone. Apart from Pro and Education, the generic keys of the list are KMS client keys: without a
+  installation), time zone, computer name (chosen by Windows, set in the form or made from a template such as
+  `OFFICE-{serial:6}`, where `{serial}` is the end of the serial number). Apart from Pro and Education, the generic keys of the list are KMS client keys: without a
   KMS server of the organisation, Windows stays unactivated until the key of the license is entered after
   installation. The installation media must contain the chosen edition.
 - "Accounts": the initial accounts, their groups and descriptions, or "Ask for the account during installation": then
-  Windows Setup itself asks for the name of one administrator account.
+  Windows Setup itself asks for the name of one administrator account. Write account names and passwords in Latin
+  letters: Windows Setup 24H2 and later turns other characters into question marks. The display name and the
+  description may be Cyrillic: WinKickOff sets them after the out-of-box experience.
 - "Languages and region": display language (the same as the image language), formats,
   code page and the list of input languages in order.
 

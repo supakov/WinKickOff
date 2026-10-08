@@ -39,6 +39,30 @@ class ProfileValidationTest(unittest.TestCase):
     def test_catalog_defaults_have_no_errors(self) -> None:
         self.assertEqual(errors(self.check()), [])
 
+    def test_computer_name(self) -> None:
+        from winkickoff.core.computername import parse_template
+
+        for mode, name, ok in (("random", "", True), ("fixed", "BUH-01", True), ("fixed", "1234", False),
+                               ("fixed", "BUHGALTERIYA-0001", False), ("fixed", "\u0411\u0443\u0445", False),
+                               ("fixed", "-PC", False), ("fixed", "", False), ("template", "KANC-{serial:5}", True),
+                               ("template", "PC-{random}{mac:4}", True), ("template", "{serial}", False),
+                               ("template", "KANC", False), ("template", "PC-{cpu}", False),
+                               ("template", "OFFICE-{serial:9}", False), ("template", "PC{mac:13}", False),
+                               ("template", "PC {serial}", False), ("template", "PC-{serial", False), ("bogus", "", False)):
+            self.profile.install["computer_name_mode"], self.profile.install["computer_name"] = mode, name
+            found = errors(self.check(), "install.computer_name") + errors(self.check(), "install.computer_name_mode")
+            self.assertEqual(not found, ok, (mode, name, found))
+        self.assertEqual(parse_template("PC-{random}{mac:4}"), [("text", "PC-"), ("random", 4), ("mac", 4)])
+
+    def test_account_names_and_passwords_stay_ascii(self) -> None:
+        account = self.profile.accounts[0]
+        account.display_name, account.description = "\u0410\u0434\u043c\u0456\u043d", "\u041e\u043f\u0438\u0441"
+        self.assertEqual(errors(self.check(), "accounts[0]"), [])  # set again after OOBE (Post-OOBE.ps1)
+        account.password = "\u043f\u0430\u0440\u043e\u043b\u044c"
+        self.assertTrue(any("question marks" in e for e in errors(self.check(), "accounts[0]")))
+        account.password, account.name = "", "\u0410\u0434\u043c\u0456\u043d"
+        self.assertTrue(any("question marks" in e for e in errors(self.check(), "accounts[0]")))
+
     def test_custom_key_must_look_like_a_key(self) -> None:
         self.profile.install["product_key_mode"] = "custom"
         self.profile.install["product_key"] = "12345"
@@ -150,8 +174,8 @@ class ProfileValidationTest(unittest.TestCase):
 
     def test_account_names(self) -> None:
         self.assertIsNone(check_account_name("Admin"))
-        self.assertIsNone(check_account_name("Оператор"))
-        for bad in ("", "Administrator", "guest", "a/b", "x" * 21, "name.", " name"):
+        # Windows Setup 24H2 and later writes the characters of a name outside ASCII as question marks (08.10.2026)
+        for bad in ("", "Administrator", "guest", "a/b", "x" * 21, "name.", " name", "Оператор"):
             self.assertIsNotNone(check_account_name(bad), bad)
 
 
