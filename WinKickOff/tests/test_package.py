@@ -21,6 +21,7 @@ from unittest import mock
 
 from winkickoff.core import admx, jsonfile
 from winkickoff.core import package as package_module
+from winkickoff.core import profile as profile_module
 from winkickoff.core.render import Renderer
 from winkickoff.core.resources import Resources
 from winkickoff.core.profile import Profile
@@ -618,6 +619,14 @@ class RoundFourTest(PackageTestCase):
         self.assertEqual(problems, [])
         self.assertEqual(catalog.origins["admx.contoso.policies.net.off"].import_id, system)
         self.assertNotIn("admx.contoso.policies.net", catalog.rules)  # the policy of the file is left out
+        # the other way round: a policy named "Off" of a less trusted import is not the Disabled state of "Net"
+        system, package = self.stored("system-20261004-130000", 1, net), self.stored("package-20261004-130000", 1, net_off)
+        catalog, problems = admx.with_imports(self.base, self.store, [system, package], "en")
+        self.assertEqual(problems, [])
+        off = "admx.contoso.policies.net.off"
+        self.assertEqual(catalog.origins[off].import_id, system)
+        self.assertEqual(catalog.rules[off].conflicts, ("admx.contoso.policies.net",))  # the Disabled rule of "Net"
+        self.assertFalse([group for group in catalog.aliases.get(off, []) if package in group])  # not shown in the file
 
     def test_the_id_of_an_import_comes_from_its_folder(self) -> None:
         meta_path = self.store / self.info.id / admx.META_FILE
@@ -793,6 +802,48 @@ class PackageWindowTest(AdmxTestCase):
         self.assertTrue(win.import_vars[info.id].get())
         self.assertEqual((win.language_var.get(), win.theme_var.get()), (win.settings.language, win.settings.theme))
         win.set_busy(False)
+
+
+class HeldAtStartTest(PackageTestCase):
+    """The warning about held choices reaches the message list at the first start of the window too (08.10.2026)."""
+
+    def test_held_choices_are_listed_at_the_first_start(self) -> None:
+        import logging
+        from logging.handlers import RotatingFileHandler
+
+        from winkickoff import app
+        from winkickoff.core.paths import AppPaths
+        from winkickoff.core.settings import Settings
+
+        base = self.tmp / "start"
+        paths = AppPaths(root=base, data=ROOT, docs_root=ROOT.parent, profiles=base / "profiles",
+                         output=base / "output", logs=base / "logs")
+        for folder in (paths.profiles, paths.output, paths.logs):
+            folder.mkdir(parents=True)
+        package = admx.store_import(paths.admx, "package-20261004-120000", "x", self.data, "package-20261004-120000", "",
+                                    now=NOW).id
+        catalog, _ = admx.with_imports(self.base, paths.admx, [package], "en")
+        saved = Profile.from_catalog(catalog).to_dict(catalog)
+        saved["rules"][TOGGLE] = {"enabled": True, "source": "system"}  # chosen in the templates of this Windows
+        saved["rules"][TOGGLE + "-2"] = {"enabled": True, "source": "package"}  # an id that starts like it, not held
+        (paths.profiles / "held.json").write_text(json.dumps(saved), encoding="utf-8")
+        Settings(language="en", theme="light", admx=[package], last_profile="profiles/held.json").save(paths.settings_file)
+        with mock.patch.object(app, "app_paths", return_value=paths), mock.patch.object(app, "_enable_dpi_awareness"):
+            win = app.create_app(withdraw=True)
+        try:
+            self.assertEqual(win.profile.held(win.catalog), [TOGGLE])
+            messages = [win.messages.item(i, "values")[2] for i in win.messages.get_children()]
+            self.assertEqual([m for m in messages if "more trusted source" in m],
+                             [profile_module.held_warning([TOGGLE])])
+        finally:
+            try:
+                win.destroy()
+            except tk.TclError:
+                pass
+            for handler in list(logging.getLogger().handlers):
+                if isinstance(handler, RotatingFileHandler) and Path(handler.baseFilename).is_relative_to(base):
+                    logging.getLogger().removeHandler(handler)
+                    handler.close()
 
 
 if __name__ == "__main__":

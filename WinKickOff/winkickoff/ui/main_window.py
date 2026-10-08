@@ -1097,10 +1097,10 @@ class MainWindow(tk.Tk):
             self._write_detail([(tag, tr(text)) for tag, text in WORKFLOW])
             self._clear_params()
             return
-        sources, missing = self._unknown_sources([entry[0] for entry in entries])
+        sources, missing, held, widest = self._unknown_sources([entry[0] for entry in entries])
         single = item != UNKNOWN_NODE
         parts = self._unknown_entry_parts(entries[0]) if single else self._unknown_root_parts(entries)
-        if sources or missing:
+        if sources or missing or held:
             parts.append(("h2", tr("Imported templates")))
             for info, count in sources:
                 parts.append(("", tr("The saved imported templates \"{0}\" have this policy; they are hidden now.", info.name) if single
@@ -1110,17 +1110,26 @@ class MainWindow(tk.Tk):
                                      "templates that define it.") if single else
                               tr("{0} of these policies are in none of the imported templates saved in the program folder: "
                                  "import the templates that define them.", missing)))
+            if held:  # the shown templates have the policy, but they are less trusted than the source of the choice
+                parts.append(("", tr("No hidden saved import of the source of the choice or a more trusted one has this "
+                                     "policy: import such templates, or choose the policy again in its branch.") if single else
+                              tr("{0} of these choices wait for templates of their source or a more trusted one, and no hidden "
+                                 "saved import has them: import such templates, or choose the policies again in their "
+                                 "branches.", held)))
         self._write_detail(parts)
-        self._build_unknown_buttons(item, sources, missing)
+        self._build_unknown_buttons(item, sources, missing + held, widest)
+
+    def _kept_source(self, rule_id: str) -> str:
+        """The kind of import a kept choice of an imported policy was made in: its saved "source", or LEGACY_SOURCE for
+        a choice saved before 1.3 or of a kind this version does not know (as core/profile.py counts it)."""
+        entry = self.profile.unknown.get(rule_id)
+        source = entry.get("source") if isinstance(entry, dict) else None
+        return source if source in KIND_TITLES else LEGACY_SOURCE
 
     def _held_source(self, rule_id: str) -> str | None:
         """The kind a held choice was made in (core/profile.py: the policy is loaded, but from a less trusted
         import), or None for a choice of a rule that is not loaded."""
-        if rule_id not in self.catalog.rules:
-            return None
-        entry = self.profile.unknown.get(rule_id)
-        source = entry.get("source") if isinstance(entry, dict) else None
-        return source if source in KIND_TITLES else LEGACY_SOURCE
+        return self._kept_source(rule_id) if rule_id in self.catalog.rules else None
 
     def _unknown_entry_parts(self, entry: tuple[str, bool, dict[str, Any]]) -> list[tuple[str, str]]:
         rule_id, enabled, params = entry
@@ -1181,41 +1190,51 @@ class MainWindow(tk.Tk):
                 self._import_ids[info.id] = ids
             if admx_module.has_policy(ids, rule_id):
                 found.append(info)
-        held = self._held_source(rule_id)
-        if held is not None:  # only an import of that kind or a more trusted one brings a held choice back
-            found = [info for info in found if import_rank(import_kind(info.id)) <= import_rank(held)]
-        return found
+        # only an import of the kind of the choice or a more trusted one brings it back: from a less trusted one it
+        # would be held (core/profile.py), whether the policy is loaded now or not
+        kept = import_rank(self._kept_source(rule_id))
+        return [info for info in found if import_rank(import_kind(info.id)) <= kept]
 
-    def _unknown_sources(self, rule_ids: list[str]) -> tuple[list[tuple[admx_module.ImportInfo, int]], int]:
-        """The hidden saved imports that have some of these policies, with how many; and how many policies none has."""
+    def _unknown_sources(self, rule_ids: list[str]) -> tuple[list[tuple[admx_module.ImportInfo, int]], int, int, int]:
+        """The hidden saved imports that bring some of these choices back, with how many; how many choices of policies
+        that are not loaded none of them has; how many held choices (the policy is loaded from a less trusted import)
+        none of them has; and the rank of the least trusted kind of import that still brings one of those two back
+        (-1 when there are none), which decides the import commands offered."""
         hits: dict[str, tuple[admx_module.ImportInfo, int]] = {}
-        missing = 0
+        missing = held = 0
+        widest = -1
         for rule_id in rule_ids:
             if not is_imported(rule_id):
                 continue
             found = self._hidden_imports_with(rule_id)
             if not found:
-                missing += 1
+                if rule_id in self.catalog.rules:
+                    held += 1
+                else:
+                    missing += 1
+                widest = max(widest, import_rank(self._kept_source(rule_id)))
             for info in found:
                 hits[info.id] = (info, hits[info.id][1] + 1 if info.id in hits else 1)
-        return list(hits.values()), missing
+        return list(hits.values()), missing, held, widest
 
-    def _build_unknown_buttons(self, item: str, sources: list[tuple[admx_module.ImportInfo, int]], missing: int) -> None:
+    def _build_unknown_buttons(self, item: str, sources: list[tuple[admx_module.ImportInfo, int]], missing: int,
+                               widest: int) -> None:
         """Show a hidden import that has the policies (the window opens on the policy or on the tree), or import new
-        templates."""
+        templates of a kind that brings the choices back (widest: see _unknown_sources)."""
         self._clear_params()
-        if not sources and not missing:
-            return
-        self.params_frame.configure(text=tr("Imported templates"))
-        self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
         buttons = []
         for info, _count in sources:
             target = "g:" + IMPORTED_PREFIX + info.id if item == UNKNOWN_NODE else "r:" + item[len(UNKNOWN_PREFIX):]
             buttons.append((tr("Show \"{0}\"", info.name), lambda i=info.id, t=target: self.show_templates(i, True, t)))
         if missing:
-            buttons += [(tr("Import the templates of this Windows"), lambda: self.import_templates(True)),
-                        (tr("Import templates from a folder..."), lambda: self.import_templates(False)),
-                        (tr("Import a catalog file..."), lambda: self.import_catalog_file())]
+            commands = (("system", tr("Import the templates of this Windows"), lambda: self.import_templates(True)),
+                        ("folder", tr("Import templates from a folder..."), lambda: self.import_templates(False)),
+                        ("package", tr("Import a catalog file..."), lambda: self.import_catalog_file()))
+            buttons += [(text, command) for kind, text, command in commands if import_rank(kind) <= widest]
+        if not buttons:
+            return
+        self.params_frame.configure(text=tr("Imported templates"))
+        self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
         for text, command in buttons:
             ttk.Button(self.params_frame, text=text, command=command).pack(side=tk.LEFT, padx=(0, 6))
 

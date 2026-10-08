@@ -883,10 +883,53 @@ class WindowTest(AdmxTestCase):
         win, _, _ = self.hidden_window(delete=True)
         win.select_node("u:" + TOGGLE)
         self.assertIn("None of the imported templates saved in the program folder has this policy", self.detail(win))
-        self.assertEqual(self.buttons(win), ["Import the templates of this Windows", "Import templates from a folder...",
-                                            "Import a catalog file..."])
+        # chosen in templates from a folder: a catalog file would only hold the choice, so it is not offered
+        self.assertEqual(self.buttons(win), ["Import the templates of this Windows", "Import templates from a folder..."])
         win.select_node("unknown")
         self.assertIn("2 of these policies are in none of the imported templates", self.detail(win))
+
+    def test_a_held_choice_offers_only_imports_that_bring_it_back(self) -> None:
+        from winkickoff.ui.main_window import MainWindow
+
+        win, info, paths = self.window()
+        win.toggle_item("r:" + TOGGLE)  # chosen in templates from a folder
+        saved = win.profile.to_dict(win.catalog)
+        package = admx.store_import(paths.admx, "package-20261004-120000", "Catalog file",
+                                    admx.read_templates(self.templates, ["en"]), "package-20261004-120000", "",
+                                    now=datetime(2026, 10, 4, 12, 0, 0)).id
+
+        def window_with(ids: list[str]) -> MainWindow:
+            catalog, _ = admx.with_imports(self.base, paths.admx, ids, "en")
+            profile, _ = Profile.from_dict(saved, catalog)
+            other = MainWindow(paths, catalog, profile, Resources.load(paths.resources),
+                               Settings(language="en", theme="light", admx=ids))
+            other.withdraw()
+
+            def close() -> None:
+                try:
+                    other.destroy()
+                except tk.TclError:
+                    pass
+
+            self.addCleanup(close)
+            other.select_node("u:" + TOGGLE)
+            return other
+
+        hidden = window_with([])  # both hidden: only the folder import brings the choice back
+        self.assertIn("not in the loaded catalog", self.detail(hidden))
+        self.assertEqual(self.buttons(hidden), [f"Show \"{info.name}\""])
+        held = window_with([package])  # the catalog file holds the policy now, the choice waits
+        text = self.detail(held)
+        self.assertIn("held: a less trusted source holds the policy now", text)
+        self.assertIn("\"templates from a folder\"", text)
+        self.assertIn(f"The saved imported templates \"{info.name}\" have this policy; they are hidden now.", text)
+        self.assertEqual(self.buttons(held), [f"Show \"{info.name}\""])
+        admx.delete_import(paths.admx, info.id)
+        gone = window_with([package])
+        text = self.detail(gone)
+        self.assertNotIn("None of the imported templates saved in the program folder has this policy", text)
+        self.assertIn("No hidden saved import of the source of the choice or a more trusted one has this policy", text)
+        self.assertEqual(self.buttons(gone), ["Import the templates of this Windows", "Import templates from a folder..."])
 
 
 if __name__ == "__main__":

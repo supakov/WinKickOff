@@ -18,7 +18,7 @@
       "risk": "Reported by third parties for Windows 10 and 11; check on 25H2 in a virtual machine.",
       "versions": "Windows 10 and 11, all editions. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer.",
       "verify": "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\{645FF040-5081-101B-9F08-00AA002F954E}\"",
-      "rollback": "Delete the {645FF040-5081-101B-9F08-00AA002F954E} key in both NameSpace branches (the automatic return to defaults does not delete keys).",
+      "rollback": "Value 1 in both branches hides the entry again (the automatic return to defaults writes it). To remove the entry completely, delete the {645FF040-5081-101B-9F08-00AA002F954E} key in both NameSpace branches.",
       "actions": [
         {
           "type": "reg",
@@ -52,7 +52,7 @@
       "risk": "Reported by third parties for Windows 10 and 11; check on 25H2 in a virtual machine.",
       "versions": "Windows 10 and 11, all editions. Written to both the 64-bit and the 32-bit (WOW6432Node) branches so that dialogs of 32-bit programs match File Explorer.",
       "verify": "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\{26EE0668-A00A-44D7-9371-BEB064C98683}\"",
-      "rollback": "Delete the {26EE0668-A00A-44D7-9371-BEB064C98683} key in both NameSpace branches (the automatic return to defaults does not delete keys).",
+      "rollback": "Value 1 in both branches hides the entry again (the automatic return to defaults writes it). To remove the entry completely, delete the {26EE0668-A00A-44D7-9371-BEB064C98683} key in both NameSpace branches.",
       "actions": [
         {
           "type": "reg",

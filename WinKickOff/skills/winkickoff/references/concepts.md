@@ -210,7 +210,7 @@ secrets). In mode `edit`, `show_item` opens them for the person.
 
 | Form | `show_item` | Content |
 |---|---|---|
-| "Installation" | `data:install` | `edition` (`Pro`; `Enterprise` or `Education` only with matching licences; the Windows Home edition is not supported, and the `home` preset uses Pro too), `product_key_mode` (`generic`: public key that selects the edition and does not activate; `custom`: own key; `ask`: Setup shows the key page, and "I don't have a product key" opens the list of editions; `edition` counts only for `generic`), `time_zone` |
+| "Installation" | `data:install` | `edition` (`Pro`; other editions of the form only with their licences and media, all but `Education` with KMS client keys; the Windows Home edition is not supported, and the `home` preset uses Pro too), `product_key_mode` (`generic`: public key that selects the edition and does not activate; `custom`: own key; `ask`: Setup shows the key page, and "I don't have a product key" opens the list of editions; `edition` counts only for `generic`), `time_zone` |
 | "Accounts" | `data:accounts` | Mode "Create these accounts" (`account_mode` `file`): name (up to 20 characters), display name, group (Administrators or Users), description, password; at least one account in Administrators. Mode "Ask for the account during installation" (`ask`): no account in the file, Windows Setup asks for one, which becomes an administrator |
 | "Languages and region" | `data:languages` | `ui_language` (must equal the language of the ISO), `system_locale`, `user_locale`, `input` (keyboards, first is the default) |
 

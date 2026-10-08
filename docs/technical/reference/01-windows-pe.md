@@ -39,10 +39,22 @@ The form "Installation" offers three key modes (profile field `install.product_k
 
 | Mode | `<Key>` | `<WillShowUI>` | What Setup shows |
 |---|---|---|---|
-| `generic` | the generic key of the chosen edition (Pro `VK7JG-NPHTM-C97JM-9MPGT-3V66T`, Enterprise, Education) | OnError | Nothing: Setup matches the key to an image ("Matched Professional with Professional") |
+| `generic` | the key of the chosen edition in `render.EDITION_KEYS` (Pro `VK7JG-NPHTM-C97JM-9MPGT-3V66T`; 14 editions, see below) | OnError | Nothing: Setup matches the key to an image ("Matched Professional with Professional") |
 | `ask` | `00000-00000-00000-00000-00000` | Always | The product key page. A typed key installs the edition of that key; "I don't have a product key" opens the list of every edition in `install.wim` |
 | `custom` | the key of the profile | OnError | The edition of that key; the page only if the key is rejected |
 
+- The editions of `generic` (the list was extended by the customer on 05.10.2026): Pro and Education have generic
+  installation keys, which select the edition and do not activate; Windows activates later with the digital licence of
+  the PC or a key of the licence. The other twelve (Pro N, Pro for Workstations and its N, Pro Education and its N,
+  Education N, Enterprise, Enterprise N, G and G N, Enterprise LTSC 2024 and Enterprise N LTSC 2024; the LTSC keys
+  also install Windows 10 LTSC 2021 and 2019) are the KMS client keys (GVLK) of the Microsoft Learn table "Key
+  Management Services (KMS) client activation and product keys" (every key compared on 08.10.2026). Windows installed
+  with one is a KMS client: it activates only against a KMS host on the local network, and Microsoft warns that these
+  keys "won't activate or serve as a retail license key". Without a KMS host, type the key of the licence after
+  installation (Settings, System, Activation, or `slmgr /ipk`). The form says so under the edition list.
+- Setup installs an edition only when `install.wim` (or `install.esd`) of the media holds it; list the editions of the
+  target media with `dism /Get-WimInfo /WimFile:<media>\sources\install.wim` (read only). Enterprise G and LTSC come on
+  their own media. What Setup shows when no image matches the key is to be confirmed in a virtual machine.
 - The edition list of the form applies to `generic` only; the window disables it in the other modes, and the build
   writes a header line "Edition: chosen during Setup" in mode `ask`. The Home preset uses `ask`.
 - Microsoft Learn ("Work with product keys and activation") names both ways: a key in `ProductKey\Key`, or typing the

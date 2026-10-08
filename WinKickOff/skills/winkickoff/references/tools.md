@@ -193,7 +193,7 @@ Mode `edit` or `files`. They change only the profile in memory; with a window it
   | Type | Value | Example |
   |---|---|---|
   | `int` | JSON integer within `min`-`max` (`1.0` and `"8"` are refused) | `{"id": "update.automatic", "name": "start", "value": 7}` |
-  | `enum` | exactly one `values[].value`, same JSON type | `{"id": "defender.controlled-folder-access", "name": "mode", "value": 2}` |
+  | `enum` | exactly one `values[].value`, same JSON type (`true` is not `1`) | `{"id": "defender.controlled-folder-access", "name": "mode", "value": 2}` |
   | `enum` with strings | the string | `{"id": "defender.smartscreen-shell", "name": "level", "value": "Block"}` |
   | `string` | text, stripped; no control characters | `{"id": "default-user.region", "name": "geo_id", "value": "241"}` |
   | `bool` | true or false (imported policies only) | |

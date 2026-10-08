@@ -15,6 +15,7 @@ from winkickoff.core.catalog import Catalog, CatalogError, load_catalog
 from winkickoff.core.i18n import language, set_language, tr
 from winkickoff.core.log import setup_logging
 from winkickoff.core.paths import AppPaths, app_paths
+from winkickoff.core.profile import held_warning
 from winkickoff.core.resources import Resources
 from winkickoff.core.settings import Settings
 from winkickoff.core.startup import DEFAULT_PRESET, initial_profile  # noqa: F401 - re-exported for the tests
@@ -79,12 +80,13 @@ def create_app(*, withdraw: bool = False, state: dict[str, object] | None = None
         profile, warnings = state["profile"].rebind(catalog)  # type: ignore[attr-defined]
         for warning in warnings:
             log.info("profile after a restart: %s", warning)
-        # choices held because a less trusted import holds their policy now (a tree hidden, a catalog file imported):
-        # the person must see why they left the build, not only the log
-        held = sorted(rule_id for rule_id in profile.unknown if rule_id in catalog.rules)
-        problems += [warning for warning in warnings if held and held[0] in warning]
     else:
         profile = initial_profile(paths, catalog, settings)
+    # choices held because a less trusted import holds their policy now (a tree hidden, a catalog file imported): the
+    # person must see why they left the build, after a restart and at the first start alike, not only in the log
+    held = profile.held(catalog)
+    if held:
+        problems.append(held_warning(held))
 
     from winkickoff.ui.main_window import MainWindow  # imported late: tkinter window only when needed
 

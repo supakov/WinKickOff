@@ -142,11 +142,11 @@ Every rule writes both views (32-bit programs use the WOW6432Node view in their 
 | `thispc.music-extra` | {1CF1260C-4DD0-4ebb-811F-33C572699FDE} ThisPCMyMusicRegFolder | FOLDERID_Music | Same |
 | `thispc.pictures-extra` | {3ADD1653-EB32-4cb0-BBD7-DFA0ABB5ACCA} ThisPCMyPicturesRegFolder | FOLDERID_Pictures | Same |
 | `thispc.videos-extra` | {A0953C92-50DC-43bf-BE83-3742FED03C9C} ThisPCMyVideosRegFolder | FOLDERID_Videos | Same |
-| `thispc.3d-objects` | {0DB7E03F-FC29-4DC6-9020-FF41B59E513A} 3D Objects | FOLDERID_3DObjects | Missing from the file: the entry was removed in Windows 11 (the known folder remains, PreCreate=0); the rule creates it with `HiddenByDefault=0`. Its return to defaults is manual (delete the key) |
+| `thispc.3d-objects` | {0DB7E03F-FC29-4DC6-9020-FF41B59E513A} 3D Objects | FOLDERID_3DObjects | Missing from the file: the entry was removed in Windows 11 (the known folder remains, PreCreate=0); the rule creates it with `HiddenByDefault=0`. Its return to defaults writes 1, which hides the entry; the key stays (delete it by hand) |
 
-The Local and the classic known folders resolve to the same profile folder; "Local" does not mean "outside
-OneDrive" (with OneDrive folder backup both are redirected). The return-to-defaults value of `HiddenByDefault`
-is 1, the state of 24H2 and 25H2; Windows 10 does not have the value.
+The Local and the classic known folders resolve to the same profile folder; "Local" does not mean "outside OneDrive"
+(with OneDrive folder backup both are redirected). The return-to-defaults value of `HiddenByDefault` is 1, the state of
+24H2 and 25H2, also for 3D Objects (customer decision of 05.10.2026); Windows 10 does not have the value.
 
 Navigation pane (`...\Explorer\Desktop\NameSpace`, both views), also missing from the file:
 

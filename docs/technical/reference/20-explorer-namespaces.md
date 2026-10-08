@@ -21,7 +21,9 @@ Education because it describes delivery through MDM.
 `HKLM\SOFTWARE\[WOW6432Node\]Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{CLSID}`, phase
 specialize, both branches so that the file dialogs of 32-bit programs match File Explorer. Windows 11 22H2 and later
 keep the user folders there with `HiddenByDefault` = 1; the rules write 0 (card 19). An entry that Windows does not
-ship is created by the rule; the automatic return to Windows defaults does not delete keys.
+ship (3D Objects, Recycle Bin, Control Panel) is created by the rule. Its Windows default in the catalog is
+`HiddenByDefault` = 1 as well (customer decision of 05.10.2026): the automatic return and an apply with the rule off
+write 1, which creates the key when it is missing and hides the entry; they never delete keys.
 
 | Rule | CLSID | Item | Check |
 |---|---|---|---|
@@ -135,6 +137,9 @@ Not offered: the icons of Internet Explorer ({871C5380-42A0-1069-A2EA-08002B3030
 3. 3D Objects on 25H2: the entry opens; whether the folder `%USERPROFILE%\3D Objects` is created then.
 4. The per-user pin of Control Panel (`nav.control-panel`).
 5. An account created after installation gets the desktop icons of the default profile.
+6. "Apply the selection now..." with the Office preset (the `thispc.*` rules off) creates the keys of 3D Objects,
+   Recycle Bin and Control Panel with `HiddenByDefault` = 1: This PC must show none of the three. Windows itself uses
+   the value only for its own entries, so whether it hides these three is not confirmed.
 
 ## Verification and rollback
 
@@ -142,7 +147,8 @@ Each rule has its own check (`reg query`) and rollback text. On a running PC, "R
 defaults now..." removes the values of the default profile (`desktop.*`, `nav.show-all-folders`; Windows default
 "absent"), which only accounts created later notice. It does not run first sign-in rules, so the per-user pins of
 `nav.*` are neither applied nor returned there; remove them by hand as the rule describes. It does not delete the
-keys that `thispc.*` creates, and it cannot restore the delegate folder that `nav.removable-drives-once` deletes.
+keys that `thispc.*` creates (it writes `HiddenByDefault` = 1 into them, which hides the entries), and it cannot
+restore the delegate folder that `nav.removable-drives-once` deletes.
 
 ## Sources
 

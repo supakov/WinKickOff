@@ -51,6 +51,17 @@ def short(value: Any, limit: int = 60) -> str:
     return text if len(text) <= limit else text[:limit] + "..."
 
 
+def has_surrogate(value: str) -> bool:
+    """A lone surrogate: half of a character of two halves (an emoji), which UTF-8 cannot encode. A Tk entry leaves one
+    when such a character is deleted in part; loads() refuses it."""
+    return bool(_SURROGATE.search(value))
+
+
+def without_surrogates(text: str) -> str:
+    """The text with every lone surrogate replaced by U+FFFD, so that it can be encoded and read back."""
+    return _SURROGATE.sub(chr(0xFFFD), text)
+
+
 def _text(value: str) -> str:
     if _SURROGATE.search(value):
         raise JsonFileError(f"a lone surrogate escape in {short(value)}")

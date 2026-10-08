@@ -2,7 +2,7 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 05.10.2026 (version 1.3.0-rc.1, task T23: the rule catalog in JSON instead of TOML, export and import of catalog files, catalogs of the program, and the fixes of its adversarial reviews: profiles read strictly, the provenance of imported choices, safe keys and characters, the ids of policies that share one; before it the customer requests of 04.10.2026: File Explorer namespaces and desktop icons, the account asked during installation, the switch keys of the input language, the edition chosen during installation, a security fix of placeholders in paths, catalog and runtime 0.6, profile format 3).
+Last update: 08.10.2026 (version 1.3.0-rc.1: the customer's commits of 05.10.2026, 14 editions of the generic key and `HiddenByDefault` 1 as the Windows default of every `thispc.*` rule, and the fixes of the last review of T23: a profile saved through a temporary file, held choices at every start, a policy named Off; before it task T23: the rule catalog in JSON instead of TOML, export and import of catalog files, catalogs of the program, and the fixes of its adversarial reviews: profiles read strictly, the provenance of imported choices, safe keys and characters, the ids of policies that share one; before it the customer requests of 04.10.2026: File Explorer namespaces and desktop icons, the account asked during installation, the switch keys of the input language, the edition chosen during installation, a security fix of placeholders in paths, catalog and runtime 0.6, profile format 3).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). The local clone and the repository must match: commit and push
@@ -364,7 +364,9 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   without a migration: profiles keep these ids. A counter per base id keeps it linear (5000 equal ids load in
   seconds); every id reserves its `<id>.off`, so an id is never the `<id>.off` of another policy's Disabled rule.
   `catalog_part` never lets a rule replace a rule of another import: a policy whose Disabled rule `<id>.off` is
-  already a rule (a policy named `Off` of an import made into rules before it) is left out and logged.
+  already a rule (a policy named `Off` of an import made into rules before it) is left out and logged, and so is a
+  policy named `Off` whose id is the Disabled rule of an earlier import (`with_imports` passes the ids of the Disabled
+  rules as `disabled`, `ImportedPart.disabled`); an alias of `<id>.off` is made only for a Disabled rule.
   `catalog_part.group_for` remembers the group of each category, and `with_imports` reads and converts each import
   (`load_import` and `catalog_part`) in one `try`, so it never raises.
 - Fixed string values of imported policies are literal: `admx._action` marks the action `"literal": True`, and
@@ -385,9 +387,12 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   saved before 1.3 and counts as `folder` (`profile.LEGACY_SOURCE`), since catalog files did not exist then, and so
   does an entry with an unknown kind: it is held when only a catalog file has the policy and used as before with a
   folder, system or bundled import. The window describes a held choice under the root of unknown rules
-  (`UNKNOWN_HELD`, `KIND_TITLES`, `_held_source`), offers "Show ..." only for hidden imports of its kind or a more
-  trusted one, and after a restart of the window (`app.create_app`, `Profile.rebind`) shows the warning about held
-  choices in the message list, not only in the log. The profile format stays 3.
+  (`UNKNOWN_HELD`, `KIND_TITLES`, `_held_source`). For every kept choice of a policy, held or not loaded at all, it
+  offers "Show ..." and the import commands only for imports of the kind of the choice (`_kept_source`) or a more
+  trusted one, since a less trusted import would hold it again, and names a held choice that no hidden import brings
+  back. `Profile.held(catalog)` lists the held choices (entries of `unknown` whose rule is loaded), and
+  `app.create_app` puts `profile.held_warning` into the message list at every start, after a restart of the window
+  and at the first start alike, not only into the log. The profile format stays 3.
 - Profiles of a wrong shape (T23): `Profile.load` reads strictly through `jsonfile.read` (16 MB, `PROFILE_MAX_BYTES`;
   `null` allowed for older files; a duplicate key, `NaN`, a lone surrogate or nesting deeper than 32 levels refused),
   and the embedded profile of an answer file through `jsonfile.loads` (`core/importer.py`); before 05.10.2026 both used
@@ -400,7 +405,11 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   becomes the option it equals (`profile._as_option`), and the MCP `set_param` refuses a boolean for an enum
   (`True == 1` in Python). `profile.one_line` keeps the name and the author on one line, and `apply._label` writes the
   label line of the Apply, Audit and Undo scripts through `render.ascii_text`, so a name with line breaks (also CR and
-  U+2028) stays on that comment line.
+  U+2028) stays on that comment line. `Profile.save` encodes the text before it opens a file and writes a temporary
+  `<name>.tmp` that `os.replace` puts in place, so a failed save leaves the old file whole; a lone surrogate (half of an
+  emoji that a Tk entry keeps after a Backspace) is saved as U+FFFD (`jsonfile.without_surrogates`), since before
+  08.10.2026 `write_text` failed on it after emptying the file. The check of the profile reports such a text as an
+  error at its field (`validate.half_characters`, `HALF_CHARACTER`), so the build never writes it.
 - Runtime 0.6 (`templates/VERSION`): `Setup-User.ps1` and `Post-OOBE.ps1` define `Set-Reg` and `Remove-Reg`; before, a
   `reg` action of the phases user-first-logon or post-oobe failed with "Set-Reg is not recognized". These phases may use
   only `reg`, `reg-remove` and `ps` (`PHASE_ACTION_TYPES` in `core/catalog.py`, checked against the runtimes by
@@ -434,7 +443,18 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   accounts created after installation get them.
 - This PC folders (`thispc.*`): Windows 11 24H2+ hides all 11 `MyComputer\NameSpace` entries with
   `HiddenByDefault=1`; the rules show them (0) in the 64-bit and WOW6432Node views and are off by default. Each
-  folder has a Local entry (shown by Windows 10) and a classic one; showing both may duplicate the folder.
+  folder has a Local entry (shown by Windows 10) and a classic one; showing both may duplicate the folder. Since the
+  customer's commits of 05.10.2026 the Windows default of every `thispc.*` action is 1, also of the three entries
+  Windows does not ship (`thispc.3d-objects`, `thispc.recycle-bin`, `thispc.control-panel`; the last two come from
+  `WinKickOff/tools/make_shell_rules.py`): an apply of a profile with them off and "Return the selection to Windows defaults now..."
+  create their keys with value 1, which should hide them (card 20, VM check 6). Keep this decision.
+- Editions of the generic key (customer commit 036b364 of 05.10.2026): `render.EDITION_KEYS` names 14 editions, the
+  keys aligned in columns by the customer. Pro and Education have generic installation keys; the other twelve are the
+  KMS client keys (GVLK) of the Microsoft Learn table "Key Management Services (KMS) client activation and product
+  keys", compared key by key on 08.10.2026: without a KMS host such a Windows stays unactivated until the key of the
+  licence is typed. The form sizes the edition list to the longest name and says so under it; card 01 lists them. The
+  file `skills/winkickoff/references/concepts.md` is 11 bytes below the pi limit of 20 KB (`test_skill.py`): shorten
+  something before adding text there.
 - The Home preset is an allowlist: `HOME_RULES` in `WinKickOff/tools/make_presets.py` names its 70 rules (the hardware
   check bypasses and OOBE screens of Office, removal of extra apps, ads, Copilot and user privacy, File Explorer opens
   This PC), with Delivery Optimization `mode` 99, telemetry `level` 0 and the product key asked. A new catalog rule
@@ -609,7 +629,7 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
 | Editor tasks | T01-T12, T14, T16-T23 done (the build runs in GitHub Actions; T23: the catalogs of the program wait for the license check); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 04.10.2026 | `docs/technical/editor/todo/` |
 | Rule catalog | 0.6: 278 rules, 40 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer and the desktop 41; keys that switch the input language), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.6 adds the File Explorer namespaces and desktop icons (generated), the switch keys of the sign-in screen and new accounts, registry functions of the per-user and post-OOBE scripts; since 1.3.0 (T23) strict JSON in a canonical layout instead of TOML, the same content | 04.10.2026 | `WinKickOff/rules/` |
-| Editor code | 1.3.0-rc.1 (T23: the catalog in JSON, export and import of catalog files, catalogs of the program, saved imports checked and conformed on load, trust order of imports and the provenance of imported choices; the tree root of unknown rules and policies, the account asked during installation, File Explorer namespaces and desktop icons, the switch keys of the input language, a security fix of placeholders; Home preset; customer specifics removed; skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 787 tests | 05.10.2026 | `WinKickOff/` |
+| Editor code | 1.3.0-rc.1 (T23: the catalog in JSON, export and import of catalog files, catalogs of the program, saved imports checked and conformed on load, trust order of imports and the provenance of imported choices; the tree root of unknown rules and policies, the account asked during installation, File Explorer namespaces and desktop icons, the switch keys of the input language, a security fix of placeholders; Home preset; customer specifics removed; skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 790 tests | 08.10.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply (rules on are applied, rules off return to Windows defaults) and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 29.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |

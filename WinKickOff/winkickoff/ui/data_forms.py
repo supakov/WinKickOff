@@ -69,13 +69,16 @@ class InstallForm(_Form):
         self.key = tk.StringVar()
         self.zone = tk.StringVar()
         ttk.Label(self, text=tr("Windows edition")).grid(row=2, column=0, sticky="w", padx=(0, 12))
-        edition_box = ttk.Combobox(self, textvariable=self.edition, values=list(EDITION_KEYS), state="readonly", width=18)
+        edition_box = ttk.Combobox(self, textvariable=self.edition, values=list(EDITION_KEYS), state="readonly",
+                                   width=max(18, *(len(name) for name in EDITION_KEYS)))
         edition_box.grid(row=2, column=1, sticky="w")
         edition_box.bind("<<ComboboxSelected>>", lambda _e: self._save())
-        self.note(3, tr("The edition applies to the generic key only. Pro is the main edition of the project; Enterprise and "
-                        "Education only with their licenses. If the edition is chosen during installation and Home is "
-                        "picked, deferred feature updates and BitLocker do not work and some Copilot and Recall policies "
-                        "are not supported."))
+        self.note(3, tr("The edition applies to the generic key only, and the installation media must contain it. Pro "
+                        "is the main edition of the project; the others only with their licenses. Apart from Pro and "
+                        "Education, the keys of the list are KMS client keys: without a KMS server of the organisation, "
+                        "enter the key of the license after installation. If the edition is chosen during installation "
+                        "and Home is picked, deferred feature updates and BitLocker do not work and some Copilot and "
+                        "Recall policies are not supported."))
         self.edition_box = edition_box
 
         ttk.Label(self, text=tr("Product key")).grid(row=4, column=0, sticky="nw", padx=(0, 12))

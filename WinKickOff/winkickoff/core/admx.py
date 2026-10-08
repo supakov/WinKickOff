@@ -1265,11 +1265,15 @@ class ImportedPart:
     origins: dict[str, RuleOrigin] = field(default_factory=dict)
     aliases: dict[str, list[str]] = field(default_factory=dict)  # rules of imports loaded before, shown here too
     shared: int = 0  # policies of this import that are already rules
+    disabled: set[str] = field(default_factory=set)  # ids of the Disabled rules ("<id>.off") of its policies
 
 
-def catalog_part(info: ImportInfo, data: dict[str, Any], language: str, taken: set[str], order: int = 10000) -> ImportedPart:
+def catalog_part(info: ImportInfo, data: dict[str, Any], language: str, taken: set[str], order: int = 10000,
+                 disabled: set[str] | frozenset[str] = frozenset()) -> ImportedPart:
     """Groups and rules of one import in the interface language. A policy that is already a rule (taken: rules
-    of the imports loaded before) is shown in this tree too, as an alias of that rule: one check mark for both."""
+    of the imports loaded before) is shown in this tree too, as an alias of that rule: one check mark for both.
+    disabled: the ids among taken that are Disabled rules of a policy; a policy whose own id is one of them (a policy
+    named "Off") is another policy and is left out, never shown as that Disabled state."""
     part = ImportedPart()
     root = f"{IMPORTED_PREFIX}{info.id}"
     categories: dict[str, dict[str, Any]] = data.get("categories", {})
@@ -1308,10 +1312,14 @@ def catalog_part(info: ImportInfo, data: dict[str, Any], language: str, taken: s
     for policy, rule_id in _named_policies(data, language):
         side = "user" if policy.get("class") == "User" else "machine"
         if rule_id in taken:
+            if rule_id in disabled:  # the Disabled rule of a policy of another import, not this policy
+                log.warning("import %s: policy %s skipped: its rule id is the Disabled rule of a policy of another import",
+                            info.id, policy.get("name"))
+                continue
             group = group_for(side, policy.get("category", ""))
-            for shown in (rule_id, rule_id + ".off"):
-                if shown in taken:
-                    part.aliases.setdefault(shown, []).append(group)
+            part.aliases.setdefault(rule_id, []).append(group)
+            if rule_id + ".off" in disabled:  # not a policy named "Off" of another import
+                part.aliases.setdefault(rule_id + ".off", []).append(group)
             part.shared += 1
             continue
         try:
@@ -1326,6 +1334,7 @@ def catalog_part(info: ImportInfo, data: dict[str, Any], language: str, taken: s
         for rule in rules:
             part.rules[rule.id] = rule
             part.origins[rule.id] = origin
+        part.disabled.update(rule.id for rule in rules[1:])
     # counted from the records: a policy that an older version kept and this one skips (conform) is among the skipped
     counts = tr("{0} policies as {1} rules; {2} skipped", len(data.get("policies", [])), len(part.rules) + len(part.aliases),
                 len(data.get("skipped", [])))
@@ -1349,17 +1358,19 @@ def with_imports(base: Catalog, admx_root: Path, import_ids: Iterable[str], lang
     rules: dict[str, Rule] = {}
     origins: dict[str, RuleOrigin] = {}
     aliases: dict[str, list[str]] = {}
+    disabled: set[str] = set()
     shown = list(dict.fromkeys(import_ids))  # the order of the trees
     for import_id in trust_order(shown):  # the order in which they take the policies they share
         try:
             info, data = load_import(admx_root, import_id)
-            part = catalog_part(info, data, language, set(base.rules) | set(rules), 10000 + shown.index(import_id))
+            part = catalog_part(info, data, language, set(base.rules) | set(rules), 10000 + shown.index(import_id), disabled)
         except Exception as exc:  # noqa: BLE001 - a broken import is reported, the program starts without it
             problems.append(tr("Imported templates {0} were not loaded: {1}", import_id, str(exc)[:500]))
             continue
         groups.update(part.groups)
         rules.update(part.rules)
         origins.update(part.origins)
+        disabled.update(part.disabled)
         for rule_id, group_ids in part.aliases.items():
             aliases.setdefault(rule_id, []).extend(group_ids)
     if not rules and not groups:

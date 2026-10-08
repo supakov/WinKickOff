@@ -190,6 +190,18 @@ Decisions of the customer:
 - A rule of one import never replaces a rule of another, and a profile or an answer file from someone else cannot
   crash the program by its nesting or its types.
 
+## Fixes after the last review (08.10.2026)
+
+- `Profile.save` writes a temporary file and replaces the old one, and saves a lone surrogate as U+FFFD; before, the
+  file was emptied when the text could not be encoded. The check of the profile names the field of such a text.
+- The window offers "Show ..." and the import commands for a kept choice of a policy only when the import would give
+  the choice back (its kind or a more trusted one), also when the policy is not loaded at all, and names a held choice
+  that no hidden import brings back instead of claiming that no import has the policy.
+- The warning about held choices reaches the message list at the first start too (`Profile.held`,
+  `profile.held_warning`), without matching rule ids in the warning texts.
+- A policy named `Off` of a less trusted import whose id is the Disabled rule of an earlier import is left out, not
+  shown as that Disabled state.
+
 ## Open points
 
 - The license check of the Microsoft templates, which the customer asked for, before a package is committed to

@@ -3,8 +3,10 @@ languages, product key, time zone). Stored as JSON next to the executable."""
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import json
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -112,6 +114,14 @@ def _now() -> str:
 def one_line(text: str) -> str:
     """A name or an author on one line: control characters and line separators become spaces."""
     return "".join(" " if ord(ch) < 32 or 0x7F <= ord(ch) <= 0x9F or ch in (chr(0x2028), chr(0x2029)) else ch for ch in text)
+
+
+def held_warning(held: list[str]) -> str:
+    """The warning about held choices (Profile.held): the window shows it in the message list at every start."""
+    shown = ", ".join(held[:8]) + (", ..." if len(held) > 8 else "")
+    return tr("{0} policies were chosen in templates of a more trusted source than the one that holds them now (for "
+              "example a catalog file instead of the templates of this Windows); the choices are kept but not used until "
+              "those templates are shown again: {1}", len(held), shown)
 
 
 def _owner_kind(catalog: Catalog, rule_id: str) -> str:
@@ -308,10 +318,7 @@ class Profile:
             kept = min((kind for kind in (source, owner) if kind), key=import_rank, default="")
             rules[rule.id] = RuleState(enabled=enabled, params=params, source=kept)
         if held:
-            shown = ", ".join(sorted(held)[:8]) + (", ..." if len(held) > 8 else "")
-            warnings.append(tr("{0} policies were chosen in templates of a more trusted source than the one that holds them "
-                               "now (for example a catalog file instead of the templates of this Windows); the choices are "
-                               "kept but not used until those templates are shown again: {1}", len(held), shown))
+            warnings.append(held_warning(sorted(held)))
         if new_rules:
             enabled = sum(1 for r in new_rules if rules[r].enabled)
             shown = ", ".join(new_rules[:12]) + (", ..." if len(new_rules) > 12 else "")
@@ -368,6 +375,11 @@ class Profile:
         )
         return profile, warnings
 
+    def held(self, catalog: Catalog) -> list[str]:
+        """The ids of the choices kept in "unknown" although the catalog has their rule: imported policies chosen in a
+        more trusted kind of import than the one that holds them now (see from_dict)."""
+        return sorted(rule_id for rule_id in self.unknown if rule_id in catalog.rules)
+
     def rebind(self, catalog: Catalog) -> tuple[Profile, list[str]]:
         """The same profile for another catalog (templates loaded or unloaded): states of rules that are not in it
         are kept in "unknown" and come back when the rules do."""
@@ -386,10 +398,21 @@ class Profile:
         return profile, warnings
 
     def save(self, path: Path, catalog: Catalog | None = None) -> None:
+        """UTF-8 with CRLF. The text is encoded before any file is opened and goes to a temporary file that then replaces
+        the old one, so a failed save never leaves an empty or half-written profile. A lone surrogate (half of an emoji
+        that a Tk entry leaves) is saved as U+FFFD: the strict reader refuses it, and the check of the profile names it."""
         self.modified = _now()
         payload = self.to_dict(catalog)
         text = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
-        path.write_text(text, encoding="utf-8", newline="\r\n")
+        data = jsonfile.without_surrogates(text).replace("\n", "\r\n").encode("utf-8")
+        temporary = path.with_name(path.name + ".tmp")
+        try:
+            temporary.write_bytes(data)
+            os.replace(temporary, path)
+        except OSError:
+            with contextlib.suppress(OSError):
+                temporary.unlink(missing_ok=True)
+            raise
         self.path = path
 
     # ----------------------------------------------------------------- comparison

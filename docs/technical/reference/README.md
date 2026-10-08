@@ -61,7 +61,8 @@ The cards mention:
 - Windows 11 24H2 and 25H2: the baseline version; where 24H2 changed the default behavior, this is stated explicitly.
 - Editions: the Windows Home edition is not supported (no policies, some components are missing); the "Home" preset
   of the editor is a selection of rules for Pro, not this edition. Pro is the main edition. Enterprise/Education:
-  some policies that Pro ignores work there; this is noted in the cards.
+  some policies that Pro ignores work there; this is noted in the cards. The other editions of the generic key list
+  (N, Pro for Workstations, Pro Education, Enterprise G, LTSC) need their licences and media; card 01.
 
 ## Sources
 

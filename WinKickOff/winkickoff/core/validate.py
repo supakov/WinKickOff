@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from winkickoff.core import jsonfile
 from winkickoff.core.admx import safe_name
 from winkickoff.core.catalog import Catalog, CatalogError, heading_anchors, is_imported, load_catalog
 from winkickoff.core.i18n import N_, catalog_texts, tr
@@ -234,9 +235,36 @@ def validate_profile(profile: Profile, catalog: Catalog, keyboards: list[dict[st
             "check Get-BitLockerVolume C: and store the key (manage-bde -protectors -get C:) away from "
             "the computer; otherwise the data will be lost if the TPM fails or the motherboard is "
             "replaced."), encryption.doc))
+    issues.extend(Issue("error", target, tr(HALF_CHARACTER)) for target in half_characters(profile, catalog))
     if profile.unknown:
         issues.append(Issue("info", "profile", tr("The profile contains rules that are not in the catalog: ") + ", ".join(sorted(profile.unknown))))
     return issues
+
+
+HALF_CHARACTER = N_("A text holds half of a character, left when an emoji or another character of two halves is deleted "
+                    "in part; type the text again")
+
+
+def _has_half(value: Any) -> bool:
+    if isinstance(value, str):
+        return jsonfile.has_surrogate(value)
+    if isinstance(value, (list, tuple)):
+        return any(_has_half(item) for item in value)
+    if isinstance(value, dict):
+        return any(_has_half(item) for item in value.values())
+    return False
+
+
+def half_characters(profile: Profile, catalog: Catalog) -> list[str]:
+    """The places (Issue targets) whose texts hold a lone surrogate: it cannot be written as UTF-8 and the embedded
+    profile would not read back. Choices the build never uses (unknown, imported policies off) do not count."""
+    targets = ["profile"] if _has_half([profile.name, profile.author, profile.comment]) else []
+    targets += [f"install.{key}" for key, value in profile.install.items() if _has_half(value)]
+    targets += [f"languages.{key}" for key, value in profile.languages.items() if _has_half(value)]
+    targets += [f"accounts[{index}]" for index, account in enumerate(profile.accounts) if _has_half(account.to_dict())]
+    targets += [rule_id for rule_id, state in profile.rules.items()
+                if rule_id in catalog.rules and (state.enabled or not is_imported(rule_id)) and _has_half(state.params)]
+    return targets
 
 
 # --------------------------------------------------------------------------- xml

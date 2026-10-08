@@ -381,7 +381,7 @@
       "effect": "Windows 11 removed the entry, but the known folder is still registered. The rule creates the entry in both branches. Windows does not create the folder with a new profile; whether opening the entry creates it is to be checked in a virtual machine. Off by default.",
       "versions": "Windows 10 1709 to 22H2 showed the folder on their own; Windows 11 has no entry. Check the effect on 25H2 on a test PC.",
       "verify": "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\{0DB7E03F-FC29-4DC6-9020-FF41B59E513A}\"",
-      "rollback": "Delete the {0DB7E03F-FC29-4DC6-9020-FF41B59E513A} key in both NameSpace branches (the automatic return to defaults does not delete keys).",
+      "rollback": "Value 1 in both branches hides the entry again (the automatic return to defaults writes it). To remove the entry completely, delete the {0DB7E03F-FC29-4DC6-9020-FF41B59E513A} key in both NameSpace branches.",
       "actions": [
         {
           "type": "reg",

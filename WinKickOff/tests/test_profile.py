@@ -27,6 +27,32 @@ class ProfileTest(unittest.TestCase):
         self.assertEqual([a.name for a in profile.accounts], ["Admin", "User"])
         self.assertEqual(profile.languages["input"], ["en-US", "uk-UA", "ru-UA"])
 
+    def test_a_failed_save_keeps_the_file_and_half_characters_are_saved(self) -> None:
+        from unittest import mock
+
+        from winkickoff.core.i18n import tr
+        from winkickoff.core.validate import HALF_CHARACTER, validate_profile
+
+        profile = Profile.from_catalog(self.catalog, name="Test")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "t.json"
+            profile.save(path, self.catalog)
+            before = path.read_bytes()
+            profile.comment = "changed"
+            with mock.patch("winkickoff.core.profile.os.replace", side_effect=PermissionError("busy")):
+                with self.assertRaises(OSError):
+                    profile.save(path, self.catalog)
+            self.assertEqual(path.read_bytes(), before)  # the old file is whole
+            self.assertEqual([p.name for p in Path(tmp).iterdir()], ["t.json"])  # no temporary file is left
+            profile.comment = "smile " + chr(0xD83D)  # half of an emoji, as a Tk entry leaves it after a Backspace
+            profile.accounts[0].display_name = chr(0xDE00)
+            issues = validate_profile(profile, self.catalog)
+            self.assertEqual({i.target for i in issues if i.message == tr(HALF_CHARACTER)}, {"profile", "accounts[0]"})
+            profile.save(path, self.catalog)  # before 08.10.2026 this left an empty file
+            loaded, _ = Profile.load(path, self.catalog)
+            self.assertEqual(loaded.comment, "smile " + chr(0xFFFD))
+            self.assertTrue(path.read_bytes().endswith(b"}\r\n"))
+
     def test_round_trip(self) -> None:
         profile = Profile.from_catalog(self.catalog, name="Тест")
         profile.rules["network.netbios-off"].enabled = True

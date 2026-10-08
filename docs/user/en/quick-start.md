@@ -37,7 +37,9 @@ a changed value is marked with the word "changed". The "Restore defaults" button
 Nodes at the top of the tree:
 
 - "Installation": Windows edition and product key (generic key, your own key, or choose the edition during
-  installation), time zone.
+  installation), time zone. Apart from Pro and Education, the generic keys of the list are KMS client keys: without a
+  KMS server of the organisation, Windows stays unactivated until the key of the license is entered after
+  installation. The installation media must contain the chosen edition.
 - "Accounts": the initial accounts, their groups and descriptions, or "Ask for the account during installation": then
   Windows Setup itself asks for the name of one administrator account.
 - "Languages and region": display language (the same as the image language), formats,

@@ -99,7 +99,7 @@ def head(rule_id: str, group: str, phase: str, title: str, tag_list: list[str], 
     return rule
 
 
-def reg(path: str, name: str, value: int, default: str | None = None) -> dict:
+def reg(path: str, name: str, value: int, default: str | int | None = None) -> dict:
     action = {"type": "reg", "path": path, "name": name, "kind": "DWord", "value": value}
     if default is not None:
         action["default"] = default
@@ -117,8 +117,8 @@ def catalog_file() -> dict:
                     "Reported by third parties for Windows 10 and 11; check on 25H2 in a virtual machine.",
                     f"Windows 10 and 11, all editions. {VIEWS}",
                     f'reg query "{HKLM_NS.format(view="")[:-1].replace(":", "")}\\{clsid}"',
-                    f"Delete the {clsid} key in both NameSpace branches (the automatic return to defaults does not "
-                    "delete keys).")
+                    "Value 1 in both branches hides the entry again (the automatic return to defaults writes it). To "
+                    f"remove the entry completely, delete the {clsid} key in both NameSpace branches.")
         rule["actions"] = [reg(f"{HKLM_NS.format(view=view)}{clsid}", "HiddenByDefault", 0, 1)
                            for view in ("", "WOW6432Node\\")]
         rules.append(rule)
