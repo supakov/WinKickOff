@@ -198,6 +198,11 @@ as the resource `winkickoff://skill/SKILL.md`, so an assistant that cannot insta
 can read it from the server. The skill describes this version of the
 program; after an update of WinKickOff, copy the folder again.
 
+The folder `agents` next to the program holds ready instructions of the assistant for any agent with MCP support
+(`AGENTS.md`) and how to connect it (`README.md`): copy `AGENTS.md` into an empty folder the agent works in, under the
+name your client reads, and connect the server as described above. That folder must hold no files of the program, no
+profiles and no answer files.
+
 ## Command line
 
 `WinKickOff-mcp.exe` (the portable build) and `python -m winkickoff` (the sources) accept the same flags.

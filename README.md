@@ -65,6 +65,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\Validate-Unattend.ps1 
 - [Appendices](docs/appendices/README.md) (Russian): our hand-written answer file v0.2 (the reference the
   WinKickOff catalog grew from), the critic's report, the first requirements draft.
 - [AGENTS.md](AGENTS.md): repository map for developers and agents.
+- [agents/](agents/README.md): the instructions of the WinKickOff assistant for any AI agent with MCP support (AGENTS.md
+  and how to connect it), not tied to one agent; also next to the program in the portable build.
 - [pi-agent/](pi-agent/README.md): a Podman image of an assistant with a local model (the pi agent) that analyses and
   changes WinKickOff profiles only through the MCP server, without a cloud model (its acceptance test is pending).
 
