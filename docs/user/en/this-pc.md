@@ -25,6 +25,10 @@ first sign-in, and checks that need administrator rights, keep the state of the 
 edition, the time zone, the languages and the local accounts (without passwords). The computer name is not taken, so
 that the computers installed from the profile do not share one name.
 
+As administrator ("Read the settings of this PC as administrator into a new profile...") Windows asks to confirm
+the rights once, and the read itself runs hidden and still changes nothing; it then reads the optional features,
+capabilities and the apps of every user too.
+
 The result opens as a new profile with unsaved changes: check it ("Check", F7) and save it under a name of your own.
 The values come from this computer; on a damaged or infected system they may be anything, so look through them before
 a build.

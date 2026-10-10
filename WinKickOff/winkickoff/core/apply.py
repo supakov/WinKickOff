@@ -445,6 +445,47 @@ def run_audit(script: str, work_dir: Path, timeout: int = 300) -> str:
     return report.read_text(encoding="utf-8-sig")
 
 
+class _ShellExecuteInfo(ctypes.Structure):
+    _fields_ = [("cbSize", ctypes.c_ulong), ("fMask", ctypes.c_ulong), ("hwnd", ctypes.c_void_p), ("lpVerb", ctypes.c_wchar_p),
+                ("lpFile", ctypes.c_wchar_p), ("lpParameters", ctypes.c_wchar_p), ("lpDirectory", ctypes.c_wchar_p),
+                ("nShow", ctypes.c_int), ("hInstApp", ctypes.c_void_p), ("lpIDList", ctypes.c_void_p),
+                ("lpClass", ctypes.c_wchar_p), ("hkeyClass", ctypes.c_void_p), ("dwHotKey", ctypes.c_ulong),
+                ("hIconOrMonitor", ctypes.c_void_p), ("hProcess", ctypes.c_void_p)]
+
+
+SEE_MASK_NOCLOSEPROCESS = 0x40
+ERROR_CANCELLED = 1223  # the person said No at the UAC prompt
+
+
+def run_audit_elevated(script: str, work_dir: Path, timeout: int = 600) -> str:
+    """The read-only audit as administrator: one UAC prompt, a hidden powershell.exe, then the JSON report. The person
+    confirms the prompt; nothing else is shown. Raises RuntimeError when the prompt is declined or no report appears."""
+    if sys.platform != "win32":
+        raise RuntimeError("elevation is available on Windows only")
+    folder = work_dir / f"audit-{uuid.uuid4().hex[:8]}"
+    folder.mkdir(parents=True, exist_ok=True)
+    script_path, report = folder / "Audit.ps1", folder / "report.json"
+    write_script(script_path, script)
+    info = _ShellExecuteInfo(cbSize=ctypes.sizeof(_ShellExecuteInfo), fMask=SEE_MASK_NOCLOSEPROCESS, lpVerb="runas",
+                             lpFile="powershell.exe", nShow=0, lpDirectory=str(folder),
+                             lpParameters=f'-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden '
+                                          f'-File "{script_path}" -Report "{report}"')
+    shell32, kernel32 = ctypes.windll.shell32, ctypes.windll.kernel32
+    if not shell32.ShellExecuteExW(ctypes.byref(info)):
+        code = kernel32.GetLastError()
+        raise RuntimeError(tr("Administrator rights were not given") if code == ERROR_CANCELLED
+                           else tr("The launch was cancelled or failed (code {0})", code))
+    try:
+        if info.hProcess:
+            kernel32.WaitForSingleObject(ctypes.c_void_p(info.hProcess), ctypes.c_ulong(timeout * 1000))
+    finally:
+        if info.hProcess:
+            kernel32.CloseHandle(ctypes.c_void_p(info.hProcess))
+    if not report.exists():
+        raise RuntimeError(tr("The check produced no report: {0}", script_path))
+    return report.read_text(encoding="utf-8-sig")
+
+
 def launch_elevated(script_path: Path) -> None:
     """Start the apply script in powershell.exe through the UAC prompt (the user confirms it there)."""
     if sys.platform != "win32":

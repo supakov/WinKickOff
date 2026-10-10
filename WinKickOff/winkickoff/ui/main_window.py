@@ -42,6 +42,8 @@ from winkickoff.core.apply import (
     write_script,
 )
 from winkickoff.core.capture import capture_profile, render_capture, summary_lines
+from winkickoff.core.diffprofile import load_diff, make_diff, merge_diff, save_diff
+from winkickoff.core.draft import draft_text, drop_draft, save_draft
 from winkickoff.core import admx as admx_module
 from winkickoff.core import apply as apply_module
 from winkickoff.core import linked
@@ -50,7 +52,7 @@ from winkickoff.core.deps import Change, Resolver
 from winkickoff.core.i18n import SOURCE_LANGUAGE, N_, available_languages, catalog_texts, language, tr
 from winkickoff.core.importer import IMPORTED_NAME, ImportFailed, import_xml
 from winkickoff.core.paths import AppPaths, display_path
-from winkickoff.core.profile import LEGACY_SOURCE, Profile
+from winkickoff.core.profile import LEGACY_SOURCE, Profile, one_line
 from winkickoff.core.pscheck import PsCheckResult, check_scripts
 from winkickoff.core.render import BuildResult, Renderer, RenderError, render_action, substitute, write_answer_file
 from winkickoff.core.resources import Resources
@@ -114,6 +116,9 @@ UNKNOWN_RULE = N_("A rule that is not in rule catalog {0}: the profile was proba
                   "then the rule is not written to autounattend.xml, not checked and not applied to this PC.")
 VALUE_LIMIT = 300  # characters of a kept parameter value shown in the description
 READ_PC_TIMEOUT = 600  # seconds the read of this PC may take
+DRAFT_INTERVAL_MS = 60_000  # how often unsaved changes go to the draft
+READ_PC_ADMIN_NOTE = N_("As administrator: Windows asks to confirm the rights once; the read itself runs hidden and still "
+                        "changes nothing. Optional features, capabilities and the apps of every user are read too.")
 READ_PC_NOTE = N_("WinKickOff reads the settings of this computer into a new profile: every rule a running Windows can "
                   "show, the edition, the time zone, the languages and the local accounts (without passwords). Nothing on "
                   "this computer changes. Rules that act only during installation or at the first sign-in keep the state "
@@ -200,6 +205,8 @@ class MainWindow(tk.Tk):
         self._modal = 0  # open dialogs (native ones set no Tk grab); the MCP bridge refuses writes meanwhile
         self._files_confirmed = False
         self.mcp_pump_id: str | None = None
+        self._draft_text: str | None = None  # the content of the last draft written (core/draft.py)
+        self._draft_job: str | None = None
         self.mcp_monitor: Any = None
         self.last_load_warnings: list[str] = []
         self.settings = settings if settings is not None else Settings.load(paths.settings_file)
@@ -439,6 +446,8 @@ class MainWindow(tk.Tk):
         file_menu.add_command(label=tr("Open profile..."), accelerator="Ctrl+O", command=self.open_profile_dialog)
         file_menu.add_command(label=tr("Open profile from autounattend.xml..."), command=self.import_from_xml)
         file_menu.add_command(label=tr("Compare with profile..."), command=self.compare_with_file)
+        file_menu.add_command(label=tr("Changes since the last save..."), command=self.show_changes)
+        file_menu.add_command(label=tr("Merge a diff profile..."), command=self.merge_diff_dialog)
         self.recent_menu = tk.Menu(file_menu, tearoff=False)
         file_menu.add_cascade(label=tr("Recent"), menu=self.recent_menu)
         self._rebuild_recent_menu()
@@ -471,6 +480,8 @@ class MainWindow(tk.Tk):
         self._fill_pc_menu(self.pc_menu)
         self.pc_menu.add_separator()
         self.pc_menu.add_command(label=tr("Read the settings of this PC into a new profile..."), command=self.read_this_pc)
+        self.pc_menu.add_command(label=tr("Read the settings of this PC as administrator into a new profile..."),
+                                 command=lambda: self.read_this_pc(elevated=True))
         self.pc_menu.add_separator()
         self.allow_apply_var = tk.BooleanVar(value=self.settings.allow_apply)
         self.pc_menu.add_checkbutton(label=tr("Allow applying on this PC"), variable=self.allow_apply_var,
@@ -1580,11 +1591,43 @@ class MainWindow(tk.Tk):
             return False
         if answer:
             return self.save_profile()
+        self.discard_draft()  # the person dropped the changes
         return True
+
+    # ----------------------------------------------------------------- the draft (core/draft.py)
+
+    def start_draft_timer(self) -> None:
+        self._draft_job = self.after(DRAFT_INTERVAL_MS, self._draft_tick)
+
+    def _draft_tick(self) -> None:
+        self.write_draft()
+        self._draft_job = self.after(DRAFT_INTERVAL_MS, self._draft_tick)
+
+    def write_draft(self) -> bool:
+        """Write the unsaved changes to the draft when they changed since the last one; True when they are safe (also
+        when there is nothing unsaved)."""
+        if not self.dirty:
+            return True
+        text = draft_text(self.profile, self.catalog)
+        if text == self._draft_text:
+            return True
+        try:
+            save_draft(self.paths.root, self.profile, self.catalog)
+        except OSError as exc:
+            log.warning("draft not written: %s", exc)
+            return False
+        self._draft_text = text
+        return True
+
+    def discard_draft(self) -> None:
+        drop_draft(self.paths.root)
+        self._draft_text = None
 
     def set_profile(self, profile: Profile, *, dirty: bool, warnings: list[str] | None = None) -> None:
         self.profile = profile
         self.dirty = dirty
+        if not dirty:
+            self.discard_draft()  # another profile is open as saved: the draft of the previous one goes
         if self.search_var.get().strip():
             self.apply_search()
         else:
@@ -1657,6 +1700,7 @@ class MainWindow(tk.Tk):
             self._dialog(messagebox.showerror, APP_NAME, tr("Could not save the profile:\n{0}", exc), parent=self)
             return False
         self.dirty = False
+        self.discard_draft()
         self.update_title()
         self.remember_file(self.profile.path)
         self.set_status(tr("Profile saved: {0}", self.profile.path))
@@ -1692,6 +1736,7 @@ class MainWindow(tk.Tk):
             self.profile.name = previous  # a failed save leaves the profile as it was
             raise
         self.dirty = False
+        self.discard_draft()
         self.refresh_profile_choices()
         self.update_title()
         self.remember_file(path)
@@ -1751,38 +1796,145 @@ class MainWindow(tk.Tk):
         except (OSError, ValueError) as exc:
             self._dialog(messagebox.showerror, APP_NAME, tr("Could not open the profile:\n{0}\n\n{1}", path, exc), parent=self)
             return None
+        return self.open_comparison(other, tr(other.name))
+
+    def show_changes(self) -> tk.Toplevel | None:
+        """The changes of the open profile since it was last saved (or since the preset it came from)."""
+        path = self.profile.path
+        if path is None or not Path(path).is_file():
+            self._dialog(messagebox.showinfo, APP_NAME, tr("The profile has not been saved yet, so there is nothing to compare "
+                                                            "it with. Use \"Compare with profile...\" instead."), parent=self)
+            return None
+        try:
+            saved, _warnings = Profile.load(Path(path), self.catalog)
+        except (OSError, ValueError) as exc:
+            self._dialog(messagebox.showerror, APP_NAME, tr("Could not open the profile:\n{0}\n\n{1}", path, exc), parent=self)
+            return None
+        return self.open_comparison(saved, tr("saved"))
+
+    def open_comparison(self, other: Profile, other_title: str) -> tk.Toplevel:
+        """The differences of the open profile from other as a tree (groups, rules, their parameters, the data forms) with
+        the description of the selected rule; the differences can be saved as a diff profile or applied to this PC."""
         rows = self.comparison_rows(other)
         window = tk.Toplevel(self)
-        window.title(tr("Comparison: \"{0}\" and \"{1}\"", tr(self.profile.name), tr(other.name)))
-        window.geometry("980x520")
-        caption = tr("Differences: {0}. Double-click to go to the rule or data.", len(rows)) if rows else tr("The profiles are identical.")
+        window.title(tr("Comparison: \"{0}\" and \"{1}\"", tr(self.profile.name), other_title))
+        window.geometry("1100x580")
+        caption = (tr("Differences: {0}. Select a rule to read its description; double-click to go to it.", len(rows)) if rows
+                   else tr("The profiles are identical."))
         ttk.Label(window, text=caption, padding=(10, 8)).pack(anchor=tk.W)
-        box = ttk.Frame(window, padding=(10, 0, 10, 0))
-        box.pack(fill=tk.BOTH, expand=True)
-        table = ttk.Treeview(box, columns=("kind", "item", "mine", "theirs"), show="headings")
-        for column, title, width in (("kind", tr("Item"), 110), ("item", tr("Location"), 420),
-                                     ("mine", tr(self.profile.name), 200), ("theirs", tr(other.name), 200)):
+        buttons = ttk.Frame(window, padding=(10, 6))
+        buttons.pack(side=tk.BOTTOM, fill=tk.X)
+        panes = ttk.PanedWindow(window, orient=tk.HORIZONTAL)
+        panes.pack(fill=tk.BOTH, expand=True, padx=10)
+        left = ttk.Frame(panes)
+        table = ttk.Treeview(left, columns=("mine", "theirs"), show="tree headings")
+        table.heading("#0", text=tr("Location"))
+        table.column("#0", width=430)
+        for column, title in (("mine", tr(self.profile.name)), ("theirs", other_title)):
             table.heading(column, text=title)
-            table.column(column, width=width, stretch=column == "item")
-        scroll = ttk.Scrollbar(box, orient=tk.VERTICAL, command=table.yview)
+            table.column(column, width=150, stretch=False)
+        scroll = ttk.Scrollbar(left, orient=tk.VERTICAL, command=table.yview)
         table.configure(yscrollcommand=scroll.set)
         table.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scroll.pack(side=tk.LEFT, fill=tk.Y)
+        detail = tk.Text(panes, wrap=tk.WORD, width=46, relief=tk.FLAT, padx=8, pady=6, state=tk.DISABLED)
+        panes.add(left, weight=3)
+        panes.add(detail, weight=2)
         targets: dict[str, str] = {}
+        parents: dict[str, str] = {}
         for index, (target, kind, item, mine, theirs) in enumerate(rows):
+            rule_id = target[2:] if target.startswith("r:") else ""
+            if rule_id in self.catalog.rules:
+                group = self.catalog.groups.get(self.catalog.rules[rule_id].group)
+                while group is not None and group.parent:
+                    group = self.catalog.groups.get(group.parent)
+                top = f"g{group.id}" if group is not None else "gother"
+                if top not in parents:
+                    parents[top] = table.insert("", tk.END, iid=top, text=self.group_title(group.id) if group else tr("Rules"),
+                                                open=True)
+                node = f"n{rule_id}"
+                if not table.exists(node):
+                    table.insert(top, tk.END, iid=node, text=self.rule_title(rule_id), open=True)
+                    targets[node] = target
+                if kind == tr("rule"):
+                    table.item(node, values=(mine, theirs))
+                    continue
+                parent, label = node, item.split(": ", 1)[-1]
+            else:
+                parent, label = parents.setdefault("gdata", table.insert("", tk.END, iid="gdata", text=tr("Data forms"),
+                                                                         open=True)), f"{kind}: {item}"
             iid = f"d{index}"
             targets[iid] = target
-            table.insert("", tk.END, iid=iid, values=(kind, item, mine, theirs))
+            table.insert(parent, tk.END, iid=iid, text=label, values=(mine, theirs))
+
+        def describe(_event: tk.Event | None = None) -> None:  # type: ignore[type-arg]
+            selection = table.selection()
+            target = targets.get(selection[0], "") if selection else ""
+            texts = catalog_texts()
+            lines: list[str] = []
+            if target.startswith("r:") and target[2:] in self.catalog.rules:
+                rule = self.catalog.rules[target[2:]]
+                lines = [self.rule_title(rule.id), rule.id, ""] + [texts.rule(rule, field) for field in ("summary", "effect", "risk")
+                                                                    if texts.rule(rule, field)]
+            detail.configure(state=tk.NORMAL)
+            detail.delete("1.0", tk.END)
+            detail.insert("1.0", "\n\n".join(line for line in lines if line is not None))
+            detail.configure(state=tk.DISABLED)
 
         def go(_event: tk.Event) -> None:  # type: ignore[type-arg]
             selection = table.selection()
             if selection and targets.get(selection[0]):
                 self.select_node(targets[selection[0]])
 
+        table.bind("<<TreeviewSelect>>", describe)
         table.bind("<Double-Button-1>", go)
-        ttk.Button(window, text=tr("Close"), command=window.destroy).pack(anchor=tk.E, padx=10, pady=8)
+        changed_rules = list(dict.fromkeys(t for t in targets.values() if t.startswith("r:") and t[2:] in self.catalog.rules))
+        ttk.Button(buttons, text=tr("Close"), command=window.destroy).pack(side=tk.RIGHT)
+        ttk.Button(buttons, text=tr("Apply these changes to this PC..."),
+                   command=lambda: self.apply_now(changed_rules), state=tk.NORMAL if changed_rules else tk.DISABLED).pack(side=tk.RIGHT, padx=6)
+        ttk.Button(buttons, text=tr("Save the differences as a diff profile..."),
+                   command=lambda: self.save_diff_file(other), state=tk.NORMAL if rows else tk.DISABLED).pack(side=tk.RIGHT)
         window.comparison_rows = rows  # type: ignore[attr-defined]
+        window.comparison_tree = table  # type: ignore[attr-defined]
+        window.comparison_detail = detail  # type: ignore[attr-defined]
+        window.changed_rules = changed_rules  # type: ignore[attr-defined]
         return window
+
+    def save_diff_file(self, other: Profile) -> Path | None:
+        """Only the differences of the open profile from other, as a diff profile (core/diffprofile.py)."""
+        diff = make_diff(self.profile, other, self.catalog)
+        suggested = re.sub(r'[\\/:*?"<>|]', "_", tr(self.profile.name)) or "profile"
+        name = self._dialog(filedialog.asksaveasfilename, parent=self, title=tr("Save the differences as a diff profile"),
+                            initialdir=str(self.paths.profiles), initialfile=f"{suggested}.wkdiff", defaultextension=".wkdiff",
+                            filetypes=[(tr("WinKickOff diff profile"), "*.wkdiff")])
+        if not name:
+            return None
+        try:
+            save_diff(Path(name), diff)
+        except OSError as exc:
+            self._dialog(messagebox.showerror, APP_NAME, tr("Could not save the profile:\n{0}", exc), parent=self)
+            return None
+        self.set_status(tr("Differences saved: {0}", name))
+        return Path(name)
+
+    def merge_diff_dialog(self) -> None:
+        name = self._dialog(filedialog.askopenfilename, parent=self, title=tr("Merge a diff profile"), initialdir=str(self.paths.profiles),
+                            filetypes=[(tr("WinKickOff diff profile"), "*.wkdiff"), (tr("All files"), "*.*")])
+        if name:
+            self.merge_diff_file(Path(name))
+
+    def merge_diff_file(self, path: Path) -> int:
+        """Merge a diff profile into the open profile (unsaved); returns how many items changed."""
+        try:
+            diff = load_diff(path)
+        except ValueError as exc:
+            self._dialog(messagebox.showerror, APP_NAME, tr("Could not open the profile:\n{0}\n\n{1}", path, exc), parent=self)
+            return 0
+        changed, warnings = merge_diff(self.profile, diff, self.catalog)
+        summary = tr("Diff profile \"{0}\" merged: {1} changes", one_line(str(diff.get("name") or path.stem)), changed)
+        self.set_profile(self.profile, dirty=self.dirty or changed > 0, warnings=[summary] + warnings)
+        self.set_status(summary)
+        return changed
 
     def import_from_xml(self) -> None:
         if not self.confirm_discard():
@@ -2077,12 +2229,14 @@ class MainWindow(tk.Tk):
         self.set_status(tr("MCP clients may read the settings of this PC (read only)") if allowed
                         else tr("MCP clients may not read the settings of this PC"))
 
-    def read_this_pc(self) -> None:
+    def read_this_pc(self, elevated: bool = False) -> None:
         """Read the settings of this computer into a new profile (read only, core/capture.py): a reference PC to clone, or
-        a damaged one to study."""
+        a damaged one to study. elevated: as administrator through one UAC prompt, so that features, capabilities and the
+        apps of every user are read too."""
         if self._busy or not self.confirm_discard():
             return
-        if not self._dialog(messagebox.askokcancel, APP_NAME, tr(READ_PC_NOTE), parent=self):
+        note = tr(READ_PC_NOTE) + ("\n\n" + tr(READ_PC_ADMIN_NOTE) if elevated else "")
+        if not self._dialog(messagebox.askokcancel, APP_NAME, note, parent=self):
             return
         base = self.profile.copy()
         script = render_capture(self.catalog, base, self.paths.templates, APP_VERSION)
@@ -2090,7 +2244,8 @@ class MainWindow(tk.Tk):
 
         def work() -> None:
             try:
-                outcome["text"] = run_audit(script, self.paths.logs / "tmp", timeout=READ_PC_TIMEOUT)
+                runner = apply_module.run_audit_elevated if elevated else run_audit
+                outcome["text"] = runner(script, self.paths.logs / "tmp", timeout=READ_PC_TIMEOUT)
             except Exception as exc:  # noqa: BLE001 - shown to the user
                 outcome["error"] = exc
 
@@ -2183,9 +2338,10 @@ class MainWindow(tk.Tk):
         self.set_status(tr("Apply scripts saved: {0} (rules: {1})", folder, len(plan.rules) + len(plan.reverts)))
         return folder
 
-    def apply_now(self) -> bool:
-        """Apply the selection to this PC: confirmation, scripts in logs/, launch through UAC."""
-        items = self._apply_items()
+    def apply_now(self, rule_items: list[str] | None = None) -> bool:
+        """Apply the selection (or rule_items, the changed rules of a comparison) to this PC: confirmation, scripts in
+        logs/, launch through UAC."""
+        items = rule_items if rule_items else self._apply_items()
         if not items or not self._ensure_apply_allowed():
             return False
         plan = plan_apply(self.catalog, self.profile, items)
@@ -2567,14 +2723,23 @@ class MainWindow(tk.Tk):
         self._restart(status=tr("Imported templates \"{0}\" deleted", name))
 
     def on_close(self) -> None:
-        if self.confirm_discard():
-            self.save_settings()
-            self.destroy()
+        """Unsaved changes go to the draft, which the next start opens again, so closing asks nothing; only when the
+        draft cannot be written the question "Save changes?" stays."""
+        if self.dirty and not self.write_draft() and not self.confirm_discard():
+            return
+        self.save_settings()
+        self.destroy()
 
     def destroy(self) -> None:
         margins = getattr(self, "menu_margins", None)
         if margins is not None:
             margins.stop()  # the hook of this window ends with it (a language or theme change builds a new window)
+        if self._draft_job is not None:
+            try:
+                self.after_cancel(self._draft_job)
+            except tk.TclError:
+                pass
+            self._draft_job = None
         if self.mcp_pump_id is not None:
             try:
                 self.after_cancel(self.mcp_pump_id)

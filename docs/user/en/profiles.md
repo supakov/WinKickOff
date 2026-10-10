@@ -72,3 +72,24 @@ A new version of the program opens profiles saved by an older one:
 
 Presets always match their program version. To bring new recommendations into your profile, open a preset
 and choose "File, Compare with profile...": the list shows every difference.
+
+## The draft and closing the program
+
+While a profile is not saved, the program writes its changes to a draft next to itself (`draft.json`) every minute.
+Closing the window writes the draft too and asks nothing: the next start opens the profile with the same unsaved
+changes, and the list at the bottom of the window says that they were restored. Saving the profile, opening another
+one or answering "No" to the question about saving deletes the draft. Like a profile, the draft may hold passwords.
+
+## Changes, diff profiles and merging
+
+"File, Changes since the last save..." compares the open profile with its saved file, "File, Compare with
+profile..." with any other. The comparison shows the differences as a tree: groups, rules and their parameters, the
+data forms; the selected rule shows its description on the right, and a double click goes to it in the main window.
+
+"Save the differences as a diff profile..." writes only the differences to a `.wkdiff` file; "File, Merge a diff
+profile..." brings such differences into the open profile with the same dependencies as a click in the tree. So one
+change can be spread over several profiles. What cannot be merged (a rule of another catalog version, a value that
+does not fit) is named in the message list.
+
+"Apply these changes to this PC..." in the comparison applies only the changed rules to the computer, like "This PC,
+Apply the selection now..." (the page about checking and applying on a running computer).

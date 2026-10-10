@@ -15,6 +15,7 @@ from winkickoff.core.catalog import Catalog, CatalogError, load_catalog
 from winkickoff.core.i18n import language, set_language, tr
 from winkickoff.core.log import setup_logging
 from winkickoff.core.paths import AppPaths, app_paths
+from winkickoff.core.draft import load_draft
 from winkickoff.core.profile import held_warning
 from winkickoff.core.resources import Resources
 from winkickoff.core.settings import Settings
@@ -82,6 +83,18 @@ def create_app(*, withdraw: bool = False, state: dict[str, object] | None = None
             log.info("profile after a restart: %s", warning)
     else:
         profile = initial_profile(paths, catalog, settings)
+    restored = False
+    if not state:  # unsaved changes of the last session (core/draft.py) come back unsaved
+        try:
+            draft = load_draft(paths.root, catalog)
+        except ValueError as exc:
+            draft = None
+            problems.append(tr("The draft of the last session could not be read: {0}", str(exc)[:300]))
+        if draft is not None:
+            profile, warnings = draft
+            restored = True
+            for warning in warnings:
+                log.info("draft: %s", warning)
     # choices held because a less trusted import holds their policy now (a tree hidden, a catalog file imported): the
     # person must see why they left the build, after a restart and at the first start alike, not only in the log
     held = profile.held(catalog)
@@ -107,6 +120,12 @@ def create_app(*, withdraw: bool = False, state: dict[str, object] | None = None
         root.refresh_mcp_status()
     if state:
         root.restore_state(state)
+    if restored:
+        root.dirty = True
+        root.update_title()
+        problems.append(tr("The unsaved changes of the last session were restored from the draft; save the profile to "
+                           "keep them."))
+    root.start_draft_timer()
     if problems:
         root.show_problems(problems)
     if withdraw:
