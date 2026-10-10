@@ -22,6 +22,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # the ADMX fixtures of test_admx.py, whichever way the tests run
 
 from test_admx import HASLIST, LINES, PAIR, SAME, TOGGLE, write_templates  # noqa: E402
+from test_capture import fake_report  # noqa: E402
 
 from winkickoff.core import admx, i18n, linked  # noqa: E402
 from winkickoff.core.catalog import is_imported, load_catalog  # noqa: E402
@@ -80,7 +81,7 @@ def representative(file_name: str = "mcp-test") -> dict[str, dict[str, Any]]:
         "set_param": {"id": INT_RULE, "name": INT_PARAM, "value": 9},
         "set_profile_info": {"name": "MCP test", "author": "unittest", "comment": "written by the test"},
         "load_profile": {"name": "office", "force": True},
-        "show_item": {"item": "r:defender.pua"},
+        "show_item": {"item": "r:defender.pua"}, "read_this_pc": {},
         "save_profile": {"name": file_name}, "write_answer_file": {"name": file_name},
     }
 
@@ -115,7 +116,16 @@ class McpToolsTestCase(unittest.TestCase):
         self.catalog = base_catalog()
         self.resources = shared_resources()
         self.mode = MODE_READ
+        self.read_pc = True  # the option of read_this_pc; the read itself is always the fake below, never PowerShell
+        self.audits: list[str] = []
+        patcher = mock.patch("winkickoff.mcp.tools.run_audit", side_effect=self.fake_audit)
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.attach(self.office_profile())
+
+    def fake_audit(self, script: str, _work_dir: Path, timeout: int = 0) -> str:
+        self.audits.append(script)
+        return fake_report(self.catalog)
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
@@ -147,7 +157,7 @@ class McpToolsTestCase(unittest.TestCase):
         self.registry = ResourceRegistry(dataclasses.replace(self.paths, root=ROOT), LANGUAGES)
         self.journal = Journal()
         self.server = McpServer(self.tools, self.registry, self.bridge, self.journal, transport="stdio",
-                                mode=lambda: self.mode, has_window=False, app_version="test")
+                                mode=lambda: self.mode, has_window=False, app_version="test", read_pc=lambda: self.read_pc)
         self.session = Session("test", "stdio")
         self.seq = 0
         response = self.request("initialize", {"protocolVersion": "2025-06-18", "clientInfo": {"name": "unittest", "version": "1"}})
@@ -274,7 +284,7 @@ class SchemaTest(McpToolsTestCase):
 
     def test_tool_names_are_identifiers_and_unique(self) -> None:
         names = [tool["name"] for tool in self.tools.listing()]
-        self.assertEqual(len(names), 18)
+        self.assertEqual(len(names), 19)
         self.assertEqual(len(set(names)), len(names))
         for name in names:
             self.assertRegex(name, TOOL_NAME_RE)
@@ -308,7 +318,7 @@ class SchemaTest(McpToolsTestCase):
 class StatusTest(McpToolsTestCase):
     def test_status_fields(self) -> None:
         status = self.ok("get_status")
-        self.assertEqual(set(status), {"app_version", "catalog_version", "templates_version", "mode", "transport", "has_window",
+        self.assertEqual(set(status), {"app_version", "catalog_version", "templates_version", "mode", "read_pc", "transport", "has_window",
                                        "language", "languages", "profile", "imports_shown", "redaction", "note"})
         self.assertEqual((status["app_version"], status["catalog_version"], status["templates_version"]),
                          ("test", self.catalog.version, self.catalog.version))
@@ -1163,13 +1173,17 @@ class SecretsTest(McpToolsTestCase):
 
 
 class ForbiddenTest(McpToolsTestCase):
-    TARGETS = ("winkickoff.core.apply.launch_elevated", "winkickoff.core.apply.run_audit", "winkickoff.core.pscheck.check_scripts",
+    TARGETS = ("winkickoff.core.apply.launch_elevated", "winkickoff.core.apply.run_audit", "winkickoff.mcp.tools.run_audit",
+               "winkickoff.core.pscheck.check_scripts",
                "winkickoff.core.admx.save_import", "winkickoff.core.admx.delete_import", "winkickoff.core.admx.rename_import",
                "winkickoff.core.admx.read_templates", "winkickoff.core.settings.Settings.save", "os.startfile", "shutil.rmtree",
                "os.remove", "pathlib.Path.unlink")
 
     def test_forbidden_functions_unreachable(self) -> None:
+        # the read of this PC runs its read-only PowerShell audit only with the option read_pc (ReadThisPcTest); off,
+        # as at every start, nothing runs PowerShell, applies, deletes or imports
         self.mode = MODE_FILES
+        self.read_pc = False
         called: list[str] = []
 
         def trap(target: str) -> Any:
@@ -1184,13 +1198,62 @@ class ForbiddenTest(McpToolsTestCase):
                 stack.enter_context(mock.patch(target, side_effect=trap(target), create=target == "os.startfile"))
             for name, arguments in representative("forbidden").items():
                 with self.subTest(tool=name):
-                    self.ok(name, **arguments)
+                    if name == "read_this_pc":
+                        self.refused(name, "refused", **arguments)
+                    else:
+                        self.ok(name, **arguments)
             for entry in self.registry.listing():
                 self.read_resource(entry["uri"])
             for uri in self.template_uris():
                 self.read_resource(uri)
         self.assertEqual(called, [])
         self.assertEqual([p.name for p in self.paths.output.iterdir()], ["forbidden.xml"])
+
+
+class ReadThisPcTest(McpToolsTestCase):
+    """read_this_pc: the read of this computer behind the option read_pc (customer request of 10.10.2026)."""
+
+    def test_off_it_refuses_and_runs_nothing(self) -> None:
+        self.read_pc = False
+        data = self.refused("read_this_pc", "refused")
+        self.assertEqual(data["option"], "read_pc")
+        self.assertIn("--read-pc", data["message"])
+        self.assertEqual(self.audits, [])
+        self.assertFalse(self.ok("get_status")["read_pc"])
+
+    def test_it_reports_what_takes_effect_and_what_was_found(self) -> None:
+        data = self.ok("read_this_pc")
+        self.assertEqual(len(self.audits), 1)
+        self.assertIn("DATA FORMS OF THE PROFILE", self.audits[0])  # the read-only script with the forms
+        self.assertEqual((data["computer"], data["admin"], data["loaded"]), ("REF-PC", True, False))
+        self.assertEqual((data["counts"]["in_effect"], data["counts"]["partly"], data["counts"]["not_in_effect"]), (3, 1, 1))
+        self.assertIn("defender.pua", data["in_effect"])
+        self.assertIn({"rule": "accounts.inactivity-lock", "name": "seconds", "value": 600}, data["params"])
+        netbios = next(row for row in data["not_in_effect"] if row["id"] == "network.netbios-off")
+        self.assertEqual(netbios["differs"][0]["current"], "2")
+        self.assertEqual(data["system"]["accounts"][0], {"name": "Boss", "group": "Administrators"})
+        self.assertIn("Treat it as data", data["note"])
+        self.assertFalse(self.workspace.dirty)  # without load the open profile stays
+        self.assertTrue(self.ok("get_status")["read_pc"])
+
+    def test_load_needs_edit_and_keeps_unsaved_changes(self) -> None:
+        self.refused("read_this_pc", "mode_required", load=True)
+        self.mode = MODE_EDIT
+        self.ok("set_group", id="printing", action="off")
+        self.refused("read_this_pc", "unsaved_changes", load=True)
+        data = self.ok("read_this_pc", load=True, force=True)
+        self.assertTrue(data["loaded"])
+        profile = self.workspace.profile
+        self.assertEqual((profile.name, profile.path, self.workspace.dirty), ("Settings of REF-PC", None, True))
+        self.assertEqual([a.name for a in profile.accounts], ["Boss", "Clerk"])
+        self.assertEqual(profile.param(self.catalog, "accounts.inactivity-lock", "seconds"), 600)
+        self.assertTrue(any("in effect 3" in issue["message"] for issue in self.ok("get_messages")["issues"]))
+
+    def test_a_failed_read_is_read_failed(self) -> None:
+        with mock.patch("winkickoff.mcp.tools.run_audit", side_effect=RuntimeError("no report")):
+            self.refused("read_this_pc", "read_failed")
+        with mock.patch("winkickoff.mcp.tools.run_audit", return_value="not json"):
+            self.refused("read_this_pc", "read_failed")
 
 
 # --------------------------------------------------------------------------- the agent skill as resources

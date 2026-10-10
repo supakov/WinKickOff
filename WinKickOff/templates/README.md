@@ -13,7 +13,8 @@ the blocks of the enabled rules and with profile data; everything else is copied
 | `section-post-oobe-task.ps1` | Scheduled task for `Post-OOBE.ps1` (added when the post-oobe phase has rules) | none |
 | `Setup-User.runtime.ps1` | Per-user log, Set-Reg and Remove-Reg (HKCU of the user), input language lists from the profile | `input_languages`, `input_fallback`, `transient_languages`, `blocks` |
 | `Post-OOBE.runtime.ps1` | Waiting for OOBE to finish, Set-Reg and Remove-Reg, list of accounts, Set-AccountText and ConvertFrom-Base64Text (display names and descriptions outside ASCII, set through ADSI), removal of the task | `accounts`, `account_texts`, `blocks` |
-| `Audit.runtime.ps1` | Read-only audit of selected rules on a running Windows (T15): Test-Reg, Test-RegList, Test-ServiceStart, Test-Feature, Test-AppAbsent and others; JSON report | `build_label`, `blocks` |
+| `Audit.runtime.ps1` | Read-only audit of selected rules on a running Windows (T15): Test-Reg, Test-RegList, Test-ServiceStart, Test-Feature, Test-AppAbsent and others; JSON report, with `system` when the data forms are read | `build_label`, `blocks`, `system_section` |
+| `section-read-system.ps1` | The data forms for "Read the settings of this PC" (T25, `core/capture.py`): edition, time zone, computer name, languages, local accounts and their groups (no passwords, no keys) | none |
 | `Apply.runtime.ps1` | Applying selected rules to a running Windows (T15): administrator check, the same helpers as Setup-System with the previous state saved to `backup-*.json` (Set-RegList saves every value of the key it touches), default user hive mounting | `build_label`, `accounts`, `blocks` |
 | `Undo.runtime.ps1` | Restoring from `backup-*.json` (T15); a list of values comes back value by value | `build_label` |
 
@@ -23,7 +24,9 @@ Set-Reg and Remove-Reg in Setup-User and Post-OOBE (rules of the phases user-fir
 registry; their other action types stay limited to `ps`), values of the sign-in screen (`HKU:\.DEFAULT\`), rules of
 File Explorer namespaces, desktop icons and the keys that switch the input language. 0.7 (1.3.0-rc.2): the computer
 name of a template (`section-computer-name.ps1`) and the account texts outside ASCII (`Set-AccountText` in Post-OOBE;
-the build creates Post-OOBE.ps1 and its task for them even without post-oobe rules).
+the build creates Post-OOBE.ps1 and its task for them even without post-oobe rules). 0.8 (1.4.0-rc.1): the audit
+reports `system` (slot `system_section`, `section-read-system.ps1`) and serialises JSON to depth 6, for the read of
+this PC; the answer file did not change.
 Any change of a template or of the catalog that changes the output file needs a new version and a run of
 `python -m unittest discover -s tests` (the tests compare the built file with the verified v0.2).
 

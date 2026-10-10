@@ -53,6 +53,7 @@ class Workspace(Protocol):
     def set_param(self, rule_id: str, name: str, value: Any) -> Any: ...
     def set_profile_info(self, name: str | None, author: str | None, comment: str | None) -> tuple[str, str, str]: ...
     def load_profile(self, path: Path, force: bool) -> list[str]: ...
+    def open_profile(self, profile: Profile, issues: list[Issue], force: bool) -> None: ...
     def show_item(self, item: str) -> bool: ...
     def save_profile_to(self, path: Path) -> None: ...
     def write_answer_file_to(self, path: Path) -> tuple[BuildResult, list[Issue]]: ...
@@ -336,6 +337,15 @@ class HeadlessWorkspace:
         self.dirty = False
         self.issues = [Issue("info", "profile", warning) for warning in warnings]  # the window shows them the same way
         return warnings
+
+    def open_profile(self, profile: Profile, issues: list[Issue], force: bool) -> None:
+        """A profile made in memory (the read of this PC) becomes the open profile, with unsaved changes."""
+        if self.dirty and not force:
+            raise ToolError("unsaved_changes", "the open profile has unsaved changes; save it or pass force")
+        profile.path = None
+        self.profile = profile
+        self.dirty = True
+        self.issues = list(issues)
 
     def show_item(self, item: str) -> bool:
         return False

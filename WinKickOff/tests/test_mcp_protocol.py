@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LANGUAGES = ("en", "ru", "uk")
 TOOL_NAMES = {"get_status", "list_groups", "list_rules", "get_rule", "get_profile", "list_profiles", "diff_profile",
               "check_profile", "preview_build", "get_messages", "set_rules", "set_group", "set_param", "set_profile_info",
-              "load_profile", "show_item", "save_profile", "write_answer_file"}
+              "load_profile", "show_item", "read_this_pc", "save_profile", "write_answer_file"}
 # invisible and control characters, built from code points (rule 9 of AGENTS.md: no escapes in the source)
 LINE_SEP = chr(0x2028)
 ZERO_WIDTH = chr(0x200B)
@@ -806,10 +806,10 @@ class HandshakeOrderTest(ServerTestCase):
 
 
 class ToolsListTest(ServerTestCase):
-    def test_exactly_the_eighteen_tools(self) -> None:
+    def test_exactly_the_nineteen_tools(self) -> None:
         self.initialize()
         tools = self.request("tools/list")["result"]["tools"]
-        self.assertEqual(len(tools), 18)
+        self.assertEqual(len(tools), 19)
         self.assertEqual({t["name"] for t in tools}, TOOL_NAMES)
 
     def test_every_tool_listing_shape(self) -> None:

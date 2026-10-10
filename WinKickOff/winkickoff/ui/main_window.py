@@ -41,6 +41,7 @@ from winkickoff.core.apply import (
     status_title,
     write_script,
 )
+from winkickoff.core.capture import capture_profile, render_capture, summary_lines
 from winkickoff.core import admx as admx_module
 from winkickoff.core import apply as apply_module
 from winkickoff.core import linked
@@ -112,6 +113,12 @@ UNKNOWN_RULE = N_("A rule that is not in rule catalog {0}: the profile was proba
                   "The profile keeps its state and parameters and brings them back when the catalog has the rule. Until "
                   "then the rule is not written to autounattend.xml, not checked and not applied to this PC.")
 VALUE_LIMIT = 300  # characters of a kept parameter value shown in the description
+READ_PC_TIMEOUT = 600  # seconds the read of this PC may take
+READ_PC_NOTE = N_("WinKickOff reads the settings of this computer into a new profile: every rule a running Windows can "
+                  "show, the edition, the time zone, the languages and the local accounts (without passwords). Nothing on "
+                  "this computer changes. Rules that act only during installation or at the first sign-in keep the state "
+                  "of the open profile. Without administrator rights some settings cannot be read. It may take a few "
+                  "minutes.")
 
 WORKFLOW = [
     ("h1", N_("Workflow")),
@@ -462,6 +469,8 @@ class MainWindow(tk.Tk):
                                        command=lambda t=theme_id: self.change_theme(t))
         self.pc_menu = self._top_menu(tr("This PC"))
         self._fill_pc_menu(self.pc_menu)
+        self.pc_menu.add_separator()
+        self.pc_menu.add_command(label=tr("Read the settings of this PC into a new profile..."), command=self.read_this_pc)
         self.pc_menu.add_separator()
         self.allow_apply_var = tk.BooleanVar(value=self.settings.allow_apply)
         self.pc_menu.add_checkbutton(label=tr("Allow applying on this PC"), variable=self.allow_apply_var,
@@ -2059,6 +2068,61 @@ class MainWindow(tk.Tk):
 
         self.after(150, poll)
 
+    def toggle_mcp_read_pc(self) -> None:
+        """The MCP option of read_this_pc: a client may read this computer (read only). Never saved: off at every start."""
+        if self.service is None:
+            return
+        allowed = bool(self.mcp_read_pc_var.get())
+        self.service.set_read_pc(allowed)
+        self.set_status(tr("MCP clients may read the settings of this PC (read only)") if allowed
+                        else tr("MCP clients may not read the settings of this PC"))
+
+    def read_this_pc(self) -> None:
+        """Read the settings of this computer into a new profile (read only, core/capture.py): a reference PC to clone, or
+        a damaged one to study."""
+        if self._busy or not self.confirm_discard():
+            return
+        if not self._dialog(messagebox.askokcancel, APP_NAME, tr(READ_PC_NOTE), parent=self):
+            return
+        base = self.profile.copy()
+        script = render_capture(self.catalog, base, self.paths.templates, APP_VERSION)
+        outcome: dict[str, Any] = {}
+
+        def work() -> None:
+            try:
+                outcome["text"] = run_audit(script, self.paths.logs / "tmp", timeout=READ_PC_TIMEOUT)
+            except Exception as exc:  # noqa: BLE001 - shown to the user
+                outcome["error"] = exc
+
+        thread = threading.Thread(target=work, name="read-pc", daemon=True)
+        self.set_busy(True, tr("Reading the settings of this PC (read-only)..."))
+        thread.start()
+
+        def poll() -> None:
+            if thread.is_alive():
+                self.after(150, poll)
+                return
+            self.set_busy(False)
+            try:
+                if "error" in outcome:
+                    raise ValueError(str(outcome["error"]))
+                profile, summary = capture_profile(self.catalog, base, outcome["text"], self.resources.keyboards)
+            except ValueError as exc:
+                self.show_issues([Issue("error", "audit", tr("The read of this PC failed: {0}", exc))])
+                self.set_status(tr("The read of this PC failed"))
+                return
+            self.adopt_profile(profile, [Issue(*line) for line in summary_lines(summary, self.rule_title)])
+            self.set_status(tr("The settings of {0} are in a new profile: check it and save it under a name",
+                               summary.computer or tr("this PC")))
+
+        self.after(150, poll)
+
+    def adopt_profile(self, profile: Profile, issues: list[Issue]) -> None:
+        """Open a profile made in memory (the read of this PC) as a new profile with unsaved changes."""
+        profile.path = None
+        self.set_profile(profile, dirty=True)
+        self.show_issues(issues)
+
     def show_audit(self, report_text: str, excluded: list[Issue]) -> None:
         meta, results = parse_audit_report(report_text)
         issues: list[Issue] = []
@@ -2596,6 +2660,9 @@ class MainWindow(tk.Tk):
         for mode, title in zip(MODES, MODE_TITLES):
             menu.add_radiobutton(label=tr(title), value=mode, variable=self.mcp_mode_var,
                                  command=lambda m=mode: self.change_mcp_mode(m), state=state)
+        self.mcp_read_pc_var = tk.BooleanVar(value=bool(self.service is not None and self.service.read_pc))
+        menu.add_checkbutton(label=tr("Allow reading the settings of this PC"), variable=self.mcp_read_pc_var,
+                             command=self.toggle_mcp_read_pc, state=state)
         menu.add_separator()
         menu.add_command(label=tr("Monitor..."), command=self.open_mcp_monitor, state=state)
         menu.add_command(label=tr("Copy client configuration (stdio)"), command=lambda: self.copy_mcp_config("stdio"), state=state)

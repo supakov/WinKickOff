@@ -11,6 +11,24 @@ without administrator rights; without them some checks (components, apps of othe
 "not in effect" (with the current and the expected value), "partly in effect", "not checked".
 Values of the default user profile are checked for the current user.
 
+## Read the settings of this PC into a new profile
+
+The "This PC" menu item "Read the settings of this PC into a new profile..." turns the state of the computer into a
+profile. Set up a reference computer and install others from its profile, or study a damaged or infected system:
+which protections do not take effect on it and what is there instead.
+
+The read only reads, like the check above, and changes nothing on the computer. It reads every rule a running Windows
+can show, built-in and imported: a rule in effect is switched on with the parameters found on the computer (the
+screen lock time, for example); a rule partly in effect is switched off and named in the list at the bottom of the
+window, so that you decide; a rule not in effect is switched off. Rules that act only during installation or at the
+first sign-in, and checks that need administrator rights, keep the state of the open profile. The data forms get the
+edition, the time zone, the languages and the local accounts (without passwords). The computer name is not taken, so
+that the computers installed from the profile do not share one name.
+
+The result opens as a new profile with unsaved changes: check it ("Check", F7) and save it under a name of your own.
+The values come from this computer; on a damaged or infected system they may be anything, so look through them before
+a build.
+
 ## Save an apply script
 
 "Save an apply script for the selection..." creates a folder with three files:

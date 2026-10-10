@@ -30,7 +30,7 @@ The command `pi` of the image is pi itself, with its defaults:
 - pi's own tools `read`, `bash`, `edit` and `write`, and its script tool `codemode` (pi turns it on at the start of
   every session for the server entry of section 4, which also adds it to the default tools so that it stays on without
   the entry);
-- the built-in MCP support with pi's default exposure `codemode`: the 18 tools of the server `winkickoff` are not
+- the built-in MCP support with pi's default exposure `codemode`: the 19 tools of the server `winkickoff` are not
   given to the model one by one, the model calls them from JavaScript run by `codemode`, as
   `tools.mcp__winkickoff__<tool>({...})`; so are pi's resource tools `list_mcp_resources`,
   `list_mcp_resource_templates` and `read_mcp_resource`, with which the agent reads the guide
@@ -189,7 +189,7 @@ In the second shell:
 
 ```bash
 pi --version     # 1.0.0
-pi mcp list      # winkickoff: connected (codemode, ...) and its 18 tools; exit code 1 when a server fails
+pi mcp list      # winkickoff: connected (codemode, ...) and its 19 tools; exit code 1 when a server fails
 ```
 
 In pi, `/mcp` shows the servers, their state, tools and errors; `/mcp reconnect winkickoff` reconnects after a restart

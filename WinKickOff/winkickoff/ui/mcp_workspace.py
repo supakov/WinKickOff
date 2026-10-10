@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from winkickoff.core.deps import Change
-from winkickoff.core.i18n import language
+from winkickoff.core.i18n import language, tr
+from winkickoff.core.profile import Profile
 from winkickoff.core.render import BuildResult
 from winkickoff.core.validate import Issue, validate_profile
 from winkickoff.mcp.bridge import Bridge
@@ -55,6 +56,13 @@ class WindowWorkspace:
         if not win.load_profile_file(path, confirm=False):
             raise ToolError("load_failed", "the profile could not be opened", {"name": path.stem})
         return list(win.last_load_warnings)
+
+    def open_profile(self, profile: Profile, issues: list[Issue], force: bool) -> None:
+        win = self.window
+        if win.dirty and not force:
+            raise ToolError("unsaved_changes", "the open profile has unsaved changes; save it in the window or pass force")
+        win.adopt_profile(profile, issues)
+        win.set_status(tr("An MCP client read the settings of this PC into a new profile: check it and save it under a name"))
 
     def show_item(self, item: str) -> bool:
         win = self.window

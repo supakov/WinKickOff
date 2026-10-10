@@ -107,6 +107,9 @@ function Add-Unknown {
 
 {{blocks}}
 
-$out = [pscustomobject]@{ computer = $env:COMPUTERNAME; admin = $IsAdmin; time = (Get-Date -Format s); results = $Results }
-$out | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $Report -Encoding UTF8
+$System = $null
+{{system_section}}
+
+$out = [pscustomobject]@{ computer = $env:COMPUTERNAME; admin = $IsAdmin; time = (Get-Date -Format s); system = $System; results = $Results }
+$out | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $Report -Encoding UTF8
 exit 0

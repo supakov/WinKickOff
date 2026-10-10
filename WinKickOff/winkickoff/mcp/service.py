@@ -51,6 +51,7 @@ def new_token() -> str:
 class McpService:
     def __init__(self) -> None:
         self.mode = MODE_READ
+        self.read_pc = False  # "Allow reading the settings of this PC": never saved, off at every start
         self.bridge = Bridge()
         self.journal = Journal()
         self.paths: AppPaths | None = None
@@ -74,6 +75,10 @@ class McpService:
 
     def detach(self) -> None:
         self.bridge.detach()
+
+    def set_read_pc(self, allowed: bool) -> None:
+        self.read_pc = bool(allowed)
+        log.info("mcp read of this pc: %s", "allowed" if self.read_pc else "off")
 
     def set_mode(self, mode: str) -> None:
         if mode not in MODES:
@@ -118,7 +123,7 @@ class McpService:
         tools = ToolRegistry(self.paths, languages)
         resources = ResourceRegistry(self.paths, languages)
         return McpServer(tools, resources, self.bridge, self.journal, transport=transport, mode=lambda: self.mode,
-                         has_window=has_window)
+                         has_window=has_window, read_pc=lambda: self.read_pc)
 
     def start_http(self, port: int | None = None, *, has_window: bool = True) -> int:
         """Start the HTTP server on 127.0.0.1; returns the bound port. Raises OSError when the port is taken."""

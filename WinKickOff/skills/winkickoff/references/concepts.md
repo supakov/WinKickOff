@@ -1,6 +1,6 @@
 # WinKickOff concepts
 
-Catalog 0.7: 278 rules in 40 groups; 214 rules are on by default, 190 are optional.
+Catalog 0.8: 278 rules in 40 groups; 214 rules are on by default, 190 are optional.
 
 ## Contents
 
@@ -172,8 +172,7 @@ In the window, "Restore defaults" in the parameter panel resets the parameters o
 
 Prefix hints: `lsa.*` in `security.lsa`; `edge.*` in `browsers.edge`; `ai.*` and `default-user.copilot-off` in
 `privacy.ai`; `office.*` in `privacy.office`; `thispc.*` in `system.explorer.thispc`, `nav.*` in
-`system.explorer.nav`, `desktop.*` in `system.explorer.desktop`; `default-user.no-sync-provider-ads`,
-`default-user.no-consumer-content` and `default-user.http-accept-language-optout` in `privacy.ads`.
+`system.explorer.nav`, `desktop.*` in `system.explorer.desktop`.
 
 ## Presets
 
@@ -284,9 +283,10 @@ The full checklist is the user page `install-and-check.md` (`winkickoff://docs/u
 
 ## This PC menu
 
-Window only; never through MCP. The agent may describe it:
+Window only; never through MCP, except the read (`read_this_pc`). The agent may describe it:
 
 - "Check the selection on this PC": read-only audit ("in effect", "not in effect", "partly in effect", "not checked").
+- "Read the settings of this PC into a new profile...": the read of `read_this_pc`, as a new profile.
 - "Save an apply script for the selection...": `Apply.ps1`, `Undo-Apply.ps1` and `README.txt` for another PC or a VM.
 - "Apply the selection now...": needs "Allow applying on this PC" and a UAC prompt; a backup is made first.
 - "Return the selection to Windows defaults now...": undo with a backup; rules that depend on the selected ones are

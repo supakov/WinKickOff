@@ -67,13 +67,15 @@ class Session:
 
 class McpServer:
     def __init__(self, tools: ToolRegistry, resources: ResourceRegistry, bridge: Bridge, journal: Journal, *,
-                 transport: str, mode: Callable[[], str], has_window: bool = False, app_version: str = APP_VERSION) -> None:
+                 transport: str, mode: Callable[[], str], has_window: bool = False, app_version: str = APP_VERSION,
+                 read_pc: Callable[[], bool] = lambda: False) -> None:
         self.tools = tools
         self.resources = resources
         self.bridge = bridge
         self.journal = journal
         self.transport = transport
         self.mode = mode
+        self.read_pc = read_pc
         self.has_window = has_window
         self.app_version = app_version
         self.closed = False  # set by the service on stop: handler threads that outlive it answer an error
@@ -81,7 +83,7 @@ class McpServer:
 
     def context(self) -> ToolContext:
         return ToolContext(self.bridge, self.tools.paths, self.mode(), self.transport, self.has_window, self.app_version,
-                           self.tools.languages, self.tools.texts)
+                           self.tools.languages, self.tools.texts, self.read_pc())
 
     # ----------------------------------------------------------------- dispatch
 

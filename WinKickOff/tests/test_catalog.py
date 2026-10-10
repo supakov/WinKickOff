@@ -64,7 +64,7 @@ class RealCatalogTest(unittest.TestCase):
     def test_loads_with_rules_and_groups(self) -> None:
         self.assertGreater(len(self.catalog.rules), 60)
         self.assertGreater(len(self.catalog.groups), 15)
-        self.assertEqual(self.catalog.version, "0.7")
+        self.assertEqual(self.catalog.version, "0.8")
 
     def test_the_catalog_has_no_toml_left(self) -> None:
         self.assertEqual(sorted(p.name for p in (ROOT / "rules").rglob("*.toml")), [])

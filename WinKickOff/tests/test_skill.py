@@ -129,7 +129,7 @@ class SkillAgreesWithTheServerTest(unittest.TestCase):
         cls._tmp.cleanup()
 
     def test_every_tool_is_in_skill_md_and_no_other_is_named(self) -> None:
-        self.assertEqual(len(self.tools), 18)
+        self.assertEqual(len(self.tools), 19)
         named = set(TICKS.findall(self.skill_md))
         self.assertEqual(sorted(self.tools - named), [])
         for path in skill_files():

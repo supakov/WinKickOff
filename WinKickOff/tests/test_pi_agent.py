@@ -22,7 +22,7 @@ AGENTS.md into the image. These tests keep it so:
   SYSTEM.md, APPEND_SYSTEM.md, CLAUDE.md or AGENTS.override.md into the image, and the setup in the Dockerfile and the
   README pastes the MCP entry as the window copies it (no exposure: pi's default codemode) and adds codemode to pi's
   default tools;
-- every tool, rule id, group id and winkickoff:// resource named in AGENTS.md exists in the server, all 18 tools are
+- every tool, rule id, group id and winkickoff:// resource named in AGENTS.md exists in the server, all 19 tools are
   named, every tools.<name> of a script example is one of them or a resource tool, the mode titles are the window's,
   and every Russian or Ukrainian window label is a translation of the program.
 """
@@ -240,7 +240,7 @@ class AgentsAgreesWithTheServerTest(unittest.TestCase):
         self.assertEqual(sorted(set(called) - allowed), [])
 
     def test_every_tool_is_named_and_none_is_invented(self) -> None:
-        self.assertEqual(len(self.tools), 18)
+        self.assertEqual(len(self.tools), 19)
         named = {token.split("__")[-1] if token.startswith("mcp__") else token for token in self.ticked}
         self.assertEqual(sorted(self.tools - named), [])
         self.assertEqual(sorted(CLIENT_TOOLS - named), [])

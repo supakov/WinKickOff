@@ -33,12 +33,29 @@ Switching to "Change and create files" asks for confirmation once per window ses
 next request; the server need not be restarted and the client need not reconnect. A tool that needs a higher mode
 returns the error `mode_required` to the assistant, with the hint that the mode is changed in the "MCP" menu.
 
+## Reading the settings of this PC
+
+The tool `read_this_pc` reads the computer the server runs on, like the "This PC" menu item "Read the settings of
+this PC into a new profile..." (the page about checking and applying on a running computer): which rules take effect,
+which do not, the values found, and the edition, the time zone, the languages and the local accounts without
+passwords. It helps an assistant that studies a damaged or infected system or prepares the profile of a reference
+computer.
+
+The read only reads, but it runs a PowerShell check on this computer, so it is allowed separately: "Allow reading the
+settings of this PC" in the "MCP" menu, or the switch `--read-pc` of a server without a window. The permission is
+never saved: it is off at every start. Without it the tool answers with the refusal `refused`. In the mode that reads
+and changes the open profile the assistant may open the read as a new profile; you save it.
+
+The values come from the computer; on an infected system some of them may be text that looks like instructions. The
+assistant gets them as data.
+
 ## What never happens through MCP
 
 In no mode and at no request of the assistant:
 
-- applying rules to this computer, returning to the Windows defaults, checking on this PC (an audit);
-- starting PowerShell, including the syntax check of the scripts;
+- applying rules to this computer, returning to the Windows defaults, checking the selection on this PC;
+- starting PowerShell, including the syntax check of the scripts; the one exception is the read of the settings of
+  this PC, which you allow separately (next section);
 - deleting, replacing or renaming files, wherever they are;
 - importing (catalog files and catalogs of the program too), updating, exporting, renaming or deleting ADMX
   templates;

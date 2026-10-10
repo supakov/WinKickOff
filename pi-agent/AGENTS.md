@@ -133,6 +133,7 @@ Modes are ordered: `edit` includes `read`, `files` includes both. The table show
 | `set_profile_info` | edit | Profile name, author, comment | `name?`, `author?`, `comment?` |
 | `load_profile` | edit | Open a preset or a saved profile | `name`, `force?` |
 | `show_item` | edit | Select a rule, group or form in the window | `item`: `r:<rule id>`, `g:<group id>`, `data:install`, `data:accounts`, `data:languages` |
+| `read_this_pc` | read, only when the person allows reading the computer | Read the computer: what takes effect, the values found | `load?` (edit), `force?` |
 | `save_profile` | files | Save as a new `profiles/<name>.json` | `name` (no extension) |
 | `write_answer_file` | files | Write a new `output/<name>.xml` | `name` (no extension) |
 
@@ -182,7 +183,7 @@ mistake in your own script (fix the script) or a connection problem (table "Conn
 | `window_busy` | A dialog is open in the window | Ask the person to close it, then retry once |
 | `window_timeout` | The window did not answer | Retry once. If the text says "the change may still land", call `get_profile` first and retry only if the change is missing |
 | `result_too_large` | The result is too large | Narrow the query: `group`, `query`, smaller `limit`, `offset` |
-| `load_failed`, `write_failed`, `redaction_failed` | A profile could not be opened, a file could not be written, or a build still held a secret | Report it plainly; do not retry blindly; never try to get a secret another way |
+| `load_failed`, `write_failed`, `redaction_failed`, `read_failed` | A profile could not be opened, a file could not be written, a build still held a secret, or the read of the computer failed | Report it plainly; do not retry blindly; never try to get a secret another way |
 
 Connection problems come from the client, not from WinKickOff. Their messages come in the text of a failed script.
 Report them; the person fixes them (they are described in the setup instructions of this assistant):

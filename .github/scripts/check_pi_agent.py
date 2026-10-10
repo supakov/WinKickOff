@@ -13,7 +13,7 @@ checks:
    context, skill or extension file is baked in where pi looks; no file of the image is named after WinKickOff; CMD is
    pi and the working folder /work;
 2. a headless WinKickOff HTTP server started from this checkout on 127.0.0.1 with a random token; its tools/list and
-   resources/list are the reference (18 tools, the skill resource winkickoff://skill/SKILL.md);
+   resources/list are the reference (19 tools, the skill resource winkickoff://skill/SKILL.md);
 3. "pi mcp list --json" in the container (host network, a temporary agent folder mounted as /home/pi/.pi/agent with the
    settings of pi-agent/README.md and the MCP entry as the window copies it, the token in an environment variable):
    winkickoff connected, exposure codemode, exactly the tools of the server, resources and templates offered. Only
@@ -195,8 +195,8 @@ def server_reference(url: str, token: str) -> tuple[set[str], set[str]]:
     resources, _ = rpc(url, token, {"jsonrpc": "2.0", "id": 3, "method": "resources/list"}, session)
     names = {tool["name"] for tool in (tools or {})["result"]["tools"]}
     uris = {item["uri"] for item in (resources or {})["result"]["resources"]}
-    if len(names) != 18:
-        fail(f"the server lists {len(names)} tools, not 18: {sorted(names)}")
+    if len(names) != 19:
+        fail(f"the server lists {len(names)} tools, not 19: {sorted(names)}")
     if "winkickoff://skill/SKILL.md" not in uris:
         fail("the server does not offer winkickoff://skill/SKILL.md")
     return names, uris

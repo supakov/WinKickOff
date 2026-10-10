@@ -378,10 +378,14 @@ def render_audit_block(rule: Rule, params: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def render_audit(rule_ids: list[str], profile: Profile, catalog: Catalog, templates_dir: Path, app_version: str = "0.0.0") -> str:
+def render_audit(rule_ids: list[str], profile: Profile, catalog: Catalog, templates_dir: Path, app_version: str = "0.0.0",
+                 *, read_system: bool = False) -> str:
+    """The audit script; read_system adds the data forms of the profile (section-read-system.ps1, core/capture.py)."""
     blocks = [render_audit_block(catalog.rules[r], profile.params_for(catalog, r)) for r in rule_ids]
+    system = (templates_dir / "section-read-system.ps1").read_text(encoding="utf-8") if read_system else ""
     text = fill((templates_dir / "Audit.runtime.ps1").read_text(encoding="utf-8"),
-                {"build_label": _label(profile, app_version), "blocks": "\n\n".join(blocks) or "# (nothing to check)"})
+                {"build_label": _label(profile, app_version), "blocks": "\n\n".join(blocks) or "# (nothing to check)",
+                 "system_section": system})
     return text.replace("\r\n", "\n")
 
 
