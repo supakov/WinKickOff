@@ -1864,9 +1864,10 @@ class MainWindow(tk.Tk):
                     table.item(node, values=(mine, theirs))
                     continue
                 parent, label = node, item.split(": ", 1)[-1]
-            else:
-                parent, label = parents.setdefault("gdata", table.insert("", tk.END, iid="gdata", text=tr("Data forms"),
-                                                                         open=True)), f"{kind}: {item}"
+            else:  # the branch once: setdefault would call insert again for every difference of the forms
+                if "gdata" not in parents:
+                    parents["gdata"] = table.insert("", tk.END, iid="gdata", text=tr("Data forms"), open=True)
+                parent, label = parents["gdata"], f"{kind}: {item}"
             iid = f"d{index}"
             targets[iid] = target
             table.insert(parent, tk.END, iid=iid, text=label, values=(mine, theirs))

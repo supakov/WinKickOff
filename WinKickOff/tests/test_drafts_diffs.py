@@ -190,6 +190,16 @@ class ComparisonWindowTest(Base):
             self.assertFalse(win.apply_now(window.changed_rules))
         self.assertEqual(plan.call_args[0][2], ["r:accounts.inactivity-lock", "r:network.netbios-off"])
 
+    def test_several_differences_of_the_data_forms_share_one_branch(self) -> None:
+        # the branch was made with setdefault, which called insert again: "Item gdata already exists" (11.10.2026)
+        profile = self.changed()
+        profile.install["computer_name_mode"] = "fixed"
+        profile.install["computer_name"] = "OFFICE-01"
+        win = self.window(profile)
+        tree = win.open_comparison(self.office(), "saved").comparison_tree
+        self.assertEqual(list(tree.get_children("")).count("gdata"), 1)
+        self.assertGreaterEqual(len(tree.get_children("gdata")), 3)  # the time zone, the mode and the name
+
     def test_merge_from_the_menu_marks_the_profile_changed(self) -> None:
         path = self.tmp / "changes.wkdiff"
         save_diff(path, make_diff(self.changed(), self.office(), self.catalog))
