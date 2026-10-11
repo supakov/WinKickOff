@@ -66,15 +66,18 @@ class CaptureSummary:
     system: dict[str, Any] = field(default_factory=dict)  # what the data forms section read (no passwords, no keys)
 
 
-def capture_rules(catalog: Catalog) -> tuple[list[str], list[tuple[Rule, str]]]:
-    """Every rule of the catalog that a running Windows can show, and the others with the reason."""
-    return audit_rules(catalog, [f"r:{rule_id}" for rule_id in catalog.order])
+def capture_rules(catalog: Catalog, only: list[str] | None = None) -> tuple[list[str], list[tuple[Rule, str]]]:
+    """Every rule of the catalog (or of only) that a running Windows can show, and the others with the reason."""
+    wanted = set(only) if only is not None else None
+    return audit_rules(catalog, [f"r:{rule_id}" for rule_id in catalog.order if wanted is None or rule_id in wanted])
 
 
-def render_capture(catalog: Catalog, profile: Profile, templates_dir: Path, app_version: str = "0.0.0") -> str:
-    """The read-only script: the audit of every rule it can check and the data forms."""
-    rule_ids, _ = capture_rules(catalog)
-    return render_audit(rule_ids, profile, catalog, templates_dir, app_version, read_system=True)
+def render_capture(catalog: Catalog, profile: Profile, templates_dir: Path, app_version: str = "0.0.0",
+                   only: list[str] | None = None) -> str:
+    """The read-only script: the audit of every rule it can check and the data forms; with only, of those rules and
+    without the forms (the read of a selection into the open profile)."""
+    rule_ids, _ = capture_rules(catalog, only)
+    return render_audit(rule_ids, profile, catalog, templates_dir, app_version, read_system=only is None)
 
 
 # --------------------------------------------------------------------------- parameters
@@ -261,10 +264,11 @@ def _forms(profile: Profile, system: Any, keyboards: list[dict[str, Any]], summa
 # --------------------------------------------------------------------------- the profile
 
 
-def capture_profile(catalog: Catalog, base: Profile, report_text: str,
-                    keyboards: list[dict[str, Any]]) -> tuple[Profile, CaptureSummary]:
-    """A new profile with the state of the computer of the report (render_capture), starting from base. Raises ValueError
-    for a report that is not one."""
+def capture_profile(catalog: Catalog, base: Profile, report_text: str, keyboards: list[dict[str, Any]],
+                    only: list[str] | None = None) -> tuple[Profile, CaptureSummary]:
+    """A new profile with the state of the computer of the report (render_capture), starting from base. With only, the
+    same profile instead (name, path, comment and data forms unchanged) with the state of those rules read, for the open
+    profile as unsaved changes. Raises ValueError for a report that is not one."""
     try:
         meta, results = parse_audit_report(report_text)
     except (ValueError, TypeError, AttributeError) as exc:
@@ -272,8 +276,11 @@ def capture_profile(catalog: Catalog, base: Profile, report_text: str,
     summary = CaptureSummary(computer=_text(meta.get("computer")), admin=str(meta.get("admin")).lower() == "true",
                              time=_text(meta.get("time")))
     profile = base.copy()
-    profile.path = None
-    rule_ids, skipped = capture_rules(catalog)
+    if only is None:
+        profile.path = None
+    else:
+        profile.path = base.path
+    rule_ids, skipped = capture_rules(catalog, only)
     summary.kept = [rule.id for rule, _reason in skipped]
     for rule_id in rule_ids:
         rule = catalog.rules[rule_id]
@@ -310,10 +317,13 @@ def capture_profile(catalog: Catalog, base: Profile, report_text: str,
             profile.rules[rule_id].enabled = False
             summary.in_effect.remove(rule_id)
             summary.covered.append(rule_id)
-    _forms(profile, meta.get("system"), keyboards, summary)
+    if only is None:
+        _forms(profile, meta.get("system"), keyboards, summary)
     if not summary.admin:
         summary.notes.append(tr("The read ran without administrator rights: optional features, capabilities and the apps of "
                                 "other users could not be read, so their rules keep the state of the open profile."))
+    if only is not None:
+        return profile, summary
     when = summary.time.replace("T", " ")
     profile.name = one_line(tr("Settings of {0}", summary.computer or tr("this PC")))
     profile.comment = tr("Read from {0} on {1} by WinKickOff; rules that a running Windows cannot show keep the state of "

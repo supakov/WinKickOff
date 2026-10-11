@@ -33,6 +33,12 @@ The result opens as a new profile with unsaved changes: check it ("Check", F7) a
 The values come from this computer; on a damaged or infected system they may be anything, so look through them before
 a build.
 
+To read only part of the settings, select a rule, a group or the branch of an imported catalog in the tree and
+choose "Read the selection on this PC into the open profile..." (the "This PC" menu or a right click). The state
+of these rules goes into the open profile as unsaved changes; the profile name and the data forms stay. Long
+operations (an import of templates, the read of this PC) show a window that closes by itself when the work is
+done.
+
 ## Save an apply script
 
 "Save an apply script for the selection..." creates a folder with three files:

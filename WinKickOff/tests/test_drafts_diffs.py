@@ -225,5 +225,64 @@ class ElevatedReadTest(Base):
         self.assertEqual(win.profile.name, "Settings of REF-PC")
 
 
+
+class ReadSelectionTest(Base):
+    def test_the_selection_is_read_into_the_open_profile_as_unsaved_changes(self) -> None:
+        win = self.window()
+        win.tree.selection_set("r:accounts.inactivity-lock")
+        with mock.patch("winkickoff.ui.main_window.run_audit", return_value=fake_report(self.catalog)) as audit,                 mock.patch("winkickoff.ui.main_window.messagebox") as boxes:
+            boxes.askokcancel.return_value = True
+            win.read_selection()
+            deadline = time.monotonic() + 30
+            while (win._busy or not win.dirty) and time.monotonic() < deadline:
+                win.update()
+                time.sleep(0.05)
+        script = audit.call_args[0][0]
+        self.assertIn("# [accounts.inactivity-lock]", script)
+        self.assertNotIn("# [defender.pua]", script)  # only the selection is read
+        self.assertNotIn("DATA FORMS OF THE PROFILE", script)  # and no forms
+        self.assertEqual((win.profile.name, win.dirty), ("Office", True))
+        self.assertEqual(win.profile.param(self.catalog, "accounts.inactivity-lock", "seconds"), 600)
+        self.assertEqual(win.profile.param(self.catalog, "privacy.telemetry-minimal", "level"), 1)  # not selected
+        self.assertEqual(win.profile.install, self.office().install)
+
+
+
+class LongOperationTest(Base):
+    def test_a_long_operation_shows_a_window_that_closes_by_itself(self) -> None:
+        win = self.window()
+        win.set_busy(True, "Reading templates...", notify=True)
+        window = win._busy_window
+        self.assertIsNotNone(window)
+        self.assertTrue(window.winfo_exists())
+        win.set_busy(False)
+        self.assertIsNone(win._busy_window)
+        self.assertFalse(window.winfo_exists())
+        win.set_busy(True, "Checking PowerShell syntax...")  # a short check shows no window
+        self.assertIsNone(win._busy_window)
+        win.set_busy(False)
+
+    def test_the_splash_closes_when_the_window_is_ready(self) -> None:
+        from winkickoff import app
+
+        splash = app.show_splash("Loading WinKickOff...")
+        self.assertIsNotNone(splash)
+        Settings(language="en", theme="light").save(self.paths.settings_file)
+        with mock.patch.object(app, "app_paths", return_value=self.paths), mock.patch.object(app, "_enable_dpi_awareness"):
+            win = app.create_app(withdraw=True, splash=splash)
+        try:
+            with self.assertRaises(tk.TclError):
+                splash.winfo_exists()  # destroyed
+        finally:
+            try:
+                win.destroy()
+            except tk.TclError:
+                pass
+            for handler in list(logging.getLogger().handlers):
+                if isinstance(handler, RotatingFileHandler) and Path(handler.baseFilename).is_relative_to(self.paths.root):
+                    logging.getLogger().removeHandler(handler)
+                    handler.close()
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -117,6 +117,10 @@ UNKNOWN_RULE = N_("A rule that is not in rule catalog {0}: the profile was proba
 VALUE_LIMIT = 300  # characters of a kept parameter value shown in the description
 READ_PC_TIMEOUT = 600  # seconds the read of this PC may take
 DRAFT_INTERVAL_MS = 60_000  # how often unsaved changes go to the draft
+BUSY_NOTE = N_("This may take a few minutes. The window closes by itself when the work is done.")
+READ_SELECTION_NOTE = N_("WinKickOff reads the {0} selected rules on this computer and puts their state into the open "
+                         "profile as unsaved changes: a rule in effect is switched on with the values found, the others "
+                         "are switched off. The data forms stay as they are, and nothing on this computer changes.")
 READ_PC_ADMIN_NOTE = N_("As administrator: Windows asks to confirm the rights once; the read itself runs hidden and still "
                         "changes nothing. Optional features, capabilities and the apps of every user are read too.")
 READ_PC_NOTE = N_("WinKickOff reads the settings of this computer into a new profile: every rule a running Windows can "
@@ -2025,8 +2029,9 @@ class MainWindow(tk.Tk):
         self.set_status(tr("Built: {0}", path))
         return result, issues
 
-    def set_busy(self, busy: bool, text: str = "") -> None:
-        """While a background check runs, Check and Build are unavailable (buttons and F7, F9)."""
+    def set_busy(self, busy: bool, text: str = "", *, notify: bool = False) -> None:
+        """While a background check runs, Check and Build are unavailable (buttons and F7, F9). notify: a long operation
+        (an import, the read of this PC) also shows a small window that says the program is working."""
         self._busy = busy
         state = ["disabled"] if busy else ["!disabled"]
         self.check_button.state(state)
@@ -2034,6 +2039,34 @@ class MainWindow(tk.Tk):
         self.configure(cursor="watch" if busy else "")
         if text:
             self.set_status(text)
+        window = getattr(self, "_busy_window", None)
+        if window is not None:
+            try:
+                window.destroy()
+            except tk.TclError:
+                pass
+            self._busy_window = None
+        if busy and notify:
+            self._busy_window = self._show_busy_window(text)
+
+    def _show_busy_window(self, text: str) -> tk.Toplevel:
+        window = tk.Toplevel(self)
+        window.title(APP_NAME)
+        window.transient(self)
+        window.resizable(False, False)
+        window.protocol("WM_DELETE_WINDOW", lambda: None)  # it closes by itself when the work ends
+        body = ttk.Frame(window, padding=(18, 14))
+        body.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(body, text=text, wraplength=420, justify="left").pack(anchor=tk.W)
+        ttk.Label(body, text=tr(BUSY_NOTE), wraplength=420, justify="left", style="Note.TLabel").pack(anchor=tk.W, pady=(6, 10))
+        bar = ttk.Progressbar(body, mode="indeterminate", length=420)
+        bar.pack(fill=tk.X)
+        bar.start(12)
+        window.update_idletasks()
+        x = self.winfo_rootx() + max(0, (self.winfo_width() - window.winfo_reqwidth()) // 2)
+        y = self.winfo_rooty() + max(0, (self.winfo_height() - window.winfo_reqheight()) // 3)
+        window.geometry(f"+{x}+{y}")
+        return window
 
     def build(self) -> None:
         """Validate and assemble at once; the PowerShell syntax check (up to a few seconds) runs in a
@@ -2105,6 +2138,7 @@ class MainWindow(tk.Tk):
         # Always available: the first apply or return asks for permission (toggle_allow_apply) instead of a
         # greyed-out item whose switch is hard to find.
         menu.add_command(label=tr("Check the selection on this PC"), command=self.audit_selected)
+        menu.add_command(label=tr("Read the selection on this PC into the open profile..."), command=self.read_selection)
         menu.add_command(label=tr("Save an apply script for the selection..."), command=self.save_apply_scripts)
         menu.add_command(label=tr("Apply the selection now..."), command=self.apply_now)
         menu.add_command(label=tr("Return the selection to Windows defaults now..."), command=self.revert_now)
@@ -2204,7 +2238,7 @@ class MainWindow(tk.Tk):
                 outcome["error"] = exc
 
         thread = threading.Thread(target=work, name="audit", daemon=True)
-        self.set_busy(True, tr("Checking this PC (read-only)..."))
+        self.set_busy(True, tr("Checking this PC (read-only)..."), notify=True)
         thread.start()
 
         def poll() -> None:
@@ -2250,7 +2284,7 @@ class MainWindow(tk.Tk):
                 outcome["error"] = exc
 
         thread = threading.Thread(target=work, name="read-pc", daemon=True)
-        self.set_busy(True, tr("Reading the settings of this PC (read-only)..."))
+        self.set_busy(True, tr("Reading the settings of this PC (read-only)..."), notify=True)
         thread.start()
 
         def poll() -> None:
@@ -2269,6 +2303,50 @@ class MainWindow(tk.Tk):
             self.adopt_profile(profile, [Issue(*line) for line in summary_lines(summary, self.rule_title)])
             self.set_status(tr("The settings of {0} are in a new profile: check it and save it under a name",
                                summary.computer or tr("this PC")))
+
+        self.after(150, poll)
+
+    def read_selection(self) -> None:
+        """Read the selected rules or catalog on this computer into the open profile, as unsaved changes (read only)."""
+        if self._busy:
+            return
+        items = self._apply_items()
+        if not items:
+            return
+        only = apply_module.selected_rules(self.catalog, items)
+        if not self._dialog(messagebox.askokcancel, APP_NAME, tr(READ_SELECTION_NOTE, len(only)), parent=self):
+            return
+        base = self.profile.copy()
+        script = render_capture(self.catalog, base, self.paths.templates, APP_VERSION, only=only)
+        outcome: dict[str, Any] = {}
+
+        def work() -> None:
+            try:
+                outcome["text"] = run_audit(script, self.paths.logs / "tmp", timeout=READ_PC_TIMEOUT)
+            except Exception as exc:  # noqa: BLE001 - shown to the user
+                outcome["error"] = exc
+
+        thread = threading.Thread(target=work, name="read-selection", daemon=True)
+        self.set_busy(True, tr("Reading the settings of this PC (read-only)..."), notify=True)
+        thread.start()
+
+        def poll() -> None:
+            if thread.is_alive():
+                self.after(150, poll)
+                return
+            self.set_busy(False)
+            try:
+                if "error" in outcome:
+                    raise ValueError(str(outcome["error"]))
+                profile, summary = capture_profile(self.catalog, base, outcome["text"], self.resources.keyboards, only=only)
+            except ValueError as exc:
+                self.show_issues([Issue("error", "audit", tr("The read of this PC failed: {0}", exc))])
+                self.set_status(tr("The read of this PC failed"))
+                return
+            changed = len(profile.diff(self.profile, self.catalog))
+            self.set_profile(profile, dirty=self.dirty or changed > 0)
+            self.show_issues([Issue(*line) for line in summary_lines(summary, self.rule_title)])
+            self.set_status(tr("The selection was read from this PC into the open profile: {0} changes, not saved", changed))
 
         self.after(150, poll)
 
@@ -2513,7 +2591,7 @@ class MainWindow(tk.Tk):
     def _restart(self, item: str | None = None, issues: list[Issue] | None = None, status: str = "") -> None:
         """Rebuild the window with another catalog (templates shown or hidden), keeping the open profile."""
         self.restart_state = {"profile": self.profile, "dirty": self.dirty, "item": item or self._current_item,
-                              "issues": issues or [], "status": status}
+                              "issues": issues or [], "status": status, "splash": tr("Loading the imported templates...")}
         self.destroy()
 
     def import_templates(self, system: bool) -> None:
@@ -2554,7 +2632,7 @@ class MainWindow(tk.Tk):
                 outcome["error"] = exc
 
         thread = threading.Thread(target=work, name="admx", daemon=True)
-        self.set_busy(True, tr("Reading templates from {0}...", folder))
+        self.set_busy(True, tr("Reading templates from {0}...", folder), notify=True)
         thread.start()
 
         def poll() -> None:
@@ -2631,7 +2709,7 @@ class MainWindow(tk.Tk):
                 outcome["error"] = exc
 
         thread = threading.Thread(target=work, name="catalog", daemon=True)
-        self.set_busy(True, tr("Reading the catalog file {0}...", path.name))
+        self.set_busy(True, tr("Reading the catalog file {0}...", path.name), notify=True)
         thread.start()
 
         def poll() -> None:

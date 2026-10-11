@@ -667,5 +667,11 @@
  "Save the differences as a diff profile...": "Сохранить отличия как дифф-профиль...",
  "WinKickOff diff profile": "Дифф-профиль WinKickOff",
  "Rules": "Правила",
- "Data forms": "Формы данных"
+ "Data forms": "Формы данных",
+ "Read the selection on this PC into the open profile...": "Прочитать выбранное на этом ПК в открытый профиль...",
+ "WinKickOff reads the {0} selected rules on this computer and puts their state into the open profile as unsaved changes: a rule in effect is switched on with the values found, the others are switched off. The data forms stay as they are, and nothing on this computer changes.": "WinKickOff прочитает выбранные правила ({0}) на этом компьютере и перенесёт их состояние в открытый профиль как несохранённые изменения: действующее правило включается с найденными значениями, остальные выключаются. Формы данных остаются как есть, на компьютере ничего не меняется.",
+ "The selection was read from this PC into the open profile: {0} changes, not saved": "Выбранное прочитано с этого ПК в открытый профиль: изменений {0}, не сохранено",
+ "This may take a few minutes. The window closes by itself when the work is done.": "Это может занять несколько минут. Окно закроется само, когда работа закончится.",
+ "Loading the imported templates...": "Загрузка импортированных шаблонов...",
+ "Loading WinKickOff...": "Загрузка WinKickOff..."
 }

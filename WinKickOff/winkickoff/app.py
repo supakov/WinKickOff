@@ -57,8 +57,26 @@ def load_catalog_or_die(paths: AppPaths) -> Catalog:
         raise  # unreachable, keeps type checkers calm
 
 
+def show_splash(text: str) -> tk.Tk | None:
+    """A small window shown while the main window is prepared (catalog, imported templates, the tree), which takes a
+    while with large catalogs; create_app closes it. None when Tk cannot start."""
+    try:
+        splash = tk.Tk()
+    except tk.TclError:
+        return None
+    splash.overrideredirect(True)
+    tk.Label(splash, text=text, padx=30, pady=18, relief="solid", borderwidth=1).pack()
+    splash.update_idletasks()
+    x = (splash.winfo_screenwidth() - splash.winfo_reqwidth()) // 2
+    y = (splash.winfo_screenheight() - splash.winfo_reqheight()) // 3
+    splash.geometry(f"+{x}+{y}")
+    splash.attributes("-topmost", True)
+    splash.update()
+    return splash
+
+
 def create_app(*, withdraw: bool = False, state: dict[str, object] | None = None,
-               service: McpService | None = None) -> tk.Tk:
+               service: McpService | None = None, splash: tk.Tk | None = None) -> tk.Tk:
     """Build the Tk application; withdraw=True keeps the window hidden (tests).
     state carries the open profile across a restart of the window (language, theme or templates changed).
     service is the MCP service of the process; without it the window is inert for MCP (tests)."""
@@ -126,6 +144,11 @@ def create_app(*, withdraw: bool = False, state: dict[str, object] | None = None
         problems.append(tr("The unsaved changes of the last session were restored from the draft; save the profile to "
                            "keep them."))
     root.start_draft_timer()
+    if splash is not None:
+        try:
+            splash.destroy()
+        except tk.TclError:
+            pass
     if problems:
         root.show_problems(problems)
     if withdraw:
@@ -146,9 +169,16 @@ def run(args: argparse.Namespace | None = None, extras: list[str] | None = None)
         log.info("ignored arguments: %s", extras)
     service = McpService()
     state = None
+    try:  # the language of the settings for the first splash; create_app sets it again
+        early = app_paths()
+        set_language(Settings.load(early.settings_file).language, early.resources, early.rules)
+    except (OSError, ValueError) as exc:
+        log.info("language for the splash: %s", exc)
     try:
         while True:
-            root = create_app(state=state, service=service)
+            text = str(state.get("splash") or "") if state else ""
+            splash = show_splash(text or tr("Loading WinKickOff..."))
+            root = create_app(state=state, service=service, splash=splash)
             root.mainloop()
             state = getattr(root, "restart_state", None)
             if not state:
