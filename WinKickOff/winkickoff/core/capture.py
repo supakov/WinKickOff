@@ -25,10 +25,10 @@ from pathlib import Path
 from typing import Any
 
 from winkickoff.core.apply import _audit_path, audit_rules, parse_audit_report, render_audit
-from winkickoff.core.catalog import Catalog, Param, Rule, is_imported
+from winkickoff.core.catalog import DEFAULT_ABSENT, DEFAULT_UNKNOWN, Action, Catalog, Param, Rule, is_imported
 from winkickoff.core.i18n import tr
 from winkickoff.core.profile import Account, Profile, one_line
-from winkickoff.core.render import EDITION_KEYS
+from winkickoff.core.render import EDITION_KEYS, substitute_fields
 from winkickoff.core.resources import PAIR_RE, find_keyboard
 
 # EditionID of HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion to the editions of render.EDITION_KEYS
@@ -55,6 +55,7 @@ class CaptureSummary:
     in_effect: list[str] = field(default_factory=list)  # rules now on
     partly: list[str] = field(default_factory=list)  # rules off because only some of their values match
     not_in_effect: list[str] = field(default_factory=list)
+    as_default: list[str] = field(default_factory=list)  # every check matches only what a clean Windows has: off
     unknown: list[str] = field(default_factory=list)  # the audit could not read them: their state is the open profile's
     kept: list[str] = field(default_factory=list)  # no running Windows shows them: their state is the open profile's
     covered: list[str] = field(default_factory=list)  # imported policies left off: a built-in rule writes their values
@@ -134,16 +135,47 @@ def read_rule(rule: Rule, checks: list[dict[str, str]], params: dict[str, Any]) 
             read[name] = value
         index = checks.index(check)
         statuses[index] = "ok" if _same(param, read[name], text) else "differs"
-    known = set(statuses) - {"unknown"}
+    values = {**params, **read}
+    owners = _check_owners(rule, checks)
+    evidence = [_evidence(owner, values) if owner is not None else True for owner in owners] or [True] * len(checks)
+    known = [i for i, verdict in enumerate(statuses) if verdict != "unknown"]
+    matched = [i for i in known if statuses[i] == "ok"]
     if not known:
         status = "unknown"
-    elif known == {"ok"}:
+    elif not any(evidence[i] for i in matched):
+        # nothing found that a clean Windows lacks: an absent value, an empty list, a deleted value match by themselves
+        status = "as-default" if len(matched) == len(known) else "not-applied"
+    elif len(matched) == len(known):
         status = "applied"
-    elif "ok" in known:
-        status = "partial"
     else:
-        status = "not-applied"
-    return status, {**params, **read}, statuses
+        status = "partial"
+    return status, values, statuses
+
+
+def _check_owners(rule: Rule, checks: list[dict[str, str]]) -> list[Action | None]:
+    """The action behind each check, in the order Audit.runtime.ps1 reports them (one check per action, one per app
+    name), or [] when the report holds another number of checks."""
+    owners: list[Action | None] = []
+    for action in rule.actions:
+        owners += [action] * (len(action.fields.get("names") or []) if action.type == "appx" else 1)
+    return owners if len(owners) == len(checks) else []
+
+
+def _evidence(action: Action, params: dict[str, Any]) -> bool:
+    """Whether a matching check of this action shows that the rule was applied: True for a value a clean Windows does
+    not hold (a policy value, a value other than the Windows default, a removed app), False for what a clean Windows
+    already has (a value that is absent or equals the default, a deleted value, an empty list)."""
+    fields = substitute_fields(action.fields, params)
+    default = action.fields.get("default")
+    if action.type == "reg":
+        return default in (None, DEFAULT_ABSENT, DEFAULT_UNKNOWN) or str(default) != str(fields.get("value"))
+    if action.type == "reg-list":
+        return bool(fields.get("value"))
+    if action.type == "service":
+        return default in (None, DEFAULT_UNKNOWN) or str(default) != str(fields.get("start"))
+    if action.type == "feature":
+        return default in (None, DEFAULT_UNKNOWN) or str(default) != str(fields.get("state"))
+    return action.type in ("appx", "capability")
 
 
 # --------------------------------------------------------------------------- data forms
@@ -268,6 +300,8 @@ def capture_profile(catalog: Catalog, base: Profile, report_text: str,
                                if name in rule.params and value != base.params_for(catalog, rule_id).get(name)]
         elif status == "partial":
             summary.partly.append(rule_id)
+        elif status == "as-default":
+            summary.as_default.append(rule_id)
         else:
             summary.not_in_effect.append(rule_id)
     for rule_id in list(summary.in_effect):  # an imported policy that an enabled built-in rule writes stays off
@@ -289,9 +323,10 @@ def capture_profile(catalog: Catalog, base: Profile, report_text: str,
 
 def summary_lines(summary: CaptureSummary, title: Any) -> list[tuple[str, str, str]]:
     """(level, target, message) for the message list; title(rule_id) gives the title of a rule."""
-    lines = [("info", "profile", tr("Read from {0}: in effect {1}, partly {2}, not in effect {3}, not readable {4}, kept from "
-                                    "the open profile {5}.", summary.computer, len(summary.in_effect), len(summary.partly),
-                                    len(summary.not_in_effect), len(summary.unknown), len(summary.kept)))]
+    lines = [("info", "profile", tr("Read from {0}: in effect {1}, partly {2}, not in effect {3}, as in Windows by default {4}, "
+                                    "not readable {5}, kept from the open profile {6}.", summary.computer,
+                                    len(summary.in_effect), len(summary.partly), len(summary.not_in_effect),
+                                    len(summary.as_default), len(summary.unknown), len(summary.kept)))]
     lines += [("warning", rule_id, tr("Partly in effect on this PC, so it is off in the new profile: \"{0}\"", title(rule_id)))
               for rule_id in summary.partly]
     lines += [("info", rule_id, tr("Parameter {0} read from this PC: {1}", name, value)) for rule_id, name, value in summary.params]

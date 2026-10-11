@@ -625,7 +625,7 @@
  "This PC is named {0}; the computer name of the profile stays as it was, so that the computers installed from it do not share one name.": "Цей ПК називається {0}; ім'я комп'ютера в профілі залишається попереднім, щоб встановлені за ним комп'ютери не отримали одне ім'я.",
  "The read ran without administrator rights: optional features, capabilities and the apps of other users could not be read, so their rules keep the state of the open profile.": "Читання йшло без прав адміністратора: додаткові компоненти, можливості й застосунки інших користувачів не прочитано, тому їхні правила зберігають стан відкритого профілю.",
  "this PC": "цього ПК",
- "Read from {0}: in effect {1}, partly {2}, not in effect {3}, not readable {4}, kept from the open profile {5}.": "Прочитано з {0}: діє {1}, частково {2}, не діє {3}, не прочитано {4}, з відкритого профілю {5}.",
+ "Read from {0}: in effect {1}, partly {2}, not in effect {3}, as in Windows by default {4}, not readable {5}, kept from the open profile {6}.": "Прочитано з {0}: діє {1}, частково {2}, не діє {3}, як у Windows за замовчуванням {4}, не прочитано {5}, з відкритого профілю {6}.",
  "Partly in effect on this PC, so it is off in the new profile: \"{0}\"": "Діє на цьому ПК частково, тому в новому профілі вимкнено: «{0}»",
  "Parameter {0} read from this PC: {1}": "Параметр {0} прочитано з цього ПК: {1}",
  "Off: an enabled built-in rule writes the same values": "Вимкнено: ті самі значення записує ввімкнене вбудоване правило",

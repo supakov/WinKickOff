@@ -547,7 +547,8 @@ def read_this_pc(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
     detailed = (summary.partly + summary.not_in_effect)[:READ_PC_ROWS]
     return {"computer": clean_text(summary.computer, NAME_MAX), "admin": summary.admin, "time": clean_text(summary.time, 40),
             "counts": {"in_effect": len(summary.in_effect), "partly": len(summary.partly),
-                       "not_in_effect": len(summary.not_in_effect), "not_readable": len(summary.unknown),
+                       "not_in_effect": len(summary.not_in_effect), "as_default": len(summary.as_default),
+                       "not_readable": len(summary.unknown),
                        "kept": len(summary.kept), "covered": len(summary.covered)},
             "in_effect": summary.in_effect, "not_readable": summary.unknown,
             "partly": [_read_row(snap, texts, rid, summary.differs.get(rid, [])) for rid in summary.partly if rid in detailed],

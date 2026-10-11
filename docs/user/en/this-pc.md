@@ -20,7 +20,7 @@ which protections do not take effect on it and what is there instead.
 The read only reads, like the check above, and changes nothing on the computer. It reads every rule a running Windows
 can show, built-in and imported: a rule in effect is switched on with the parameters found on the computer (the
 screen lock time, for example); a rule partly in effect is switched off and named in the list at the bottom of the
-window, so that you decide; a rule not in effect is switched off. Rules that act only during installation or at the
+window, so that you decide; a rule not in effect is switched off. A rule that matches only what a clean Windows has anyway (no value, an empty list) counts as "as in Windows by default" and stays off. Rules that act only during installation or at the
 first sign-in, and checks that need administrator rights, keep the state of the open profile. The data forms get the
 edition, the time zone, the languages and the local accounts (without passwords). The computer name is not taken, so
 that the computers installed from the profile do not share one name.

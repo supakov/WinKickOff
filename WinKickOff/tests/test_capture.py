@@ -14,8 +14,8 @@ from typing import Any
 
 from winkickoff.core import i18n
 from winkickoff.core.apply import _audit_path, render_audit
-from winkickoff.core.capture import capture_profile, capture_rules, read_rule, render_capture, summary_lines
-from winkickoff.core.catalog import Catalog, Rule, load_catalog
+from winkickoff.core.capture import _evidence, capture_profile, capture_rules, read_rule, render_capture, summary_lines
+from winkickoff.core.catalog import Action, Catalog, Rule, load_catalog
 from winkickoff.core.profile import Profile
 from winkickoff.core.pscheck import check_scripts, powershell_path
 from winkickoff.core.resources import Resources
@@ -59,7 +59,8 @@ def fake_report(catalog: Catalog, system: dict[str, Any] | None = None, admin: b
     results += checks(telemetry, "ok", {0: "0"}, {0: "differs"})
     results += checks(catalog.rules["network.netbios-off"], "differs", {0: "2"})
     uac = catalog.rules["uac.baseline"]
-    results += checks(uac, "differs", {0: "1"}, {0: "ok"})
+    first = next(i for i, action in enumerate(uac.actions) if _evidence(action, {}))  # a value Windows does not have
+    results += checks(uac, "differs", {first: "1"}, {first: "ok"})
     return json.dumps({"computer": "REF-PC", "admin": admin, "time": "2026-10-10T12:00:00",
                        "system": SYSTEM if system is None else system, "results": results})
 
@@ -107,8 +108,7 @@ class CaptureTest(unittest.TestCase):
         self.assertFalse(profile.is_enabled("network.netbios-off"))
         self.assertFalse(profile.is_enabled("uac.baseline"))  # partly in effect: off, listed
         self.assertIn("uac.baseline", summary.partly)
-        self.assertEqual([c["check"] for c in summary.differs["uac.baseline"]][:1],
-                         [checks(self.catalog.rules["uac.baseline"])[1]["check"]])
+        self.assertTrue(summary.differs["uac.baseline"])  # the checks that do not match, for the person
         self.assertIn(("accounts.inactivity-lock", "seconds", 600), summary.params)
         for rule_id in ("defender.realtime", "install.bypass-tpm"):  # not readable or not shown: as in the open profile
             self.assertEqual(profile.is_enabled(rule_id), office.is_enabled(rule_id), rule_id)
@@ -125,6 +125,21 @@ class CaptureTest(unittest.TestCase):
         self.assertEqual(status, "not-applied")
         status, _, _ = read_rule(rule, checks(rule, "unknown"), {"seconds": 900})
         self.assertEqual(status, "unknown")
+
+    def test_what_a_clean_windows_already_has_is_no_evidence(self) -> None:
+        # an imported policy with an empty list and a deleted value matches on every PC where nobody set it
+        policy = type("Policy", (), {"actions": [
+            Action("reg-list", {"path": "HKLM:\SOFTWARE\Policies\X", "kind": "String", "value": "{items}"}, "admx.x"),
+            Action("reg-remove", {"path": "HKLM:\SOFTWARE\Policies\X", "name": "Y"}, "admx.x")], "params": {}})()
+        checks_ok = [{"check": "a", "status": "ok", "current": ""}, {"check": "b", "status": "ok", "current": ""}]
+        self.assertEqual(read_rule(policy, checks_ok, {"items": []})[0], "as-default")
+        self.assertEqual(read_rule(policy, checks_ok, {"items": ["https://x"]})[0], "applied")  # a list that was set
+        one_off = [checks_ok[0], {"check": "b", "status": "differs", "current": "1"}]
+        self.assertEqual(read_rule(policy, one_off, {"items": []})[0], "not-applied")  # only the empty list matched
+        rule = self.catalog.rules["defender.pua"]  # a policy value: present only when it was set
+        self.assertEqual(read_rule(rule, checks(rule), {})[0], "applied")
+        _, summary = self.capture()
+        self.assertIn("as in Windows by default 0", summary_lines(summary, lambda r: r)[0][2])
 
     def test_the_data_forms(self) -> None:
         profile, summary = self.capture()
@@ -158,7 +173,7 @@ class CaptureTest(unittest.TestCase):
         issues = validate_profile(profile, self.catalog, self.resources.keyboards)
         self.assertEqual([i.message for i in issues if i.level == "error"], [])
         lines = summary_lines(summary, lambda rule_id: rule_id)
-        self.assertIn("in effect 3, partly 1, not in effect 1", lines[0][2])
+        self.assertIn("in effect 3, partly 1, not in effect 1, as in Windows by default 0", lines[0][2])
         self.assertTrue(any(target == "uac.baseline" and level == "warning" for level, target, _ in lines))
 
     def test_a_damaged_report_is_a_value_error(self) -> None:
