@@ -537,7 +537,7 @@ error (exit 2) only with `--mcp` or `--mcp-config`. `--port` must pass `valid_po
 | `--mcp stdio` | The headless stdio server: exit 0 on EOF, 2 on a start-up error, 3 without usable standard streams |
 | `--mcp http` | The headless HTTP server on `127.0.0.1` (tests and a VM): runs `serve(httpd)` in the main thread until Ctrl+C; needs `--token` or `settings.mcp_token`; never writes settings |
 | `--port N` | `0` or `1024` to `65535` for `--mcp http`; default `settings.mcp_port` |
-| `--token TOKEN` | Overrides `settings.mcp_token` for this process only |
+| `--token TOKEN` | Overrides `settings.mcp_token` for this process only; a token that starts with `-` needs `--token=TOKEN` (argparse takes `-x...` for an option), so `service.new_token` never makes one since 11.10.2026 |
 | `--mode read|edit|files` | The mode, default `read` |
 | `--profile NAME_OR_PATH` | A preset id, a saved profile name in `profiles/`, or an absolute path (accepted here because the command line is written by the user into the client configuration, the trust level of the Open dialog); default `initial_profile()` |
 | `--language CODE` | Applied once with `set_language` (the process is headless, so the global is safe); default `settings.language`, then Windows |

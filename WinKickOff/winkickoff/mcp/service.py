@@ -45,7 +45,12 @@ class ServiceStatus:
 
 
 def new_token() -> str:
-    return secrets.token_urlsafe(32)
+    """43 characters of A-Z, a-z, 0-9, _ and -, never starting with "-": argparse takes "--token -x..." for a missing
+    value, so such a token could not be passed to --mcp http (one token in 64 used to start with it)."""
+    while True:
+        token = secrets.token_urlsafe(32)
+        if not token.startswith("-"):
+            return token
 
 
 class McpService:

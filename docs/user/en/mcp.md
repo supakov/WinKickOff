@@ -213,7 +213,7 @@ profiles and no answer files.
 | `--mcp stdio` | A server without a window over the standard input and output; it ends when the client closes the stream |
 | `--mcp http` | A server without a window on 127.0.0.1 (for tests and a virtual machine); runs until Ctrl+C; needs `--token` or a token already saved by the window; writes no settings |
 | `--port N` | The port for `--mcp http`: 0 or 1024 to 65535; the settings by default |
-| `--token TOKEN` | The token for `--mcp http` for this run only (32 to 64 characters: letters, digits, `_` and `-`) |
+| `--token TOKEN` | The token for `--mcp http` for this run only (32 to 64 characters: letters, digits, `_` and `-`); a token that starts with `-` (versions up to 1.4.0-rc.4 made such tokens) is written as one word: `--token=TOKEN` |
 | `--mode read`, `--mode edit`, `--mode files` | The mode; `read` by default |
 | `--profile NAME` | A preset (`office`, `strict`, `laptop`, `home`), the name of a saved profile in `profiles` or a full path to a file; by default the last profile of the window, else the "Office" preset |
 | `--language CODE` | The language of the texts (`en`, `ru`, `uk`); the settings by default, else the Windows language |

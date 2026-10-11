@@ -144,7 +144,8 @@ def check_image(image: str) -> None:
 
 
 def start_server(token: str) -> tuple[subprocess.Popen[str], str]:
-    server = subprocess.Popen([sys.executable, "-m", "winkickoff", "--mcp", "http", "--port", "0", "--token", token,
+    # "--token=" because a token may start with "-", which argparse takes for the next option (one run in 64 failed)
+    server = subprocess.Popen([sys.executable, "-m", "winkickoff", "--mcp", "http", "--port", "0", f"--token={token}",
                                "--profile", "office"], cwd=WINKICKOFF, stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, text=True)
     first: list[str] = []

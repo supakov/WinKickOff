@@ -311,6 +311,19 @@ class CliArgumentsTest(unittest.TestCase):
         for value in ("a" * 32, "Z" * 64, "abc_DEF-123" * 4):
             self.assertEqual(cli.parse_args(["--token", value])[0].token, value)
 
+    def test_a_token_that_starts_with_a_hyphen_is_given_with_an_equals_sign(self) -> None:
+        # a token of an older version may start with "-": "--token -x..." is a missing value for argparse, which made
+        # the CI job pi-agent-container fail once in 64 runs (11.10.2026)
+        value = "-" + "a" * 42
+        self.assertEqual(cli.parse_args([f"--token={value}"])[0].token, value)
+
+    def test_new_tokens_never_start_with_a_hyphen(self) -> None:
+        from winkickoff.mcp import service
+
+        with mock.patch.object(service.secrets, "token_urlsafe", side_effect=["-" + "a" * 42, "b" * 43]) as made:
+            self.assertEqual(service.new_token(), "b" * 43)
+        self.assertEqual(made.call_count, 2)
+
     def test_extras_are_allowed_on_the_window_path(self) -> None:
         args, extras = cli.parse_args(["C:\\somewhere\\profile.json", "--mode", "edit"])
         self.assertEqual(extras, ["C:\\somewhere\\profile.json"])
