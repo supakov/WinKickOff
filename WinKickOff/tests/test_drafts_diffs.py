@@ -273,6 +273,10 @@ class LongOperationTest(Base):
         try:
             with self.assertRaises(tk.TclError):
                 splash.winfo_exists()  # destroyed
+            self.assertIs(tk._default_root, win)  # the window is the default root: variables without a master work
+            win.select_node("data:install")  # the form creates tk.StringVar() without a master (failed on 11.10.2026)
+            win.search_var.set("pua")
+            self.assertEqual(win.search_var.get(), "pua")
         finally:
             try:
                 win.destroy()

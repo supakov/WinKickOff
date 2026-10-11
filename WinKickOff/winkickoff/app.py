@@ -123,6 +123,14 @@ def create_app(*, withdraw: bool = False, state: dict[str, object] | None = None
 
     if service is not None:
         service.configure(paths, settings)
+    if splash is not None:
+        # closed before the window exists: a second Tk would leave tkinter without a default root once the splash is
+        # gone, so a StringVar() without a master (the data forms) failed with "Too early to create variable", and the
+        # variables made meanwhile would belong to the splash
+        try:
+            splash.destroy()
+        except tk.TclError:
+            pass
     root = MainWindow(paths, catalog, profile, resources, settings, service=service)  # type: ignore[arg-type]
     if service is not None:
         service.on_save = root.save_settings  # the window's settings object is the only writer of settings.json
@@ -144,11 +152,6 @@ def create_app(*, withdraw: bool = False, state: dict[str, object] | None = None
         problems.append(tr("The unsaved changes of the last session were restored from the draft; save the profile to "
                            "keep them."))
     root.start_draft_timer()
-    if splash is not None:
-        try:
-            splash.destroy()
-        except tk.TclError:
-            pass
     if problems:
         root.show_problems(problems)
     if withdraw:
