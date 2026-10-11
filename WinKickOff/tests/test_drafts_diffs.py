@@ -262,6 +262,26 @@ class LongOperationTest(Base):
         self.assertIsNone(win._busy_window)
         win.set_busy(False)
 
+    def test_the_progress_bar_stops_before_its_window_closes(self) -> None:
+        # a running bar keeps a Tcl timer; left behind, it fired after the window and printed "cannot invoke winfo
+        # command: application has been destroyed" (the output of the build of 11.10.2026)
+        from tkinter import ttk
+
+        def timers() -> list[str]:
+            return [str(win.tk.call("after", "info", job)) for job in win.tk.splitlist(win.tk.call("after", "info"))]
+
+        win = self.window()
+        win.set_busy(True, "Reading templates...", notify=True)
+        self.assertTrue(any("Autoincrement" in timer for timer in timers()))
+        win.set_busy(False)
+        self.assertFalse(any("Autoincrement" in timer for timer in timers()))
+        win.set_busy(True, "Reading templates...", notify=True)
+        stop = ttk.Progressbar.stop
+        with mock.patch.object(ttk.Progressbar, "stop", autospec=True, side_effect=stop) as stopped:
+            win.destroy()  # closed in the middle of the work: the window of the operation goes first
+        stopped.assert_called_once()
+        self.assertIsNone(win._busy_window)
+
     def test_the_splash_closes_when_the_window_is_ready(self) -> None:
         from winkickoff import app
 

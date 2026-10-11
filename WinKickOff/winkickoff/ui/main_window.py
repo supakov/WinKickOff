@@ -2039,15 +2039,21 @@ class MainWindow(tk.Tk):
         self.configure(cursor="watch" if busy else "")
         if text:
             self.set_status(text)
-        window = getattr(self, "_busy_window", None)
-        if window is not None:
-            try:
-                window.destroy()
-            except tk.TclError:
-                pass
-            self._busy_window = None
+        self._close_busy_window()
         if busy and notify:
             self._busy_window = self._show_busy_window(text)
+
+    def _close_busy_window(self) -> None:
+        """Stop the progress bar first: its Tcl timer would otherwise fire after the window, or the whole application,
+        is gone ("cannot invoke winfo command: application has been destroyed")."""
+        window, bar = getattr(self, "_busy_window", None), getattr(self, "_busy_bar", None)
+        self._busy_window, self._busy_bar = None, None
+        for widget, close in ((bar, "stop"), (window, "destroy")):
+            if widget is not None:
+                try:
+                    getattr(widget, close)()
+                except tk.TclError:
+                    pass
 
     def _show_busy_window(self, text: str) -> tk.Toplevel:
         window = tk.Toplevel(self)
@@ -2062,6 +2068,7 @@ class MainWindow(tk.Tk):
         bar = ttk.Progressbar(body, mode="indeterminate", length=420)
         bar.pack(fill=tk.X)
         bar.start(12)
+        self._busy_bar = bar
         window.update_idletasks()
         x = self.winfo_rootx() + max(0, (self.winfo_width() - window.winfo_reqwidth()) // 2)
         y = self.winfo_rooty() + max(0, (self.winfo_height() - window.winfo_reqheight()) // 3)
@@ -2826,6 +2833,7 @@ class MainWindow(tk.Tk):
             self.mcp_pump_id = None
         if getattr(self, "_search_job", None) is not None:
             self._cancel_search()  # a search typed just before a restart or close
+        self._close_busy_window()  # a window closed during a long operation (tests, a restart)
         if self.service is not None:
             self.service.detach()  # queued calls wait for the next window or time out
         super().destroy()

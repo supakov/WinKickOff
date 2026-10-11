@@ -129,8 +129,8 @@ class CaptureTest(unittest.TestCase):
     def test_what_a_clean_windows_already_has_is_no_evidence(self) -> None:
         # an imported policy with an empty list and a deleted value matches on every PC where nobody set it
         policy = type("Policy", (), {"actions": [
-            Action("reg-list", {"path": "HKLM:\SOFTWARE\Policies\X", "kind": "String", "value": "{items}"}, "admx.x"),
-            Action("reg-remove", {"path": "HKLM:\SOFTWARE\Policies\X", "name": "Y"}, "admx.x")], "params": {}})()
+            Action("reg-list", {"path": r"HKLM:\SOFTWARE\Policies\X", "kind": "String", "value": "{items}"}, "admx.x"),
+            Action("reg-remove", {"path": r"HKLM:\SOFTWARE\Policies\X", "name": "Y"}, "admx.x")], "params": {}})()
         checks_ok = [{"check": "a", "status": "ok", "current": ""}, {"check": "b", "status": "ok", "current": ""}]
         self.assertEqual(read_rule(policy, checks_ok, {"items": []})[0], "as-default")
         self.assertEqual(read_rule(policy, checks_ok, {"items": ["https://x"]})[0], "applied")  # a list that was set
