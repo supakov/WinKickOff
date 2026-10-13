@@ -80,6 +80,27 @@ class BuildTestBase(unittest.TestCase):
 
 
 class BuildBasicsTest(BuildTestBase):
+    def test_xml_settings_merge_into_the_components(self) -> None:
+        # catalog 0.11 (stage 5 of the plan of 13.10.2026): the first xml-setting rules, Dynamic Update and the Setup diagnostics
+        from winkickoff.core.render import Renderer
+        from winkickoff.core.validate import validate_xml
+
+        profile = self.office.copy()
+        for rule_id in ("install.no-dynamic-update", "install.no-setup-diagnostics"):
+            profile.rules[rule_id].enabled = True
+        xml = self.renderer.build(profile, app_version="test").xml
+        nl = chr(13) + chr(10)
+        update = nl.join(["      <DynamicUpdate>", "        <Enable>false</Enable>", "        <WillShowUI>Never</WillShowUI>",
+                          "      </DynamicUpdate>"])
+        self.assertEqual(xml.count(update), 2)  # both architectures, one element for the two settings of the rule
+        self.assertEqual(xml.count(nl.join(["      <Diagnostics>", "        <OptIn>false</OptIn>", "      </Diagnostics>"])), 2)
+        self.assertEqual([i.message for i in validate_xml(xml) if i.level == "error"], [])
+        self.assertNotIn("DynamicUpdate", self.result.xml)  # off by default
+        with self.assertRaisesRegex(ValueError, "already holds"):
+            Renderer._setting_lines([("A", "1"), ("A/B", "2")], 6)
+        self.assertEqual(Renderer._setting_lines([("A/B", "1"), ("A/C", "2"), ("D", "x&y")], 0),
+                         ["<A>", "  <B>1</B>", "  <C>2</C>", "</A>", "<D>x&amp;y</D>"])
+
     def test_output_is_deterministic(self) -> None:
         again = self.renderer.build(self.office.copy(), app_version="test")
         self.assertEqual(again.xml, self.result.xml)

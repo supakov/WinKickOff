@@ -2581,5 +2581,23 @@
       "support_url": "Сайт поддержки (URL)"
     },
     "verify": "Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OEMInformation"
+  },
+  "install.no-dynamic-update": {
+    "title": "Без Dynamic Update при установке",
+    "summary": "Установщик Windows не скачивает обновления себя, драйверов и образа из Windows Update в проходе windowsPE (Microsoft-Windows-Setup, DynamicUpdate/Enable false, WillShowUI Never).",
+    "effect": "Установка идёт одинаково с сетью и без неё и заканчивается быстрее; установщик не получает свежие исправления самого себя, так что известная проблема установщика в образе остаётся. Первая штатная настройка unattend, записанная действием xml-setting: реестр здесь бессилен, проход идёт до появления Windows.",
+    "versions": "С Windows Vista. Приёмка в ВМ не проведена (setupact.log без загрузки Dynamic Update).",
+    "verify": "C:\\Windows\\Panther\\setupact.log: нет загрузки Dynamic Update",
+    "rollback": "Действует только при установке.",
+    "tags": ["обновления", "автономно"]
+  },
+  "install.no-setup-diagnostics": {
+    "title": "Без диагностических данных установщика Windows",
+    "summary": "Установщик Windows не отправляет Microsoft диагностические данные об установке (Microsoft-Windows-Setup, Diagnostics/OptIn false).",
+    "effect": "Сама установка ничего не сообщает; диагностические данные установленной Windows регулирует правило телеметрии среди политик.",
+    "versions": "С Windows Vista. Приёмка в ВМ не проведена.",
+    "verify": "C:\\Windows\\Panther\\setupact.log: Diagnostics opt-in false",
+    "rollback": "Действует только при установке.",
+    "tags": ["диагностика", "телеметрия"]
   }
 }

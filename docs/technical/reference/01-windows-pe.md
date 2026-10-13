@@ -130,3 +130,28 @@ run in WinPE before copying starts.
 - Rollback: `Manual = 0`.
 - Pending: acceptance in a VM (the value must be in place before the first attempt, which comes after OOBE); whether
   the digital licence of Pro still activates with the value set (then the rule could be on by default).
+
+## DynamicUpdate
+
+- Rule: `install.no-dynamic-update` (off by default; branch `unattend-tree`, stage 5 of the plan of 13.10.2026).
+- Settings: `Microsoft-Windows-Setup\DynamicUpdate\Enable = false` and `DynamicUpdate\WillShowUI = Never` in the
+  windowsPE pass, written by the action `xml-setting` (the first use of it: the registry cannot act in windowsPE, so
+  customer decision 5 of 13.10.2026 allows a native setting here). The settings of one component and pass merge into
+  one `<component>` element with the product key.
+- What it does: Setup does not download updates of itself, of drivers and of the image from Windows Update before the
+  installation starts, and shows no Dynamic Update page.
+- Expected effect: the installation runs the same offline and online and finishes sooner; a known problem of the
+  Setup of the image is not fixed by a download.
+- Verification: `C:\Windows\Panther\setupact.log` holds no Dynamic Update download.
+- Rollback: applies only during installation.
+- Pending: acceptance in a VM.
+
+## Diagnostics
+
+- Rule: `install.no-setup-diagnostics` (off by default; branch `unattend-tree`, stage 5 of the plan of 13.10.2026).
+- Setting: `Microsoft-Windows-Setup\Diagnostics\OptIn = false` in the windowsPE pass (an `xml-setting` action).
+- What it does: Windows Setup sends no diagnostic data about the installation to Microsoft; the diagnostic data of
+  the installed Windows is the matter of the telemetry policy (`privacy.telemetry-minimal`).
+- Verification: `setupact.log` reports the opt-in as false.
+- Rollback: applies only during installation.
+- Pending: acceptance in a VM.

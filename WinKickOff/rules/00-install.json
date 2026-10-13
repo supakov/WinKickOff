@@ -106,6 +106,61 @@
       ]
     },
     {
+      "id": "install.no-setup-diagnostics",
+      "group": "install",
+      "phase": "windowspe",
+      "title": "No diagnostic data from Windows Setup",
+      "level": "optional",
+      "default": false,
+      "tags": ["diagnostics", "telemetry", "windowspe", "setup", "optin"],
+      "doc": "docs/technical/reference/01-windows-pe.md#diagnostics",
+      "summary": "Windows Setup sends no diagnostic data about the installation to Microsoft (Microsoft-Windows-Setup, Diagnostics/OptIn false).",
+      "effect": "The installation itself reports nothing; the diagnostic data of the installed Windows is the telemetry rule of the policies.",
+      "versions": "Since Windows Vista. Acceptance in a VM pending.",
+      "verify": "C:\\Windows\\Panther\\setupact.log: Diagnostics opt-in false",
+      "rollback": "Applies only during installation.",
+      "actions": [
+        {
+          "type": "xml-setting",
+          "pass": "windowsPE",
+          "component": "Microsoft-Windows-Setup",
+          "path": "Diagnostics/OptIn",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "id": "install.no-dynamic-update",
+      "group": "install",
+      "phase": "windowspe",
+      "title": "No Dynamic Update during installation",
+      "level": "optional",
+      "default": false,
+      "tags": ["dynamic update", "windowspe", "offline", "setup"],
+      "doc": "docs/technical/reference/01-windows-pe.md#dynamicupdate",
+      "summary": "Windows Setup does not download updates of itself, of drivers and of the image from Windows Update in windowsPE (Microsoft-Windows-Setup, DynamicUpdate/Enable false, WillShowUI Never).",
+      "effect": "The installation runs the same with and without a network and finishes sooner; Setup does not get the latest fixes of itself, so a known Setup problem of the image stays. The first unattend setting written by an xml-setting action: the registry cannot do it, the pass runs before Windows exists.",
+      "versions": "Since Windows Vista. Acceptance in a VM pending (setupact.log without a Dynamic Update download).",
+      "verify": "C:\\Windows\\Panther\\setupact.log: no Dynamic Update download",
+      "rollback": "Applies only during installation.",
+      "actions": [
+        {
+          "type": "xml-setting",
+          "pass": "windowsPE",
+          "component": "Microsoft-Windows-Setup",
+          "path": "DynamicUpdate/Enable",
+          "value": "false"
+        },
+        {
+          "type": "xml-setting",
+          "pass": "windowsPE",
+          "component": "Microsoft-Windows-Setup",
+          "path": "DynamicUpdate/WillShowUI",
+          "value": "Never"
+        }
+      ]
+    },
+    {
       "id": "install.bypass-nro",
       "group": "install",
       "phase": "specialize-xml",

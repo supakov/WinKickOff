@@ -203,6 +203,7 @@ templates use them (section 8).
 | xml-pe-command | command, description | `RunSynchronousCommand` in windowsPE |
 | xml-specialize-command | command, description | `RunSynchronousCommand` in specialize |
 | xml-oobe | element, value | element inside `<OOBE>` |
+| xml-setting | pass (`windowsPE`, `specialize`, `oobeSystem`), component (`Microsoft-Windows-<name>`), path (element names from the component down, separated by `/`), value | an element of that component in that pass (catalog 0.11); the settings of one component and pass merge into one `<component>`, a path shared by two settings makes one parent element; the pass fixes the phase of the rule |
 
 An action holds the fields of its type and no other (an unknown field is an error naming it). A `ps` script of
 several lines is written as a list of lines; the loader joins them with a line break, without a trailing one, and

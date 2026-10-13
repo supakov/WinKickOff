@@ -56,7 +56,14 @@ ACTION_FIELDS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "xml-pe-command": (("command", "description"), ()),
     "xml-specialize-command": (("command", "description"), ()),
     "xml-oobe": (("element", "value"), ()),
+    "xml-setting": (("pass", "component", "path", "value"), ()),
 }
+# xml-setting (catalog 0.11, plan of 13.10.2026): any setting of a component of the answer file, for what the registry
+# cannot do during installation. The pass gives the phase of the rule; settings of one component and pass merge into
+# one <component> element; the path is the element names from the component down, separated by "/".
+SETTING_PASS_PHASE: dict[str, str] = {"windowsPE": "windowspe", "specialize": "specialize-xml", "oobeSystem": "oobe-xml"}
+_COMPONENT_RE = re.compile(r"^Microsoft-Windows-[A-Za-z0-9-]+$")
+_SETTING_PATH_RE = re.compile(r"^[A-Za-z][A-Za-z0-9]*(?:/[A-Za-z][A-Za-z0-9]*)*$")
 XML_ACTION_PHASE: dict[str, str] = {
     "xml-pe-command": "windowspe",
     "xml-specialize-command": "specialize-xml",
@@ -736,6 +743,19 @@ def _check(catalog: Catalog, docs_root: Path | None) -> None:
 
 
 def _check_action_phase(rule: Rule, action: Action) -> None:
+    if action.type == "xml-setting":
+        pass_name = str(action.fields["pass"])
+        if pass_name not in SETTING_PASS_PHASE:
+            raise CatalogError(f"xml-setting: unknown pass '{pass_name}' (one of {', '.join(SETTING_PASS_PHASE)})",
+                               file=rule.source, rule_id=rule.id)
+        if rule.phase != SETTING_PASS_PHASE[pass_name]:
+            raise CatalogError(f"an xml-setting of pass '{pass_name}' belongs to phase '{SETTING_PASS_PHASE[pass_name]}'",
+                               file=rule.source, rule_id=rule.id)
+        if not _COMPONENT_RE.match(str(action.fields["component"])):
+            raise CatalogError("xml-setting: the component must be Microsoft-Windows-<name>", file=rule.source, rule_id=rule.id)
+        if not _SETTING_PATH_RE.match(str(action.fields["path"])):
+            raise CatalogError("xml-setting: the path is element names separated by '/'", file=rule.source, rule_id=rule.id)
+        return
     expected = XML_ACTION_PHASE.get(action.type)
     if expected is not None and rule.phase != expected:
         raise CatalogError(f"action type '{action.type}' belongs to phase '{expected}'", file=rule.source, rule_id=rule.id)

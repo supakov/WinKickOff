@@ -26,7 +26,7 @@ from typing import Any
 from xml.sax.saxutils import escape as xml_escape
 
 from winkickoff.core import computername
-from winkickoff.core.catalog import PLACEHOLDER_FIELDS, Action, Catalog, Rule
+from winkickoff.core.catalog import PLACEHOLDER_FIELDS, Action, Catalog, Rule, SETTING_PASS_PHASE
 from winkickoff.core.deps import Resolver
 from winkickoff.core.profile import Account, Profile
 from winkickoff.core.resources import find_keyboard
@@ -371,6 +371,8 @@ class Renderer:
             if a.type == "xml-oobe"
         ]
 
+        settings = self._xml_settings(rules_by_phase, params)
+
         def blocks(phase: str) -> list[str]:
             return [render_block(r, params[r.id]) for r in rules_by_phase[phase]]
 
@@ -397,7 +399,8 @@ class Renderer:
             if "]]>" in text:
                 raise RenderError(f"{name} contains ']]>' which cannot be placed into CDATA")
 
-        xml = self._answer_file(profile, app_version, order, pe_commands, specialize_commands, oobe_elements, languages, scripts)
+        xml = self._answer_file(profile, app_version, order, pe_commands, specialize_commands, oobe_elements, languages, scripts,
+                                settings)
         return BuildResult(xml=xml.replace("\r\n", "\n").replace("\n", "\r\n"), scripts=scripts, rule_ids=order, warnings=warnings)
 
     # ----------------------------------------------------------------- scripts
@@ -456,6 +459,58 @@ class Renderer:
                     out.append((str(action.fields["description"]), str(substitute(action.fields["command"], params[rule.id]))))
         return out
 
+    def _xml_settings(self, rules_by_phase: dict[str, list[Rule]], params: dict[str, dict[str, Any]]
+                      ) -> dict[tuple[str, str], list[tuple[str, str]]]:
+        """(pass, component) -> [(path, value)] of the xml-setting actions of the enabled rules, in catalog order."""
+        out: dict[tuple[str, str], list[tuple[str, str]]] = {}
+        for phase in SETTING_PASS_PHASE.values():
+            for rule in rules_by_phase[phase]:
+                for action in rule.actions:
+                    if action.type == "xml-setting":
+                        key = (str(action.fields["pass"]), str(action.fields["component"]))
+                        out.setdefault(key, []).append((str(action.fields["path"]),
+                                                        str(substitute(action.fields["value"], params[rule.id]))))
+        return out
+
+    @staticmethod
+    def _setting_lines(settings: list[tuple[str, str]], indent: int) -> list[str]:
+        """The elements of a component from paths such as DynamicUpdate/Enable: settings that share the first names
+        share the parent element. A path that is both a value and a parent is a build error (shown as a build issue)."""
+        tree: dict[str, Any] = {}
+        for path, value in settings:
+            node = tree
+            parts = path.split("/")
+            for part in parts[:-1]:
+                node = node.setdefault(part, {})
+                if not isinstance(node, dict):
+                    raise ValueError(f"answer file setting {path}: {part} already holds a value")
+            if isinstance(node.get(parts[-1]), dict):
+                raise ValueError(f"answer file setting {path}: it already holds other settings")
+            node[parts[-1]] = value
+
+        def emit(node: dict[str, Any], level: int) -> list[str]:
+            lines: list[str] = []
+            pad = " " * level
+            for name, child in node.items():
+                if isinstance(child, dict):
+                    lines += [f"{pad}<{name}>", *emit(child, level + 2), f"{pad}</{name}>"]
+                else:
+                    lines.append(f"{pad}<{name}>{xml_escape(child)}</{name}>")
+            return lines
+
+        return emit(tree, indent)
+
+    def _extra_components(self, settings: dict[tuple[str, str], list[tuple[str, str]]], pass_name: str, known: set[str],
+                          arch: str) -> list[str]:
+        """The components of a pass that the generator does not write itself, with their settings."""
+        out: list[str] = []
+        for (setting_pass, component), items in settings.items():
+            if setting_pass == pass_name and component not in known:
+                out.append(self._component(component, arch))
+                out += self._setting_lines(items, 6)
+                out.append("    </component>")
+        return out
+
     @staticmethod
     def _component(name: str, arch: str) -> str:
         return (
@@ -500,6 +555,7 @@ class Renderer:
         oobe_elements: list[tuple[str, str]],
         languages: Languages,
         scripts: dict[str, str],
+        settings: dict[tuple[str, str], list[tuple[str, str]]],
     ) -> list[str]:
         key, show_ui = self._product_key(profile)
         out: list[str] = ['  <settings pass="windowsPE">']
@@ -516,7 +572,9 @@ class Renderer:
             ]
             if pe_commands:
                 out += self._run_synchronous(pe_commands, 6)
+            out += self._setting_lines(settings.get(("windowsPE", "Microsoft-Windows-Setup"), []), 6)
             out.append("    </component>")
+            out += self._extra_components(settings, "windowsPE", {"Microsoft-Windows-Setup"}, arch)
         out.append("  </settings>")
 
         commands: list[tuple[str, str]] = []
@@ -526,19 +584,25 @@ class Renderer:
         if "Setup-System.ps1" in scripts:
             commands.append(("Apply machine-wide settings", RUN_SYSTEM_COMMAND))
         computer_name = answer_file_computer_name(profile)
+        deployment = settings.get(("specialize", "Microsoft-Windows-Deployment"), [])
         out.append('  <settings pass="specialize">')
         for arch in ARCHITECTURES:
-            if commands:
+            if commands or deployment:
                 out.append(self._component("Microsoft-Windows-Deployment", arch))
-                out += self._run_synchronous(commands, 6)
+                if commands:
+                    out += self._run_synchronous(commands, 6)
+                out += self._setting_lines(deployment, 6)
                 out.append("    </component>")
             out.append(self._component("Microsoft-Windows-Shell-Setup", arch))
             if computer_name:
                 out.append(f"      <ComputerName>{xml_escape(computer_name)}</ComputerName>")
             out.append(f"      <TimeZone>{xml_escape(str(profile.install.get('time_zone', 'UTC')))}</TimeZone>")
+            out += self._setting_lines(settings.get(("specialize", "Microsoft-Windows-Shell-Setup"), []), 6)
             out.append("    </component>")
+            out += self._extra_components(settings, "specialize", {"Microsoft-Windows-Deployment", "Microsoft-Windows-Shell-Setup"}, arch)
         out.append("  </settings>")
 
+        shell = settings.get(("oobeSystem", "Microsoft-Windows-Shell-Setup"), [])
         out.append('  <settings pass="oobeSystem">')
         for arch in ARCHITECTURES:
             out.append(self._component("Microsoft-Windows-International-Core", arch))
@@ -547,10 +611,11 @@ class Renderer:
                 f"      <SystemLocale>{xml_escape(str(profile.languages.get('system_locale', '')))}</SystemLocale>",
                 f"      <UILanguage>{xml_escape(str(profile.languages.get('ui_language', '')))}</UILanguage>",
                 f"      <UserLocale>{xml_escape(str(profile.languages.get('user_locale', '')))}</UserLocale>",
-                "    </component>",
             ]
+            out += self._setting_lines(settings.get(("oobeSystem", "Microsoft-Windows-International-Core"), []), 6)
+            out.append("    </component>")
             accounts = profile.answer_file_accounts()
-            if oobe_elements or accounts:
+            if oobe_elements or accounts or shell:
                 out.append(self._component("Microsoft-Windows-Shell-Setup", arch))
                 if oobe_elements:
                     out.append("      <OOBE>")
@@ -576,7 +641,10 @@ class Renderer:
                             "          </LocalAccount>",
                         ]
                     out += ["        </LocalAccounts>", "      </UserAccounts>"]
+                out += self._setting_lines(shell, 6)
                 out.append("    </component>")
+            out += self._extra_components(settings, "oobeSystem", {"Microsoft-Windows-International-Core", "Microsoft-Windows-Shell-Setup"},
+                                          arch)
         out.append("  </settings>")
         return out
 
@@ -613,6 +681,7 @@ class Renderer:
         oobe_elements: list[tuple[str, str]],
         languages: Languages,
         scripts: dict[str, str],
+        settings: dict[tuple[str, str], list[tuple[str, str]]],
     ) -> str:
         files: list[str] = []
         for name in SCRIPT_ORDER:
@@ -628,7 +697,8 @@ class Renderer:
             self._template("autounattend.template.xml"),
             {
                 "header": self._header(profile, app_version, order, scripts),
-                "settings": "\n".join(self._settings(profile, pe_commands, specialize_commands, oobe_elements, languages, scripts)),
+                "settings": "\n".join(self._settings(profile, pe_commands, specialize_commands, oobe_elements, languages, scripts,
+                                                     settings)),
                 "files": "\n".join(files),
                 "profile_json": profile_json,
             },

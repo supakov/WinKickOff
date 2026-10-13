@@ -1,6 +1,6 @@
 # Rule list
 
-Every rule of the WinKickOff catalog 0.10 by group, 281 in total. This file is generated from the catalog by `python tools/make_rule_docs.py` and is not edited by hand. In the program every rule also shows its technical details, the check after installation and the rollback.
+Every rule of the WinKickOff catalog 0.11 by group, 283 in total. This file is generated from the catalog by `python tools/make_rule_docs.py` and is not edited by hand. In the program every rule also shows its technical details, the check after installation and the rollback.
 
 Levels: baseline (the core of the protection, disabling is not recommended), recommended, optional, risky (may disturb programs, enable deliberately).
 
@@ -30,6 +30,12 @@ Bypassing compatibility checks, a local account without a network connection, .N
 - **Bypass the disk size check** (`install.bypass-storage`). Level: optional. "Office": enabled; "Strict": enabled.
   Setup does not require 64 GB of disk space.
   Effect: Installation proceeds on small disks; free space for updates must be monitored.
+- **No diagnostic data from Windows Setup** (`install.no-setup-diagnostics`). Level: optional. "Office": disabled; "Strict": disabled.
+  Windows Setup sends no diagnostic data about the installation to Microsoft (Microsoft-Windows-Setup, Diagnostics/OptIn false).
+  Effect: The installation itself reports nothing; the diagnostic data of the installed Windows is the telemetry rule of the policies.
+- **No Dynamic Update during installation** (`install.no-dynamic-update`). Level: optional. "Office": disabled; "Strict": disabled.
+  Windows Setup does not download updates of itself, of drivers and of the image from Windows Update in windowsPE (Microsoft-Windows-Setup, DynamicUpdate/Enable false, WillShowUI Never).
+  Effect: The installation runs the same with and without a network and finishes sooner; Setup does not get the latest fixes of itself, so a known Setup problem of the image stays. The first unattend setting written by an xml-setting action: the registry cannot do it, the pass runs before Windows exists.
 - **Allow completing OOBE without internet access and a Microsoft account** (`install.bypass-nro`). Level: baseline. "Office": enabled; "Strict": enabled.
   BypassNRO key: the out-of-box experience does not require a network connection or a Microsoft account.
   Effect: A safeguard: accounts are created from the file, but if OOBE behavior changes, the key keeps setup from getting stuck on the network screen. Needed when the account is asked during installation: without it, OOBE may stop at the network screen.

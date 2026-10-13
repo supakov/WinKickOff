@@ -680,5 +680,6 @@
  "\"{0}\": the account {1} has a password; the automatic sign-in is only for an account without one": "«{0}»: у учётной записи {1} есть пароль; автоматический вход только для учётной записи без пароля",
  "\"{0}\" is on, but every text is empty": "«{0}» включено, но все тексты пусты",
  "\"{0}\": \"{1}\" may hold ASCII characters only: the installation scripts are read without a code page": "«{0}»: «{1}» может содержать только символы ASCII: скрипты установки читаются без кодовой страницы",
- "The generic key of {0} is a KMS client key: without a KMS host Windows keeps trying to activate and shows errors until the key of the licence is typed. \"{1}\" stops the attempts.": "Универсальный ключ редакции {0} является клиентским ключом KMS: без хоста KMS Windows раз за разом пытается активироваться и показывает ошибки, пока не введён ключ лицензии. «{1}» прекращает попытки."
+ "The generic key of {0} is a KMS client key: without a KMS host Windows keeps trying to activate and shows errors until the key of the licence is typed. \"{1}\" stops the attempts.": "Универсальный ключ редакции {0} является клиентским ключом KMS: без хоста KMS Windows раз за разом пытается активироваться и показывает ошибки, пока не введён ключ лицензии. «{1}» прекращает попытки.",
+ "Answer file setting {0} of {1} ({2} pass) = {3}: Windows Setup applies it during installation": "Настройка файла ответов {0} компонента {1} (проход {2}) = {3}: установщик Windows применяет её при установке"
 }

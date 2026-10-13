@@ -116,6 +116,9 @@ def verify_steps(rule: Rule, params: dict[str, Any]) -> list[str]:
             steps.append(tr("The corresponding OOBE screen does not appear during installation ({0} = {1})", f['element'], f['value']))
         elif t in ("xml-pe-command", "xml-specialize-command"):
             steps.append(tr("{0}: command \"{1}\" completed without errors", SETUP_LOG, f['description']))
+        elif t == "xml-setting":
+            steps.append(tr("Answer file setting {0} of {1} ({2} pass) = {3}: Windows Setup applies it during installation",
+                            f["path"], f["component"], f["pass"], f["value"]))
         elif t == "exe":
             steps.append(tr("{0}: a line about running {1} with no ERROR", PHASE_LOGS.get(rule.phase, SYSTEM_LOG), f['file']))
     if du_note:
@@ -156,6 +159,6 @@ def rollback_steps(rule: Rule, params: dict[str, Any]) -> list[str]:
             steps.append(tr("Add-WindowsCapability -Online -Name \"<full name matching pattern {0}>\" (requires access to Windows Update)", f["pattern"]))
         elif t == "appx":
             steps.append(tr("Reinstall the removed apps from Microsoft Store: ") + ", ".join(str(n) for n in f["names"]))
-        elif t in ("xml-oobe", "xml-pe-command", "xml-specialize-command"):
+        elif t in ("xml-oobe", "xml-pe-command", "xml-specialize-command", "xml-setting"):
             steps.append(tr("Applies only during installation: disable the rule and build the answer file again"))
     return steps if any(a.type not in ("exe", "ps") for a in rule.actions) else []
