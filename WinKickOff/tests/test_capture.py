@@ -8,11 +8,12 @@ import json
 import tempfile
 import time
 import unittest
+from datetime import datetime
 from unittest import mock
 from pathlib import Path
 from typing import Any
 
-from winkickoff.core import i18n
+from winkickoff.core import admx, i18n
 from winkickoff.core.apply import _audit_path, render_audit
 from winkickoff.core.capture import _evidence, capture_profile, capture_rules, read_rule, render_capture, summary_lines
 from winkickoff.core.catalog import Action, Catalog, Rule, load_catalog
@@ -31,6 +32,30 @@ SYSTEM = {
     "accounts": [{"name": "Boss", "full_name": "Бос", "description": "Owner", "group": "Administrators"},
                  {"name": "Clerk", "full_name": "", "description": "", "group": "Users"}],
 }
+# a policy on the value of a built-in rule (defender.pua writes PUAProtection 1) whose Enabled state writes the opposite
+CAPTURE_ADMX = r"""<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitions xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" revision="1.0" schemaVersion="1.0">
+  <policyNamespaces><target prefix="wkc" namespace="WinKickOff.Capture"/></policyNamespaces>
+  <resources minRequiredRevision="1.0"/>
+  <categories><category name="Root" displayName="$(string.Root)"/></categories>
+  <policies>
+    <policy name="PuaOff" class="Machine" displayName="$(string.PuaOff)" key="Software\Policies\Microsoft\Windows Defender" valueName="PUAProtection">
+      <parentCategory ref="Root"/>
+      <enabledValue><decimal value="0"/></enabledValue>
+      <disabledValue><decimal value="1"/></disabledValue>
+    </policy>
+  </policies>
+</policyDefinitions>
+"""
+CAPTURE_ADML = """<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitionResources xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" revision="1.0" schemaVersion="1.0">
+  <displayName/><description/>
+  <resources><stringTable>
+    <string id="Root">Capture root</string>
+    <string id="PuaOff">PUA protection off</string>
+  </stringTable></resources>
+</policyDefinitionResources>
+"""
 
 
 def checks(rule: Rule, status: str = "ok", currents: dict[int, str] | None = None,
@@ -50,10 +75,11 @@ def checks(rule: Rule, status: str = "ok", currents: dict[int, str] | None = Non
     return out
 
 
-def fake_report(catalog: Catalog, system: dict[str, Any] | None = None, admin: bool = True) -> str:
+def fake_report(catalog: Catalog, system: dict[str, Any] | None = None, admin: bool = True,
+                extra: list[dict[str, str]] | None = None) -> str:
     """A report of a reference PC: Defender PUA and the screen lock (600 s) in effect, the telemetry level 0, NetBIOS
-    not, UAC partly; every other rule absent from the report (not readable)."""
-    results = checks(catalog.rules["defender.pua"])
+    not, UAC partly; every other rule absent from the report (not readable), unless extra holds its checks."""
+    results = checks(catalog.rules["defender.pua"]) + list(extra or [])
     results += checks(catalog.rules["accounts.inactivity-lock"], "differs", {0: "600"})
     telemetry = catalog.rules["privacy.telemetry-minimal"]
     results += checks(telemetry, "ok", {0: "0"}, {0: "differs"})
@@ -140,6 +166,57 @@ class CaptureTest(unittest.TestCase):
         self.assertEqual(read_rule(rule, checks(rule), {})[0], "applied")
         _, summary = self.capture()
         self.assertIn("as in Windows by default 0", summary_lines(summary, lambda r: r)[0][2])
+
+    def test_as_in_windows_by_default_keeps_the_state_of_the_open_profile(self) -> None:
+        # the read of 12.10.2026: "apps.remove.onedrive" only deletes a value and "logging.powershell-v2-off" disables a
+        # feature that 24H2 and later do not ship; both matched, both were switched off in the copy and showed as
+        # differences from the profile the PC was installed from, where they were on
+        onedrive, ps2 = self.catalog.rules["apps.remove.onedrive"], self.catalog.rules["logging.powershell-v2-off"]
+        self.assertFalse(_evidence(ps2.actions[0], {}, "absent"))  # "not present on this build": nothing was disabled
+        self.assertTrue(_evidence(ps2.actions[0], {}, "Disabled"))
+        extra = checks(onedrive) + checks(ps2, "ok", {0: "absent", 1: "absent"})
+        for enabled in (True, False):
+            base = self.office()
+            base.rules["apps.remove.onedrive"].enabled = enabled
+            base.rules["logging.powershell-v2-off"].enabled = enabled
+            profile, summary = capture_profile(self.catalog, base, fake_report(self.catalog, extra=extra), self.resources.keyboards)
+            self.assertEqual(profile.is_enabled("apps.remove.onedrive"), enabled)
+            self.assertEqual(profile.is_enabled("logging.powershell-v2-off"), enabled)
+            self.assertEqual(sorted(summary.as_default), ["apps.remove.onedrive", "logging.powershell-v2-off"])
+            self.assertNotIn("apps.remove.onedrive", summary.in_effect + summary.not_in_effect)
+        self.assertIn("as in Windows by default 2", summary_lines(summary, lambda r: r)[0][2])
+        disabled = checks(ps2, "ok", {0: "Disabled", 1: "Disabled"})  # the feature is there and off: the rule acted
+        profile, _ = capture_profile(self.catalog, self.office(), fake_report(self.catalog, extra=disabled), self.resources.keyboards)
+        self.assertTrue(profile.is_enabled("logging.powershell-v2-off"))
+
+    def test_a_policy_a_built_in_rule_covers_keeps_its_state_and_parameters(self) -> None:
+        # the read of 12.10.2026: 55 Edge and Chrome policies of a profile differed after a read only in the parameter
+        # "state", read as the Disabled state the built-in browser rules write, although every policy stayed off
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "templates"
+            (folder / "en-US").mkdir(parents=True)
+            (folder / "wkcapture.admx").write_text(CAPTURE_ADMX, encoding="utf-8")
+            (folder / "en-US" / "wkcapture.adml").write_text(CAPTURE_ADML, encoding="utf-8")
+            data = admx.read_templates(folder, ["en"])
+            info = admx.save_import(Path(tmp) / "admx", folder, data, system=False, now=datetime(2026, 10, 12, 12, 0, 0))
+            catalog, problems = admx.with_imports(self.catalog, Path(tmp) / "admx", [info.id], "en")
+        self.assertEqual(problems, [])
+        policy = "admx.winkickoff.capture.puaoff"
+        rule = catalog.rules[policy]
+        self.assertEqual((catalog.same_values(policy), rule.params["state"].default), (["defender.pua"], 0))
+        base = Profile.load(OFFICE, catalog)[0]  # defender.pua on; the policy off, its state Enabled (0) by default
+        extra = checks(rule, "ok", {0: "1"})  # PUAProtection is 1 on the PC: the Disabled state of the policy
+        profile, summary = capture_profile(catalog, base, fake_report(catalog, extra=extra), self.resources.keyboards)
+        self.assertTrue(profile.is_enabled("defender.pua"))
+        self.assertEqual(summary.covered, [policy])
+        self.assertEqual(profile.rules[policy], base.rules[policy])  # off, and not "Disabled" either
+        self.assertEqual([d for d in profile.diff(base, catalog) if d.key.startswith(policy)], [])
+        self.assertEqual([entry for entry in summary.params if entry[0] == policy], [])
+        self.assertIn((policy, "As in the open profile: an enabled built-in rule writes the same values"),
+                      [(target, text) for _level, target, text in summary_lines(summary, lambda r: r)])
+        base.rules[policy].enabled = True  # chosen on by the person next to the built-in rule: also kept
+        profile, summary = capture_profile(catalog, base, fake_report(catalog, extra=extra), self.resources.keyboards)
+        self.assertEqual((profile.is_enabled(policy), summary.covered), (True, [policy]))
 
     def test_the_data_forms(self) -> None:
         profile, summary = self.capture()

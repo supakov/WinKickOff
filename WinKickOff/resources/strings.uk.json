@@ -628,7 +628,7 @@
  "Read from {0}: in effect {1}, partly {2}, not in effect {3}, as in Windows by default {4}, not readable {5}, kept from the open profile {6}.": "Прочитано з {0}: діє {1}, частково {2}, не діє {3}, як у Windows за замовчуванням {4}, не прочитано {5}, з відкритого профілю {6}.",
  "Partly in effect on this PC, so it is off in the new profile: \"{0}\"": "Діє на цьому ПК частково, тому в новому профілі вимкнено: «{0}»",
  "Parameter {0} read from this PC: {1}": "Параметр {0} прочитано з цього ПК: {1}",
- "Off: an enabled built-in rule writes the same values": "Вимкнено: ті самі значення записує ввімкнене вбудоване правило",
+ "As in the open profile: an enabled built-in rule writes the same values": "Як у відкритому профілі: ті самі значення записує ввімкнене вбудоване правило",
  "Edition {0} of this PC has no generic key in WinKickOff; the edition of the open profile stays.": "Для випуску {0} цього ПК у WinKickOff немає універсального ключа; залишається випуск відкритого профілю.",
  "The local accounts were not read completely; the accounts of the open profile stay.": "Локальні облікові записи прочитано не повністю; залишаються облікові записи відкритого профілю.",
  "The report of the read is damaged: {0}": "Звіт читання пошкоджено: {0}",

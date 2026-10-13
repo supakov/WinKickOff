@@ -9,7 +9,7 @@ The check only reads: the registry, service start types, components, apps. It ch
 without administrator rights; without them some checks (components, apps of other users) are marked
 "not checked". The result for each rule appears in the list at the bottom of the window: "in effect",
 "not in effect" (with the current and the expected value), "partly in effect", "not checked".
-Values of the default user profile are checked for the current user.
+Values of the default user profile are checked for the current user; Windows may have changed them since the account was made (the content delivery values and the language profile, for example), and then the rule shows as not in effect.
 
 ## Read the settings of this PC into a new profile
 
@@ -20,7 +20,7 @@ which protections do not take effect on it and what is there instead.
 The read only reads, like the check above, and changes nothing on the computer. It reads every rule a running Windows
 can show, built-in and imported: a rule in effect is switched on with the parameters found on the computer (the
 screen lock time, for example); a rule partly in effect is switched off and named in the list at the bottom of the
-window, so that you decide; a rule not in effect is switched off. A rule that matches only what a clean Windows has anyway (no value, an empty list) counts as "as in Windows by default" and stays off. Rules that act only during installation or at the
+window, so that you decide; a rule not in effect is switched off. A rule that matches only what a clean Windows has anyway (no value, an empty list, a feature this build does not ship) counts as "as in Windows by default": the read can neither confirm nor refute it, so it keeps the state of the open profile. An imported policy whose values an enabled built-in rule writes keeps its state and parameters the same way. Rules that act only during installation or at the
 first sign-in, and checks that need administrator rights, keep the state of the open profile. The data forms get the
 edition, the time zone, the languages and the local accounts (without passwords). The computer name is not taken, so
 that the computers installed from the profile do not share one name.

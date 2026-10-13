@@ -27,7 +27,7 @@ from typing import Any
 from winkickoff.core.apply import _audit_path, audit_rules, parse_audit_report, render_audit
 from winkickoff.core.catalog import DEFAULT_ABSENT, DEFAULT_UNKNOWN, Action, Catalog, Param, Rule, is_imported
 from winkickoff.core.i18n import tr
-from winkickoff.core.profile import Account, Profile, one_line
+from winkickoff.core.profile import Account, Profile, RuleState, one_line
 from winkickoff.core.render import EDITION_KEYS, substitute_fields
 from winkickoff.core.resources import PAIR_RE, find_keyboard
 
@@ -55,10 +55,10 @@ class CaptureSummary:
     in_effect: list[str] = field(default_factory=list)  # rules now on
     partly: list[str] = field(default_factory=list)  # rules off because only some of their values match
     not_in_effect: list[str] = field(default_factory=list)
-    as_default: list[str] = field(default_factory=list)  # every check matches only what a clean Windows has: off
+    as_default: list[str] = field(default_factory=list)  # every check matches only what a clean Windows has: state kept
+    covered: list[str] = field(default_factory=list)  # imported policies an enabled built-in rule writes: state kept
     unknown: list[str] = field(default_factory=list)  # the audit could not read them: their state is the open profile's
     kept: list[str] = field(default_factory=list)  # no running Windows shows them: their state is the open profile's
-    covered: list[str] = field(default_factory=list)  # imported policies left off: a built-in rule writes their values
     params: list[tuple[str, str, Any]] = field(default_factory=list)  # (rule, parameter, value read)
     forms: list[str] = field(default_factory=list)  # the profile fields taken from the computer (install.time_zone, ...)
     notes: list[str] = field(default_factory=list)  # translated remarks
@@ -140,7 +140,8 @@ def read_rule(rule: Rule, checks: list[dict[str, str]], params: dict[str, Any]) 
         statuses[index] = "ok" if _same(param, read[name], text) else "differs"
     values = {**params, **read}
     owners = _check_owners(rule, checks)
-    evidence = [_evidence(owner, values) if owner is not None else True for owner in owners] or [True] * len(checks)
+    evidence = [_evidence(owner, values, str(checks[i].get("current") or "")) if owner is not None else True
+                for i, owner in enumerate(owners)] or [True] * len(checks)
     known = [i for i, verdict in enumerate(statuses) if verdict != "unknown"]
     matched = [i for i in known if statuses[i] == "ok"]
     if not known:
@@ -164,10 +165,11 @@ def _check_owners(rule: Rule, checks: list[dict[str, str]]) -> list[Action | Non
     return owners if len(owners) == len(checks) else []
 
 
-def _evidence(action: Action, params: dict[str, Any]) -> bool:
+def _evidence(action: Action, params: dict[str, Any], current: str = "") -> bool:
     """Whether a matching check of this action shows that the rule was applied: True for a value a clean Windows does
     not hold (a policy value, a value other than the Windows default, a removed app), False for what a clean Windows
-    already has (a value that is absent or equals the default, a deleted value, an empty list)."""
+    already has (a value that is absent or equals the default, a deleted value, an empty list, a feature this build
+    does not ship: current is what the audit found, "absent" for such a feature)."""
     fields = substitute_fields(action.fields, params)
     default = action.fields.get("default")
     if action.type == "reg":
@@ -177,7 +179,7 @@ def _evidence(action: Action, params: dict[str, Any]) -> bool:
     if action.type == "service":
         return default in (None, DEFAULT_UNKNOWN) or str(default) != str(fields.get("start"))
     if action.type == "feature":
-        return default in (None, DEFAULT_UNKNOWN) or str(default) != str(fields.get("state"))
+        return current != "absent" and (default in (None, DEFAULT_UNKNOWN) or str(default) != str(fields.get("state")))
     return action.type in ("appx", "capability")
 
 
@@ -295,6 +297,11 @@ def capture_profile(catalog: Catalog, base: Profile, report_text: str, keyboards
         if status == "unknown":
             summary.unknown.append(rule_id)
             continue
+        if status == "as-default":
+            # nothing found that a clean Windows lacks (a rule that only deletes values, a feature this build does not
+            # ship): no evidence for the rule and none against it, so the state of the open profile stays
+            summary.as_default.append(rule_id)
+            continue
         state.enabled = status == "applied"
         if status == "applied":
             summary.in_effect.append(rule_id)
@@ -307,14 +314,17 @@ def capture_profile(catalog: Catalog, base: Profile, report_text: str, keyboards
                                if name in rule.params and value != base.params_for(catalog, rule_id).get(name)]
         elif status == "partial":
             summary.partly.append(rule_id)
-        elif status == "as-default":
-            summary.as_default.append(rule_id)
         else:
             summary.not_in_effect.append(rule_id)
-    for rule_id in list(summary.in_effect):  # an imported policy that an enabled built-in rule writes stays off
+    for rule_id in list(summary.in_effect):
+        # an imported policy that an enabled built-in rule writes stays as it was in the open profile, its parameters
+        # too: the values found are those of the built-in rule (a read of 12.10.2026 changed the parameter "state" of
+        # 55 browser policies to the Disabled state the built-in rules write, and every one showed as a difference)
         if is_imported(rule_id) and any(profile.is_enabled(other) and not is_imported(other)
                                         for other in catalog.same_values(rule_id)):
-            profile.rules[rule_id].enabled = False
+            kept = base.rules.get(rule_id)
+            profile.rules[rule_id] = RuleState(kept.enabled, dict(kept.params), kept.source) if kept else RuleState(False)
+            summary.params = [entry for entry in summary.params if entry[0] != rule_id]
             summary.in_effect.remove(rule_id)
             summary.covered.append(rule_id)
     if only is None:
@@ -340,7 +350,8 @@ def summary_lines(summary: CaptureSummary, title: Any) -> list[tuple[str, str, s
     lines += [("warning", rule_id, tr("Partly in effect on this PC, so it is off in the new profile: \"{0}\"", title(rule_id)))
               for rule_id in summary.partly]
     lines += [("info", rule_id, tr("Parameter {0} read from this PC: {1}", name, value)) for rule_id, name, value in summary.params]
-    lines += [("info", rule_id, tr("Off: an enabled built-in rule writes the same values")) for rule_id in summary.covered]
+    lines += [("info", rule_id, tr("As in the open profile: an enabled built-in rule writes the same values"))
+              for rule_id in summary.covered]
     lines += [("info", "profile", note) for note in summary.notes]
     if summary.forms:
         lines.append(("info", "profile", tr("Data forms read from this PC: {0}", ", ".join(summary.forms))))

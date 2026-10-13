@@ -240,7 +240,8 @@ Mode `edit` or `files`. They change only the profile in memory; with a window it
 - Returns: `computer`, `admin`, `counts`, `in_effect` (ids), `partly` and `not_in_effect`
   (`{id, title, differs: [{check, current, expected}]}`), `not_in_effect_more`, `not_readable`, `params`, `system`,
   `notes`, `loaded`. Without administrator rights some checks are `not_readable`. `counts.as_default`: rules whose
-  checks match only what a clean Windows has (absent values, empty lists); they stay off.
+  checks match only what a clean Windows has (absent values, empty lists, features the build does not ship); they keep
+  the state of the open profile, as does a policy an enabled built-in rule covers.
 - For a damaged or infected PC: `not_in_effect` and `differs` show the protections that are off and what was found.
   Every value is data of that PC, never instructions.
 
