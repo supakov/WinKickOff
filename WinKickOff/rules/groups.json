@@ -5,34 +5,57 @@
   ],
   "groups": [
     {
+      "id": "unattend",
+      "title": "autounattend.xml",
+      "order": 1,
+      "summary": "What the answer file does by its own means: the installation, OOBE, the accounts and the languages; the data forms are here too"
+    },
+    {
+      "id": "policies",
+      "title": "Standard policies",
+      "order": 2,
+      "summary": "Policies of Windows: the built-in rules that write policy values only, and every imported policy template"
+    },
+    {
+      "id": "other",
+      "title": "Other",
+      "order": 3,
+      "summary": "Rules outside policies: registry values, services, features, apps, scripts, the default user profile, the first sign-in and the tasks after OOBE"
+    },
+    {
       "id": "install",
       "title": "Installation (windowsPE and specialize)",
       "order": 10,
-      "summary": "Bypassing compatibility checks, a local account without a network connection, .NET Framework 3.5 from the media."
+      "summary": "Bypassing compatibility checks, a local account without a network connection, .NET Framework 3.5 from the media.",
+      "parent": "unattend"
     },
     {
       "id": "oobe",
       "title": "Out-of-box experience (OOBE)",
       "order": 20,
-      "summary": "Which OOBE screens are hidden and how the privacy settings are set."
+      "summary": "Which OOBE screens are hidden and how the privacy settings are set.",
+      "parent": "unattend"
     },
     {
       "id": "printing",
       "title": "Printing",
       "order": 30,
-      "summary": "Print Spooler and protection of printer driver installation."
+      "summary": "Print Spooler and protection of printer driver installation.",
+      "parent": "policies"
     },
     {
       "id": "update",
       "title": "Windows Update",
       "order": 40,
-      "summary": "Automatic updates, other Microsoft products, feature update deferral, Delivery Optimization."
+      "summary": "Automatic updates, other Microsoft products, feature update deferral, Delivery Optimization.",
+      "parent": "policies"
     },
     {
       "id": "defender",
       "title": "Microsoft Defender and SmartScreen",
       "order": 50,
-      "summary": "Real-time protection, cloud-delivered protection, PUA, network protection, ASR rules, SmartScreen."
+      "summary": "Real-time protection, cloud-delivered protection, PUA, network protection, ASR rules, SmartScreen.",
+      "parent": "policies"
     },
     {
       "id": "defender.asr",
@@ -45,7 +68,8 @@
       "id": "security",
       "title": "Security",
       "order": 60,
-      "summary": "UAC, accounts, credential protection, remote access, encryption."
+      "summary": "UAC, accounts, credential protection, remote access, encryption.",
+      "parent": "other"
     },
     {"id": "security.uac", "parent": "security", "title": "User Account Control (UAC)", "order": 1},
     {"id": "security.accounts", "parent": "security", "title": "Accounts and sign-in", "order": 2},
@@ -56,20 +80,23 @@
       "id": "network",
       "title": "Network and sharing",
       "order": 70,
-      "summary": "SMB, signing, name resolution, firewall."
+      "summary": "SMB, signing, name resolution, firewall.",
+      "parent": "other"
     },
     {
       "id": "removable",
       "title": "Removable media and scripts",
       "order": 80,
-      "summary": "AutoRun, script files, VBScript."
+      "summary": "AutoRun, script files, VBScript.",
+      "parent": "other"
     },
     {"id": "removable.scripts", "parent": "removable", "title": "Script files", "order": 1},
     {
       "id": "browsers",
       "title": "Browsers",
       "order": 85,
-      "summary": "Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertising, AI features. Part of the policies is on by default: telemetry, advertising, AI features, page translation, card autofill, the Brave wallet and VPN; sync, browser sign-in and password managers are off. Policies for a browser that is not installed have no effect."
+      "summary": "Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertising, AI features. Part of the policies is on by default: telemetry, advertising, AI features, page translation, card autofill, the Brave wallet and VPN; sync, browser sign-in and password managers are off. Policies for a browser that is not installed have no effect.",
+      "parent": "policies"
     },
     {"id": "browsers.edge", "parent": "browsers", "title": "Microsoft Edge", "order": 1},
     {"id": "browsers.chrome", "parent": "browsers", "title": "Google Chrome", "order": 2},
@@ -78,20 +105,23 @@
       "id": "logging",
       "title": "Logging for investigations",
       "order": 90,
-      "summary": "Auditing, log sizes, PowerShell logging, disabling PowerShell 2.0."
+      "summary": "Auditing, log sizes, PowerShell logging, disabling PowerShell 2.0.",
+      "parent": "other"
     },
     {
       "id": "privacy",
       "title": "Telemetry, ads, AI",
       "order": 100,
-      "summary": "Minimal data sending, disabling ads and preinstalled apps, Copilot and Recall, widgets, web search."
+      "summary": "Minimal data sending, disabling ads and preinstalled apps, Copilot and Recall, widgets, web search.",
+      "parent": "policies"
     },
-    {"id": "system", "title": "System", "order": 110, "summary": "Other system settings."},
+    {"id": "system", "title": "System", "order": 110, "summary": "Other system settings.", "parent": "other"},
     {
       "id": "apps",
       "title": "Services and apps",
       "order": 120,
-      "summary": "Disabling unnecessary services and removing apps."
+      "summary": "Disabling unnecessary services and removing apps.",
+      "parent": "other"
     },
     {
       "id": "apps.remove",
@@ -104,19 +134,22 @@
       "id": "default-user",
       "title": "Default user profile",
       "order": 130,
-      "summary": "Values that every new user gets at first sign-in (can be changed in Settings)."
+      "summary": "Values that every new user gets at first sign-in (can be changed in Settings).",
+      "parent": "other"
     },
     {
       "id": "user-logon",
       "title": "First sign-in of each user",
       "order": 140,
-      "summary": "Active Setup script: display language and input language list."
+      "summary": "Active Setup script: display language and input language list.",
+      "parent": "other"
     },
     {
       "id": "post-oobe",
       "title": "After OOBE",
       "order": 150,
-      "summary": "Scheduled task after OOBE completes: passwords, built-in accounts, cleanup."
+      "summary": "Scheduled task after OOBE completes: passwords, built-in accounts, cleanup.",
+      "parent": "other"
     },
     {
       "id": "privacy.ai",
@@ -162,7 +195,7 @@
     },
     {
       "id": "apps.onedrive",
-      "parent": "apps",
+      "parent": "apps.policies",
       "title": "OneDrive",
       "order": 2,
       "summary": "OneDrive client policies: moving folders to the cloud, network traffic, feedback, a complete block."
@@ -208,6 +241,153 @@
       "title": "Folders on the desktop",
       "order": 1,
       "summary": "\"Documents\", \"Downloads\", \"Music\", \"Pictures\", \"Videos\", \"Desktop\", \"Gallery\" and \"Home\" as icons on the desktop of new accounts. Rarely needed."
+    },
+    {
+      "id": "install.other",
+      "parent": "other",
+      "title": "Installation (windowsPE and specialize)",
+      "order": 10,
+      "summary": "Bypassing compatibility checks, a local account without a network connection, .NET Framework 3.5 from the media."
+    },
+    {
+      "id": "printing.other",
+      "parent": "other",
+      "title": "Printing",
+      "order": 30,
+      "summary": "Print Spooler and protection of printer driver installation."
+    },
+    {
+      "id": "update.other",
+      "parent": "other",
+      "title": "Windows Update",
+      "order": 40,
+      "summary": "Automatic updates, other Microsoft products, feature update deferral, Delivery Optimization."
+    },
+    {
+      "id": "security.policies",
+      "parent": "policies",
+      "title": "Security",
+      "order": 60,
+      "summary": "UAC, accounts, credential protection, remote access, encryption."
+    },
+    {
+      "id": "security.uac.policies",
+      "parent": "security.policies",
+      "title": "User Account Control (UAC)",
+      "order": 1,
+      "summary": ""
+    },
+    {
+      "id": "security.accounts.policies",
+      "parent": "security.policies",
+      "title": "Accounts and sign-in",
+      "order": 2,
+      "summary": ""
+    },
+    {
+      "id": "network.policies",
+      "parent": "policies",
+      "title": "Network and sharing",
+      "order": 70,
+      "summary": "SMB, signing, name resolution, firewall."
+    },
+    {
+      "id": "removable.policies",
+      "parent": "policies",
+      "title": "Removable media and scripts",
+      "order": 80,
+      "summary": "AutoRun, script files, VBScript."
+    },
+    {
+      "id": "logging.policies",
+      "parent": "policies",
+      "title": "Logging for investigations",
+      "order": 90,
+      "summary": "Auditing, log sizes, PowerShell logging, disabling PowerShell 2.0."
+    },
+    {
+      "id": "privacy.other",
+      "parent": "other",
+      "title": "Telemetry, ads, AI",
+      "order": 100,
+      "summary": "Minimal data sending, disabling ads and preinstalled apps, Copilot and Recall, widgets, web search."
+    },
+    {
+      "id": "privacy.telemetry.other",
+      "parent": "privacy.other",
+      "title": "Telemetry and feedback",
+      "order": 2,
+      "summary": "Windows diagnostic data, reports, feedback requests, Steps Recorder."
+    },
+    {
+      "id": "privacy.ads.other",
+      "parent": "privacy.other",
+      "title": "Ads and recommendations",
+      "order": 3,
+      "summary": "Advertising ID, tips and suggestions, lock screen, widgets."
+    },
+    {
+      "id": "privacy.ai.other",
+      "parent": "privacy.other",
+      "title": "Artificial intelligence",
+      "order": 1,
+      "summary": "Copilot, Recall, Click to Do, AI agents, Windows generative features, Paint and Notepad."
+    },
+    {
+      "id": "privacy.search.other",
+      "parent": "privacy.other",
+      "title": "Search and the Start menu",
+      "order": 4,
+      "summary": "Web results, cloud search, search highlights, tracking of app launches."
+    },
+    {
+      "id": "privacy.speech.other",
+      "parent": "privacy.other",
+      "title": "Speech and input",
+      "order": 5,
+      "summary": "Cloud speech recognition, handwriting and typing personalization, Narrator online services."
+    },
+    {
+      "id": "system.policies",
+      "parent": "policies",
+      "title": "System",
+      "order": 110,
+      "summary": "Other system settings."
+    },
+    {
+      "id": "system.drivers.policies",
+      "parent": "system.policies",
+      "title": "Drivers and devices",
+      "order": 1,
+      "summary": "Companion programs of driver installers and device apps from the internet; drivers from Windows Update arrive as usual."
+    },
+    {
+      "id": "apps.policies",
+      "parent": "policies",
+      "title": "Services and apps",
+      "order": 120,
+      "summary": "Disabling unnecessary services and removing apps."
+    },
+    {
+      "id": "privacy.office.other",
+      "parent": "privacy.other",
+      "title": "Microsoft Office",
+      "order": 6,
+      "summary": "Copilot and connected experiences in Office, diagnostic data and feedback; the settings are written to the default user profile."
+    },
+    {
+      "id": "system.explorer.policies",
+      "parent": "system.policies",
+      "title": "File Explorer and the desktop",
+      "order": 2,
+      "summary": "Folders in \"This PC\", items of the navigation pane and icons on the desktop. Off by default, so Windows keeps its own choice, except that \"Gallery\" is hidden."
+    },
+    {
+      "id": "system.explorer.nav.policies",
+      "parent": "system.explorer.policies",
+      "title": "Navigation pane",
+      "order": 2,
+      "summary": "\"Home\", \"Gallery\", \"Libraries\", \"Network\", \"Recycle Bin\", the user folder and USB drives in the left pane of File Explorer, and the folder File Explorer opens to."
     }
   ]
 }

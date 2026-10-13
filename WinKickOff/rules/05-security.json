@@ -80,7 +80,7 @@
     },
     {
       "id": "uac.admin-always-notify",
-      "group": "security.uac",
+      "group": "security.uac.policies",
       "phase": "specialize",
       "title": "UAC for administrators: always notify",
       "level": "recommended",
@@ -119,7 +119,7 @@
     },
     {
       "id": "accounts.inactivity-lock",
-      "group": "security.accounts",
+      "group": "security.accounts.policies",
       "phase": "specialize",
       "title": "Lock the screen after inactivity",
       "level": "recommended",
@@ -527,7 +527,7 @@
     },
     {
       "id": "accounts.block-aad-join",
-      "group": "security.accounts",
+      "group": "security.accounts.policies",
       "phase": "specialize",
       "title": "No \"Allow my organization to manage my device\" prompt",
       "level": "baseline",

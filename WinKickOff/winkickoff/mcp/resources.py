@@ -130,7 +130,7 @@ class ResourceRegistry:
         rows = [{"id": r.id, "title": clean_text(texts.rule(r, "title"), TITLE), "enabled": snap.profile.is_enabled(r.id),
                  "level": r.level} for r in snap.catalog.rules.values() if r.id not in snap.catalog.origins]
         imports = [{"id": g.id[len("admx."):], "name": clean_text(g.title, TITLE), "policies": len(snap.catalog.rules_in_group(g.id))}
-                   for g in snap.catalog.children(None) if g.id in snap.catalog.groups and g.id.startswith("admx.")]
+                   for g in snap.catalog.imported_roots()]
         return {"rules": rows, "imports": imports, "note": "imported policies are listed by list_rules with group or query"}
 
     def _json(self, uri: str, payload: dict[str, Any]) -> dict[str, Any]:

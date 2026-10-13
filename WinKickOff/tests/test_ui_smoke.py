@@ -99,7 +99,9 @@ class MainWindowSmokeTest(unittest.TestCase):
 
         top = self.win.tree.get_children("")
         self.assertEqual(top[0], WORKFLOW_NODE)
-        self.assertIn("data:install", top)
+        self.assertEqual(list(top[1:]), ["g:unattend", "g:policies", "g:other"])  # the three roots (catalog 0.10)
+        self.assertEqual(list(self.win.tree.get_children("g:unattend"))[:3], ["data:install", "data:accounts", "data:languages"])
+        self.assertIn("g:install", self.win.tree.get_children("g:unattend"))
         rules = [i for i in self.win._all_items() if i.startswith("r:")]
         self.assertEqual(len(rules), len(self.catalog.rules))
 

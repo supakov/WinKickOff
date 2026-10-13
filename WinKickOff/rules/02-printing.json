@@ -3,7 +3,7 @@
   "rules": [
     {
       "id": "printing.spooler-automatic",
-      "group": "printing",
+      "group": "printing.other",
       "phase": "specialize",
       "title": "Print Spooler starts automatically",
       "level": "baseline",

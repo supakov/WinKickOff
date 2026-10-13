@@ -100,6 +100,34 @@ def is_imported(item_id: str) -> bool:
     return item_id.startswith(IMPORTED_PREFIX)
 
 
+# The three roots of the rule tree (catalog 0.10, plan of 13.10.2026, section 3): what the answer file does by its own
+# means, the policies of Windows (built-in rules that write policy values only, and every imported template) and the
+# rest. The root of a group must agree with the mechanism of each of its rules (test_catalog): a rule of another
+# mechanism lives in a mirror of its thematic group under the right root, "<group>.<root>".
+UNATTEND_ROOT, POLICIES_ROOT, OTHER_ROOT = "unattend", "policies", "other"
+TREE_ROOTS: tuple[str, ...] = (UNATTEND_ROOT, POLICIES_ROOT, OTHER_ROOT)
+MECHANISM_ROOTS = {"unattend": UNATTEND_ROOT, "policy": POLICIES_ROOT, "other": OTHER_ROOT}
+_POLICY_PATH = re.compile(r"(?i)(^|\\)policies(\\|$)")  # a "Policies" segment of a registry path, in any hive or view
+
+
+def mechanism(rule: Rule) -> str:
+    """How a built-in rule acts: "unattend" (only settings and commands of the answer file), "policy" (only registry
+    values under a Policies key, which Windows documents as policies) or "other" (anything else, or a mix)."""
+    kinds: set[str] = set()
+    for action in rule.actions:
+        if action.type.startswith("xml-"):
+            kinds.add("unattend")
+        elif action.type in ("reg", "reg-remove", "reg-list"):
+            kinds.add("policy" if _POLICY_PATH.search(str(action.fields.get("path", ""))) else "other")
+        else:
+            kinds.add("other")
+    if kinds == {"unattend"}:
+        return "unattend"
+    if kinds == {"policy"}:
+        return "policy"
+    return "other"
+
+
 class CatalogError(ValueError):
     """A problem in the catalog files. Carries the file and rule so the UI can point at it."""
 
@@ -273,6 +301,17 @@ class Catalog:
 
     def children(self, parent: str | None) -> list[Group]:
         return list(self._children.get(parent, ()))
+
+    def root_of(self, group_id: str) -> str:
+        """The root group of a group (itself for a root)."""
+        while group_id in self.groups and self.groups[group_id].parent:
+            group_id = str(self.groups[group_id].parent)
+        return group_id
+
+    def imported_roots(self) -> list[Group]:
+        """The root group of every shown import, in catalog order: under the policies root since catalog 0.10, at the
+        top before it."""
+        return [g for g in self.children(POLICIES_ROOT) + self.children(None) if is_imported(g.id)]
 
     def descendant_groups(self, group_id: str) -> list[str]:
         result: list[str] = []

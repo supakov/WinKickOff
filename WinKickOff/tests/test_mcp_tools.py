@@ -350,9 +350,10 @@ class GroupsTest(McpToolsTestCase):
     def test_roots_in_catalog_order(self) -> None:
         groups = self.ok("list_groups")["groups"]
         self.assertEqual([g["id"] for g in groups], [g.id for g in self.catalog.children(None)])
-        defender = next(g for g in groups if g["id"] == "defender")
+        self.assertEqual([g["id"] for g in groups], ["unattend", "policies", "other"])  # the three roots (catalog 0.10)
+        defender = next(g for g in self.ok("list_groups", parent="policies")["groups"] if g["id"] == "defender")
         rules = self.catalog.rules_in_group("defender")
-        self.assertEqual(defender, {"id": "defender", "parent": None, "title": self.catalog.groups["defender"].title,
+        self.assertEqual(defender, {"id": "defender", "parent": "policies", "title": self.catalog.groups["defender"].title,
                                     "summary": self.catalog.groups["defender"].summary, "rules": len(rules),
                                     "enabled": sum(1 for r in rules if self.profile.is_enabled(r.id)), "children": ["defender.asr"],
                                     "imported": False, "text_language": "en"})
@@ -375,7 +376,7 @@ class GroupsTest(McpToolsTestCase):
 
     def test_an_imported_tree_follows_the_program_language(self) -> None:
         info = self.import_templates()
-        groups = self.ok("list_groups", language="uk")["groups"]
+        groups = self.ok("list_groups", language="uk", parent="policies")["groups"]  # imported trees: policies of Windows
         tree = next(g for g in groups if g["id"] == "admx." + info.id)
         self.assertEqual((tree["imported"], tree["text_language"], tree["title"]), (True, "en", info.name))
         self.assertTrue(tree["children"])

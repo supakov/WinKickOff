@@ -455,8 +455,13 @@ them to paste the file: it may hold passwords.
 
 ## 11. Groups of the rule tree
 
-Root groups: `install`, `oobe`, `printing`, `update`, `defender`, `security`, `network`, `removable`, `browsers`,
-`logging`, `privacy`, `system`, `apps`, `default-user`, `user-logon`, `post-oobe`. Frequent subgroups:
+Roots (catalog 0.10): `unattend` (what the answer file does by itself: `install`, `oobe`, the data forms), `policies`
+(the policies of Windows: `printing`, `update`, `defender`, `browsers`, `privacy`, `apps.onedrive`, the mirrors
+`security.policies`, `network.policies`, `apps.policies`, and every imported template `admx.<id>`) and `other` (the
+rest: `security`, `network`, `removable`, `logging`, `system`, `apps`, `default-user`, `user-logon`, `post-oobe`, the
+mirrors `install.other`, `update.other`, `privacy.other`). A thematic group whose rules act both ways is under two
+roots, the smaller part with the suffix of its root; `list_groups` without `parent` returns the three roots.
+Frequent subgroups:
 `defender.asr`, `security.uac`, `security.accounts`, `security.lsa`, `security.remote`, `security.encryption`,
 `browsers.edge`, `browsers.chrome`, `browsers.brave`, `privacy.ai`, `privacy.telemetry`, `privacy.ads`,
 `privacy.search`, `privacy.speech`, `privacy.office`, `system.drivers`, `system.explorer`, `system.explorer.thispc`,

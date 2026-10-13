@@ -20,7 +20,7 @@ from tkinter import font as tkfont
 from typing import Any
 
 from winkickoff import APP_NAME, APP_VERSION
-from winkickoff.core.catalog import Catalog, Param, Rule, is_imported
+from winkickoff.core.catalog import Catalog, Param, Rule, is_imported, POLICIES_ROOT, TREE_ROOTS, UNATTEND_ROOT
 from winkickoff.core import admx as admx_module
 from winkickoff.core import linked
 from winkickoff.core import package as package_module
@@ -89,7 +89,7 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
         self.dirty = False
         self._search_job: str | None = None
         self._suppress_search = False
-        self._open_groups: set[str] = set()
+        self._open_groups: set[str] = {"g:" + root for root in TREE_ROOTS}  # the three roots start open
         self._param_vars: list[tk.Variable] = []
         self._param_marks: dict[str, ttk.Label] = {}
         self._param_boxes: dict[str, tk.Text] = {}  # the text boxes of list parameters, by parameter name
@@ -575,9 +575,11 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
         self._full_titles: dict[str, str] = {}  # item: the whole title of an item whose text was cut (the tree tip)
         if visible is None:
             self.tree.insert("", tk.END, iid=WORKFLOW_NODE, text="  " + tr("Workflow"), tags=("info",))
-            for iid, title in DATA_NODES:
-                self.tree.insert("", tk.END, iid=iid, text="  " + tr(title))
         self._insert_groups("", None, visible)
+        if visible is None:  # the data forms belong to the answer file: the first items of its root (catalog 0.10)
+            parent = "g:" + UNATTEND_ROOT if self.tree.exists("g:" + UNATTEND_ROOT) else ""
+            for index, (iid, title) in enumerate(DATA_NODES):
+                self.tree.insert(parent, index, iid=iid, text="  " + tr(title))
         self._insert_unknown(visible)
 
     def _insert_unknown(self, visible: set[str] | None) -> None:
@@ -587,7 +589,9 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
         if not entries:
             return
         is_open = visible is not None or UNKNOWN_NODE in self._open_groups
-        self.tree.insert("", tk.END, iid=UNKNOWN_NODE, text=self._unknown_text(), tags=("unknown",), open=is_open)
+        # the last item of the policies root (catalog 0.10); at the top while a search hides that root
+        parent = "g:" + POLICIES_ROOT if self.tree.exists("g:" + POLICIES_ROOT) else ""
+        self.tree.insert(parent, tk.END, iid=UNKNOWN_NODE, text=self._unknown_text(), tags=("unknown",), open=is_open)
         for rule_id, enabled, _params in entries:
             self.tree.insert(UNKNOWN_NODE, tk.END, iid=UNKNOWN_PREFIX + rule_id, text=" " + rule_id,
                              image=self.images["on" if enabled else "off"], tags=() if enabled else ("off",))

@@ -6,7 +6,7 @@
   "rules": [
     {
       "id": "removable.autorun-off",
-      "group": "removable",
+      "group": "removable.policies",
       "phase": "specialize",
       "title": "AutoRun and AutoPlay disabled for all media",
       "level": "recommended",

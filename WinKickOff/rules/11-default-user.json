@@ -33,7 +33,7 @@
     },
     {
       "id": "default-user.no-sync-provider-ads",
-      "group": "privacy.ads",
+      "group": "privacy.ads.other",
       "phase": "default-user",
       "title": "No OneDrive and Microsoft 365 ads in File Explorer",
       "level": "baseline",
@@ -56,7 +56,7 @@
     },
     {
       "id": "default-user.no-consumer-content",
-      "group": "privacy.ads",
+      "group": "privacy.ads.other",
       "phase": "default-user",
       "title": "No preinstalled apps, ads, tips or \"Let's finish setting up\" screen",
       "level": "recommended",
@@ -282,7 +282,7 @@
     },
     {
       "id": "default-user.copilot-off",
-      "group": "privacy.ai",
+      "group": "privacy.ai.other",
       "phase": "default-user",
       "title": "Copilot turned off in the user profile",
       "level": "recommended",
@@ -373,7 +373,7 @@
     },
     {
       "id": "default-user.http-accept-language-optout",
-      "group": "privacy.ads",
+      "group": "privacy.ads.other",
       "phase": "default-user",
       "title": "Do not share the user's language list with websites",
       "level": "optional",

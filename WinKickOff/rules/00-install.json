@@ -129,7 +129,7 @@
     },
     {
       "id": "install.netfx3",
-      "group": "install",
+      "group": "install.other",
       "phase": "specialize",
       "title": ".NET Framework 3.5 from the installation media",
       "level": "optional",
@@ -162,7 +162,7 @@
     },
     {
       "id": "install.skip-auto-activation",
-      "group": "install",
+      "group": "install.other",
       "phase": "specialize",
       "title": "No automatic activation attempts",
       "level": "optional",

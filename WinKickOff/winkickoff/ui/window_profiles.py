@@ -14,7 +14,7 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
 from winkickoff import APP_NAME, APP_VERSION
-from winkickoff.core.catalog import Catalog
+from winkickoff.core.catalog import Catalog, TREE_ROOTS
 from winkickoff.core.diffprofile import load_diff, make_diff, merge_diff, save_diff
 from winkickoff.core.draft import draft_text, drop_draft, save_draft
 from winkickoff.core.i18n import catalog_texts, language, tr
@@ -343,8 +343,8 @@ class ProfileActions:
             rule_id = target[2:] if target.startswith("r:") else ""
             if rule_id in self.catalog.rules:
                 group = self.catalog.groups.get(self.catalog.rules[rule_id].group)
-                while group is not None and group.parent:
-                    group = self.catalog.groups.get(group.parent)
+                while group is not None and group.parent and group.parent not in TREE_ROOTS:
+                    group = self.catalog.groups.get(group.parent)  # up to the thematic group under a root
                 top = f"g{group.id}" if group is not None else "gother"
                 if top not in parents:
                     parents[top] = table.insert("", tk.END, iid=top, text=self.group_title(group.id) if group else tr("Rules"),
