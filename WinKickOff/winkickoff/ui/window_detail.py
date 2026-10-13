@@ -64,20 +64,69 @@ class DetailPanel:
     # ----------------------------------------------------------------- right panel
 
     def _show_panel(self, form_key: str | None) -> None:
-        for key, form in self.forms.items():
-            if key != form_key:
-                form.pack_forget()
+        """The description panel, or one data form inside the scrolling canvas (customer request of 13.10.2026)."""
         if form_key is None:
+            self.form_host.pack_forget()
             if not self.detail_view.winfo_ismapped():
                 self.detail_view.pack(fill=tk.BOTH, expand=True)
             return
         self.detail_view.pack_forget()
         if form_key not in self.forms:
             factory = {"data:install": InstallForm, "data:accounts": AccountsForm, "data:languages": LanguagesForm}[form_key]
-            self.forms[form_key] = factory(self.right, self)
+            form = factory(self.form_canvas, self)
+            self.forms[form_key] = form
+            form.bind("<Configure>", self._fit_form, add="+")
+            for widget in self._descendants(form):  # Tab brings a field into view; the wheel scrolls over any field
+                widget.bind("<FocusIn>", lambda _e, w=widget: self._scroll_to_widget(w), add="+")
+                widget.bind("<MouseWheel>", self._scroll_form, add="+")
         form = self.forms[form_key]
         form.refresh()
-        form.pack(fill=tk.BOTH, expand=True)
+        if self.form_window is None:
+            self.form_window = self.form_canvas.create_window((0, 0), window=form, anchor="nw")
+        else:
+            self.form_canvas.itemconfigure(self.form_window, window=form)
+        self.form_host.pack(fill=tk.BOTH, expand=True)
+        self.form_canvas.yview_moveto(0)
+        self._fit_form()
+
+    def _descendants(self, widget: tk.Misc) -> list[tk.Misc]:
+        found: list[tk.Misc] = []
+        for child in widget.winfo_children():
+            found.append(child)
+            found += self._descendants(child)
+        return found
+
+    def _current_form(self) -> tk.Widget | None:
+        return next((form for form in self.forms.values() if self.form_window is not None
+                     and str(self.form_canvas.itemcget(self.form_window, "window")) == str(form)), None)
+
+    def _fit_form(self, _event: tk.Event | None = None) -> None:  # type: ignore[type-arg]
+        """The form fills the width of the canvas; the scroll region is its own height."""
+        form = self._current_form()
+        if form is None or not self.form_host.winfo_manager():
+            return
+        width = max(self.form_canvas.winfo_width(), form.winfo_reqwidth())
+        self.form_canvas.itemconfigure(self.form_window, width=width)
+        self.form_canvas.configure(scrollregion=(0, 0, width, form.winfo_reqheight()))
+
+    def _scroll_form(self, event: tk.Event) -> str:  # type: ignore[type-arg]
+        self.form_canvas.yview_scroll(-int(event.delta / 120), "units")
+        return "break"
+
+    def _scroll_to_widget(self, widget: tk.Misc) -> None:
+        """Scroll the canvas so that the focused field of the form is visible (Tab from the keyboard)."""
+        form = self._current_form()
+        if form is None or not self.form_host.winfo_manager() or not widget.winfo_ismapped():
+            return
+        height = max(1, form.winfo_reqheight())
+        top = widget.winfo_rooty() - form.winfo_rooty()
+        bottom = top + widget.winfo_height()
+        view_top = self.form_canvas.canvasy(0)
+        view_height = self.form_canvas.winfo_height()
+        if top < view_top:
+            self.form_canvas.yview_moveto(max(0, top - 8) / height)
+        elif bottom > view_top + view_height:
+            self.form_canvas.yview_moveto(max(0, bottom + 8 - view_height) / height)
 
     def show_item(self, item: str) -> None:
         self._current_item = item
@@ -482,6 +531,20 @@ class DetailPanel:
             if group_id.count(".") == 1:  # the root of an imported tree: "admx.<import id>"
                 import_id = group_id[len(IMPORTED_PREFIX):]
                 buttons.append((tr("Rename..."), lambda: self.rename_templates(import_id, self.group_title(group_id))))
+        # the commands of the context menu of the tree, for the group that is shown (customer request of 13.10.2026);
+        # packed first at the bottom, so the group buttons take the row above it (a LabelFrame: the tests read "text")
+        pc = ttk.LabelFrame(self.params_frame, text=tr("This PC"), padding=(8, 4))
+        pc.pack(side=tk.BOTTOM, fill=tk.X, pady=(8, 0))
+        rows = (((tr("Check the selection on this PC"), self.audit_selected),
+                 (tr("Read the selection on this PC into the open profile..."), self.read_selection)),
+                ((tr("Apply the selection now..."), self.apply_now),
+                 (tr("Return the selection to Windows defaults now..."), self.revert_now),
+                 (tr("Save an apply script for the selection..."), self.save_apply_scripts)))
+        for row in rows:
+            line = ttk.Frame(pc)
+            line.pack(anchor=tk.W, pady=(0, 4))
+            for text, command in row:
+                ttk.Button(line, text=text, command=command).pack(side=tk.LEFT, padx=(0, 6))
         for text, command in buttons:
             ttk.Button(self.params_frame, text=text, command=command).pack(side=tk.LEFT, padx=(0, 6))
         self._show_params(tr("Whole group"))

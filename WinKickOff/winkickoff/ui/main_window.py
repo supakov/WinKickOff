@@ -477,12 +477,23 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
         ttk.Label(nav, text=tr("Alt+Left, Alt+Right"), style="Note.TLabel").pack(side=tk.LEFT, padx=(10, 0))
         self.back_button.state(["disabled"])
         self.forward_button.state(["disabled"])
+        # a native theme has no colours of its own: a canvas takes the frame colour of the ttk style then
+        canvas_bg = self.color("background") or ttk.Style(self).lookup("TFrame", "background") or self.cget("background")
+        # the data forms live in a canvas that scrolls, since the forms "Installation" and "Accounts" outgrew small
+        # screens (customer request of 13.10.2026); a focused field scrolls into view, so Tab works without a mouse
+        self.form_host = ttk.Frame(self.right)
+        self.form_canvas = tk.Canvas(self.form_host, highlightthickness=0, borderwidth=0, background=canvas_bg)
+        self.form_scroll = ttk.Scrollbar(self.form_host, orient=tk.VERTICAL, command=self.form_canvas.yview)
+        self.form_canvas.configure(yscrollcommand=self.form_scroll.set)
+        self.form_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.form_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.form_window: int | None = None  # the canvas item that shows the current form
+        self.form_canvas.bind("<Configure>", self._fit_form)
+        self.form_canvas.bind("<MouseWheel>", self._scroll_form)
         self.detail_view = ttk.Frame(self.right)
         # the parameter editor (or the buttons of a group) above the description, scrolled when it is taller than
         # PARAMS_SHARE of the panel (customer request of 13.10.2026: the controls on top, the description below them)
         self.params_host = ttk.Frame(self.detail_view)
-        # a native theme has no colours of its own: the canvas takes the frame colour of the ttk style then
-        canvas_bg = self.color("background") or ttk.Style(self).lookup("TFrame", "background") or self.cget("background")
         self.params_canvas = tk.Canvas(self.params_host, highlightthickness=0, borderwidth=0, background=canvas_bg)
         self.params_scroll = ttk.Scrollbar(self.params_host, orient=tk.VERTICAL, command=self.params_canvas.yview)
         self.params_canvas.configure(yscrollcommand=self.params_scroll.set)

@@ -146,6 +146,49 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.win.update()
         self.assertFalse(self.win.params_scroll.winfo_ismapped())
 
+    def test_data_forms_scroll_and_tab_brings_the_field_into_view(self) -> None:
+        # customer request of 13.10.2026: the forms outgrew small screens; Tab works without a mouse
+        self.win.geometry("1200x420")
+        try:
+            self.win.update()
+            self.win.select_node("data:install")
+            self.win.update()
+            form = self.win.forms["data:install"]
+            self.assertTrue(self.win.form_host.winfo_ismapped())
+            self.assertFalse(self.win.detail_view.winfo_ismapped())
+            self.assertGreater(form.winfo_reqheight(), self.win.form_canvas.winfo_height())  # taller than the panel
+            self.assertEqual(self.win.form_canvas.yview()[0], 0.0)
+            self.win._scroll_to_widget(form.partition_box)  # the last field, as Tab reaches it
+            self.win.update()
+            down = self.win.form_canvas.yview()[0]
+            self.assertGreater(down, 0.0)
+            self.win._scroll_to_widget(form.edition_box)  # back to the first field: it comes into view again
+            self.win.update()
+            self.assertLess(self.win.form_canvas.yview()[0], down)
+            top = form.edition_box.winfo_rooty() - self.win.form_canvas.winfo_rooty()
+            self.assertTrue(0 <= top <= self.win.form_canvas.winfo_height() - form.edition_box.winfo_height(), top)
+            self.win.select_node("data:accounts")
+            self.win.update()
+            self.assertIs(self.win._current_form(), self.win.forms["data:accounts"])
+            self.win.select_node(self.first_group())
+            self.win.update()
+            self.assertFalse(self.win.form_host.winfo_ismapped())
+            self.assertTrue(self.win.detail_view.winfo_ismapped())
+        finally:
+            self.win.geometry("1200x800")
+            self.win.update()
+
+    def test_the_group_view_offers_the_commands_of_the_context_menu(self) -> None:
+        self.win.select_node(self.first_group())
+        self.win.update()
+        pc = next(w for w in self.win.params_frame.winfo_children() if isinstance(w, ttk.LabelFrame))
+        self.assertEqual(str(pc.cget("text")), "This PC")
+        texts = [str(b.cget("text")) for line in pc.winfo_children() for b in line.winfo_children()]
+        self.assertEqual(texts, ["Check the selection on this PC", "Read the selection on this PC into the open profile...",
+                                 "Apply the selection now...", "Return the selection to Windows defaults now...",
+                                 "Save an apply script for the selection..."])
+        self.assertIn("Enable all", [str(b.cget("text")) for b in self.win.params_frame.winfo_children()])
+
     def test_long_titles_are_cut_in_the_tree_and_shown_whole_in_a_tip(self) -> None:
         # customer request of 13.10.2026: titles of imported templates (up to 200 characters) did not fit the screen
         from types import SimpleNamespace
