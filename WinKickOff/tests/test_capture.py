@@ -10,6 +10,8 @@ import time
 import unittest
 from datetime import datetime
 from unittest import mock
+
+from ui_patch import patch_window
 from pathlib import Path
 from typing import Any
 
@@ -284,7 +286,7 @@ class ReadThisPcWindowTest(unittest.TestCase):
                 menu = win.pc_menu
                 labels = [menu.entrycget(i, "label") for i in range(menu.index("end") + 1) if menu.type(i) == "command"]
                 self.assertIn("Read the settings of this PC into a new profile...", labels)
-                with mock.patch("winkickoff.ui.main_window.run_audit", return_value=fake_report(catalog)) as audit,                         mock.patch("winkickoff.ui.main_window.messagebox") as boxes:
+                with patch_window("run_audit", return_value=fake_report(catalog)) as audit,                         patch_window("messagebox") as boxes:
                     boxes.askokcancel.return_value = True
                     win.read_this_pc()
                     deadline = time.monotonic() + 30

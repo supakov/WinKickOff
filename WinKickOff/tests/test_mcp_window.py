@@ -181,7 +181,7 @@ class McpWindowTestCase(unittest.TestCase):
                               output=base / "output", logs=base / "logs")
         for folder in (self.paths.profiles, self.paths.output, self.paths.logs):
             folder.mkdir(parents=True)
-        for target in ("winkickoff.ui.main_window.apply_module.launch_elevated", "winkickoff.ui.main_window.run_audit"):
+        for target in ("winkickoff.core.apply.launch_elevated", "winkickoff.ui.window_thispc.run_audit"):
             patcher = mock.patch(target)
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -556,7 +556,7 @@ class BusyStatesTest(McpWindowTestCase):
 
 
 class ModeAndTokenTest(McpWindowTestCase):
-    ASK = "winkickoff.ui.main_window.messagebox.askyesno"
+    ASK = "tkinter.messagebox.askyesno"
 
     def test_change_mode_to_files_asks_once_per_window(self) -> None:
         with mock.patch(self.ASK, return_value=False) as ask:

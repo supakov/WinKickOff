@@ -56,7 +56,7 @@ All paths are under `WinKickOff/winkickoff/`.
 | `ui/mcp_workspace.py` | `WindowWorkspace` (the `Workspace` protocol on `MainWindow`) and `install_pump` (section 8) |
 | `ui/mcp_window.py` | `McpMonitor`: state, controls, the journal table, copy actions |
 | `ui/clipboard.py` | `copy_secret`: the token (and the HTTP configuration that holds it) goes to the Win32 clipboard with the formats `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory = 0` and `CanUploadToCloudClipboard = 0`, so the clipboard history (Win+V) and the cloud clipboard keep no copy. Tk publishes its own clipboard text with delayed rendering on the main thread, and a viewer (the history service) that reads it keeps the clipboard open until that thread renders it: while it waits (up to 1 s) for the clipboard, `copy_secret` delivers the messages sent to the thread (`PeekMessageW` with `PM_NOREMOVE`). On Windows a clipboard that stays busy means nothing is copied and the status bar says so; a plain copy would put the token into the history. Other platforms use Tk's clipboard |
-| `ui/main_window.py` | The `MCP` menu, the status bar segment, `_dialog`, `is_busy`, the dialog-free methods, `service.detach()` and the pump id in `destroy()` |
+| `ui/window_mcp.py` | The `MCP` menu, the status bar segment, `_dialog`, `is_busy`, the dialog-free methods (a mixin of `MainWindow`; `destroy()` of `ui/main_window.py` calls `service.detach()` and cancels the pump id) |
 | `app.py` | `run()` owns the `McpService`; `create_app(service=...)` configures it, sets `on_save`, applies autostart |
 
 Rules kept by `tests/test_sources.py`: `mcp/` imports nothing from `ui/` and never imports tkinter (nor do

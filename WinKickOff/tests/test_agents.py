@@ -63,7 +63,7 @@ class UniversalAgreesWithTheServerTest(pi.AgentsAgreesWithTheServerTest):
                     self.assertIn(token, self.tools)
 
     def test_mode_titles_are_the_window_titles(self) -> None:
-        source = (pi.ROOT / "winkickoff" / "ui" / "main_window.py").read_text(encoding="utf-8")
+        source = (pi.ROOT / "winkickoff" / "ui" / "window_common.py").read_text(encoding="utf-8")
         line = next(line for line in source.splitlines() if line.startswith("MODE_TITLES = "))
         for path in (AGENTS, README):
             for title in re.findall(r'N_\("([^"]+)"\)', line):

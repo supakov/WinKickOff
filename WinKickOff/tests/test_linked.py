@@ -167,14 +167,14 @@ class WindowTest(LinkedTestCase):
         self.assertEqual(self.image(PUA), "on")
 
     def test_a_partly_covered_policy_asks_before_the_whole_rule_goes_off(self) -> None:
-        from winkickoff.ui import main_window as mw
+        from tkinter import messagebox
 
         win = self.win
-        with mock.patch.object(mw.messagebox, "askyesno", return_value=False) as ask:
+        with mock.patch.object(messagebox, "askyesno", return_value=False) as ask:
             self.assertEqual(win.toggle_item("r:" + CLOUD), [])
         ask.assert_called_once()
         self.assertTrue(win.profile.is_enabled("search.cloud-off"))
-        with mock.patch.object(mw.messagebox, "askyesno", return_value=True):
+        with mock.patch.object(messagebox, "askyesno", return_value=True):
             win.toggle_item("r:" + CLOUD)
         self.assertFalse(win.profile.is_enabled("search.cloud-off"))
         win.toggle_item("r:" + CLOUD)  # not the same setting: the policy itself goes on

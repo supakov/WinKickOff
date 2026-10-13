@@ -14,6 +14,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from ui_patch import patch_window
+
 try:
     import tkinter as tk
 
@@ -147,7 +149,7 @@ class MainWindowSmokeTest(unittest.TestCase):
     def test_save_as_and_reopen(self) -> None:
         self.win.toggle_item("r:network.netbios-off")
         target = self.paths.profiles / "Профиль.json"
-        with mock.patch("winkickoff.ui.main_window.filedialog.asksaveasfilename", return_value=str(target)):
+        with mock.patch("tkinter.filedialog.asksaveasfilename", return_value=str(target)):
             self.assertTrue(self.win.save_profile())  # a preset is never overwritten: Save turns into Save as
         self.assertTrue(target.exists())
         self.assertFalse(self.win.dirty)
@@ -161,8 +163,8 @@ class MainWindowSmokeTest(unittest.TestCase):
 
     def test_preset_names_are_reserved(self) -> None:
         target = self.paths.profiles / "preset-mine.json"
-        with mock.patch("winkickoff.ui.main_window.filedialog.asksaveasfilename", return_value=str(target)), \
-             mock.patch("winkickoff.ui.main_window.messagebox.showerror") as error:
+        with mock.patch("tkinter.filedialog.asksaveasfilename", return_value=str(target)), \
+             mock.patch("tkinter.messagebox.showerror") as error:
             self.assertFalse(self.win.save_profile_as())
         error.assert_called_once()
         self.assertFalse(target.exists())
@@ -226,7 +228,7 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.win.select_node("r:" + rule.id)
         self.win.update()
         name = next(n for n, text in self.detail_links().items() if rule.doc in text)
-        with mock.patch("winkickoff.ui.main_window.os.startfile", create=True) as startfile:
+        with mock.patch("os.startfile", create=True) as startfile:
             self.click_link(name)
         startfile.assert_called_once_with(self.paths.docs_root / rule.doc.split("#", 1)[0])
 
@@ -253,13 +255,13 @@ class MainWindowSmokeTest(unittest.TestCase):
 
     def test_recent_files(self) -> None:
         target = self.paths.profiles / "Недавний.json"
-        with mock.patch("winkickoff.ui.main_window.filedialog.asksaveasfilename", return_value=str(target)):
+        with mock.patch("tkinter.filedialog.asksaveasfilename", return_value=str(target)):
             self.assertTrue(self.win.save_profile_as())
         self.assertEqual(self.win.settings.recent[0], str(Path("profiles") / "Недавний.json"))
         self.assertIn("Недавний.json", self.win.recent_menu.entrycget(0, "label"))
         self.assertTrue(self.win.open_recent(self.win.settings.recent[0]))
         target.unlink()
-        with mock.patch("winkickoff.ui.main_window.messagebox.showerror") as error:
+        with mock.patch("tkinter.messagebox.showerror") as error:
             self.assertFalse(self.win.open_recent(str(Path("profiles") / "Недавний.json")))
         error.assert_called_once()
         self.assertNotIn(str(Path("profiles") / "Недавний.json"), self.win.settings.recent)
@@ -267,8 +269,8 @@ class MainWindowSmokeTest(unittest.TestCase):
     def test_build_is_blocked_by_errors(self) -> None:
         self.win.profile.install["product_key_mode"] = "custom"
         self.win.profile.install["product_key"] = "123"
-        with mock.patch("winkickoff.ui.main_window.messagebox.showerror") as error, \
-             mock.patch("winkickoff.ui.main_window.filedialog.asksaveasfilename") as dialog:
+        with mock.patch("tkinter.messagebox.showerror") as error, \
+             mock.patch("tkinter.filedialog.asksaveasfilename") as dialog:
             self.win.build()
             self.win.update()
         error.assert_called_once()
@@ -306,8 +308,8 @@ class MainWindowSmokeTest(unittest.TestCase):
         for index in (2, 3):  # apply and return are never greyed out
             self.assertEqual(str(self.win.tree_menu.entrycget(index, "state")), "normal")
         self.win.select_node("r:remote.registry-off")
-        with mock.patch("winkickoff.ui.main_window.apply_module.launch_elevated") as launch, \
-             mock.patch("winkickoff.ui.main_window.messagebox.askyesno", return_value=False) as ask:
+        with mock.patch("winkickoff.core.apply.launch_elevated") as launch, \
+             mock.patch("tkinter.messagebox.askyesno", return_value=False) as ask:
             self.assertFalse(self.win.apply_now())
             self.assertFalse(self.win.revert_now())
         launch.assert_not_called()
@@ -319,7 +321,7 @@ class MainWindowSmokeTest(unittest.TestCase):
         report = {"computer": "TEST", "admin": False, "results": [
             {"rule": "defender.pua", "check": "HKLM:\\X\\PUAProtection", "status": "differs", "current": "0", "expected": "1"}]}
         self.win.select_node("r:defender.pua")
-        with mock.patch("winkickoff.ui.main_window.run_audit", return_value=json.dumps(report)) as run:
+        with patch_window("run_audit", return_value=json.dumps(report)) as run:
             self.win.audit_selected()
             deadline = time.monotonic() + 30
             while self.win._busy and time.monotonic() < deadline:
@@ -334,7 +336,7 @@ class MainWindowSmokeTest(unittest.TestCase):
     def test_save_apply_scripts(self) -> None:
         self.win.select_node("g:" + self.catalog.rules["defender.pua"].group)
         with tempfile.TemporaryDirectory() as tmp, \
-             mock.patch("winkickoff.ui.main_window.filedialog.askdirectory", return_value=tmp):
+             mock.patch("tkinter.filedialog.askdirectory", return_value=tmp):
             folder = self.win.save_apply_scripts()
             self.assertIsNotNone(folder)
             names = sorted(p.name for p in folder.iterdir())
@@ -344,16 +346,16 @@ class MainWindowSmokeTest(unittest.TestCase):
 
     def test_apply_now_after_permission_and_confirmation(self) -> None:
         self.win.select_node("r:remote.registry-off")
-        with mock.patch("winkickoff.ui.main_window.messagebox.askyesno", return_value=True):
+        with mock.patch("tkinter.messagebox.askyesno", return_value=True):
             self.win.allow_apply_var.set(True)
             self.win.toggle_allow_apply()
         try:
-            with mock.patch("winkickoff.ui.main_window.apply_module.launch_elevated") as launch, \
-                 mock.patch("winkickoff.ui.main_window.messagebox.askyesno", return_value=False):
+            with mock.patch("winkickoff.core.apply.launch_elevated") as launch, \
+                 mock.patch("tkinter.messagebox.askyesno", return_value=False):
                 self.assertFalse(self.win.apply_now())  # the user said no
             launch.assert_not_called()
-            with mock.patch("winkickoff.ui.main_window.apply_module.launch_elevated") as launch, \
-                 mock.patch("winkickoff.ui.main_window.messagebox.askyesno", return_value=True):
+            with mock.patch("winkickoff.core.apply.launch_elevated") as launch, \
+                 mock.patch("tkinter.messagebox.askyesno", return_value=True):
                 self.assertTrue(self.win.apply_now())
             launch.assert_called_once()
             script = launch.call_args.args[0]
@@ -369,8 +371,8 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.win.select_node("r:apps.remove.solitaire")
         self.win.settings.allow_apply = True
         try:
-            with mock.patch("winkickoff.ui.main_window.apply_module.launch_elevated") as launch, \
-                 mock.patch("winkickoff.ui.main_window.messagebox.showinfo") as info:
+            with mock.patch("winkickoff.core.apply.launch_elevated") as launch, \
+                 mock.patch("tkinter.messagebox.showinfo") as info:
                 self.assertFalse(self.win.apply_now())
             launch.assert_not_called()
             info.assert_called_once()  # not silent any more
@@ -384,8 +386,8 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.win.select_node("r:network.netbios-off")
         self.win.settings.allow_apply = True
         try:
-            with mock.patch("winkickoff.ui.main_window.apply_module.launch_elevated") as launch, \
-                 mock.patch("winkickoff.ui.main_window.messagebox.askyesno", return_value=True):
+            with mock.patch("winkickoff.core.apply.launch_elevated") as launch, \
+                 mock.patch("tkinter.messagebox.askyesno", return_value=True):
                 self.assertTrue(self.win.apply_now())
             text = launch.call_args.args[0].read_text(encoding="utf-8-sig")
             self.assertIn("# [network.netbios-off] Windows defaults", text)
@@ -394,8 +396,8 @@ class MainWindowSmokeTest(unittest.TestCase):
 
     def test_revert_now_returns_windows_defaults(self) -> None:
         self.win.select_node("r:uac.admin-always-notify")
-        with mock.patch("winkickoff.ui.main_window.apply_module.launch_elevated") as launch, \
-             mock.patch("winkickoff.ui.main_window.messagebox.askyesno", return_value=True):
+        with mock.patch("winkickoff.core.apply.launch_elevated") as launch, \
+             mock.patch("tkinter.messagebox.askyesno", return_value=True):
             try:
                 self.assertTrue(self.win.revert_now())  # permission and confirmation both answered yes
             finally:

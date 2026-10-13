@@ -1,4 +1,4 @@
-"""core/admx.py: policy templates (ADMX, ADML) become rules of a subtree; import, store, build, apply, window.
+"""core/admx/: policy templates (ADMX, ADML) become rules of a subtree; import, store, build, apply, window.
 
 The templates of the tests are written into a temporary folder; the real PolicyDefinitions folder of this
 Windows is only read.
@@ -789,11 +789,11 @@ class WindowTest(AdmxTestCase):
         self.assertEqual(win._apply_items(), ["r:" + TOGGLE])  # This PC works on the rule, wherever it is shown
 
     def test_import_of_the_same_folder_asks_first(self) -> None:
-        from winkickoff.ui import main_window as mw
+        from tkinter import filedialog, messagebox
 
         win, info, paths = self.window()
-        with (mock.patch.object(mw.filedialog, "askdirectory", return_value=str(self.templates)),
-              mock.patch.object(mw.messagebox, "askyesnocancel", return_value=None) as ask):
+        with (mock.patch.object(filedialog, "askdirectory", return_value=str(self.templates)),
+              mock.patch.object(messagebox, "askyesnocancel", return_value=None) as ask):
             win.import_templates(False)
         ask.assert_called_once()
         self.assertIn("already imported", ask.call_args[0][1])
@@ -806,14 +806,14 @@ class WindowTest(AdmxTestCase):
         self.assertIn("updated", win.restart_state["status"])
 
     def test_rename_from_the_tree(self) -> None:
-        from winkickoff.ui import main_window as mw
+        from tkinter import simpledialog
 
         win, info, paths = self.window()
         win.select_node("g:admx." + info.id)
         texts = [str(b.cget("text")) for b in win.params_frame.winfo_children()]
         self.assertIn("Rename...", texts)
         self.assertNotIn("Enable all", texts)
-        with mock.patch.object(mw.simpledialog, "askstring", return_value="Test tree"):
+        with mock.patch.object(simpledialog, "askstring", return_value="Test tree"):
             win.rename_templates(info.id, win.group_title("admx." + info.id))
         self.assertEqual(admx.list_imports(paths.admx)[0].name, "Test tree")
         self.assertEqual(win.restart_state["item"], "g:admx." + info.id)

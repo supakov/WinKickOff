@@ -267,7 +267,7 @@ class AgentsAgreesWithTheServerTest(unittest.TestCase):
                 self.assertTrue(uri in self.uris or any(p.match(uri) for p in patterns), uri)
 
     def test_mode_titles_are_the_window_titles(self) -> None:
-        source = (ROOT / "winkickoff" / "ui" / "main_window.py").read_text(encoding="utf-8")
+        source = (ROOT / "winkickoff" / "ui" / "window_common.py").read_text(encoding="utf-8")
         line = next(line for line in source.splitlines() if line.startswith("MODE_TITLES = "))
         titles = re.findall(r'N_\("([^"]+)"\)', line)
         self.assertEqual(len(titles), 3)

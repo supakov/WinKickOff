@@ -16,6 +16,8 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from unittest import mock
 
+from ui_patch import patch_window
+
 try:
     import tkinter as tk
 
@@ -62,8 +64,8 @@ class PortableSessionTest(unittest.TestCase):
 
             with mock.patch.object(app, "app_paths", return_value=paths), \
                  mock.patch.object(app, "_enable_dpi_awareness"), \
-                 mock.patch("winkickoff.ui.main_window.filedialog.asksaveasfilename") as save_dialog, \
-                 mock.patch("winkickoff.ui.main_window.messagebox") as boxes:
+                 mock.patch("tkinter.filedialog.asksaveasfilename") as save_dialog, \
+                 patch_window("messagebox") as boxes:
                 boxes.askyesno.return_value = False
                 boxes.askyesnocancel.return_value = False
                 win = app.create_app(withdraw=True)

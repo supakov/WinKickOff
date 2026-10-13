@@ -40,9 +40,10 @@ WinKickOff/
       pscheck.py             syntax verification via powershell.exe, if available
       i18n.py                translations: languages found from files, English fallback
       themes.py              colour themes from resources/themes, following the Windows light or dark mode
-      admx.py                policy templates (ADMX, ADML) imported into admx/<id>/ and turned into rules; the check
-                             of stored records (check_templates), strict reading of saved imports, the trust order
-                             of imports (trust_order)
+      admx/                  policy templates (ADMX, ADML) imported into admx/<id>/ and turned into rules, a package:
+                             base (constants, limits, XML helpers, safe characters), templates (ADMX and ADML to
+                             records), check (check_templates, conform), store (admx/<id>/, trust_order), rules
+                             (records to rules, catalog_part, with_imports); __init__ re-exports the public names
       package.py             catalog files: envelope, export and import of imported templates, the catalogs of the
                              program (bundled_catalogs, import_bundled)
       linked.py              imported policies that follow a built-in rule with the same registry values
@@ -52,8 +53,14 @@ WinKickOff/
                              127.0.0.1), service, cli
     mcp_main.py              console entry of WinKickOff-mcp.exe (a stdio server)
     ui/
-      main_window.py         window, menus (the ADMX menu with catalog files), three areas, hotkeys; tree with
-                             check boxes, search, description, action table, parameter editor, dialogs
+      main_window.py         the window: menus (the ADMX menu with catalog files), three areas, hotkeys, tree with
+                             check boxes, search, toggling, close; MainWindow inherits the mixins below
+      window_detail.py       DetailPanel: description, action table, unknown choices, Back and Forward, parameters
+      window_profiles.py     ProfileActions: profiles, draft, comparison and diff profiles, import, check, build
+      window_thispc.py       ThisPcActions: the menu This PC (check, read, apply, return to defaults)
+      window_admx.py         AdmxActions: the ADMX menu (imports, catalog files, export, rename, show, delete)
+      window_mcp.py          McpActions: the MCP menu, the dialog count, the calls of the window workspace
+      window_common.py       constants and helpers shared by the window modules (node ids, titles, rule_of)
       data_forms.py          data node forms: installation, accounts, languages
       checkimages.py         check box images of the tree
       winmenus.py            theme colours around the drop-down menus

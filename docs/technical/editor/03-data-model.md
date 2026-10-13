@@ -489,7 +489,7 @@ third-party one), the import parses the actions from the scripts and matches the
 
 ## 8. Imported policy templates (ADMX, ADML): `admx/<id>/`
 
-`core/admx.py` reads every `*.admx` of a folder (the ADMX menu: `%SystemRoot%\PolicyDefinitions` or a chosen
+`core/admx/` (`templates.py`) reads every `*.admx` of a folder (the ADMX menu: `%SystemRoot%\PolicyDefinitions` or a chosen
 folder) and the ADML files of the cultures that match the languages of the program (`en-US` always first). The
 result is kept next to the settings, in the writable program folder:
 
@@ -603,7 +603,7 @@ value of its key, so a list policy that clears a key links to the built-in rules
 
 Several imports (T20): a policy is one rule; the other imports that hold it show it too, as an alias
 (`Catalog.aliases`: rule id to more groups, `placements()`), so it has one check mark and one set of parameters
-everywhere. The tree gives an alias its own item id `r:<rule id>@<group id>` (`main_window.rule_of()` reads the rule
+everywhere. The tree gives an alias its own item id `r:<rule id>@<group id>` (`window_common.rule_of()` reads the rule
 id); group counts and group actions include the aliases. A rule of one import never replaces a rule of another
 (`catalog_part`): when the id of a policy is free but its Disabled rule `<id>.off` is already a rule, because an import
 made into rules before it (a more trusted one, or one of the same kind shown higher) has a policy named `Off` in the
@@ -651,7 +651,7 @@ templates from a folder..." and "Import a catalog file..." (1.3.0) of the ADMX m
 The same root lists the choices held by their `source` (section 4): the policy is loaded, but only from a less trusted
 kind of import. Such an item has the status "held: a less trusted source holds the policy now", and its description
 (`UNKNOWN_HELD`) names the kind the choice was made with and the kind that holds the policy now
-(`main_window.KIND_TITLES`: "a catalog of the program", "the templates of this Windows", "templates from a folder", "a
+(`window_common.KIND_TITLES`: "a catalog of the program", "the templates of this Windows", "templates from a folder", "a
 catalog file"; `_held_source` takes an entry without a known `source` as `folder`, as the profile does) and says how
 to use it: show templates of that kind again, or choose the policy again in its branch to use it from the source that
 holds it now. "Show ..." is offered only for hidden imports of the kind of the choice or a more trusted one, since
@@ -829,7 +829,7 @@ Both live in the window only; the MCP server never imports or exports.
   templates", "Delete imported templates", showing or hiding an imported tree and a change of the language or the
   theme do nothing (each of them would rebuild the window and drop the work of the background thread). An error of
   the file or of saving it is shown as "The catalog was not imported: ..." or "The imported templates were not saved:
-  ...", cut to 1500 characters (`ui.main_window.error_text`), since a file can make a message of any length; a
+  ...", cut to 1500 characters (`ui.window_common.error_text`), since a file can make a message of any length; a
   failed export says "The imported templates were not exported: ...". Renaming and deleting imported templates show
   their errors the same way ("The name was not changed: ...", "The imported templates were not deleted: ...").
 

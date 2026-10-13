@@ -1,6 +1,6 @@
 """Make a catalog package of the program (catalogs/<name>.json) from a folder of ADMX templates.
 
-The templates are read exactly as "Import templates from a folder" reads them (core/admx.py: only reading, DTDs
+The templates are read exactly as "Import templates from a folder" reads them (core/admx/: only reading, DTDs
 refused, size limits) with the ADML files of every language of the program, and written as a package
 (core/package.py) in the canonical layout of tools/format_catalog.py. The menu "ADMX", "Import a catalog of the
 program", lists every package of catalogs/; the portable build ships them compressed (tools/pack_catalogs.py).

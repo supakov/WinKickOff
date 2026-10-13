@@ -725,8 +725,8 @@ class PackageWindowTest(AdmxTestCase):
     def test_a_catalog_file_is_imported_in_the_background(self) -> None:
         win, info, paths = self.window()
         target = self.exported(paths)
-        with mock.patch("winkickoff.ui.main_window.filedialog.askopenfilename", return_value=str(target)), \
-                mock.patch("winkickoff.ui.main_window.messagebox.askyesnocancel") as ask:
+        with mock.patch("tkinter.filedialog.askopenfilename", return_value=str(target)), \
+                mock.patch("tkinter.messagebox.askyesnocancel") as ask:
             win.import_catalog_file()
             self.assertTrue(win._busy)
             self.pump(win)
@@ -745,8 +745,8 @@ class PackageWindowTest(AdmxTestCase):
                 win, info, paths = self.window()
                 target = self.exported(paths)
                 first = package_module.import_package(paths.admx, target, now=NOW)
-                with mock.patch("winkickoff.ui.main_window.filedialog.askopenfilename", return_value=str(target)), \
-                        mock.patch("winkickoff.ui.main_window.messagebox.askyesnocancel", return_value=answer) as ask:
+                with mock.patch("tkinter.filedialog.askopenfilename", return_value=str(target)), \
+                        mock.patch("tkinter.messagebox.askyesnocancel", return_value=answer) as ask:
                     win.import_catalog_file()
                     self.pump(win)
                 ask.assert_called_once()
@@ -780,18 +780,18 @@ class PackageWindowTest(AdmxTestCase):
     def test_errors_are_shown_and_the_window_waits_for_the_read(self) -> None:
         win, info, paths = self.window()
         target = self.tmp / "out.json"
-        with mock.patch("winkickoff.ui.main_window.filedialog.asksaveasfilename", return_value=str(target)), \
-                mock.patch("winkickoff.ui.main_window.package_module.export_package", side_effect=OSError("disk full")), \
-                mock.patch("winkickoff.ui.main_window.messagebox.showerror") as error:
+        with mock.patch("tkinter.filedialog.asksaveasfilename", return_value=str(target)), \
+                mock.patch("winkickoff.core.package.export_package", side_effect=OSError("disk full")), \
+                mock.patch("tkinter.messagebox.showerror") as error:
             win.export_templates(info.id, info.name)
         self.assertIn("disk full", error.call_args[0][1])
-        with mock.patch("winkickoff.ui.main_window.messagebox.showerror") as error:
+        with mock.patch("tkinter.messagebox.showerror") as error:
             win.finish_catalog({"error": admx.AdmxError("x" * 100000)}, None, False)
             win.finish_catalog({"package": None}, mock.Mock(side_effect=UnicodeEncodeError("utf-8", "a", 0, 1, "bad")), False)
         self.assertEqual(error.call_count, 2)
         self.assertLess(len(error.call_args_list[0][0][1]), 2000)
         win.set_busy(True, "reading")
-        with mock.patch("winkickoff.ui.main_window.simpledialog.askstring") as rename:
+        with mock.patch("tkinter.simpledialog.askstring") as rename:
             win.import_vars[info.id].set(False)  # the check button of the menu toggles its variable first
             win.show_templates(info.id, False)
             win.change_language("ru")

@@ -16,6 +16,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+from ui_patch import patch_window
+
 from winkickoff.core import apply as apply_module
 from winkickoff.core import i18n
 from winkickoff.core.catalog import load_catalog
@@ -95,7 +97,7 @@ class DraftTest(Base):
         win = self.window()
         win.toggle_item("r:network.netbios-off")
         self.assertTrue(win.dirty)
-        with mock.patch("winkickoff.ui.main_window.messagebox") as boxes:
+        with patch_window("messagebox") as boxes:
             win.on_close()
         boxes.askyesnocancel.assert_not_called()
         loaded, _ = load_draft(self.paths.root, self.catalog)
@@ -110,7 +112,7 @@ class DraftTest(Base):
         self.assertFalse(draft_path(self.paths.root).exists())
         win.toggle_item("r:network.netbios-off")
         win.write_draft()
-        with mock.patch("winkickoff.ui.main_window.messagebox") as boxes:
+        with patch_window("messagebox") as boxes:
             boxes.askyesnocancel.return_value = False  # "No": drop the changes
             self.assertTrue(win.confirm_discard())
         self.assertFalse(draft_path(self.paths.root).exists())
@@ -183,9 +185,9 @@ class ComparisonWindowTest(Base):
         window.update()
         self.assertIn("network.netbios-off", window.comparison_detail.get("1.0", tk.END))
         self.assertEqual(window.changed_rules, ["r:accounts.inactivity-lock", "r:network.netbios-off"])
-        with mock.patch("winkickoff.ui.main_window.plan_apply", wraps=apply_module.plan_apply) as plan, \
+        with patch_window("plan_apply", wraps=apply_module.plan_apply) as plan, \
                 mock.patch.object(win, "_ensure_apply_allowed", return_value=True), \
-                mock.patch("winkickoff.ui.main_window.messagebox") as boxes:
+                patch_window("messagebox") as boxes:
             boxes.askyesno.return_value = False  # the person declines: nothing starts
             self.assertFalse(win.apply_now(window.changed_rules))
         self.assertEqual(plan.call_args[0][2], ["r:accounts.inactivity-lock", "r:network.netbios-off"])
@@ -221,8 +223,8 @@ class ElevatedReadTest(Base):
     def test_the_menu_reads_as_administrator(self) -> None:
         win = self.window()
         with mock.patch.object(apply_module, "run_audit_elevated", return_value=fake_report(self.catalog)) as elevated, \
-                mock.patch("winkickoff.ui.main_window.run_audit") as plain, \
-                mock.patch("winkickoff.ui.main_window.messagebox") as boxes:
+                patch_window("run_audit") as plain, \
+                patch_window("messagebox") as boxes:
             boxes.askokcancel.return_value = True
             win.read_this_pc(elevated=True)
             deadline = time.monotonic() + 30
@@ -240,7 +242,7 @@ class ReadSelectionTest(Base):
     def test_the_selection_is_read_into_the_open_profile_as_unsaved_changes(self) -> None:
         win = self.window()
         win.tree.selection_set("r:accounts.inactivity-lock")
-        with mock.patch("winkickoff.ui.main_window.run_audit", return_value=fake_report(self.catalog)) as audit,                 mock.patch("winkickoff.ui.main_window.messagebox") as boxes:
+        with patch_window("run_audit", return_value=fake_report(self.catalog)) as audit,                 patch_window("messagebox") as boxes:
             boxes.askokcancel.return_value = True
             win.read_selection()
             deadline = time.monotonic() + 30
