@@ -1,6 +1,6 @@
 {
   "format_version": 4,
-  "catalog_version": "0.8",
+  "catalog_version": "0.9",
   "name": "Laptop",
   "author": "",
   "created": "2026-09-25T00:00:00",
@@ -62,6 +62,9 @@
     },
     "install.netfx3": {
       "enabled": true
+    },
+    "install.skip-auto-activation": {
+      "enabled": false
     },
     "oobe.hide-eula": {
       "enabled": true
@@ -204,6 +207,9 @@
     "accounts.password-never-expires": {
       "enabled": true
     },
+    "accounts.autologon": {
+      "enabled": false
+    },
     "remote.assistance-off": {
       "enabled": true
     },
@@ -281,6 +287,9 @@
     },
     "system.long-paths": {
       "enabled": true
+    },
+    "system.support-info": {
+      "enabled": false
     },
     "ai.recall-user-off": {
       "enabled": true

@@ -1,6 +1,6 @@
 {
   "format_version": 4,
-  "catalog_version": "0.8",
+  "catalog_version": "0.9",
   "name": "Home",
   "author": "",
   "created": "2026-09-25T00:00:00",
@@ -61,6 +61,9 @@
       "enabled": true
     },
     "install.netfx3": {
+      "enabled": false
+    },
+    "install.skip-auto-activation": {
       "enabled": false
     },
     "oobe.hide-eula": {
@@ -204,6 +207,9 @@
     "accounts.password-never-expires": {
       "enabled": false
     },
+    "accounts.autologon": {
+      "enabled": false
+    },
     "remote.assistance-off": {
       "enabled": true
     },
@@ -284,6 +290,9 @@
     },
     "system.long-paths": {
       "enabled": true
+    },
+    "system.support-info": {
+      "enabled": false
     },
     "ai.recall-user-off": {
       "enabled": false

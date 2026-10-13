@@ -673,5 +673,12 @@
  "The selection was read from this PC into the open profile: {0} changes, not saved": "Выбранное прочитано с этого ПК в открытый профиль: изменений {0}, не сохранено",
  "This may take a few minutes. The window closes by itself when the work is done.": "Это может занять несколько минут. Окно закроется само, когда работа закончится.",
  "Loading the imported templates...": "Загрузка импортированных шаблонов...",
- "Loading WinKickOff...": "Загрузка WinKickOff..."
+ "Loading WinKickOff...": "Загрузка WinKickOff...",
+ "\"{0}\": the account name is empty": "«{0}»: имя учётной записи пусто",
+ "\"{0}\": Windows Setup asks for the account, so the account made during Setup must be named {1} and have no password": "«{0}»: учётную запись запрашивает установщик Windows, поэтому созданная при установке запись должна называться {1} и не иметь пароля",
+ "\"{0}\": the profile has no account named {1}": "«{0}»: в профиле нет учётной записи с именем {1}",
+ "\"{0}\": the account {1} has a password; the automatic sign-in is only for an account without one": "«{0}»: у учётной записи {1} есть пароль; автоматический вход только для учётной записи без пароля",
+ "\"{0}\" is on, but every text is empty": "«{0}» включено, но все тексты пусты",
+ "\"{0}\": \"{1}\" may hold ASCII characters only: the installation scripts are read without a code page": "«{0}»: «{1}» может содержать только символы ASCII: скрипты установки читаются без кодовой страницы",
+ "The generic key of {0} is a KMS client key: without a KMS host Windows keeps trying to activate and shows errors until the key of the licence is typed. \"{1}\" stops the attempts.": "Универсальный ключ редакции {0} является клиентским ключом KMS: без хоста KMS Windows раз за разом пытается активироваться и показывает ошибки, пока не введён ключ лицензии. «{1}» прекращает попытки."
 }

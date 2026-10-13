@@ -34,6 +34,12 @@ EXT = "{urn:workgroup-unattend}"
 MAX_PATH = 259
 MAX_LIST_ITEM = 4096  # characters of one item of a list parameter
 DEVICE_ENCRYPTION_RULE = "encryption.prevent-auto-bitlocker"
+# stage 4 of the plan of 13.10.2026: the automatic sign-in only for an account of the profile without a password
+# (customer decision 3), the support texts in ASCII, the activation hint for the editions of the KMS client keys
+AUTOLOGON_RULE = "accounts.autologon"
+SUPPORT_RULE = "system.support-info"
+ACTIVATION_RULE = "install.skip-auto-activation"
+DIGITAL_LICENCE_EDITIONS = ("Pro", "Education")  # generic keys; the other editions of EDITION_KEYS are KMS client keys
 
 
 @dataclass(frozen=True)
@@ -255,6 +261,41 @@ def validate_profile(profile: Profile, catalog: Catalog, keyboards: list[dict[st
             "check Get-BitLockerVolume C: and store the key (manage-bde -protectors -get C:) away from "
             "the computer; otherwise the data will be lost if the TPM fails or the motherboard is "
             "replaced."), encryption.doc))
+    autologon = catalog.rules.get(AUTOLOGON_RULE)
+    if autologon is not None and profile.is_enabled(autologon.id):
+        title = catalog_texts().rule(autologon, "title")
+        name = str(profile.param(catalog, autologon.id, "account")).strip()
+        account = next((a for a in profile.accounts if a.name.lower() == name.lower()), None)
+        if not name:
+            issues.append(Issue("error", autologon.id, tr("\"{0}\": the account name is empty", title), autologon.doc))
+        elif profile.asks_for_account():
+            issues.append(Issue("warning", autologon.id, tr(
+                "\"{0}\": Windows Setup asks for the account, so the account made during Setup must be named {1} and have "
+                "no password", title, name), autologon.doc))
+        elif account is None:
+            issues.append(Issue("error", autologon.id, tr("\"{0}\": the profile has no account named {1}", title, name), autologon.doc))
+        elif account.password:
+            issues.append(Issue("error", autologon.id, tr(
+                "\"{0}\": the account {1} has a password; the automatic sign-in is only for an account without one",
+                title, name), autologon.doc))
+    support = catalog.rules.get(SUPPORT_RULE)
+    if support is not None and profile.is_enabled(support.id):
+        title = catalog_texts().rule(support, "title")
+        values = {pname: str(profile.param(catalog, support.id, pname)) for pname in support.params}
+        if not any(value.strip() for value in values.values()):
+            issues.append(Issue("warning", support.id, tr("\"{0}\" is on, but every text is empty", title), support.doc))
+        for pname, value in values.items():
+            if not value.isascii():
+                issues.append(Issue("error", support.id, tr(
+                    "\"{0}\": \"{1}\" may hold ASCII characters only: the installation scripts are read without a code page",
+                    title, catalog_texts().param(support, support.params[pname])), support.doc))
+    activation = catalog.rules.get(ACTIVATION_RULE)
+    if (activation is not None and not profile.is_enabled(activation.id) and profile.install.get("product_key_mode") == "generic"
+            and edition in EDITION_KEYS and edition not in DIGITAL_LICENCE_EDITIONS):
+        issues.append(Issue("info", activation.id, tr(
+            "The generic key of {0} is a KMS client key: without a KMS host Windows keeps trying to activate and shows "
+            "errors until the key of the licence is typed. \"{1}\" stops the attempts.",
+            edition, catalog_texts().rule(activation, "title")), activation.doc))
     issues.extend(Issue("error", target, tr(HALF_CHARACTER)) for target in half_characters(profile, catalog))
     if profile.unknown:
         issues.append(Issue("info", "profile", tr("The profile contains rules that are not in the catalog: ") + ", ".join(sorted(profile.unknown))))

@@ -159,6 +159,32 @@
           ]
         }
       ]
+    },
+    {
+      "id": "install.skip-auto-activation",
+      "group": "install",
+      "phase": "specialize",
+      "title": "No automatic activation attempts",
+      "level": "optional",
+      "default": false,
+      "tags": ["activation", "kms", "gvlk", "manual", "licence"],
+      "doc": "docs/technical/reference/01-windows-pe.md#skipautoactivation",
+      "summary": "Windows does not try to activate on its own until a key is typed or activation is started by hand: the value Manual that the unattend setting SkipAutoActivation writes.",
+      "effect": "The twelve editions whose generic key in WinKickOff is a KMS client key stay unactivated without a KMS host, and the automatic attempts fail again and again with activation errors on the desktop; with this rule Windows waits for the key of the licence. Pro and Education activate with a digital licence and do not need the rule.",
+      "versions": "Windows 8 and later. Acceptance in a VM pending: the value must be in place before the first attempt, which comes after OOBE.",
+      "verify": "Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\SoftwareProtectionPlatform\\Activation' -Name Manual",
+      "rollback": "Set Manual to 0 (the Windows default).",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\SoftwareProtectionPlatform\\Activation",
+          "name": "Manual",
+          "kind": "DWord",
+          "value": 1,
+          "why": "no automatic activation",
+          "default": 0
+        }
+      ]
     }
   ]
 }

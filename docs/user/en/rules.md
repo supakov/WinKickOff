@@ -1,6 +1,6 @@
 # Rule list
 
-Every rule of the WinKickOff catalog 0.8 by group, 278 in total. This file is generated from the catalog by `python tools/make_rule_docs.py` and is not edited by hand. In the program every rule also shows its technical details, the check after installation and the rollback.
+Every rule of the WinKickOff catalog 0.9 by group, 281 in total. This file is generated from the catalog by `python tools/make_rule_docs.py` and is not edited by hand. In the program every rule also shows its technical details, the check after installation and the rollback.
 
 Levels: baseline (the core of the protection, disabling is not recommended), recommended, optional, risky (may disturb programs, enable deliberately).
 
@@ -33,6 +33,9 @@ Bypassing compatibility checks, a local account without a network connection, .N
   Searches connected drives for the sources\sxs folder and enables .NET Framework 3.5 (including 2.0 and 3.0) without internet access.
   Effect: Legacy accounting and banking programs and drivers for digital signature keys work right after installation.
   Risk: The media must stay connected during the first restart; otherwise the component is not installed and a WARN entry is written to the log. It can be added later through Settings when internet access is available.
+- **No automatic activation attempts** (`install.skip-auto-activation`). Level: optional. "Office": disabled; "Strict": disabled.
+  Windows does not try to activate on its own until a key is typed or activation is started by hand: the value Manual that the unattend setting SkipAutoActivation writes.
+  Effect: The twelve editions whose generic key in WinKickOff is a KMS client key stay unactivated without a KMS host, and the automatic attempts fail again and again with activation errors on the desktop; with this rule Windows waits for the key of the licence. Pro and Education activate with a digital licence and do not need the rule.
 
 ## Out-of-box experience (OOBE)
 
@@ -226,6 +229,10 @@ UAC, accounts, credential protection, remote access, encryption.
 - **Passwords never expire (initial accounts)** (`accounts.password-never-expires`). Level: recommended. "Office": enabled; "Strict": enabled.
   The maximum password age is removed for all local accounts (the default is 42 days).
   Effect: Windows will never show "Your password has expired" for the initial accounts with blank passwords. The user management project can restore password expiration when it assigns passwords.
+- **Automatic sign-in of an account without a password** (`accounts.autologon`). Level: risky. "Office": disabled; "Strict": disabled.
+  At the next starts Windows signs the named account in by itself, as many times as the count says, then the sign-in screen is back; only for an account without a password, so no password is written anywhere.
+  Effect: The first sign-in after installation needs nobody at the keyboard, so the per-user script and the post-OOBE task run right away; a large count keeps a kiosk signed in. Whoever starts the PC gets the desktop of that account.
+  Risk: While the automatic sign-in lasts, the sign-in screen protects nothing: use it only where the PC is physically protected or the account has no rights that matter.
 - **No "Allow my organization to manage my device" prompt** (`accounts.block-aad-join`). Level: baseline. "Office": enabled; "Strict": enabled.
   When a user signs in to Office or Teams with a work account, Windows does not offer to join the device to Entra ID.
   Effect: A non-professional user cannot put the PC under someone else's cloud management with a single click.
@@ -735,6 +742,9 @@ Other system settings.
 - **Long path support (more than 260 characters)** (`system.long-paths`). Level: optional. "Office": enabled; "Strict": enabled.
   Programs with the longPathAware manifest (PowerShell 7, Git, modern archivers) work with paths longer than 260 characters.
   Effect: File Explorer and older programs keep the limit; harmless.
+- **Support contacts of the organisation in Settings** (`system.support-info`). Level: optional. "Office": disabled; "Strict": disabled.
+  Settings, System, About shows the support phone, hours and site of the organisation and a manufacturer and model text (the OEMInformation key).
+  Effect: A person who needs help sees whom to call without searching; the texts replace what the vendor of the PC wrote there, if anything. ASCII only: the installation scripts are read without a code page.
 
 ### Drivers and devices
 

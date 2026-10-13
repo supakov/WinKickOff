@@ -322,6 +322,75 @@
       ]
     },
     {
+      "id": "system.support-info",
+      "group": "system",
+      "phase": "specialize",
+      "title": "Support contacts of the organisation in Settings",
+      "level": "optional",
+      "default": false,
+      "tags": ["oeminformation", "support", "phone", "about", "manufacturer", "model"],
+      "doc": "docs/technical/reference/13-services-apps.md#supportinformation",
+      "summary": "Settings, System, About shows the support phone, hours and site of the organisation and a manufacturer and model text (the OEMInformation key).",
+      "effect": "A person who needs help sees whom to call without searching; the texts replace what the vendor of the PC wrote there, if anything. ASCII only: the installation scripts are read without a code page.",
+      "versions": "Windows 7 and later; the Logo value (a bitmap) is not written.",
+      "verify": "Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OEMInformation",
+      "rollback": "Delete the values; the texts of the vendor, if there were any, are not restored.",
+      "params": {
+        "manufacturer": {
+          "type": "string",
+          "title": "Manufacturer (the organisation)",
+          "default": "",
+          "required": false
+        },
+        "model": {"type": "string", "title": "Model (any text)", "default": "", "required": false},
+        "support_phone": {"type": "string", "title": "Support phone", "default": "", "required": false},
+        "support_hours": {"type": "string", "title": "Support hours", "default": "", "required": false},
+        "support_url": {"type": "string", "title": "Support site (URL)", "default": "", "required": false}
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OEMInformation",
+          "name": "Manufacturer",
+          "kind": "String",
+          "value": "{manufacturer}",
+          "default": "unknown"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OEMInformation",
+          "name": "Model",
+          "kind": "String",
+          "value": "{model}",
+          "default": "unknown"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OEMInformation",
+          "name": "SupportPhone",
+          "kind": "String",
+          "value": "{support_phone}",
+          "default": "unknown"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OEMInformation",
+          "name": "SupportHours",
+          "kind": "String",
+          "value": "{support_hours}",
+          "default": "unknown"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OEMInformation",
+          "name": "SupportURL",
+          "kind": "String",
+          "value": "{support_url}",
+          "default": "unknown"
+        }
+      ]
+    },
+    {
       "id": "ai.recall-user-off",
       "group": "privacy.ai",
       "phase": "default-user",

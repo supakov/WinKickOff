@@ -79,7 +79,7 @@ only through the MCP server, without a cloud model and without any file of the p
 │       ├── B-autounattend-v0.2/   our hand-written answer file v0.2 (the reference) and its README: history, VM checklist
 │       ├── C-critical-review/     the critic's report on v0.2 (docx)
 │       └── D-requirements-draft/  first requirements draft; section 6 holds open questions to the customer
-└── WinKickOff/                    EDITOR 1.4.0-rc.8 AND RULE CATALOG 0.8
+└── WinKickOff/                    EDITOR 1.4.0-rc.8 AND RULE CATALOG 0.9
     ├── README.md                  developer README: run, test, structure; links to user docs
     ├── pyproject.toml             requires-python >= 3.14, no runtime dependencies
     ├── winkickoff/                package: __main__.py (dispatcher: window or headless MCP), app.py (window start,
@@ -101,12 +101,12 @@ only through the MCP server, without a cloud model and without any file of the p
     │                              winmenus: theme colours around drop-down menus; mcp_workspace: the window as the MCP
     │                              workspace; mcp_window: the MCP monitor; clipboard: the token kept out of the
     │                              clipboard history)
-    ├── rules/                     RULE CATALOG in English, strict JSON: groups.json (40 groups), 00-17-*.json (278 rules),
+    ├── rules/                     RULE CATALOG in English, strict JSON: groups.json (40 groups), 00-17-*.json (281 rules),
     │                              lang/ru.json and lang/uk.json (translations; a new file adds a language)
     ├── catalogs/                  catalogs of the program (catalog files of imported ADMX templates, <name>.json;
     │                              README.md); none committed until the license check; the build ships them as xz
     ├── templates/                 runtime with slots: autounattend.template.xml, Setup-System, Setup-User, Post-OOBE,
-    │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.8
+    │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.9
     ├── resources/                 keyboards.json, timezones.json, strings.ru.json and strings.uk.json (interface
     │                              translations), themes/ (light, dark, latte, matrix colour themes)
     ├── profiles/                  presets Office (= catalog defaults), Strict, Laptop, Home, README
@@ -474,6 +474,17 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   `MainWindow._show_busy_window` (`set_busy(notify=True)`) and every start or rebuild of the window shows
   `app.show_splash`, closed by `create_app`. `_close_busy_window` stops the progress bar before the window goes, and
   `MainWindow.destroy` calls it: a running bar keeps a Tcl timer that printed "application has been destroyed".
+- Catalog 0.9 (branch `unattend-tree`, stage 4 of `docs/reports/2026-10-13-plan-unattend.md`, 13.10.2026): three
+  registry rules, all off by default, chosen over the unattend settings that write the same values (customer
+  decision 5: a native XML setting only where the registry does not work during installation):
+  `install.skip-auto-activation` (`SoftwareProtectionPlatform\Activation\Manual` 1, default 0; the check adds an
+  info when the edition's generic key is a KMS client key, `validate.DIGITAL_LICENCE_EDITIONS` are the two that are
+  not), `accounts.autologon` (Winlogon `AutoAdminLogon` "1", `DefaultUserName`, `AutoLogonCount`; no password
+  value: the check refuses an account the profile does not list or one with a password, customer decision 3, and
+  warns in the account mode `ask`), `system.support-info` (`OEMInformation`, five optional string parameters:
+  `"required": false` lets a string parameter be empty; the check refuses non-ASCII texts, since the embedded
+  scripts are read without a code page, and warns when every text is empty). Reference sections
+  `SkipAutoActivation` (card 01), `AutoLogon` (08), `SupportInformation` (13). Acceptance in a VM pending.
 - The right panel since 13.10.2026 (branch `unattend-tree`, customer request): the parameter editor, the buttons of a
   group and the import buttons of an unknown choice sit above the description (`ui/window_detail.py`: `_show_params`
   packs `params_host` before `text_frame`, `_clear_params` hides it), inside a canvas that `_fit_params` keeps at
@@ -726,8 +737,8 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 | GitHub repository | Renamed to WinKickOff; the local clone and `origin/main` match; CI in GitHub Actions | 26.09.2026 | https://github.com/supakov/WinKickOff |
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
 | Editor tasks | T01-T12, T14, T16-T26 done (the build runs in GitHub Actions; T23: the catalogs of the program wait for the license check); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 04.10.2026 | `docs/technical/editor/todo/` |
-| Rule catalog | 0.6: 278 rules, 40 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer and the desktop 41; keys that switch the input language), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.6 adds the File Explorer namespaces and desktop icons (generated), the switch keys of the sign-in screen and new accounts, registry functions of the per-user and post-OOBE scripts; since 1.3.0 (T23) strict JSON in a canonical layout instead of TOML, the same content | 04.10.2026 | `WinKickOff/rules/` |
-| Editor code | 1.4.0-rc.2 (T26: drafts, diff profiles, the comparison as a tree, applying the changes only, the elevated read; T25: the settings of this PC read into a profile, in the window and through MCP behind the option read_pc; T24: the computer name, a name or a template, and account texts outside ASCII; T23: the catalog in JSON, export and import of catalog files, catalogs of the program, saved imports checked and conformed on load, trust order of imports and the provenance of imported choices; the tree root of unknown rules and policies, the account asked during installation, File Explorer namespaces and desktop icons, the switch keys of the input language, a security fix of placeholders; Home preset; customer specifics removed; skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 845 tests; 13.10.2026: `main_window.py` split into mixins and `admx.py` into a package; branch `unattend-tree`: the parameter editor above the description, long texts of imported templates cut with tips | 13.10.2026 | `WinKickOff/` |
+| Rule catalog | 0.9: 281 rules, 40 groups (0.9 adds the automatic activation off, the automatic sign-in without a password and the support contacts, branch `unattend-tree`); 0.6: 278 rules (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer and the desktop 41; keys that switch the input language), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.6 adds the File Explorer namespaces and desktop icons (generated), the switch keys of the sign-in screen and new accounts, registry functions of the per-user and post-OOBE scripts; since 1.3.0 (T23) strict JSON in a canonical layout instead of TOML, the same content | 04.10.2026 | `WinKickOff/rules/` |
+| Editor code | 1.4.0-rc.2 (T26: drafts, diff profiles, the comparison as a tree, applying the changes only, the elevated read; T25: the settings of this PC read into a profile, in the window and through MCP behind the option read_pc; T24: the computer name, a name or a template, and account texts outside ASCII; T23: the catalog in JSON, export and import of catalog files, catalogs of the program, saved imports checked and conformed on load, trust order of imports and the provenance of imported choices; the tree root of unknown rules and policies, the account asked during installation, File Explorer namespaces and desktop icons, the switch keys of the input language, a security fix of placeholders; Home preset; customer specifics removed; skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 848 tests; 13.10.2026: `main_window.py` split into mixins and `admx.py` into a package; branch `unattend-tree`: the parameter editor above the description, long texts of imported templates cut with tips | 13.10.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply (rules on are applied, rules off return to Windows defaults) and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 29.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |

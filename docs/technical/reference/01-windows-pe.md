@@ -112,3 +112,21 @@ run in WinPE before copying starts.
 | `ImageInstall` | The edition is selected by the key; the image does not need to be specified | None |
 | `Microsoft-Windows-International-Core-WinPE` | The Setup language depends on the ISO | The first Setup screen for choosing the language and keyboard layout remains (a constructor parameter) |
 | `UseConfigurationSet` | There is no `$OEM$` folder | None |
+
+## SkipAutoActivation
+
+- Rule: `install.skip-auto-activation` (off by default; branch `unattend-tree`, stage 4 of the plan of 13.10.2026).
+- Value: `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform\Activation\Manual = 1`
+  (DWord; the Windows default is 0), written by Setup-System.ps1 in specialize. The unattend setting
+  `Microsoft-Windows-Security-SPP\SkipAutoActivation` writes the same value; the registry is used because it also works
+  on a running Windows ("This PC") and can be reverted (customer decision 5 of 13.10.2026: a native setting only where
+  the registry does not work during installation).
+- What it does: Windows does not try to activate on its own; activation starts when a key is typed or `slmgr /ato` runs.
+- Why: twelve of the fourteen editions of the generic key table (section "ProductKey / Key") are KMS client keys;
+  without a KMS host such a Windows keeps trying to activate and shows errors. Pro and Education use generic keys that
+  activate with a digital licence and do not need the rule.
+- Expected effect: no activation errors until the key of the licence is typed.
+- Verification: `Get-ItemProperty '...\SoftwareProtectionPlatform\Activation' -Name Manual`.
+- Rollback: `Manual = 0`.
+- Pending: acceptance in a VM (the value must be in place before the first attempt, which comes after OOBE); whether
+  the digital licence of Pro still activates with the value set (then the rule could be on by default).
