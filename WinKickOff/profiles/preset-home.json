@@ -73,6 +73,9 @@
     "install.netfx3": {
       "enabled": false
     },
+    "install.drivers-from-media": {
+      "enabled": false
+    },
     "install.skip-auto-activation": {
       "enabled": false
     },

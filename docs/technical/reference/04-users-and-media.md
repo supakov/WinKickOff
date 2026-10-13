@@ -64,3 +64,23 @@ The `$Config` section in `Setup-System.ps1`, groups "Users" and "Installation me
 - Verification: `Get-WindowsOptionalFeature -Online -FeatureName NetFx3` → State Enabled;
   the log contains the line `dism.exe ... -> exit 0`.
 - Rollback: `Disable-WindowsOptionalFeature -Online -FeatureName NetFx3`.
+
+## DriversFromMedia
+
+- Rule: `install.drivers-from-media` (off by default; branch `unattend-tree`, stage 7 of the plan of 13.10.2026,
+  customer decision 4: the folder is `\Drivers` next to `autounattend.xml`).
+- What it does: `Setup-System.ps1` (specialize) searches every ready drive for a `Drivers` folder that holds an `.inf`
+  file, the same walk as `EnableNetFx3` uses for `sources\sxs`, and runs
+  `pnputil.exe /add-driver <drive>:\Drivers\*.inf /subdirs /install`: every driver package of the folder and its
+  subfolders goes into the driver store and is installed for the present devices. Without such a folder the script
+  logs a WARN line and goes on.
+- Expected effect: network, chipset and storage drivers of a new PC work right after installation without internet
+  access, and Windows Update has nothing to fetch for them.
+- Limits: a driver that windowsPE needs to see the disk at all (RAID, VMD) cannot come this way: it must be in the
+  image (`DISM /Add-Driver`) or in `$WinPEDriver$`. `pnputil` returns 3010 when a restart is needed; `Invoke-Exe` logs
+  it as WARN, and the restart after specialize completes the installation.
+- Risk: every `.inf` of the folder is installed as trusted. Keep the folder to the signed packages of the vendor for
+  the model.
+- Verification: `pnputil /enum-drivers`; `C:\ProgramData\Unattend\Logs\Setup-System.log`.
+- Rollback: `pnputil /delete-driver oemNN.inf /uninstall` per driver.
+- Pending: acceptance in a VM (a USB stick with a `Drivers` folder of a virtual network adapter).

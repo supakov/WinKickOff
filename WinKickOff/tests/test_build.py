@@ -80,6 +80,24 @@ class BuildTestBase(unittest.TestCase):
 
 
 class BuildBasicsTest(BuildTestBase):
+    def test_drivers_from_the_media_parse_and_call_pnputil(self) -> None:
+        # stage 7 of the plan of 13.10.2026: the same walk over the drives as .NET 3.5 uses, then pnputil
+        import tempfile
+
+        from winkickoff.core.pscheck import check_scripts, powershell_path
+
+        profile = self.office.copy()
+        profile.rules["install.drivers-from-media"].enabled = True
+        scripts = self.renderer.build(profile, app_version="test").scripts
+        script = scripts["Setup-System.ps1"]
+        self.assertIn("pnputil.exe", script)
+        self.assertIn("'/add-driver', (Join-Path $src '*.inf'), '/subdirs', '/install'", script)
+        self.assertNotIn("pnputil", self.result.scripts["Setup-System.ps1"])  # off by default
+        if powershell_path():  # the syntax check needs powershell.exe
+            with tempfile.TemporaryDirectory() as tmp:
+                result = check_scripts(scripts, Path(tmp))
+            self.assertTrue(result.ok, result)
+
     def test_workgroup_and_partition_become_unattend_settings(self) -> None:
         # stage 6 of the plan of 13.10.2026: the data of the form "Installation" that only the answer file can set
         profile = self.office.copy()

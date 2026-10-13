@@ -1,6 +1,6 @@
 # Rule list
 
-Every rule of the WinKickOff catalog 0.11 by group, 283 in total. This file is generated from the catalog by `python tools/make_rule_docs.py` and is not edited by hand. In the program every rule also shows its technical details, the check after installation and the rollback.
+Every rule of the WinKickOff catalog 0.11 by group, 284 in total. This file is generated from the catalog by `python tools/make_rule_docs.py` and is not edited by hand. In the program every rule also shows its technical details, the check after installation and the rollback.
 
 Levels: baseline (the core of the protection, disabling is not recommended), recommended, optional, risky (may disturb programs, enable deliberately).
 
@@ -657,6 +657,10 @@ Bypassing compatibility checks, a local account without a network connection, .N
   Searches connected drives for the sources\sxs folder and enables .NET Framework 3.5 (including 2.0 and 3.0) without internet access.
   Effect: Legacy accounting and banking programs and drivers for digital signature keys work right after installation.
   Risk: The media must stay connected during the first restart; otherwise the component is not installed and a WARN entry is written to the log. It can be added later through Settings when internet access is available.
+- **Drivers from the Drivers folder of the installation media** (`install.drivers-from-media`). Level: optional. "Office": disabled; "Strict": disabled.
+  Searches connected drives for a Drivers folder with .inf files and installs every driver in it, subfolders included, with pnputil during the first restart, before the first sign-in.
+  Effect: Network, chipset and storage drivers of new PCs work right after installation without internet access. A driver that windowsPE itself needs to see the disk cannot be added this way: that needs the image (DISM).
+  Risk: Every .inf of the folder is installed as trusted: keep the folder to the signed packages of the vendor for this model. Drivers from third parties are a known way in for malware.
 - **No automatic activation attempts** (`install.skip-auto-activation`). Level: optional. "Office": disabled; "Strict": disabled.
   Windows does not try to activate on its own until a key is typed or activation is started by hand: the value Manual that the unattend setting SkipAutoActivation writes.
   Effect: The twelve editions whose generic key in WinKickOff is a KMS client key stay unactivated without a KMS host, and the automatic attempts fail again and again with activation errors on the desktop; with this rule Windows waits for the key of the licence. Pro and Education activate with a digital licence and do not need the rule.

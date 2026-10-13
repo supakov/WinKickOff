@@ -4,7 +4,7 @@
 
 1. Download the latest Windows 11 image from the Microsoft website.
 2. Write the image to the USB drive (Rufus or Media Creation Tool).
-3. Copy the built `autounattend.xml` to the root of the USB drive.
+3. Copy the built `autounattend.xml` to the root of the USB drive. The drivers of the PC (`.inf` packages of the vendor) can go into a `Drivers` folder next to it when the rule "Drivers from the Drivers folder of the installation media" is on.
 
 With Ventoy, the file is placed next to the image and connected through the Auto Install plugin.
 

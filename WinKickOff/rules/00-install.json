@@ -216,6 +216,39 @@
       ]
     },
     {
+      "id": "install.drivers-from-media",
+      "group": "install.other",
+      "phase": "specialize",
+      "title": "Drivers from the Drivers folder of the installation media",
+      "level": "optional",
+      "default": false,
+      "tags": ["drivers", "pnputil", "inf", "media", "usb", "network adapter", "storage"],
+      "doc": "docs/technical/reference/04-users-and-media.md#driversfrommedia",
+      "summary": "Searches connected drives for a Drivers folder with .inf files and installs every driver in it, subfolders included, with pnputil during the first restart, before the first sign-in.",
+      "effect": "Network, chipset and storage drivers of new PCs work right after installation without internet access. A driver that windowsPE itself needs to see the disk cannot be added this way: that needs the image (DISM).",
+      "risk": "Every .inf of the folder is installed as trusted: keep the folder to the signed packages of the vendor for this model. Drivers from third parties are a known way in for malware.",
+      "versions": "pnputil /add-driver with /subdirs and /install since Windows 10 1607. Acceptance in a VM pending.",
+      "verify": "pnputil /enum-drivers; C:\\ProgramData\\Unattend\\Logs\\Setup-System.log",
+      "rollback": "pnputil /delete-driver oemNN.inf /uninstall for each driver (pnputil /enum-drivers lists them).",
+      "actions": [
+        {
+          "type": "ps",
+          "script": [
+            "$src = $null",
+            "foreach ($d in [System.IO.DriveInfo]::GetDrives()) {",
+            "    try {",
+            "        if (-not $d.IsReady) { continue }",
+            "        $p = Join-Path $d.RootDirectory.FullName 'Drivers'",
+            "        if ((Test-Path $p) -and (Get-ChildItem -Path $p -Filter '*.inf' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1)) { $src = $p; break }",
+            "    } catch { }",
+            "}",
+            "if ($src) { Invoke-Exe 'pnputil.exe' @('/add-driver', (Join-Path $src '*.inf'), '/subdirs', '/install') }",
+            "else { Write-Log 'no Drivers folder with .inf files on any drive, drivers skipped' 'WARN' }"
+          ]
+        }
+      ]
+    },
+    {
       "id": "install.skip-auto-activation",
       "group": "install.other",
       "phase": "specialize",
