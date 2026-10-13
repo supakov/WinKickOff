@@ -144,6 +144,46 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.win.update()
         self.assertFalse(self.win.params_scroll.winfo_ismapped())
 
+    def test_long_titles_are_cut_in_the_tree_and_shown_whole_in_a_tip(self) -> None:
+        # customer request of 13.10.2026: titles of imported templates (up to 200 characters) did not fit the screen
+        from types import SimpleNamespace
+
+        from winkickoff.ui.window_common import TREE_TITLE_LIMIT, shorten
+
+        self.assertEqual(shorten("short", 10), "short")
+        self.assertEqual(shorten("a" * 20, 10), "a" * 7 + "...")
+        long_title = "A policy title of an imported template " * 6
+        item = "r:accounts.inactivity-lock"
+        with mock.patch.object(type(self.win), "rule_title", return_value=long_title):
+            self.win.rebuild_tree()
+        self.assertEqual(self.win.tree.item(item, "text"), " " + shorten(long_title, TREE_TITLE_LIMIT))
+        self.assertEqual(self.win._full_titles[item], long_title)
+        self.win.tree.see(item)
+        self.win.update()
+        box = self.win.tree.bbox(item)
+        if box:
+            self.assertEqual(self.win._tree_tip(SimpleNamespace(y=box[1] + box[3] // 2)), long_title)
+        self.win.rebuild_tree()  # ordinary titles: nothing cut, no tip
+        self.assertNotIn(item, self.win._full_titles)
+        self.assertEqual(self.win._tree_tip(SimpleNamespace(y=-1)), "")
+
+    def test_long_option_titles_are_cut_in_the_list_and_labels_wrap(self) -> None:
+        from winkickoff.ui.window_common import LABEL_WRAP_MIN, OPTION_TITLE_LIMIT
+
+        long_options = [(2, "Enabled without a UEFI lock, reversible " * 4), (1, "Enabled with a UEFI lock, irreversible " * 4)]
+        with mock.patch.object(type(self.win), "param_options", return_value=long_options):
+            self.win.select_node("r:lsa.protection")  # an enum parameter
+            self.win.update()
+            box = next(w for w in self.win.params_frame.winfo_children() if isinstance(w, ttk.Combobox))
+            values = [str(v) for v in self.win.tk.splitlist(box.cget("values"))]
+            self.assertEqual(len(values), 2)
+            self.assertTrue(all(len(v) <= OPTION_TITLE_LIMIT and v.endswith("...") for v in values), values)
+            box.current(1)
+            box.event_generate("<<ComboboxSelected>>")
+            self.assertEqual(self.win.profile.param(self.catalog, "lsa.protection", "mode"), 1)  # chosen by position
+        label = next(w for w in self.win.params_frame.winfo_children() if isinstance(w, ttk.Label))
+        self.assertGreaterEqual(int(label.cget("wraplength")), LABEL_WRAP_MIN)
+
     def test_plus_only_opens_the_branch(self) -> None:
         group = self.first_group()
         counts = self.win._group_counts(group[2:])

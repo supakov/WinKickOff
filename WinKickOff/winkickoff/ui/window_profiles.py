@@ -27,7 +27,16 @@ from winkickoff.mcp.errors import ToolError
 from winkickoff.mcp.workspace import POWERSHELL_NOTE
 from winkickoff.core.validate import Issue, has_errors, validate_catalog, validate_profile, validate_xml
 from winkickoff.ui.data_forms import ACCOUNT_MODE_TITLES
-from winkickoff.ui.window_common import WORKFLOW_NODE, DRAFT_INTERVAL_MS, BUSY_NOTE, _profile_name, error_text
+from winkickoff.ui.window_common import (
+    WORKFLOW_NODE,
+    DRAFT_INTERVAL_MS,
+    BUSY_NOTE,
+    _profile_name,
+    error_text,
+    CELL_LIMIT,
+    TREE_TITLE_LIMIT,
+    shorten,
+)
 
 log = logging.getLogger(__name__)
 
@@ -342,7 +351,7 @@ class ProfileActions:
                                                 open=True)
                 node = f"n{rule_id}"
                 if not table.exists(node):
-                    table.insert(top, tk.END, iid=node, text=self.rule_title(rule_id), open=True)
+                    table.insert(top, tk.END, iid=node, text=shorten(self.rule_title(rule_id), TREE_TITLE_LIMIT), open=True)
                     targets[node] = target
                 if kind == tr("rule"):
                     table.item(node, values=(mine, theirs))
@@ -354,7 +363,8 @@ class ProfileActions:
                 parent, label = parents["gdata"], f"{kind}: {item}"
             iid = f"d{index}"
             targets[iid] = target
-            table.insert(parent, tk.END, iid=iid, text=label, values=(mine, theirs))
+            table.insert(parent, tk.END, iid=iid, text=shorten(label, TREE_TITLE_LIMIT),
+                         values=(shorten(str(mine), CELL_LIMIT), shorten(str(theirs), CELL_LIMIT)))
 
         def describe(_event: tk.Event | None = None) -> None:  # type: ignore[type-arg]
             selection = table.selection()

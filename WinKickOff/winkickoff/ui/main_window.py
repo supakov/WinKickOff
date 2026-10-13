@@ -43,6 +43,7 @@ from winkickoff.ui.window_detail import DetailPanel
 from winkickoff.ui.window_mcp import McpActions
 from winkickoff.ui.window_profiles import ProfileActions
 from winkickoff.ui.window_thispc import ThisPcActions
+from winkickoff.ui.tooltip import Tooltip
 from winkickoff.ui.window_common import (
     WORKFLOW_NODE,
     MODE_TITLES,
@@ -57,6 +58,8 @@ from winkickoff.ui.window_common import (
     rule_of,
     user_docs,
     _profile_name,
+    TREE_TITLE_LIMIT,
+    shorten,
 )
 
 
@@ -461,6 +464,7 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
         self.tree.bind("<<TreeviewSelect>>", self._on_tree_select)
         self.tree.bind("<<TreeviewOpen>>", lambda _e: self._open_groups.add(self.tree.focus()))
         self.tree.bind("<<TreeviewClose>>", lambda _e: self._open_groups.discard(self.tree.focus()))
+        self.tree_tip = Tooltip(self.tree, self._tree_tip)  # the whole title of a row the tree shows cut
 
         self.right = ttk.Frame(horizontal, padding=(3, 2, 8, 0))
         horizontal.add(self.right, weight=3)
@@ -568,6 +572,7 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
         it may also name ids of the profile's unknown choices."""
         self._update_covered()
         self.tree.delete(*self.tree.get_children(""))
+        self._full_titles: dict[str, str] = {}  # item: the whole title of an item whose text was cut (the tree tip)
         if visible is None:
             self.tree.insert("", tk.END, iid=WORKFLOW_NODE, text="  " + tr("Workflow"), tags=("info",))
             for iid, title in DATA_NODES:
@@ -603,7 +608,15 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
             for rule in self.catalog.rules_in_group(group.id, recursive=False):
                 if visible is None or rule.id in visible:
                     iid = "r:" + rule.id if rule.group == group.id else f"r:{rule.id}@{group.id}"
-                    self.tree.insert(item, tk.END, iid=iid, text=" " + self.rule_title(rule.id), image=self._rule_image(rule), tags=self._rule_tags(rule))
+                    title = self.rule_title(rule.id)
+                    shown = shorten(title, TREE_TITLE_LIMIT)
+                    if shown != title:
+                        self._full_titles[iid] = title
+                    self.tree.insert(item, tk.END, iid=iid, text=" " + shown, image=self._rule_image(rule), tags=self._rule_tags(rule))
+
+    def _tree_tip(self, event: tk.Event) -> str:  # type: ignore[type-arg]
+        """The whole title of the row under the pointer when the tree shows it cut."""
+        return self._full_titles.get(self.tree.identify_row(event.y), "")
 
     def _update_covered(self) -> None:
         self._covered = {rid for rid in self._overlapping if linked.covering(self.catalog, self.profile, rid) is not None}
@@ -638,7 +651,11 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
 
     def _group_text(self, group_id: str) -> str:
         on, total = self._group_counts(group_id)
-        return " " + tr("{0}   {1} of {2}", self.group_title(group_id), on, total)
+        title = self.group_title(group_id)
+        shown = shorten(title, TREE_TITLE_LIMIT)
+        if shown != title:
+            self._full_titles["g:" + group_id] = title
+        return " " + tr("{0}   {1} of {2}", shown, on, total)
 
     # ----------------------------------------------------------------- texts in the interface language
 

@@ -29,6 +29,7 @@ from winkickoff.core.render import RenderError, render_action, substitute
 from winkickoff.core.validate import list_problem
 from winkickoff.core.verify import rollback_steps, verify_steps
 from winkickoff.ui.data_forms import AccountsForm, InstallForm, LanguagesForm
+from winkickoff.ui.tooltip import Tooltip
 from winkickoff.ui.window_common import (
     WORKFLOW_NODE,
     HISTORY_LIMIT,
@@ -48,6 +49,10 @@ from winkickoff.ui.window_common import (
     rule_of,
     PARAMS_MIN_HEIGHT,
     PARAMS_SHARE,
+    LABEL_WRAP_MIN,
+    LABEL_WRAP_SHARE,
+    OPTION_TITLE_LIMIT,
+    shorten,
 )
 
 log = logging.getLogger(__name__)
@@ -431,7 +436,13 @@ class DetailPanel:
         self._param_vars = []
         self._param_marks = {}
         self._param_boxes = {}
+        self._param_labels: list[ttk.Label] = []
         self.params_host.pack_forget()
+
+    def _label_wrap(self) -> int:
+        """Pixels a parameter label wraps at: a share of the panel width (titles of imported policies are long)."""
+        width = self.detail_view.winfo_width()
+        return max(LABEL_WRAP_MIN, int(width * LABEL_WRAP_SHARE)) if width > 1 else LABEL_WRAP_MIN
 
     def _show_params(self, title: str) -> None:
         """The parameter editor (params_frame, filled by the caller) above the description."""
@@ -444,6 +455,10 @@ class DetailPanel:
         with many elements), so the description stays in view."""
         if not self.params_host.winfo_manager():
             return
+        wrap = self._label_wrap()
+        for label in self._param_labels:
+            if int(label.cget("wraplength")) != wrap:
+                label.configure(wraplength=wrap)
         needed = self.params_frame.winfo_reqheight()
         panel = self.detail_view.winfo_height()
         limit = max(PARAMS_MIN_HEIGHT, int(panel * PARAMS_SHARE)) if panel > 1 else needed
@@ -492,14 +507,18 @@ class DetailPanel:
             return
         for row, param in enumerate(rule.params.values()):
             sticky = tk.NW if param.type == "list" else tk.W
-            ttk.Label(self.params_frame, text=self.param_title(rule, param)).grid(row=row, column=0, sticky=sticky, padx=(0, 12), pady=2)
+            label = ttk.Label(self.params_frame, text=self.param_title(rule, param), wraplength=self._label_wrap())
+            label.grid(row=row, column=0, sticky=sticky, padx=(0, 12), pady=2)
+            self._param_labels.append(label)
             self._param_widget(rule, param).grid(row=row, column=1, sticky=tk.W, pady=2)
             hint = tr("default: {0}", self._param_display(rule, param, param.default))
             if param.type == "int" and (param.min is not None or param.max is not None):
                 hint += tr(", range {0}..{1}", param.min, param.max)
             if param.type == "list":
                 hint = (tr("one item per line, as name=value") if param.pairs else tr("one item per line")) + "\n" + hint
-            ttk.Label(self.params_frame, text=hint, style="Note.TLabel").grid(row=row, column=2, sticky=sticky, padx=(10, 0))
+            note = ttk.Label(self.params_frame, text=hint, style="Note.TLabel", wraplength=self._label_wrap())
+            note.grid(row=row, column=2, sticky=sticky, padx=(10, 0))
+            self._param_labels.append(note)
             mark = ttk.Label(self.params_frame, style="Changed.TLabel")
             mark.grid(row=row, column=3, sticky=tk.W, padx=(10, 0))
             self._param_marks[param.name] = mark
@@ -552,9 +571,14 @@ class DetailPanel:
             return self._list_widget(rule, param, value)
         if param.type == "enum":
             options = self.param_options(rule, param)
-            var = tk.StringVar(value=self._param_display(rule, param, value))
-            box = ttk.Combobox(self.params_frame, textvariable=var, values=[t for _, t in options], state="readonly", width=46)
-            box.bind("<<ComboboxSelected>>", lambda _e: self._set_param(rule, param, next(v for v, t in options if t == var.get())))
+            titles = [shorten(title, OPTION_TITLE_LIMIT) for _v, title in options]  # the list shows long titles cut
+            chosen = next((i for i, (v, _title) in enumerate(options) if v == value), -1)
+            var = tk.StringVar(value=titles[chosen] if chosen >= 0 else self._param_display(rule, param, value))
+            box = ttk.Combobox(self.params_frame, textvariable=var, values=titles, state="readonly", width=46)
+            box.bind("<<ComboboxSelected>>", lambda _e: self._set_param(rule, param, options[box.current()][0]))
+            if any(title != shown for (_v, title), shown in zip(options, titles)):  # the whole title in a tip
+                Tooltip(box, lambda _e: options[box.current()][1] if 0 <= box.current() < len(options)
+                        and titles[box.current()] != options[box.current()][1] else "")
             widget: tk.Widget = box
         elif param.type == "bool":
             var = tk.BooleanVar(value=bool(value))
