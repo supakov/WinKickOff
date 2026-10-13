@@ -4,11 +4,11 @@ Every rule of the WinKickOff catalog 0.11 by group, 284 in total. This file is g
 
 Levels: baseline (the core of the protection, disabling is not recommended), recommended, optional, risky (may disturb programs, enable deliberately).
 
-## autounattend.xml
+## Installation
 
 What the answer file does by its own means: the installation, OOBE, the accounts and the languages; the data forms are here too
 
-### Installation (windowsPE and specialize)
+### windowsPE and specialize
 
 Bypassing compatibility checks, a local account without a network connection, .NET Framework 3.5 from the media.
 
@@ -65,14 +65,30 @@ Which OOBE screens are hidden and how the privacy settings are set.
 
 Policies of Windows: the built-in rules that write policy values only, and every imported policy template
 
-### Printing
-
-Print Spooler and protection of printer driver installation.
-
 - **Only administrators can install printer drivers** (`printing.point-and-print-admins`). Level: recommended. "Office": enabled; "Strict": enabled.
   Point and Print policy: installing and updating printer drivers requires administrator rights and shows a warning.
   Effect: A standard user cannot install a printer driver; drivers that are already installed and class drivers are available to everyone.
   Risk: An administrator must connect a network printer that needs a new driver. While Admin has a blank password, the credential prompt in a user session will not succeed.
+- **LLMNR disabled (protection against name spoofing on the network)** (`network.llmnr-off`). Level: recommended. "Office": enabled; "Strict": enabled.
+  LLMNR multicast name queries are disabled; Responder-type tools do not get hashes from these PCs.
+  Effect: Workgroup computer names continue to resolve through NetBIOS (left enabled) and mDNS.
+- **Firewall on for all profiles, inbound blocked, dropped packets logged** (`network.firewall`). Level: recommended. "Office": enabled; "Strict": enabled.
+  Policy for the domain, private and public profiles: the firewall is on and cannot be turned off from Control Panel, inbound connections are blocked by default, outbound connections are allowed, dropped packets are written to a 16 MB file.
+  Effect: Allow rules (file and printer sharing, Delivery Optimization, mDNS) keep working; during an investigation you can see who tried to connect to which ports.
+  Risk: The network profile (private/public) is not set by the file; folder sharing requires the private profile.
+- **AutoRun and AutoPlay disabled for all media** (`removable.autorun-off`). Level: recommended. "Office": enabled; "Strict": enabled.
+  AutoRun is disabled for all drive types, autorun.inf files are ignored even on CDs, and AutoPlay is turned off for devices without a drive letter (phones, cameras).
+  Effect: Connecting a USB flash drive, disk or phone launches nothing and asks nothing. Running a file manually is covered by the ASR rule for USB.
+- **PowerShell logging: script blocks and cmdlet invocations** (`logging.powershell`). Level: recommended. "Office": enabled; "Strict": enabled.
+  The text of every executed script block (event 4104, including deobfuscated code) and the cmdlet invocations of all modules (4103) are written to the PowerShell log.
+  Effect: Malicious PowerShell loaders leave their full text in the log even after the file is deleted.
+  Risk: Secrets that an administrator passes on the command line end up in the log; only administrators have access to the log.
+- **Do not download device apps and icons from the internet** (`drivers.metadata-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Windows does not use device metadata to download the vendors' related apps and their icons.
+  Effect: No vendor programs without the user's knowledge. Microsoft retired the device metadata service in 2025; the policy guards against leftovers.
+- **No cloud files and activity in File Explorer "Home"** (`nav.home-cloud-files-off`). Level: optional. "Office": disabled; "Strict": disabled.
+  File Explorer does not request the metadata of cloud files and shows no files based on the account and cloud activity in "Home" (Recent, Recommended, Shared).
+  Effect: Local recent files stay. Value 1 of the policy FileExplorer/DisableGraphRecentItems, which Microsoft calls "Turn off account-based insights, recent, favorite, and recommended files in File Explorer" (the ADMX of Windows names it "Show files based on your account and cloud provider activity").
 
 ### Windows Update
 
@@ -208,41 +224,16 @@ Each rule blocks one attack technique through Office, email, scripts, USB or dri
 
 UAC, accounts, credential protection, remote access, encryption.
 
-#### User Account Control (UAC)
-
 - **UAC for administrators: always notify** (`uac.admin-always-notify`). Level: recommended. "Office": disabled; "Strict": enabled.
   The administrator sees a prompt for every elevation, including system components; this closes known UAC bypasses through trusted Windows programs.
   Effect: More "Yes/No" prompts for Admin, including when opening Task Manager (Ctrl+Shift+Esc), the Registry Editor and other Windows tools that otherwise elevate without a prompt; protection against automatic elevation by malicious code. For a standard user (User) these tools open without a prompt in any case.
   Risk: With a blank password, a UAC prompt is just a "Yes" button: it protects against programs, not against the person at the keyboard.
-
-#### Accounts and sign-in
-
 - **Lock the screen after inactivity** (`accounts.inactivity-lock`). Level: recommended. "Office": enabled; "Strict": enabled.
   After the specified number of seconds without input, the screen locks regardless of screen saver and power settings.
   Effect: The workstation is not left open; with a blank password, unlocking is just pressing Enter, so the rule becomes meaningful once passwords are assigned.
 - **No "Allow my organization to manage my device" prompt** (`accounts.block-aad-join`). Level: baseline. "Office": enabled; "Strict": enabled.
   When a user signs in to Office or Teams with a work account, Windows does not offer to join the device to Entra ID.
   Effect: A non-professional user cannot put the PC under someone else's cloud management with a single click.
-
-### Network and sharing
-
-SMB, signing, name resolution, firewall.
-
-- **LLMNR disabled (protection against name spoofing on the network)** (`network.llmnr-off`). Level: recommended. "Office": enabled; "Strict": enabled.
-  LLMNR multicast name queries are disabled; Responder-type tools do not get hashes from these PCs.
-  Effect: Workgroup computer names continue to resolve through NetBIOS (left enabled) and mDNS.
-- **Firewall on for all profiles, inbound blocked, dropped packets logged** (`network.firewall`). Level: recommended. "Office": enabled; "Strict": enabled.
-  Policy for the domain, private and public profiles: the firewall is on and cannot be turned off from Control Panel, inbound connections are blocked by default, outbound connections are allowed, dropped packets are written to a 16 MB file.
-  Effect: Allow rules (file and printer sharing, Delivery Optimization, mDNS) keep working; during an investigation you can see who tried to connect to which ports.
-  Risk: The network profile (private/public) is not set by the file; folder sharing requires the private profile.
-
-### Removable media and scripts
-
-AutoRun, script files, VBScript.
-
-- **AutoRun and AutoPlay disabled for all media** (`removable.autorun-off`). Level: recommended. "Office": enabled; "Strict": enabled.
-  AutoRun is disabled for all drive types, autorun.inf files are ignored even on CDs, and AutoPlay is turned off for devices without a drive letter (phones, cameras).
-  Effect: Connecting a USB flash drive, disk or phone launches nothing and asks nothing. Running a file manually is covered by the ASR rule for USB.
 
 ### Browsers
 
@@ -472,18 +463,26 @@ Microsoft Edge, Google Chrome and Brave policies: security, telemetry, advertisi
   Private windows connected to the Tor network are unavailable in Brave.
   Effect: Browser traffic does not go to the Tor network, bypassing the organization's filtering and logs.
 
-### Logging for investigations
-
-Auditing, log sizes, PowerShell logging, disabling PowerShell 2.0.
-
-- **PowerShell logging: script blocks and cmdlet invocations** (`logging.powershell`). Level: recommended. "Office": enabled; "Strict": enabled.
-  The text of every executed script block (event 4104, including deobfuscated code) and the cmdlet invocations of all modules (4103) are written to the PowerShell log.
-  Effect: Malicious PowerShell loaders leave their full text in the log even after the file is deleted.
-  Risk: Secrets that an administrator passes on the command line end up in the log; only administrators have access to the log.
-
 ### Telemetry, ads, AI
 
 Minimal data sending, disabling ads and preinstalled apps, Copilot and Recall, widgets, web search.
+
+- **Widgets and news feed turned off** (`privacy.widgets-off`). Level: recommended. "Office": enabled; "Strict": enabled.
+  The Windows 11 widgets board and the Windows 10 "News and interests" feed are disabled by policy.
+  Effect: No widgets button and no constantly open MSN web page with ads; the Widgets.exe process does not start.
+- **No Bing web results in Start menu search** (`privacy.web-search-off`). Level: recommended. "Office": enabled; "Strict": enabled.
+  Start menu search finds only apps, files and settings; nothing is sent to Bing while typing.
+  Effect: Indexing and search in File Explorer and Outlook are not affected (the WSearch service is left untouched).
+- **No tailored tips or third-party app suggestions** (`ads.suggestions-user-policies`). Level: optional. "Office": enabled; "Strict": enabled.
+  User policies: diagnostic data is not used for tailored tips, third-party apps are not suggested.
+  Effect: Fewer app ads in the Start menu, in tips and on the lock screen.
+- **Windows Search without the cloud, search highlights and location** (`search.cloud-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Windows Search does not search OneDrive and other clouds, does not show "search highlights" and does not use location.
+  Effect: Queries stay on the computer, and the search box shows no promotional pictures of the day.
+- **No cloud speech recognition or handwriting improvement** (`speech.online-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Users cannot turn on cloud speech recognition services, and handwriting and typing data is not sent to improve recognition.
+  Effect: Voice and typed text do not go to Microsoft.
+  Risk: Cloud voice typing and dictation do not work.
 
 #### Artificial intelligence
 
@@ -540,37 +539,6 @@ Windows diagnostic data, reports, feedback requests, Steps Recorder.
   Store apps do not get information about how other apps run; the user cannot change this.
   Effect: Replaces the internal ConsentStore appDiagnostics value from the list with a documented policy.
 
-#### Ads and recommendations
-
-Advertising ID, tips and suggestions, lock screen, widgets.
-
-- **Widgets and news feed turned off** (`privacy.widgets-off`). Level: recommended. "Office": enabled; "Strict": enabled.
-  The Windows 11 widgets board and the Windows 10 "News and interests" feed are disabled by policy.
-  Effect: No widgets button and no constantly open MSN web page with ads; the Widgets.exe process does not start.
-- **No tailored tips or third-party app suggestions** (`ads.suggestions-user-policies`). Level: optional. "Office": enabled; "Strict": enabled.
-  User policies: diagnostic data is not used for tailored tips, third-party apps are not suggested.
-  Effect: Fewer app ads in the Start menu, in tips and on the lock screen.
-
-#### Search and the Start menu
-
-Web results, cloud search, search highlights, tracking of app launches.
-
-- **No Bing web results in Start menu search** (`privacy.web-search-off`). Level: recommended. "Office": enabled; "Strict": enabled.
-  Start menu search finds only apps, files and settings; nothing is sent to Bing while typing.
-  Effect: Indexing and search in File Explorer and Outlook are not affected (the WSearch service is left untouched).
-- **Windows Search without the cloud, search highlights and location** (`search.cloud-off`). Level: optional. "Office": enabled; "Strict": enabled.
-  Windows Search does not search OneDrive and other clouds, does not show "search highlights" and does not use location.
-  Effect: Queries stay on the computer, and the search box shows no promotional pictures of the day.
-
-#### Speech and input
-
-Cloud speech recognition, handwriting and typing personalization, Narrator online services.
-
-- **No cloud speech recognition or handwriting improvement** (`speech.online-off`). Level: optional. "Office": enabled; "Strict": enabled.
-  Users cannot turn on cloud speech recognition services, and handwriting and typing data is not sent to improve recognition.
-  Effect: Voice and typed text do not go to Microsoft.
-  Risk: Cloud voice typing and dictation do not work.
-
 #### Microsoft Office
 
 Copilot and connected experiences in Office, diagnostic data and feedback; the settings are written to the default user profile.
@@ -593,30 +561,6 @@ Copilot and connected experiences in Office, diagnostic data and feedback; the s
 - **Office: no feedback or surveys** (`office.feedback-off`). Level: optional. "Office": enabled; "Strict": enabled.
   The send feedback button and surveys in Office apps are turned off.
   Effect: Screenshots, logs and content fragments (including Copilot prompts) do not go to Microsoft together with feedback.
-
-### System
-
-Other system settings.
-
-#### Drivers and devices
-
-Companion programs of driver installers and device apps from the internet; drivers from Windows Update arrive as usual.
-
-- **Do not download device apps and icons from the internet** (`drivers.metadata-off`). Level: optional. "Office": enabled; "Strict": enabled.
-  Windows does not use device metadata to download the vendors' related apps and their icons.
-  Effect: No vendor programs without the user's knowledge. Microsoft retired the device metadata service in 2025; the policy guards against leftovers.
-
-#### File Explorer and the desktop
-
-Folders in "This PC", items of the navigation pane and icons on the desktop. Off by default, so Windows keeps its own choice, except that "Gallery" is hidden.
-
-##### Navigation pane
-
-"Home", "Gallery", "Libraries", "Network", "Recycle Bin", the user folder and USB drives in the left pane of File Explorer, and the folder File Explorer opens to.
-
-- **No cloud files and activity in File Explorer "Home"** (`nav.home-cloud-files-off`). Level: optional. "Office": disabled; "Strict": disabled.
-  File Explorer does not request the metadata of cloud files and shows no files based on the account and cloud activity in "Home" (Recent, Recommended, Shared).
-  Effect: Local recent files stay. Value 1 of the policy FileExplorer/DisableGraphRecentItems, which Microsoft calls "Turn off account-based insights, recent, favorite, and recommended files in File Explorer" (the ADMX of Windows names it "Show files based on your account and cloud provider activity").
 
 ### Services and apps
 
@@ -649,7 +593,29 @@ OneDrive client policies: moving folders to the cloud, network traffic, feedback
 
 Rules outside policies: registry values, services, features, apps, scripts, the default user profile, the first sign-in and the tasks after OOBE
 
-### Installation (windowsPE and specialize)
+- **Print Spooler starts automatically** (`printing.spooler-automatic`). Level: baseline. "Office": enabled; "Strict": enabled.
+  The Spooler service is set to automatic startup (registry and Set-Service); PrintNotify stays manual.
+  Effect: Printing works right after installation: USB and network printers, "Print to PDF". The service starts with Windows even if it was set to manual start before.
+  Risk: Print Spooler has historically been a source of vulnerabilities (PrintNightmare); this is mitigated by the rule that restricts driver installation to administrators and by the firewall.
+- **Remove all Windows Update blocks** (`update.unblock`). Level: baseline. "Office": enabled; "Strict": enabled.
+  Removes policies that turn off updates, driver updates or Store automatic updates, and returns disabled update services to manual startup.
+  Effect: Changes nothing on a clean image; removes leftovers of third-party "optimizers" and makes it safe to run the script again.
+- **Script files (.js .vbs .hta and others) open in Notepad** (`scripts.open-in-notepad`). Level: recommended. "Office": enabled; "Strict": enabled.
+  Double-clicking a .js, .jse, .vbs, .vbe, .wsf, .wsh or .hta file shows its text in Notepad instead of running it.
+  Effect: The classic "archive with a script inside" phishing (invoice.pdf.js) does not work. cscript, wscript and mshta still work from the command line and from programs.
+  Risk: Installers that run .vbs files through the shell (rare) will open Notepad. A file association in the user profile (Open with) overrides this one.
+- **Remove the VBScript engine** (`scripts.remove-vbscript`). Level: risky. "Office": disabled; "Strict": enabled.
+  The VBScript interpreter is removed as an optional feature.
+  Effect: Neither .vbs files, nor VBScript macros in old programs, nor the MSScriptControl component work.
+  Risk: Program installers from the 2000s, some printer drivers and old business applications use VBScript. The Notepad association provides most of the protection without breaking anything.
+- **Pin the display language to the image language** (`user-logon.pin-ui-language`). Level: baseline. "Office": enabled; "Strict": enabled.
+  Set-WinUILanguageOverride locks the display language to the installed one so that reordering input languages (English first) does not switch the interface.
+  Effect: The customer's requirement "do not change the display language" relies on this line.
+- **User input language list from the profile (including "Russian (Ukraine)")** (`user-logon.input-languages`). Level: recommended. "Office": enabled; "Strict": enabled.
+  Replaces the user's input language list with the list from the "Languages and region" node (by default en-US, uk-UA, ru-UA). Languages without a numeric code, such as "Russian (Ukraine)", cannot be set in XML, so they are applied here; if Windows has not assigned them a keyboard layout, a fallback list is applied in which they are replaced with the base language.
+  Effect: The user's language switcher shows the same order as the profile; the sign-in screen keeps the list from XML (with the base language instead of "Russian (Ukraine)").
+
+### Installation scripts (specialize)
 
 Bypassing compatibility checks, a local account without a network connection, .NET Framework 3.5 from the media.
 
@@ -665,32 +631,17 @@ Bypassing compatibility checks, a local account without a network connection, .N
   Windows does not try to activate on its own until a key is typed or activation is started by hand: the value Manual that the unattend setting SkipAutoActivation writes.
   Effect: The twelve editions whose generic key in WinKickOff is a KMS client key stay unactivated without a KMS host, and the automatic attempts fail again and again with activation errors on the desktop; with this rule Windows waits for the key of the licence. Pro and Education activate with a digital licence and do not need the rule.
 
-### Printing
-
-Print Spooler and protection of printer driver installation.
-
-- **Print Spooler starts automatically** (`printing.spooler-automatic`). Level: baseline. "Office": enabled; "Strict": enabled.
-  The Spooler service is set to automatic startup (registry and Set-Service); PrintNotify stays manual.
-  Effect: Printing works right after installation: USB and network printers, "Print to PDF". The service starts with Windows even if it was set to manual start before.
-  Risk: Print Spooler has historically been a source of vulnerabilities (PrintNightmare); this is mitigated by the rule that restricts driver installation to administrators and by the firewall.
-
-### Windows Update
-
-Automatic updates, other Microsoft products, feature update deferral, Delivery Optimization.
-
-- **Remove all Windows Update blocks** (`update.unblock`). Level: baseline. "Office": enabled; "Strict": enabled.
-  Removes policies that turn off updates, driver updates or Store automatic updates, and returns disabled update services to manual startup.
-  Effect: Changes nothing on a clean image; removes leftovers of third-party "optimizers" and makes it safe to run the script again.
-
 ### Security
 
 UAC, accounts, credential protection, remote access, encryption.
 
-#### User Account Control (UAC)
-
 - **UAC enabled, prompts on the secure desktop, Win+L works** (`uac.baseline`). Level: baseline. "Office": enabled; "Strict": enabled.
   Baseline UAC values: enabled, prompts on the secure desktop, standard users enter administrator credentials, installers require elevation, the built-in Administrator runs in Admin Approval Mode, and network logons of local administrators get a filtered token. The ban on locking the screen is removed.
   Effect: UAC stays on: elevation prompts appear on the secure desktop, standard users must enter administrator credentials, and Win+L locks the screen.
+- **Prevent automatic device encryption (BitLocker without a saved key)** (`encryption.prevent-auto-bitlocker`). Level: recommended. "Office": enabled; "Strict": enabled.
+  Windows does not encrypt the system drive automatically. Without a domain or a Microsoft account, there is nowhere to store the recovery key.
+  Effect: Disk cloning and restore work; data is not lost if the TPM fails. Protection of laptops against theft is turned on deliberately, with the key saved.
+  Risk: Data on a stolen laptop is not protected by encryption until BitLocker is turned on manually.
 
 #### Accounts and sign-in
 
@@ -735,13 +686,6 @@ UAC, accounts, credential protection, remote access, encryption.
   Remote reading and writing of the registry is not possible.
   Effect: On client Windows the service is already disabled; the rule sets this explicitly. Old inventory agents may require it to be enabled.
 
-#### Drive encryption
-
-- **Prevent automatic device encryption (BitLocker without a saved key)** (`encryption.prevent-auto-bitlocker`). Level: recommended. "Office": enabled; "Strict": enabled.
-  Windows does not encrypt the system drive automatically. Without a domain or a Microsoft account, there is nowhere to store the recovery key.
-  Effect: Disk cloning and restore work; data is not lost if the TPM fails. Protection of laptops against theft is turned on deliberately, with the key saved.
-  Risk: Data on a stolen laptop is not protected by encryption until BitLocker is turned on manually.
-
 ### Network and sharing
 
 SMB, signing, name resolution, firewall.
@@ -758,21 +702,6 @@ SMB, signing, name resolution, firewall.
   Closes the second name spoofing channel (NBT-NS) and ports 137-139 on all current interfaces.
   Effect: Without a domain and WINS, a name such as \\PC-NAME resolves only through mDNS (pc-name.local) or the router's DNS; familiar shortcuts to shared folders may stop working.
   Risk: Interfaces added after installation (a new Wi-Fi adapter, VPN) get the default setting. Enable it only after testing on the specific network.
-
-### Removable media and scripts
-
-AutoRun, script files, VBScript.
-
-#### Script files
-
-- **Script files (.js .vbs .hta and others) open in Notepad** (`scripts.open-in-notepad`). Level: recommended. "Office": enabled; "Strict": enabled.
-  Double-clicking a .js, .jse, .vbs, .vbe, .wsf, .wsh or .hta file shows its text in Notepad instead of running it.
-  Effect: The classic "archive with a script inside" phishing (invoice.pdf.js) does not work. cscript, wscript and mshta still work from the command line and from programs.
-  Risk: Installers that run .vbs files through the shell (rare) will open Notepad. A file association in the user profile (Open with) overrides this one.
-- **Remove the VBScript engine** (`scripts.remove-vbscript`). Level: risky. "Office": disabled; "Strict": enabled.
-  The VBScript interpreter is removed as an optional feature.
-  Effect: Neither .vbs files, nor VBScript macros in old programs, nor the MSScriptControl component work.
-  Risk: Program installers from the 2000s, some printer drivers and old business applications use VBScript. The Notepad association provides most of the protection without breaking anything.
 
 ### Logging for investigations
 
@@ -793,6 +722,23 @@ Auditing, log sizes, PowerShell logging, disabling PowerShell 2.0.
 
 Minimal data sending, disabling ads and preinstalled apps, Copilot and Recall, widgets, web search.
 
+- **Minimal telemetry without disabling compatibility assessment** (`privacy.telemetry-minimal`). Level: recommended. "Office": enabled; "Strict": enabled.
+  Diagnostic data level "Required" (the minimum for Pro), no feedback requests, no device name in the data, advertising ID off, error reports not sent, activity history not collected, the DiagTrack service set to Manual, the CEIP and Feedback tasks disabled.
+  Effect: The minimum data sending available on Pro. DiagTrack is intentionally not disabled: compatibility assessment for feature updates and Defender reporting need it.
+  Risk: Crash reports are not sent to Microsoft; local events 1000/1001 in the Application log remain.
+- **Feedback frequency: never** (`telemetry.feedback-user-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  "Never" is selected in the user profile for the Windows feedback frequency.
+  Effect: Complements the machine policy DoNotShowFeedbackNotifications; the user copy of this policy from the list does not exist, so a user setting is written instead.
+- **Search without cloud content and history (user profile)** (`search.user-cloud-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  The user's search toggles are turned off: cloud content from Microsoft and Entra ID accounts, search highlights, search history on this device.
+  Effect: Matches the machine search policies and turns off the local query history. Values from the customer's list; they match the toggles in Settings.
+- **Do not track app launches for the Start menu and search** (`search.start-track-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  Windows does not remember which apps the user launches for the Start menu lists and search results.
+  Effect: No list of most used apps is kept in the Start menu.
+- **Office: the "Enable Copilot" check box cleared in Word, Excel and OneNote** (`office.copilot-checkbox-off`). Level: optional. "Office": enabled; "Strict": enabled.
+  The user's Copilot settings in Word, Excel and OneNote are turned off in advance: the EnableCopilot values from the customer's list.
+  Effect: The "Enable Copilot" check box in the app options exists only when Office is signed in with a personal Microsoft account. The values are not documented by Microsoft and are not locked: the user can turn Copilot on again. Copilot is reliably turned off by the rule "turn off connected experiences that analyze content".
+
 #### Artificial intelligence
 
 Copilot, Recall, Click to Do, AI agents, Windows generative features, Paint and Notepad.
@@ -806,18 +752,6 @@ Copilot, Recall, Click to Do, AI agents, Windows generative features, Paint and 
 - **Copilot turned off in the user profile** (`default-user.copilot-off`). Level: recommended. "Office": enabled; "Strict": enabled.
   The Copilot button is hidden; the TurnOffWindowsCopilot user policy is written to the profile (the only level where it applies).
   Effect: Copilot Preview (23H2) does not appear; in 24H2 the app is removed by a separate rule.
-
-#### Telemetry and feedback
-
-Windows diagnostic data, reports, feedback requests, Steps Recorder.
-
-- **Minimal telemetry without disabling compatibility assessment** (`privacy.telemetry-minimal`). Level: recommended. "Office": enabled; "Strict": enabled.
-  Diagnostic data level "Required" (the minimum for Pro), no feedback requests, no device name in the data, advertising ID off, error reports not sent, activity history not collected, the DiagTrack service set to Manual, the CEIP and Feedback tasks disabled.
-  Effect: The minimum data sending available on Pro. DiagTrack is intentionally not disabled: compatibility assessment for feature updates and Defender reporting need it.
-  Risk: Crash reports are not sent to Microsoft; local events 1000/1001 in the Application log remain.
-- **Feedback frequency: never** (`telemetry.feedback-user-off`). Level: optional. "Office": enabled; "Strict": enabled.
-  "Never" is selected in the user profile for the Windows feedback frequency.
-  Effect: Complements the machine policy DoNotShowFeedbackNotifications; the user copy of this policy from the list does not exist, so a user setting is written instead.
 
 #### Ads and recommendations
 
@@ -845,17 +779,6 @@ Advertising ID, tips and suggestions, lock screen, widgets.
   Browsers do not send the list of preferred languages to websites (reduces the fingerprint).
   Effect: Websites determine the language by other means.
 
-#### Search and the Start menu
-
-Web results, cloud search, search highlights, tracking of app launches.
-
-- **Search without cloud content and history (user profile)** (`search.user-cloud-off`). Level: optional. "Office": enabled; "Strict": enabled.
-  The user's search toggles are turned off: cloud content from Microsoft and Entra ID accounts, search highlights, search history on this device.
-  Effect: Matches the machine search policies and turns off the local query history. Values from the customer's list; they match the toggles in Settings.
-- **Do not track app launches for the Start menu and search** (`search.start-track-off`). Level: optional. "Office": enabled; "Strict": enabled.
-  Windows does not remember which apps the user launches for the Start menu lists and search results.
-  Effect: No list of most used apps is kept in the Start menu.
-
 #### Speech and input
 
 Cloud speech recognition, handwriting and typing personalization, Narrator online services.
@@ -873,14 +796,6 @@ Cloud speech recognition, handwriting and typing personalization, Narrator onlin
   Effect: Value from the customer's list. This is not telemetry: the extensions improve how Narrator works in programs.
   Risk: Narrator works worse in Excel and Outlook: this matters for blind employees.
 
-#### Microsoft Office
-
-Copilot and connected experiences in Office, diagnostic data and feedback; the settings are written to the default user profile.
-
-- **Office: the "Enable Copilot" check box cleared in Word, Excel and OneNote** (`office.copilot-checkbox-off`). Level: optional. "Office": enabled; "Strict": enabled.
-  The user's Copilot settings in Word, Excel and OneNote are turned off in advance: the EnableCopilot values from the customer's list.
-  Effect: The "Enable Copilot" check box in the app options exists only when Office is signed in with a personal Microsoft account. The values are not documented by Microsoft and are not locked: the user can turn Copilot on again. Copilot is reliably turned off by the rule "turn off connected experiences that analyze content".
-
 ### System
 
 Other system settings.
@@ -891,11 +806,6 @@ Other system settings.
 - **Support contacts of the organisation in Settings** (`system.support-info`). Level: optional. "Office": disabled; "Strict": disabled.
   Settings, System, About shows the support phone, hours and site of the organisation and a manufacturer and model text (the OEMInformation key).
   Effect: A person who needs help sees whom to call without searching; the texts replace what the vendor of the PC wrote there, if anything. ASCII only: the installation scripts are read without a code page.
-
-#### Drivers and devices
-
-Companion programs of driver installers and device apps from the internet; drivers from Windows Update arrive as usual.
-
 - **Do not run companion programs of driver installers (co-installers)** (`drivers.coinstallers-off`). Level: optional. "Office": enabled; "Strict": enabled.
   When a device is connected, Windows installs the driver but does not run the vendor's companion programs from the driver package.
   Effect: Closes a class of attacks in which a vendor program (the Razer Synapse case, 2021) runs with SYSTEM rights when a device is connected. Drivers from Windows Update keep arriving.
@@ -1197,18 +1107,7 @@ Values that every new user gets at first sign-in (can be changed in Settings).
   Effect: No answer file setting exists for these keys, so the rule writes them to the registry. Without the rule Windows keeps its own keys (Left Alt+Shift for languages, Ctrl+Shift for layouts). The user can still change them in Settings; accounts that already exist are not changed.
   Risk: "Not assigned" for languages leaves only Win+Space and the language indicator of the taskbar, which people who do not know them may not find. Ctrl+Shift for languages may switch by accident in programs that use Ctrl+Shift shortcuts.
 
-### First sign-in of each user
-
-Active Setup script: display language and input language list.
-
-- **Pin the display language to the image language** (`user-logon.pin-ui-language`). Level: baseline. "Office": enabled; "Strict": enabled.
-  Set-WinUILanguageOverride locks the display language to the installed one so that reordering input languages (English first) does not switch the interface.
-  Effect: The customer's requirement "do not change the display language" relies on this line.
-- **User input language list from the profile (including "Russian (Ukraine)")** (`user-logon.input-languages`). Level: recommended. "Office": enabled; "Strict": enabled.
-  Replaces the user's input language list with the list from the "Languages and region" node (by default en-US, uk-UA, ru-UA). Languages without a numeric code, such as "Russian (Ukraine)", cannot be set in XML, so they are applied here; if Windows has not assigned them a keyboard layout, a fallback list is applied in which they are replaced with the base language.
-  Effect: The user's language switcher shows the same order as the profile; the sign-in screen keeps the list from XML (with the base language instead of "Russian (Ukraine)").
-
-### After OOBE
+### After OOBE (scheduled task)
 
 Scheduled task after OOBE completes: passwords, built-in accounts, cleanup.
 

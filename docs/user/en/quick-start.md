@@ -11,7 +11,7 @@ the way of older programs. Presets are never overwritten: a modified profile is 
 
 ## 2. Rules
 
-The tree on the left contains all installation settings, grouped by area under three roots: "autounattend.xml"
+The tree on the left contains all installation settings, grouped by area under three roots: "Installation"
 (what the answer file does by its own means; the data forms are there too), "Standard policies" (the policies of
 Windows from the catalog and the imported templates) and "Other" (the remaining rules: registry, services, apps,
 scripts). A group whose rules act in both ways appears under two roots. The box in front of a name

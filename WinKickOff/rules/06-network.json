@@ -81,7 +81,7 @@
     },
     {
       "id": "network.llmnr-off",
-      "group": "network.policies",
+      "group": "policies",
       "phase": "specialize",
       "title": "LLMNR disabled (protection against name spoofing on the network)",
       "level": "recommended",
@@ -141,7 +141,7 @@
     },
     {
       "id": "network.firewall",
-      "group": "network.policies",
+      "group": "policies",
       "phase": "specialize",
       "title": "Firewall on for all profiles, inbound blocked, dropped packets logged",
       "level": "recommended",

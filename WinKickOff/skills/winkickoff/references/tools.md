@@ -54,7 +54,7 @@ All work in every mode. They change nothing, not even the selection in the windo
 - Without `parent`: the three roots (catalog 0.10): `unattend` (what the answer file does by itself, with the data forms),
   `policies` (the policies of Windows: the built-in policy rules and every imported template, one group `admx.<id>` per
   import) and `other` (the rest). With `parent`: its direct children only. A thematic group whose rules act both ways
-  is under two roots, the smaller part with the suffix of its root (`network.policies`, `update.other`).
+  is under two roots, the smaller part with the suffix of its root (`security.policies`, `privacy.other`).
 - Error: `unknown_id` "unknown group X".
 
 ### list_rules

@@ -101,7 +101,7 @@ class PlanTest(unittest.TestCase):
         profile = self.office.copy()
         profile.rules["uac.admin-always-notify"].enabled = False  # already off in the "Office" preset; baseline stays on
         # since catalog 0.10 the policy value of the group lives in its mirror under the policies root
-        plan = plan_apply(self.catalog, profile, ["g:security.uac", "g:security.uac.policies"])
+        plan = plan_apply(self.catalog, profile, ["r:uac.baseline", "r:uac.admin-always-notify"])  # the two UAC rules
         self.assertEqual(plan.rule_ids, ["uac.baseline"])
         self.assertEqual([p.rule.id for p in plan.reverts], ["uac.admin-always-notify"])
         self.assertIn("-Name 'ConsentPromptBehaviorAdmin' -Type DWord -Value 5", plan.reverts[0].lines[0])

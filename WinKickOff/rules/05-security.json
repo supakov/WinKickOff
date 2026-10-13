@@ -3,7 +3,7 @@
   "rules": [
     {
       "id": "uac.baseline",
-      "group": "security.uac",
+      "group": "security",
       "phase": "specialize",
       "title": "UAC enabled, prompts on the secure desktop, Win+L works",
       "level": "baseline",
@@ -80,7 +80,7 @@
     },
     {
       "id": "uac.admin-always-notify",
-      "group": "security.uac.policies",
+      "group": "security.policies",
       "phase": "specialize",
       "title": "UAC for administrators: always notify",
       "level": "recommended",
@@ -119,7 +119,7 @@
     },
     {
       "id": "accounts.inactivity-lock",
-      "group": "security.accounts.policies",
+      "group": "security.policies",
       "phase": "specialize",
       "title": "Lock the screen after inactivity",
       "level": "recommended",
@@ -500,7 +500,7 @@
     },
     {
       "id": "encryption.prevent-auto-bitlocker",
-      "group": "security.encryption",
+      "group": "security",
       "phase": "specialize",
       "title": "Prevent automatic device encryption (BitLocker without a saved key)",
       "level": "recommended",
@@ -527,7 +527,7 @@
     },
     {
       "id": "accounts.block-aad-join",
-      "group": "security.accounts.policies",
+      "group": "security.policies",
       "phase": "specialize",
       "title": "No \"Allow my organization to manage my device\" prompt",
       "level": "baseline",

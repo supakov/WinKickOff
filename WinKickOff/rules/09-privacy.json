@@ -3,7 +3,7 @@
   "rules": [
     {
       "id": "privacy.telemetry-minimal",
-      "group": "privacy.telemetry.other",
+      "group": "privacy.other",
       "phase": "specialize",
       "title": "Minimal telemetry without disabling compatibility assessment",
       "level": "recommended",
@@ -228,7 +228,7 @@
     },
     {
       "id": "privacy.widgets-off",
-      "group": "privacy.ads",
+      "group": "privacy",
       "phase": "specialize",
       "title": "Widgets and news feed turned off",
       "level": "recommended",
@@ -259,7 +259,7 @@
     },
     {
       "id": "privacy.web-search-off",
-      "group": "privacy.search",
+      "group": "privacy",
       "phase": "specialize",
       "title": "No Bing web results in Start menu search",
       "level": "recommended",
@@ -842,7 +842,7 @@
     },
     {
       "id": "telemetry.feedback-user-off",
-      "group": "privacy.telemetry.other",
+      "group": "privacy.other",
       "phase": "default-user",
       "title": "Feedback frequency: never",
       "level": "optional",
@@ -900,7 +900,7 @@
     },
     {
       "id": "ads.suggestions-user-policies",
-      "group": "privacy.ads",
+      "group": "privacy",
       "phase": "default-user",
       "title": "No tailored tips or third-party app suggestions",
       "level": "optional",
@@ -981,7 +981,7 @@
     },
     {
       "id": "search.cloud-off",
-      "group": "privacy.search",
+      "group": "privacy",
       "phase": "specialize",
       "title": "Windows Search without the cloud, search highlights and location",
       "level": "optional",
@@ -1019,7 +1019,7 @@
     },
     {
       "id": "search.user-cloud-off",
-      "group": "privacy.search.other",
+      "group": "privacy.other",
       "phase": "default-user",
       "title": "Search without cloud content and history (user profile)",
       "level": "optional",
@@ -1068,7 +1068,7 @@
     },
     {
       "id": "search.start-track-off",
-      "group": "privacy.search.other",
+      "group": "privacy.other",
       "phase": "default-user",
       "title": "Do not track app launches for the Start menu and search",
       "level": "optional",
@@ -1093,7 +1093,7 @@
     },
     {
       "id": "speech.online-off",
-      "group": "privacy.speech",
+      "group": "privacy",
       "phase": "specialize",
       "title": "No cloud speech recognition or handwriting improvement",
       "level": "optional",
@@ -1236,7 +1236,7 @@
     },
     {
       "id": "drivers.coinstallers-off",
-      "group": "system.drivers",
+      "group": "system",
       "phase": "specialize",
       "title": "Do not run companion programs of driver installers (co-installers)",
       "level": "optional",
@@ -1263,7 +1263,7 @@
     },
     {
       "id": "drivers.metadata-off",
-      "group": "system.drivers.policies",
+      "group": "policies",
       "phase": "specialize",
       "title": "Do not download device apps and icons from the internet",
       "level": "optional",

@@ -136,7 +136,7 @@
     },
     {
       "id": "office.copilot-checkbox-off",
-      "group": "privacy.office.other",
+      "group": "privacy.other",
       "phase": "default-user",
       "title": "Office: the \"Enable Copilot\" check box cleared in Word, Excel and OneNote",
       "level": "optional",

@@ -116,7 +116,7 @@
     },
     {
       "id": "logging.powershell",
-      "group": "logging.policies",
+      "group": "policies",
       "phase": "specialize",
       "title": "PowerShell logging: script blocks and cmdlet invocations",
       "level": "recommended",

@@ -175,7 +175,7 @@ def catalog_file() -> dict:
                 "Create the key again in both branches with the default value \"Removable Drives\".")
     rule["actions"] = [{"type": "ps", "script": REMOVABLE_SCRIPT.strip("\n").split("\n")}]
     rules.append(rule)
-    rule = head("nav.home-cloud-files-off", "system.explorer.nav.policies", "specialize",  # a policy value: its mirror under the policies root
+    rule = head("nav.home-cloud-files-off", "policies", "specialize",  # a policy value: directly under the policies root
                 "No cloud files and activity in File Explorer \"Home\"",
                 ["home", "recent", "recommended", "cloud", "policy", "disablegraphrecentitems"], "navigation-pane",
                 "File Explorer does not request the metadata of cloud files and shows no files based on the account and "

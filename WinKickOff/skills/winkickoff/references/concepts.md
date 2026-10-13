@@ -40,7 +40,7 @@ A rule is one switch in the tree. The answer file contains **only the rules that
 | Field | Meaning |
 |---|---|
 | `id` | Stable English id, for example `defender.pua`. Never translated. Ids starting with `admx.` are imported policies |
-| `group` | Tree group (see [Groups](#groups)). The id prefix is not always the group: `uac.*` is in `security.uac`, `asr.*` in `defender.asr` |
+| `group` | Tree group (see [Groups](#groups)). The id prefix is not always the group: `uac.*` is in `security`, `asr.*` in `defender.asr` |
 | `level` | See [Levels](#levels) |
 | `phase` | When it runs, see [Phases](#phases) |
 | `default` | State in the catalog. The catalog defaults are exactly the Office preset |
@@ -130,45 +130,46 @@ In the window, "Restore defaults" in the parameter panel resets the parameters o
 
 | Id | Title |
 |---|---|
-| `install` | Installation (windowsPE and specialize) |
+| `unattend` | Installation |
+| `install` | windowsPE and specialize |
 | `oobe` | Out-of-box experience (OOBE) |
-| `printing` | Printing |
+| `policies` | Standard policies |
 | `update` | Windows Update |
 | `defender` | Microsoft Defender and SmartScreen |
 | `defender.asr` | Attack surface reduction (ASR) rules |
-| `security` | Security |
-| `security.uac` | User Account Control (UAC) |
-| `security.accounts` | Accounts and sign-in |
-| `security.lsa` | Credential protection (LSA, NTLM) |
-| `security.remote` | Remote access |
-| `security.encryption` | Drive encryption |
-| `network` | Network and sharing |
-| `removable` | Removable media and scripts |
-| `removable.scripts` | Script files |
+| `security.policies` | Security |
 | `browsers` | Browsers |
 | `browsers.edge` | Microsoft Edge |
 | `browsers.chrome` | Google Chrome |
 | `browsers.brave` | Brave |
-| `logging` | Logging for investigations |
 | `privacy` | Telemetry, ads, AI |
 | `privacy.ai` | Artificial intelligence |
 | `privacy.telemetry` | Telemetry and feedback |
-| `privacy.ads` | Ads and recommendations |
-| `privacy.search` | Search and the Start menu |
-| `privacy.speech` | Speech and input |
 | `privacy.office` | Microsoft Office |
+| `apps.policies` | Services and apps |
+| `apps.onedrive` | OneDrive |
+| `other` | Other |
+| `install.other` | Installation scripts (specialize) |
+| `security` | Security |
+| `security.accounts` | Accounts and sign-in |
+| `security.lsa` | Credential protection (LSA, NTLM) |
+| `security.remote` | Remote access |
+| `network` | Network and sharing |
+| `logging` | Logging for investigations |
+| `privacy.other` | Telemetry, ads, AI |
+| `privacy.ai.other` | Artificial intelligence |
+| `privacy.ads.other` | Ads and recommendations |
+| `privacy.speech.other` | Speech and input |
 | `system` | System |
-| `system.drivers` | Drivers and devices |
 | `system.explorer` | File Explorer and the desktop |
 | `system.explorer.thispc` | Folders in "This PC" |
 | `system.explorer.nav` | Navigation pane |
-| `system.explorer.desktop` | Desktop icons (subgroup `system.explorer.desktop.folders`) |
+| `system.explorer.desktop` | Desktop icons |
+| `system.explorer.desktop.folders` | Folders on the desktop |
 | `apps` | Services and apps |
-| `apps.remove` | Apps to remove (summary: one rule per app; clear it to keep the app) |
-| `apps.onedrive` | OneDrive |
+| `apps.remove` | Apps to remove |
 | `default-user` | Default user profile |
-| `user-logon` | First sign-in of each user |
-| `post-oobe` | After OOBE |
+| `post-oobe` | After OOBE (scheduled task) |
 
 Prefix hints: `lsa.*` in `security.lsa`; `edge.*` in `browsers.edge`; `ai.*` and `default-user.copilot-off` in
 `privacy.ai`; `office.*` in `privacy.office`; `thispc.*` in `system.explorer.thispc`, `nav.*` in
