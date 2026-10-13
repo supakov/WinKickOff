@@ -155,3 +155,18 @@ run in WinPE before copying starts.
 - Verification: `setupact.log` reports the opt-in as false.
 - Rollback: applies only during installation.
 - Pending: acceptance in a VM.
+
+## ImageInstall / InstallTo
+
+- Form "Installation", block "Disk" (`install.disk_mode` `partition`, `disk_id`, `partition_id`; profile format 5,
+  branch `unattend-tree`, stage 6 of the plan of 13.10.2026). The default `ask` writes nothing: Windows Setup asks
+  where to install, as before.
+- Settings in windowsPE: `Microsoft-Windows-Setup\ImageInstall\OSImage\InstallTo\DiskID` and `PartitionID`, and
+  `OSImage\WillShowUI = OnError`; written by the generator from the form through the same merge as the `xml-setting`
+  actions, so they share the `Microsoft-Windows-Setup` component with the product key.
+- What it does: Setup installs the image to that partition without the disk page. The partition must exist and be
+  formatted; what is on it is replaced, and Setup stops with an error when it is missing (customer decision 2 of
+  13.10.2026: no `DiskConfiguration`, the disk is not repartitioned; that may come later).
+- Numbers as diskpart shows them: on a usual UEFI disk Windows is partition 3, after the EFI (1) and MSR (2)
+  partitions. The check reports the mode as a warning, so that nobody installs without asking by accident.
+- Pending: acceptance in a VM (a prepared partition; a second disk).

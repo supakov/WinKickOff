@@ -120,3 +120,15 @@ Component `Microsoft-Windows-Shell-Setup` in specialize; the form "Installation"
 - Rollback: Settings, System, About, "Rename this PC", or `Rename-Computer -NewName <name>` and a restart.
 - Pending in a virtual machine: a template on 25H2 (the name after the first sign-in, the log line), `{mac}` on a PC
   whose network driver is missing in specialize (random characters expected).
+
+## JoinWorkgroup
+
+- Form "Installation", field "Workgroup" (`install.workgroup`; profile format 5, branch `unattend-tree`, stage 6 of
+  the plan of 13.10.2026). Empty writes nothing and Windows keeps WORKGROUP.
+- Setting in specialize: `Microsoft-Windows-UnattendedJoin\Identification\JoinWorkgroup`, a component the generator
+  adds through the merge of the `xml-setting` actions (`Renderer._extra_components`).
+- What it does: the computer joins the named workgroup during installation, so the PCs of one network see each other
+  under the same name without a visit to the system properties.
+- Limits: up to 15 Latin letters, digits and hyphens (the check refuses other names). A workgroup is not a domain:
+  `JoinDomain` and the credentials stay out of WinKickOff.
+- Pending: acceptance in a VM (the name in "System", "About").

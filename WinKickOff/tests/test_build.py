@@ -80,6 +80,19 @@ class BuildTestBase(unittest.TestCase):
 
 
 class BuildBasicsTest(BuildTestBase):
+    def test_workgroup_and_partition_become_unattend_settings(self) -> None:
+        # stage 6 of the plan of 13.10.2026: the data of the form "Installation" that only the answer file can set
+        profile = self.office.copy()
+        profile.install.update({"workgroup": "BUH", "disk_mode": "partition", "disk_id": "0", "partition_id": "3"})
+        xml = self.renderer.build(profile, app_version="test").xml
+        self.assertEqual(xml.count('<component name="Microsoft-Windows-UnattendedJoin"'), 2)  # both architectures
+        self.assertEqual(xml.count("<JoinWorkgroup>BUH</JoinWorkgroup>"), 2)
+        self.assertEqual(xml.count("<InstallTo>"), 2)
+        for text in ("<DiskID>0</DiskID>", "<PartitionID>3</PartitionID>", "<WillShowUI>OnError</WillShowUI>"):
+            self.assertIn(text, xml)
+        for text in ("UnattendedJoin", "InstallTo"):
+            self.assertNotIn(text, self.result.xml)  # the defaults: Setup asks for the disk, WORKGROUP stays
+
     def test_xml_settings_merge_into_the_components(self) -> None:
         # catalog 0.11 (stage 5 of the plan of 13.10.2026): the first xml-setting rules, Dynamic Update and the Setup diagnostics
         from winkickoff.core.render import Renderer

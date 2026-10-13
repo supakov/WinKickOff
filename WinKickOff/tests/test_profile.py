@@ -61,7 +61,16 @@ class ProfileTest(unittest.TestCase):
         profile, warnings = Profile.from_dict(data, self.catalog)
         self.assertEqual(warnings, [])
         self.assertEqual((profile.install["computer_name_mode"], profile.install["computer_name"]), ("random", ""))
-        self.assertEqual(profile.to_dict(self.catalog)["format_version"], 4)
+        self.assertEqual(profile.to_dict(self.catalog)["format_version"], 5)
+
+    def test_format_4_loads_without_a_warning_and_lets_setup_ask_for_the_disk(self) -> None:
+        data = Profile.from_catalog(self.catalog).to_dict(self.catalog)
+        data["format_version"] = 4
+        for key in ("workgroup", "disk_mode", "disk_id", "partition_id"):
+            del data["install"][key]
+        profile, warnings = Profile.from_dict(data, self.catalog)
+        self.assertEqual(warnings, [])
+        self.assertEqual([profile.install[k] for k in ("workgroup", "disk_mode", "disk_id", "partition_id")], ["", "ask", "0", "3"])
 
     def test_round_trip(self) -> None:
         profile = Profile.from_catalog(self.catalog, name="Тест")
@@ -117,7 +126,7 @@ class ProfileTest(unittest.TestCase):
         loaded, warnings = Profile.from_dict(data, self.catalog)
         self.assertEqual(warnings, [])
         self.assertFalse(loaded.asks_for_account())
-        data["format_version"] = 5  # a newer program
+        data["format_version"] = 6  # a newer program
         self.assertTrue(Profile.from_dict(data, self.catalog)[1])
 
     def test_unknown_entries_for_the_tree(self) -> None:

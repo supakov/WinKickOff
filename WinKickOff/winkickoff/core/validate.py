@@ -16,7 +16,7 @@ from winkickoff.core import computername, jsonfile
 from winkickoff.core.admx import safe_name
 from winkickoff.core.catalog import Catalog, CatalogError, heading_anchors, is_imported, load_catalog
 from winkickoff.core.i18n import N_, catalog_texts, tr
-from winkickoff.core.profile import ACCOUNT_MODES, Profile
+from winkickoff.core.profile import ACCOUNT_MODES, DISK_MODES, Profile
 from winkickoff.core.render import EDITION_KEYS
 from winkickoff.core.resources import find_keyboard
 from winkickoff.core.verify import rollback_steps, verify_steps
@@ -40,6 +40,7 @@ AUTOLOGON_RULE = "accounts.autologon"
 SUPPORT_RULE = "system.support-info"
 ACTIVATION_RULE = "install.skip-auto-activation"
 DIGITAL_LICENCE_EDITIONS = ("Pro", "Education")  # generic keys; the other editions of EDITION_KEYS are KMS client keys
+_WORKGROUP_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,14}$")  # a NetBIOS name as the form takes it (stage 6)
 
 
 @dataclass(frozen=True)
@@ -195,6 +196,23 @@ def validate_profile(profile: Profile, catalog: Catalog, keyboards: list[dict[st
                computername.template_problem(computer_name) if name_mode == "template" else None)
     if problem:
         issues.append(Issue("error", "install.computer_name", tr("Computer name: {0}", problem)))
+    workgroup = str(profile.install.get("workgroup", "")).strip()
+    if workgroup and not _WORKGROUP_RE.match(workgroup):
+        issues.append(Issue("error", "install.workgroup", tr("Workgroup: up to 15 Latin letters, digits and hyphens")))
+    disk_mode = profile.install.get("disk_mode", "ask")
+    if disk_mode not in DISK_MODES:
+        issues.append(Issue("error", "install.disk_mode", tr("Unknown disk mode '{0}'", disk_mode)))
+    elif disk_mode == "partition":
+        disk, partition = str(profile.install.get("disk_id", "")).strip(), str(profile.install.get("partition_id", "")).strip()
+        disk_ok, partition_ok = disk.isdigit() and int(disk) <= 99, partition.isdigit() and 1 <= int(partition) <= 128
+        if not disk_ok:
+            issues.append(Issue("error", "install.disk_id", tr("Disk number: 0 to 99")))
+        if not partition_ok:
+            issues.append(Issue("error", "install.partition_id", tr("Partition number: 1 to 128")))
+        if disk_ok and partition_ok:
+            issues.append(Issue("warning", "install.disk_mode", tr(
+                "Windows Setup installs to disk {0}, partition {1} without asking: the partition must exist and be "
+                "formatted, and what is on it is replaced", disk, partition)))
 
     for key, title in (("ui_language", tr("Display language")), ("system_locale", tr("Language for non-Unicode programs")), ("user_locale", tr("Date and number format"))):
         value = str(profile.languages.get(key, ""))

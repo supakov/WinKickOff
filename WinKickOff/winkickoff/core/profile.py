@@ -18,8 +18,10 @@ from winkickoff.core.i18n import tr
 
 PROFILE_MAX_BYTES = 16 * 1024 * 1024
 LEGACY_SOURCE = "folder"  # an imported choice saved before 1.3 (no "source"): catalog files did not exist then
-FORMAT_VERSION = 4  # 3: install.account_mode (1.3.0-rc.1); 4: install.computer_name_mode and computer_name (rc.2)
-READ_FORMATS = (2, 3, 4)  # read without a warning: a missing field means its default
+FORMAT_VERSION = 5  # 3: install.account_mode (1.3.0-rc.1); 4: install.computer_name_mode and computer_name (rc.2);
+# 5: install.workgroup, disk_mode, disk_id and partition_id (branch unattend-tree, stage 6 of the plan of 13.10.2026)
+READ_FORMATS = (2, 3, 4, 5)  # read without a warning: a missing field means its default
+DISK_MODES = ("ask", "partition")  # Windows Setup asks where to install, or installs to disk_id/partition_id
 
 ACCOUNT_MODES = ("file", "ask")  # the accounts of the profile, or Windows Setup asks for one administrator
 DEFAULT_INSTALL: dict[str, Any] = {
@@ -30,6 +32,10 @@ DEFAULT_INSTALL: dict[str, Any] = {
     "account_mode": "file",
     "computer_name_mode": "random",  # random | fixed | template (core/computername.py)
     "computer_name": "",  # the name in mode fixed, the template in mode template
+    "workgroup": "",  # the workgroup to join during installation (UnattendedJoin); empty leaves WORKGROUP
+    "disk_mode": "ask",  # ask | partition (ImageInstall/OSImage/InstallTo in windowsPE)
+    "disk_id": "0",  # strings, as every value of the form: the diff, the merge and the check treat them as text
+    "partition_id": "3",  # the Windows partition of a usual UEFI disk, after the EFI and MSR partitions
 }
 DEFAULT_LANGUAGES: dict[str, Any] = {
     "ui_language": "uk-UA",  # must equal the language of the installation ISO

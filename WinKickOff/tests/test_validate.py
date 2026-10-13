@@ -142,6 +142,24 @@ class ProfileValidationTest(unittest.TestCase):
         self.profile.install["product_key_mode"] = "ask"  # the edition is chosen during Setup: no hint
         self.assertEqual([i for i in self.check() if i.target == "install.skip-auto-activation"], [])
 
+    def test_workgroup_and_installation_partition(self) -> None:
+        # stage 6 of the plan of 13.10.2026
+        self.profile.install["workgroup"] = "BUH-1"
+        self.assertFalse(errors(self.check(), "install.workgroup"))
+        for bad in ("A" * 16, "BUH 1", "-BUH"):
+            self.profile.install["workgroup"] = bad
+            self.assertTrue(errors(self.check(), "install.workgroup"), bad)
+        self.profile.install["workgroup"] = ""
+        self.profile.install["disk_mode"] = "partition"
+        issues = [i for i in self.check() if i.target in ("install.disk_mode", "install.disk_id", "install.partition_id")]
+        self.assertEqual([i.level for i in issues], ["warning"])  # disk 0, partition 3: nothing asks during Setup
+        self.profile.install["partition_id"] = "0"
+        self.assertTrue(errors(self.check(), "install.partition_id"))
+        self.profile.install["disk_id"] = "x"
+        self.assertTrue(errors(self.check(), "install.disk_id"))
+        self.profile.install["disk_mode"] = "nope"
+        self.assertTrue(errors(self.check(), "install.disk_mode"))
+
     def test_param_out_of_range_is_an_error(self) -> None:
         rule, param = next(
             (r, p) for r in self.catalog.rules.values() for p in r.params.values() if p.type == "int" and p.max is not None

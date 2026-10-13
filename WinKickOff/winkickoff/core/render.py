@@ -372,6 +372,16 @@ class Renderer:
         ]
 
         settings = self._xml_settings(rules_by_phase, params)
+        # the data of the form "Installation" that only the answer file can set (stage 6 of the plan of 13.10.2026)
+        workgroup = str(profile.install.get("workgroup", "")).strip()
+        if workgroup:
+            settings.setdefault(("specialize", "Microsoft-Windows-UnattendedJoin"), []).append(("Identification/JoinWorkgroup", workgroup))
+        if profile.install.get("disk_mode") == "partition":
+            settings.setdefault(("windowsPE", "Microsoft-Windows-Setup"), []).extend([
+                ("ImageInstall/OSImage/InstallTo/DiskID", str(profile.install.get("disk_id", "0")).strip()),
+                ("ImageInstall/OSImage/InstallTo/PartitionID", str(profile.install.get("partition_id", "3")).strip()),
+                ("ImageInstall/OSImage/WillShowUI", "OnError"),
+            ])
 
         def blocks(phase: str) -> list[str]:
             return [render_block(r, params[r.id]) for r in rules_by_phase[phase]]

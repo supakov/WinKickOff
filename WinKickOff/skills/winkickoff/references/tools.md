@@ -101,7 +101,7 @@ All work in every mode. They change nothing, not even the selection in the windo
 
 - Arguments: none.
 - Returns the open profile without secrets: `format_version`, `catalog_version`, `name`, `author_text`, `created`,
-  `modified`, `comment_text`, `install` `{edition, product_key_mode, has_product_key, time_zone, account_mode}`, `languages`
+  `modified`, `comment_text`, `install` `{edition, product_key_mode, has_product_key, time_zone, account_mode, computer_name_mode, computer_name, workgroup, disk_mode, disk_id, partition_id}`, `languages`
   `{ui_language, system_locale, user_locale, input}`, `accounts` `[{name, display_name, group, description_text,
   has_password}]`, `rules` `{<id>: {enabled, params?, source?}}`, `unknown`, plus `file`, `dirty`, `enabled_count`,
   `changed_from_defaults` (ids that differ from the catalog defaults or have parameters set).

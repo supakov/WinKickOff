@@ -94,7 +94,6 @@
  "Generic key for the selected edition: no product key or edition selection screens, Windows activates on its own using this PC's digital license": "Универсальный ключ выбранной редакции: окон ввода ключа и выбора редакции не будет, Windows активируется сама по цифровой лицензии этого ПК",
  "Your own product key (for example, from a sticker or contract)": "Свой ключ продукта (например, из наклейки или договора)",
  "Installation": "Установка",
- "Windows edition, product key, time zone and computer name. The display language and input languages are set in the \"Languages and region\" node.": "Редакция Windows, ключ продукта, часовой пояс и имя компьютера. Язык интерфейса и языки ввода задаются в узле «Языки и регион».",
  "The correct time zone matters for logs: during an investigation, events are matched by time.": "Правильный часовой пояс важен для журналов: события при расследовании сопоставляются по времени.",
  "Languages and region": "Языки и регион",
  "The Windows display language comes from the installation ISO and does not change. It still has to be specified; otherwise Windows Setup shows the language selection screen. The other fields set formats and input languages.": "Язык интерфейса Windows берётся из установочного ISO и не меняется. Его всё равно нужно указать: иначе установщик покажет экран выбора языка. Остальные поля задают форматы и языки ввода.",
@@ -681,5 +680,19 @@
  "\"{0}\" is on, but every text is empty": "«{0}» включено, но все тексты пусты",
  "\"{0}\": \"{1}\" may hold ASCII characters only: the installation scripts are read without a code page": "«{0}»: «{1}» может содержать только символы ASCII: скрипты установки читаются без кодовой страницы",
  "The generic key of {0} is a KMS client key: without a KMS host Windows keeps trying to activate and shows errors until the key of the licence is typed. \"{1}\" stops the attempts.": "Универсальный ключ редакции {0} является клиентским ключом KMS: без хоста KMS Windows раз за разом пытается активироваться и показывает ошибки, пока не введён ключ лицензии. «{1}» прекращает попытки.",
- "Answer file setting {0} of {1} ({2} pass) = {3}: Windows Setup applies it during installation": "Настройка файла ответов {0} компонента {1} (проход {2}) = {3}: установщик Windows применяет её при установке"
+ "Answer file setting {0} of {1} ({2} pass) = {3}: Windows Setup applies it during installation": "Настройка файла ответов {0} компонента {1} (проход {2}) = {3}: установщик Windows применяет её при установке",
+ "Workgroup": "Рабочая группа",
+ "The workgroup of the local network: up to 15 Latin letters, digits and hyphens; empty leaves WORKGROUP, the Windows default. Joined during installation (JoinWorkgroup).": "Рабочая группа локальной сети: до 15 латинских букв, цифр и дефисов; пустое поле оставляет WORKGROUP, значение Windows по умолчанию. Присоединение при установке (JoinWorkgroup).",
+ "Disk": "Диск",
+ "disk": "диск",
+ "partition": "раздел",
+ "Windows Setup asks where to install": "Установщик Windows спрашивает, куда устанавливать",
+ "Install to this partition without asking (ImageInstall/InstallTo)": "Установить в этот раздел без вопроса (ImageInstall/InstallTo)",
+ "Numbers as diskpart shows them: on a usual UEFI disk Windows is partition 3, after the EFI and MSR partitions. The partition must exist and be formatted; what is on it is replaced, and Setup stops with an error when it is missing. The disk is not repartitioned.": "Номера как в diskpart: на обычном диске UEFI Windows занимает раздел 3, после разделов EFI и MSR. Раздел должен существовать и быть отформатирован; его содержимое заменяется, а при его отсутствии установщик останавливается с ошибкой. Диск не переразмечается.",
+ "Workgroup: up to 15 Latin letters, digits and hyphens": "Рабочая группа: до 15 латинских букв, цифр и дефисов",
+ "Unknown disk mode '{0}'": "Неизвестный режим диска «{0}»",
+ "Disk number: 0 to 99": "Номер диска: от 0 до 99",
+ "Partition number: 1 to 128": "Номер раздела: от 1 до 128",
+ "Windows Setup installs to disk {0}, partition {1} without asking: the partition must exist and be formatted, and what is on it is replaced": "Установщик Windows устанавливает на диск {0}, раздел {1} без вопроса: раздел должен существовать и быть отформатирован, его содержимое заменяется",
+ "Windows edition, product key, time zone, computer name, workgroup and the installation disk. The display language and input languages are set in the \"Languages and region\" node.": "Редакция Windows, ключ продукта, часовой пояс, имя компьютера, рабочая группа и диск установки. Язык интерфейса и языки ввода задаются в узле «Языки и регион»."
 }
