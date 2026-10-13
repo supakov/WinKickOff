@@ -46,6 +46,8 @@ from winkickoff.ui.window_common import (
     VALUE_LIMIT,
     WORKFLOW,
     rule_of,
+    PARAMS_MIN_HEIGHT,
+    PARAMS_SHARE,
 )
 
 log = logging.getLogger(__name__)
@@ -325,10 +327,9 @@ class DetailPanel:
             buttons += [(text, command) for kind, text, command in commands if import_rank(kind) <= widest]
         if not buttons:
             return
-        self.params_frame.configure(text=tr("Imported templates"))
-        self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
         for text, command in buttons:
             ttk.Button(self.params_frame, text=text, command=command).pack(side=tk.LEFT, padx=(0, 6))
+        self._show_params(tr("Imported templates"))
 
     def _action_text(self, action: Action, params: dict[str, Any]) -> str:
         f = action.fields
@@ -430,12 +431,32 @@ class DetailPanel:
         self._param_vars = []
         self._param_marks = {}
         self._param_boxes = {}
-        self.params_frame.pack_forget()
+        self.params_host.pack_forget()
+
+    def _show_params(self, title: str) -> None:
+        """The parameter editor (params_frame, filled by the caller) above the description."""
+        self.params_frame.configure(text=title)
+        self.params_host.pack(side=tk.TOP, fill=tk.X, before=self.text_frame, pady=(0, 6))
+        self._fit_params()
+
+    def _fit_params(self, _event: tk.Event | None = None) -> None:  # type: ignore[type-arg]
+        """The editor takes its own height up to PARAMS_SHARE of the panel; a taller one scrolls (an imported policy
+        with many elements), so the description stays in view."""
+        if not self.params_host.winfo_manager():
+            return
+        needed = self.params_frame.winfo_reqheight()
+        panel = self.detail_view.winfo_height()
+        limit = max(PARAMS_MIN_HEIGHT, int(panel * PARAMS_SHARE)) if panel > 1 else needed
+        height = min(needed, limit)
+        self.params_canvas.configure(height=height, scrollregion=(0, 0, self.params_frame.winfo_reqwidth(), needed))
+        if needed > height:
+            self.params_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        else:
+            self.params_scroll.pack_forget()
+            self.params_canvas.yview_moveto(0)
 
     def _build_group_buttons(self, group_id: str) -> None:
         self._clear_params()
-        self.params_frame.configure(text=tr("Whole group"))
-        self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
         buttons = [
             (tr("Enable all"), lambda: self._group_action(group_id, True)),
             (tr("Disable all"), lambda: self._group_action(group_id, False)),
@@ -448,6 +469,7 @@ class DetailPanel:
                 buttons.append((tr("Rename..."), lambda: self.rename_templates(import_id, self.group_title(group_id))))
         for text, command in buttons:
             ttk.Button(self.params_frame, text=text, command=command).pack(side=tk.LEFT, padx=(0, 6))
+        self._show_params(tr("Whole group"))
 
     def _group_action(self, group_id: str, enabled: bool) -> None:
         scope = {r.id for r in self.catalog.rules_in_group(group_id)}
@@ -463,13 +485,11 @@ class DetailPanel:
         self._clear_params()
         if not rule.params:
             return
-        self.params_frame.configure(text=tr("Rule parameters"))
         if rule.id in self._covered and not self.profile.is_enabled(rule.id):
-            self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
             ttk.Label(self.params_frame, style="Note.TLabel", text=tr(
                 "The values come from the built-in rule while it is on; to set them separately, switch that rule off.")).pack(anchor=tk.W)
+            self._show_params(tr("Rule parameters"))
             return
-        self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
         for row, param in enumerate(rule.params.values()):
             sticky = tk.NW if param.type == "list" else tk.W
             ttk.Label(self.params_frame, text=self.param_title(rule, param)).grid(row=row, column=0, sticky=sticky, padx=(0, 12), pady=2)
@@ -487,6 +507,7 @@ class DetailPanel:
         ttk.Button(self.params_frame, text=tr("Restore defaults"), command=lambda: self._reset_params(rule)).grid(
             row=len(rule.params), column=1, sticky=tk.W, pady=(6, 0)
         )
+        self._show_params(tr("Rule parameters"))
 
     def _param_display(self, rule: Rule, param: Param, value: Any) -> str:
         if param.type == "enum":

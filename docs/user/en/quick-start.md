@@ -29,7 +29,7 @@ On the right, the program shows for the selected rule: what it does technically 
 commands), its effect, risks, Windows versions, dependencies, how to check it after installation and how to
 roll it back. Dependencies are clickable and take you to the related rules. "Reference entry" opens a detailed technical description.
 
-Some rules have parameters (screen lock time, protection modes). You change them below the description;
+Some rules have parameters (screen lock time, protection modes). You change them above the description;
 a changed value is marked with the word "changed". The "Restore defaults" button undoes the changes.
 
 ## 4. Installation data

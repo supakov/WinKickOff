@@ -474,6 +474,21 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
         self.back_button.state(["disabled"])
         self.forward_button.state(["disabled"])
         self.detail_view = ttk.Frame(self.right)
+        # the parameter editor (or the buttons of a group) above the description, scrolled when it is taller than
+        # PARAMS_SHARE of the panel (customer request of 13.10.2026: the controls on top, the description below them)
+        self.params_host = ttk.Frame(self.detail_view)
+        # a native theme has no colours of its own: the canvas takes the frame colour of the ttk style then
+        canvas_bg = self.color("background") or ttk.Style(self).lookup("TFrame", "background") or self.cget("background")
+        self.params_canvas = tk.Canvas(self.params_host, highlightthickness=0, borderwidth=0, background=canvas_bg)
+        self.params_scroll = ttk.Scrollbar(self.params_host, orient=tk.VERTICAL, command=self.params_canvas.yview)
+        self.params_canvas.configure(yscrollcommand=self.params_scroll.set)
+        self.params_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.params_frame = ttk.LabelFrame(self.params_canvas, padding=(10, 6))
+        self.params_window = self.params_canvas.create_window((0, 0), window=self.params_frame, anchor="nw")
+        self.params_frame.bind("<Configure>", self._fit_params)
+        self.params_canvas.bind("<Configure>", lambda e: self.params_canvas.itemconfigure(self.params_window, width=e.width))
+        self.params_canvas.bind("<MouseWheel>", lambda e: self.params_canvas.yview_scroll(-int(e.delta / 120), "units"))
+        self.detail_view.bind("<Configure>", self._fit_params)
         self.text_frame = ttk.Frame(self.detail_view)
         self.text_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         self.detail = tk.Text(self.text_frame, wrap=tk.WORD, font=self.font_text, state=tk.DISABLED, padx=10, pady=8, height=12, relief=tk.FLAT)
@@ -492,7 +507,6 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
         self.detail.tag_bind("link", "<Enter>", lambda _e: self.detail.configure(cursor="hand2"))
         self.detail.tag_bind("link", "<Leave>", lambda _e: self.detail.configure(cursor=""))
         self._link_tags: list[str] = []
-        self.params_frame = ttk.LabelFrame(self.detail_view, padding=(10, 6))
         self.detail_view.pack(fill=tk.BOTH, expand=True)
 
         messages = ttk.Frame(vertical, padding=(8, 2, 8, 2))

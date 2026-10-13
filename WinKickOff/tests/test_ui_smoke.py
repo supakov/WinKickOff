@@ -10,8 +10,10 @@ import quiet_tk  # noqa: F401 - first: every window these tests open stays invis
 import json
 import tempfile
 import time
+import tkinter as tk
 import unittest
 from pathlib import Path
+from tkinter import ttk
 from unittest import mock
 
 from ui_patch import patch_window
@@ -67,6 +69,7 @@ class MainWindowSmokeTest(unittest.TestCase):
     def setUp(self) -> None:
         profile, _ = Profile.load(self.office_path, self.catalog)
         self.win.set_profile(profile, dirty=False)
+        self.win.tree.yview_moveto(0)  # a test that selected a rule far down leaves the first group without geometry
         self.win.update()
 
     # ----------------------------------------------------------------- helpers
@@ -116,6 +119,30 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.assertIn("hours = 4", text)
         self.assertEqual(self.win.params_frame.winfo_children(), [])  # no templates to show or import for a rule
         self.assertFalse(self.win.params_frame.winfo_ismapped())
+
+    def test_parameters_and_group_buttons_sit_above_the_description(self) -> None:
+        # customer request of 13.10.2026: the controls on top, the description below; a tall editor scrolls
+        from winkickoff.ui.window_common import PARAMS_MIN_HEIGHT, PARAMS_SHARE
+
+        self.win.select_node("r:accounts.inactivity-lock")  # a rule with a parameter
+        self.win.update()
+        self.assertTrue(self.win.params_host.winfo_ismapped())
+        self.assertLess(self.win.params_host.winfo_y(), self.win.text_frame.winfo_y())
+        self.assertFalse(self.win.params_scroll.winfo_ismapped())  # one parameter: no scroll bar
+        self.win.select_node(self.first_group())
+        self.win.update()
+        self.assertLess(self.win.params_host.winfo_y(), self.win.text_frame.winfo_y())  # the group buttons too
+        for index in range(40):  # an editor taller than its share of the panel scrolls
+            ttk.Label(self.win.params_frame, text=f"line {index}").pack(anchor=tk.W)
+        self.win._show_params("many")
+        self.win.update()
+        limit = max(PARAMS_MIN_HEIGHT, int(self.win.detail_view.winfo_height() * PARAMS_SHARE))
+        self.assertLessEqual(self.win.params_canvas.winfo_height(), limit + 1)
+        self.assertTrue(self.win.params_scroll.winfo_ismapped())
+        self.assertGreater(self.win.text_frame.winfo_height(), limit)  # the description keeps most of the panel
+        self.win.select_node("r:accounts.inactivity-lock")
+        self.win.update()
+        self.assertFalse(self.win.params_scroll.winfo_ismapped())
 
     def test_plus_only_opens_the_branch(self) -> None:
         group = self.first_group()

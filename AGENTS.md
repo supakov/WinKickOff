@@ -474,6 +474,13 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   `MainWindow._show_busy_window` (`set_busy(notify=True)`) and every start or rebuild of the window shows
   `app.show_splash`, closed by `create_app`. `_close_busy_window` stops the progress bar before the window goes, and
   `MainWindow.destroy` calls it: a running bar keeps a Tcl timer that printed "application has been destroyed".
+- The right panel since 13.10.2026 (branch `unattend-tree`, customer request): the parameter editor, the buttons of a
+  group and the import buttons of an unknown choice sit above the description (`ui/window_detail.py`: `_show_params`
+  packs `params_host` before `text_frame`, `_clear_params` hides it), inside a canvas that `_fit_params` keeps at
+  most `PARAMS_SHARE` of the panel high (`PARAMS_MIN_HEIGHT` at least) with a scroll bar beyond that, so the
+  description stays in view under an imported policy with many elements; `params_frame` is still the frame the
+  widgets are made in (the tests read its children). A native theme has no colours, so the canvas takes the ttk
+  frame colour.
 - Module layout since 13.10.2026 (a refactoring, no behaviour change): `ui/main_window.py` (969 lines) holds the window,
   menus, tree, search, toggling and close, and `MainWindow` inherits the mixins `DetailPanel` (`ui/window_detail.py`:
   the right panel, unknown choices, Back and Forward, parameters), `ProfileActions` (`ui/window_profiles.py`:
