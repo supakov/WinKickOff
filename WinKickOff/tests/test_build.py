@@ -80,6 +80,58 @@ class BuildTestBase(unittest.TestCase):
 
 
 class BuildBasicsTest(BuildTestBase):
+    def test_drivers_from_the_media_parse_and_call_pnputil(self) -> None:
+        # stage 7 of the plan of 13.10.2026: the same walk over the drives as .NET 3.5 uses, then pnputil
+        import tempfile
+
+        from winkickoff.core.pscheck import check_scripts, powershell_path
+
+        profile = self.office.copy()
+        profile.rules["install.drivers-from-media"].enabled = True
+        scripts = self.renderer.build(profile, app_version="test").scripts
+        script = scripts["Setup-System.ps1"]
+        self.assertIn("pnputil.exe", script)
+        self.assertIn("'/add-driver', (Join-Path $src '*.inf'), '/subdirs', '/install'", script)
+        self.assertNotIn("pnputil", self.result.scripts["Setup-System.ps1"])  # off by default
+        if powershell_path():  # the syntax check needs powershell.exe
+            with tempfile.TemporaryDirectory() as tmp:
+                result = check_scripts(scripts, Path(tmp))
+            self.assertTrue(result.ok, result)
+
+    def test_workgroup_and_partition_become_unattend_settings(self) -> None:
+        # stage 6 of the plan of 13.10.2026: the data of the form "Installation" that only the answer file can set
+        profile = self.office.copy()
+        profile.install.update({"workgroup": "BUH", "disk_mode": "partition", "disk_id": "0", "partition_id": "3"})
+        xml = self.renderer.build(profile, app_version="test").xml
+        self.assertEqual(xml.count('<component name="Microsoft-Windows-UnattendedJoin"'), 2)  # both architectures
+        self.assertEqual(xml.count("<JoinWorkgroup>BUH</JoinWorkgroup>"), 2)
+        self.assertEqual(xml.count("<InstallTo>"), 2)
+        for text in ("<DiskID>0</DiskID>", "<PartitionID>3</PartitionID>", "<WillShowUI>OnError</WillShowUI>"):
+            self.assertIn(text, xml)
+        for text in ("UnattendedJoin", "InstallTo"):
+            self.assertNotIn(text, self.result.xml)  # the defaults: Setup asks for the disk, WORKGROUP stays
+
+    def test_xml_settings_merge_into_the_components(self) -> None:
+        # catalog 0.11 (stage 5 of the plan of 13.10.2026): the first xml-setting rules, Dynamic Update and the Setup diagnostics
+        from winkickoff.core.render import Renderer
+        from winkickoff.core.validate import validate_xml
+
+        profile = self.office.copy()
+        for rule_id in ("install.no-dynamic-update", "install.no-setup-diagnostics"):
+            profile.rules[rule_id].enabled = True
+        xml = self.renderer.build(profile, app_version="test").xml
+        nl = chr(13) + chr(10)
+        update = nl.join(["      <DynamicUpdate>", "        <Enable>false</Enable>", "        <WillShowUI>Never</WillShowUI>",
+                          "      </DynamicUpdate>"])
+        self.assertEqual(xml.count(update), 2)  # both architectures, one element for the two settings of the rule
+        self.assertEqual(xml.count(nl.join(["      <Diagnostics>", "        <OptIn>false</OptIn>", "      </Diagnostics>"])), 2)
+        self.assertEqual([i.message for i in validate_xml(xml) if i.level == "error"], [])
+        self.assertNotIn("DynamicUpdate", self.result.xml)  # off by default
+        with self.assertRaisesRegex(ValueError, "already holds"):
+            Renderer._setting_lines([("A", "1"), ("A/B", "2")], 6)
+        self.assertEqual(Renderer._setting_lines([("A/B", "1"), ("A/C", "2"), ("D", "x&y")], 0),
+                         ["<A>", "  <B>1</B>", "  <C>2</C>", "</A>", "<D>x&amp;y</D>"])
+
     def test_output_is_deterministic(self) -> None:
         again = self.renderer.build(self.office.copy(), app_version="test")
         self.assertEqual(again.xml, self.result.xml)

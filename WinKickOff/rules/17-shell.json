@@ -352,7 +352,7 @@
     },
     {
       "id": "nav.home-cloud-files-off",
-      "group": "system.explorer.nav",
+      "group": "policies",
       "phase": "specialize",
       "title": "No cloud files and activity in File Explorer \"Home\"",
       "level": "optional",

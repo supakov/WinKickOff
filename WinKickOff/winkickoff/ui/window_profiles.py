@@ -14,7 +14,7 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
 from winkickoff import APP_NAME, APP_VERSION
-from winkickoff.core.catalog import Catalog
+from winkickoff.core.catalog import Catalog, TREE_ROOTS
 from winkickoff.core.diffprofile import load_diff, make_diff, merge_diff, save_diff
 from winkickoff.core.draft import draft_text, drop_draft, save_draft
 from winkickoff.core.i18n import catalog_texts, language, tr
@@ -27,7 +27,16 @@ from winkickoff.mcp.errors import ToolError
 from winkickoff.mcp.workspace import POWERSHELL_NOTE
 from winkickoff.core.validate import Issue, has_errors, validate_catalog, validate_profile, validate_xml
 from winkickoff.ui.data_forms import ACCOUNT_MODE_TITLES
-from winkickoff.ui.window_common import WORKFLOW_NODE, DRAFT_INTERVAL_MS, BUSY_NOTE, _profile_name, error_text
+from winkickoff.ui.window_common import (
+    WORKFLOW_NODE,
+    DRAFT_INTERVAL_MS,
+    BUSY_NOTE,
+    _profile_name,
+    error_text,
+    CELL_LIMIT,
+    TREE_TITLE_LIMIT,
+    shorten,
+)
 
 log = logging.getLogger(__name__)
 
@@ -334,15 +343,15 @@ class ProfileActions:
             rule_id = target[2:] if target.startswith("r:") else ""
             if rule_id in self.catalog.rules:
                 group = self.catalog.groups.get(self.catalog.rules[rule_id].group)
-                while group is not None and group.parent:
-                    group = self.catalog.groups.get(group.parent)
+                while group is not None and group.parent and group.parent not in TREE_ROOTS:
+                    group = self.catalog.groups.get(group.parent)  # up to the thematic group under a root
                 top = f"g{group.id}" if group is not None else "gother"
                 if top not in parents:
                     parents[top] = table.insert("", tk.END, iid=top, text=self.group_title(group.id) if group else tr("Rules"),
                                                 open=True)
                 node = f"n{rule_id}"
                 if not table.exists(node):
-                    table.insert(top, tk.END, iid=node, text=self.rule_title(rule_id), open=True)
+                    table.insert(top, tk.END, iid=node, text=shorten(self.rule_title(rule_id), TREE_TITLE_LIMIT), open=True)
                     targets[node] = target
                 if kind == tr("rule"):
                     table.item(node, values=(mine, theirs))
@@ -354,7 +363,8 @@ class ProfileActions:
                 parent, label = parents["gdata"], f"{kind}: {item}"
             iid = f"d{index}"
             targets[iid] = target
-            table.insert(parent, tk.END, iid=iid, text=label, values=(mine, theirs))
+            table.insert(parent, tk.END, iid=iid, text=shorten(label, TREE_TITLE_LIMIT),
+                         values=(shorten(str(mine), CELL_LIMIT), shorten(str(theirs), CELL_LIMIT)))
 
         def describe(_event: tk.Event | None = None) -> None:  # type: ignore[type-arg]
             selection = table.selection()

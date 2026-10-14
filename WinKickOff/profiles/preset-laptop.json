@@ -1,6 +1,6 @@
 {
-  "format_version": 4,
-  "catalog_version": "0.8",
+  "format_version": 5,
+  "catalog_version": "0.11",
   "name": "Laptop",
   "author": "",
   "created": "2026-09-25T00:00:00",
@@ -13,7 +13,11 @@
     "time_zone": "FLE Standard Time",
     "account_mode": "file",
     "computer_name_mode": "random",
-    "computer_name": ""
+    "computer_name": "",
+    "workgroup": "",
+    "disk_mode": "ask",
+    "disk_id": "0",
+    "partition_id": "3"
   },
   "languages": {
     "ui_language": "uk-UA",
@@ -57,11 +61,23 @@
     "install.bypass-storage": {
       "enabled": true
     },
+    "install.no-setup-diagnostics": {
+      "enabled": false
+    },
+    "install.no-dynamic-update": {
+      "enabled": false
+    },
     "install.bypass-nro": {
       "enabled": true
     },
     "install.netfx3": {
       "enabled": true
+    },
+    "install.drivers-from-media": {
+      "enabled": false
+    },
+    "install.skip-auto-activation": {
+      "enabled": false
     },
     "oobe.hide-eula": {
       "enabled": true
@@ -204,6 +220,9 @@
     "accounts.password-never-expires": {
       "enabled": true
     },
+    "accounts.autologon": {
+      "enabled": false
+    },
     "remote.assistance-off": {
       "enabled": true
     },
@@ -281,6 +300,9 @@
     },
     "system.long-paths": {
       "enabled": true
+    },
+    "system.support-info": {
+      "enabled": false
     },
     "ai.recall-user-off": {
       "enabled": true

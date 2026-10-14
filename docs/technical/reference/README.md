@@ -30,19 +30,19 @@ Registry paths are abbreviated: `HKLM` = `HKEY_LOCAL_MACHINE`, `Pol` = `HKLM\SOF
 | File | Area | Parameters |
 |---|---|---|
 | [00-architecture.md](00-architecture.md) | File structure: passes, order, application mechanisms, Setup constraints, logs, overall cross-link map | none |
-| [01-windows-pe.md](01-windows-pe.md) | windowsPE pass: key, edition, license, hardware check bypass | ProductKey, WillShowUI, AcceptEula, LabConfig |
-| [02-specialize-xml.md](02-specialize-xml.md) | specialize pass in XML: script extraction, BypassNRO, launching Setup-System.ps1, time zone, computer name | Order 1..3, TimeZone, ComputerName |
+| [01-windows-pe.md](01-windows-pe.md) | windowsPE pass: key, edition, license, hardware check bypass | ProductKey, WillShowUI, AcceptEula, LabConfig, SkipAutoActivation, DynamicUpdate, Diagnostics, InstallTo |
+| [02-specialize-xml.md](02-specialize-xml.md) | specialize pass in XML: script extraction, BypassNRO, launching Setup-System.ps1, time zone, computer name | Order 1..3, TimeZone, ComputerName, JoinWorkgroup |
 | [03-oobe-accounts-languages.md](03-oobe-accounts-languages.md) | oobeSystem pass: languages and region, OOBE screens, starter accounts | InputLocale, SystemLocale, UILanguage, UserLocale, OOBE, LocalAccounts |
-| [04-users-and-media.md](04-users-and-media.md) | Accounts in `$Config`, .NET 3.5 from the installation media | AdminAccount, UserAccount, PasswordNeverExpires, EnableNetFx3 |
+| [04-users-and-media.md](04-users-and-media.md) | Accounts in `$Config`, .NET 3.5 from the installation media | AdminAccount, UserAccount, PasswordNeverExpires, EnableNetFx3, DriversFromMedia |
 | [05-printing.md](05-printing.md) | Printing | EnsurePrintSpooler, RestrictPrinterDriverInstallToAdmins |
 | [06-windows-update.md](06-windows-update.md) | Windows updates and Delivery Optimization | WindowsUpdateAutomatic, UpdateOtherMicrosoftProducts, DeferFeatureUpdatesDays, DeliveryOptimizationLANOnly |
 | [07-defender.md](07-defender.md) | Microsoft Defender, ASR rules, SmartScreen | DefenderCloudProtection, DefenderPUAProtection, DefenderNetworkProtection, DefenderASRRules, ControlledFolderAccess, SmartScreenLevel |
-| [08-accounts-uac-lsa-remote.md](08-accounts-uac-lsa-remote.md) | UAC, credential protection, lockout, remote access, BitLocker | UACAlwaysNotify, LSAProtection, AccountLockout, InactivityLockSeconds, NTLMv2Only, DisableRemoteAssistance, DisableRemoteDesktopInbound, DisableRemoteRegistry, PreventAutoDeviceEncryption |
+| [08-accounts-uac-lsa-remote.md](08-accounts-uac-lsa-remote.md) | UAC, credential protection, lockout, remote access, BitLocker | UACAlwaysNotify, LSAProtection, AccountLockout, InactivityLockSeconds, NTLMv2Only, DisableRemoteAssistance, DisableRemoteDesktopInbound, DisableRemoteRegistry, PreventAutoDeviceEncryption, AutoLogon |
 | [09-network-smb-firewall.md](09-network-smb-firewall.md) | SMB, name resolution, firewall | DisableSMB1, RequireSMBSigning, DisableLLMNR, DisableNetBIOS, FirewallOnWithLogging |
 | [10-removable-scripts-browser.md](10-removable-scripts-browser.md) | Removable media, script files, Edge | DisableAutoRun, ScriptFilesOpenInNotepad, RemoveVBScript, EdgeSmartScreenLocked |
 | [11-logging-audit.md](11-logging-audit.md) | Logging for investigations | AuditLogging, PowerShellLogging, DisablePowerShellV2 |
 | [12-telemetry-consumer-ai.md](12-telemetry-consumer-ai.md) | Telemetry, advertising, Copilot and Recall, widgets, web search | MinimalTelemetry, DisableConsumerContent, DisableCopilotAndRecall, DisableWidgetsAndNews, DisableWebSearchInStart |
-| [13-services-apps.md](13-services-apps.md) | Services and app removal | RemoveBloatApps ($AppsToRemove), RemoveQuickAssist, RemoveXboxServices |
+| [13-services-apps.md](13-services-apps.md) | Services and app removal | RemoveBloatApps ($AppsToRemove), RemoveQuickAssist, RemoveXboxServices, SupportInformation |
 | [14-default-user-profile.md](14-default-user-profile.md) | Default user profile (inherited by all accounts) | DU hive values |
 | [15-per-user-script.md](15-per-user-script.md) | Active Setup and Setup-User.ps1: input languages for each user | no parameters, mechanism |
 | [16-post-oobe.md](16-post-oobe.md) | Scheduled task and Post-OOBE.ps1: cleanup after OOBE | no parameters, mechanism |

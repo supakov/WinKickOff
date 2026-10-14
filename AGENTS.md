@@ -2,12 +2,12 @@
 
 For agents and developers: where things are, what to read first, which rules apply, the state of the
 work. Updated with every change of structure, commands or task status.
-Last update: 13.10.2026 (version 1.4.0-rc.8: the two largest modules split, `ui/main_window.py` into mixins and `core/admx.py` into a package, no behaviour change; before it 1.4.0-rc.7: the read of this PC keeps the state of rules it cannot decide and of policies a built-in rule covers; before it 1.4.0-rc.6: the comparison of profiles with several differences of the data forms; before it 1.4.0-rc.5: MCP tokens never start with a hyphen, the progress bar of a long operation stops before its window closes; before it 1.4.0-rc.4: no false rules in effect when this PC is read, the read of a selection into the open profile, a window for long operations and a splash; before it 1.4.0-rc.3: the folder agents/ with the instructions of the assistant for any AI agent; before it 1.4.0-rc.2, task T26: drafts of the unsaved changes, diff profiles and their merge, the comparison as a tree, applying the changes only, the read of this PC as administrator; before it 1.4.0-rc.1, task T25: the settings of this PC read into a profile from the menu "This PC", and through MCP the tool read_this_pc behind the option read_pc, catalog and runtime 0.8; before it 1.3.0-rc.2, task T24: the computer name of the form "Installation" (a name or a template) and the account texts outside ASCII set after OOBE, catalog and runtime 0.7, profile format 4; before it 1.3.0-rc.1, published on 08.10.2026: the customer's commits of 05.10.2026, 14 editions of the generic key and `HiddenByDefault` 1 as the Windows default of every `thispc.*` rule, and the fixes of the last review of T23: a profile saved through a temporary file, held choices at every start, a policy named Off; before it task T23: the rule catalog in JSON instead of TOML, export and import of catalog files, catalogs of the program, and the fixes of its adversarial reviews: profiles read strictly, the provenance of imported choices, safe keys and characters, the ids of policies that share one; before it the customer requests of 04.10.2026: File Explorer namespaces and desktop icons, the account asked during installation, the switch keys of the input language, the edition chosen during installation, a security fix of placeholders in paths, catalog and runtime 0.6, profile format 3).
+Last update: 14.10.2026 (version 1.5.0-rc.1: the branch `unattend-tree` merged into `main` through pull request #3; before it the read of this PC after the diff of 14.10.2026: a removal a later write replaces is not audited, the values of a clean Windows under Policies are no evidence, default-user rules keep their state; before it the last stages of the plan: the rule `install.drivers-from-media`, drivers of a `Drivers` folder of the installation media, and profile format 5, the workgroup and the installation partition of the form "Installation"; before it 1.4.0-rc.11: catalog 0.11 with the action `xml-setting` for any setting of the answer file, Dynamic Update and the Setup diagnostics off; before it 1.4.0-rc.10: catalog 0.10, the rule tree by mechanism with three roots; before it 1.4.0-rc.9: the parameter editor above the description, long texts of imported templates cut with tips, catalog 0.9 with the automatic activation off, the automatic sign-in without a password and the support contacts; before it 1.4.0-rc.8: the two largest modules split, `ui/main_window.py` into mixins and `core/admx.py` into a package, no behaviour change; before it 1.4.0-rc.7: the read of this PC keeps the state of rules it cannot decide and of policies a built-in rule covers; before it 1.4.0-rc.6: the comparison of profiles with several differences of the data forms; before it 1.4.0-rc.5: MCP tokens never start with a hyphen, the progress bar of a long operation stops before its window closes; before it 1.4.0-rc.4: no false rules in effect when this PC is read, the read of a selection into the open profile, a window for long operations and a splash; before it 1.4.0-rc.3: the folder agents/ with the instructions of the assistant for any AI agent; before it 1.4.0-rc.2, task T26: drafts of the unsaved changes, diff profiles and their merge, the comparison as a tree, applying the changes only, the read of this PC as administrator; before it 1.4.0-rc.1, task T25: the settings of this PC read into a profile from the menu "This PC", and through MCP the tool read_this_pc behind the option read_pc, catalog and runtime 0.8; before it 1.3.0-rc.2, task T24: the computer name of the form "Installation" (a name or a template) and the account texts outside ASCII set after OOBE, catalog and runtime 0.7, profile format 4; before it 1.3.0-rc.1, published on 08.10.2026: the customer's commits of 05.10.2026, 14 editions of the generic key and `HiddenByDefault` 1 as the Windows default of every `thispc.*` rule, and the fixes of the last review of T23: a profile saved through a temporary file, held choices at every start, a policy named Off; before it task T23: the rule catalog in JSON instead of TOML, export and import of catalog files, catalogs of the program, and the fixes of its adversarial reviews: profiles read strictly, the provenance of imported choices, safe keys and characters, the ids of policies that share one; before it the customer requests of 04.10.2026: File Explorer namespaces and desktop icons, the account asked during installation, the switch keys of the input language, the edition chosen during installation, a security fix of placeholders in paths, catalog and runtime 0.6, profile format 3).
 
 Repository: https://github.com/supakov/WinKickOff (private, branch `main`; other people push to it too, so
 `git pull --ff-only` before starting work). Every new feature is developed in its own branch and reaches `main`
 through a pull request (customer rule of 13.10.2026; CI builds pushes to `main`, tags and pull requests, so a
-feature branch is checked once its pull request is open); the current one is `unattend-tree`
+feature branch is checked once its pull request is open); the last one, `unattend-tree`, was merged on 14.10.2026 through pull request #3
 (`docs/reports/2026-10-13-plan-unattend.md`). The local clone and the repository must match: commit and push
 after every finished task. Commit messages are in Russian (the customer reads the history), first line up to 72
 characters, no em or en dashes, and a commit made by an agent ends with the line
@@ -79,7 +79,7 @@ only through the MCP server, without a cloud model and without any file of the p
 │       ├── B-autounattend-v0.2/   our hand-written answer file v0.2 (the reference) and its README: history, VM checklist
 │       ├── C-critical-review/     the critic's report on v0.2 (docx)
 │       └── D-requirements-draft/  first requirements draft; section 6 holds open questions to the customer
-└── WinKickOff/                    EDITOR 1.4.0-rc.8 AND RULE CATALOG 0.8
+└── WinKickOff/                    EDITOR 1.5.0-rc.1 AND RULE CATALOG 0.11
     ├── README.md                  developer README: run, test, structure; links to user docs
     ├── pyproject.toml             requires-python >= 3.14, no runtime dependencies
     ├── winkickoff/                package: __main__.py (dispatcher: window or headless MCP), app.py (window start,
@@ -101,12 +101,12 @@ only through the MCP server, without a cloud model and without any file of the p
     │                              winmenus: theme colours around drop-down menus; mcp_workspace: the window as the MCP
     │                              workspace; mcp_window: the MCP monitor; clipboard: the token kept out of the
     │                              clipboard history)
-    ├── rules/                     RULE CATALOG in English, strict JSON: groups.json (40 groups), 00-17-*.json (278 rules),
+    ├── rules/                     RULE CATALOG in English, strict JSON: groups.json (40 groups: three roots, the thematic groups and their mirrors), 00-17-*.json (284 rules),
     │                              lang/ru.json and lang/uk.json (translations; a new file adds a language)
     ├── catalogs/                  catalogs of the program (catalog files of imported ADMX templates, <name>.json;
     │                              README.md); none committed until the license check; the build ships them as xz
     ├── templates/                 runtime with slots: autounattend.template.xml, Setup-System, Setup-User, Post-OOBE,
-    │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.8
+    │                              Audit, Apply, Undo *.runtime.ps1, section-*.ps1; README lists the slots; VERSION = 0.11
     ├── resources/                 keyboards.json, timezones.json, strings.ru.json and strings.uk.json (interface
     │                              translations), themes/ (light, dark, latte, matrix colour themes)
     ├── profiles/                  presets Office (= catalog defaults), Strict, Laptop, Home, README
@@ -474,6 +474,91 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   `MainWindow._show_busy_window` (`set_busy(notify=True)`) and every start or rebuild of the window shows
   `app.show_splash`, closed by `create_app`. `_close_busy_window` stops the progress bar before the window goes, and
   `MainWindow.destroy` calls it: a running bar keeps a Tcl timer that printed "application has been destroyed".
+- Drivers from the installation media (branch `unattend-tree`, stage 7 of the plan, 13.10.2026, customer decision 4):
+  `install.drivers-from-media` (group `install.other`, specialize, off by default) walks the ready drives like
+  `install.netfx3`, takes the first `Drivers` folder that holds an `.inf` file and runs `pnputil.exe /add-driver
+  <folder>\*.inf /subdirs /install` through `Invoke-Exe` (exit 3010, a restart needed, is a WARN line); without
+  the folder a WARN line and nothing else. A driver that windowsPE needs to see the disk cannot come this way (the
+  image or `$WinPEDriver$`). Card 04 (`DriversFromMedia`), the user page install-and-check names the folder;
+  `test_build` parses the script with powershell.exe when it is there. Acceptance in a VM pending.
+- Profile format 5, the workgroup and the installation partition (branch `unattend-tree`, stage 6 of the plan,
+  13.10.2026): `install.workgroup` (empty: nothing written, Windows keeps WORKGROUP), `install.disk_mode` (`ask`, the
+  default, or `partition`), `install.disk_id` and `install.partition_id` (strings like every value of the form; the
+  defaults "0" and "3", the Windows partition of a usual UEFI disk). `Renderer.build` turns them into settings of
+  the merge of stage 5: `Microsoft-Windows-UnattendedJoin\Identification\JoinWorkgroup` in specialize, and
+  `Microsoft-Windows-Setup\ImageInstall\OSImage\InstallTo\DiskID`, `PartitionID` and `OSImage\WillShowUI` OnError
+  in windowsPE; no `DiskConfiguration` (customer decision 2: the disk is not repartitioned). The check refuses a
+  workgroup outside `validate._WORKGROUP_RE` (15 characters, Latin letters, digits, hyphens), a disk number outside
+  0..99 or a partition outside 1..128, and warns in the mode `partition` that nothing asks during Setup. The form
+  "Installation" has the field "Workgroup" and the block "Disk" (`ui/data_forms.py`, `DISK_CHOICES`). Formats 2
+  to 4 load without a warning; cards 01 (`ImageInstall / InstallTo`) and 02 (`JoinWorkgroup`). Acceptance in a VM
+  pending; the read of this PC does not read the workgroup yet.
+- The tree after the customer's look at it (13.10.2026, evening): the root `unattend` is titled "Installation", `install`
+  "windowsPE and specialize", `install.other` "Installation scripts (specialize)" and `post-oobe` "After OOBE (scheduled
+  task)" (the scripts are not answer file settings, so they stay under `other`); every leaf group of one or two rules
+  was dissolved into its parent, repeated until none was left (`printing`, `removable`, `user-logon`, `security.uac`,
+  `privacy.ads`, `privacy.search`, `privacy.speech`, `system.drivers` and most mirrors), so the roots `policies` and
+  `other` hold a few rules directly: 40 groups, 7 mirrors (`install.other`, `security.policies`, `apps.policies`,
+  `privacy.other`, `privacy.ads.other`, `privacy.ai.other`, `privacy.speech.other`). A new small group is fine while it
+  grows; the customer prefers the rules in the parent to a branch of one or two.
+- Catalog 0.11, the action `xml-setting` (branch `unattend-tree`, stage 5 of the plan, 13.10.2026): fields `pass`
+  (`windowsPE`, `specialize` or `oobeSystem`; `catalog.SETTING_PASS_PHASE` fixes the phase of the rule), `component`
+  (`Microsoft-Windows-<name>`), `path` (element names from the component down, `/` between them) and `value` (with
+  placeholders). `Renderer._xml_settings` collects them by pass and component in catalog order, `_setting_lines` builds
+  the nested elements (settings that share the first names share the parent; a path that is both a value and a
+  parent is a `ValueError`, shown as a build issue) and `_settings` merges them into the components it already writes
+  (Setup, Deployment, Shell-Setup, International-Core) or adds a component (`_extra_components`), for both
+  architectures. Such rules act only during installation: the audit, the apply and the read of this PC treat them as
+  the other xml rules (by phase). First rules: `install.no-dynamic-update` (`DynamicUpdate/Enable` false and
+  `WillShowUI` Never) and `install.no-setup-diagnostics` (`Diagnostics/OptIn` false), off by default, card 01;
+  `tools/Validate-Unattend.ps1` passes a build with them on (37 checks). Native settings are added only where the
+  registry cannot act during installation (customer decision 5); the workgroup and the installation partition come
+  next (stage 6).
+- Catalog 0.10, the tree by mechanism (branch `unattend-tree`, stage 3 of the plan, 13.10.2026, customer decision 1):
+  `groups.json` has three roots (`catalog.TREE_ROOTS`: `unattend`, `policies`, `other`); a thematic group sits under the
+  root of most rules of its subtree (a tie went to the policies), and a rule of another mechanism lives in a mirror of
+  its group under the right root, `<group>.<root>` (21 mirrors with the same titles; `apps.onedrive` moved whole,
+  since every OneDrive rule is a policy). `catalog.mechanism(rule)` reads the actions (`xml-*` only: unattend; registry
+  values under a `Policies` key only: policy; anything else or a mix: other), and `test_catalog` requires
+  `catalog.root_of(rule.group) == MECHANISM_ROOTS[mechanism(rule)]` for every rule: a new rule in the wrong root
+  fails the build. Rule ids are unchanged, so profiles, presets, diffs and MCP calls are not affected; 36 rules changed
+  their group (`WinKickOff/tools/make_shell_rules.py` names the mirror for `nav.home-cloud-files-off`). Imported trees are
+  children of `policies` (`catalog_part`, `Catalog.imported_roots()` for the MCP status and resources), the window
+  puts the data forms first under `unattend` and the root of unknown rules last under `policies` (at the top while a
+  search hides that root), the three roots start open, `Resolver.set_group` never switches imported policies on (a
+  root holds thousands), and the comparison window groups rows by the thematic group under a root.
+- Catalog 0.9 (branch `unattend-tree`, stage 4 of `docs/reports/2026-10-13-plan-unattend.md`, 13.10.2026): three
+  registry rules, all off by default, chosen over the unattend settings that write the same values (customer
+  decision 5: a native XML setting only where the registry does not work during installation):
+  `install.skip-auto-activation` (`SoftwareProtectionPlatform\Activation\Manual` 1, default 0; the check adds an
+  info when the edition's generic key is a KMS client key, `validate.DIGITAL_LICENCE_EDITIONS` are the two that are
+  not), `accounts.autologon` (Winlogon `AutoAdminLogon` "1", `DefaultUserName`, `AutoLogonCount`; no password
+  value: the check refuses an account the profile does not list or one with a password, customer decision 3, and
+  warns in the account mode `ask`), `system.support-info` (`OEMInformation`, five optional string parameters:
+  `"required": false` lets a string parameter be empty; the check refuses non-ASCII texts, since the embedded
+  scripts are read without a code page, and warns when every text is empty). Reference sections
+  `SkipAutoActivation` (card 01), `AutoLogon` (08), `SupportInformation` (13). Acceptance in a VM pending.
+- The data forms scroll (13.10.2026, evening, customer request: "Installation" and "Accounts" outgrew small screens):
+  `MainWindow.form_host` holds `form_canvas`, and `_show_panel` (`ui/window_detail.py`) makes each form once with the
+  canvas as its master and shows it as the one window item `form_window`; `_fit_form` keeps the width and the scroll
+  region, `_scroll_form` the wheel, and `_scroll_to_widget`, bound to `<FocusIn>` of every descendant of a form, brings
+  the focused field into view, so Tab works without a mouse. The group view repeats the commands of the context
+  menu of the tree in a LabelFrame "This PC" under the group buttons (`_build_group_buttons`; a LabelFrame, since
+  the tests read the text of every child of `params_frame`): check, read into the open profile, apply, return to
+  defaults, save an apply script, all on the selection, which is the group shown.
+- The right panel since 13.10.2026 (branch `unattend-tree`, customer request): the parameter editor, the buttons of a
+  group and the import buttons of an unknown choice sit above the description (`ui/window_detail.py`: `_show_params`
+  packs `params_host` before `text_frame`, `_clear_params` hides it), inside a canvas that `_fit_params` keeps at
+  most `PARAMS_SHARE` of the panel high (`PARAMS_MIN_HEIGHT` at least) with a scroll bar beyond that, so the
+  description stays in view under an imported policy with many elements; `params_frame` is still the frame the
+  widgets are made in (the tests read its children). A native theme has no colours, so the canvas takes the ttk
+  frame colour.
+- Long texts of imported templates (branch `unattend-tree`, 13.10.2026): the tree and the comparison window show a
+  title cut to `TREE_TITLE_LIMIT` characters (`window_common.shorten`, three dots) and `MainWindow._full_titles`
+  keeps the whole one for the tip of `ui/tooltip.py` (`Tooltip(widget, text_of_event)`, a delayed borderless
+  top-level that hides on leave, click and destroy); a drop-down list shows options cut to `OPTION_TITLE_LIMIT`
+  and chooses by position (`box.current()`), with the whole title in a tip; parameter labels wrap at
+  `LABEL_WRAP_SHARE` of the panel width (`_label_wrap`, refreshed by `_fit_params`).
 - Module layout since 13.10.2026 (a refactoring, no behaviour change): `ui/main_window.py` (969 lines) holds the window,
   menus, tree, search, toggling and close, and `MainWindow` inherits the mixins `DetailPanel` (`ui/window_detail.py`:
   the right panel, unknown choices, Back and Forward, parameters), `ProfileActions` (`ui/window_profiles.py`:
@@ -490,14 +575,25 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
   `store` (`admx/<id>/`, `ImportInfo`, `trust_order`), `rules` (records to rules, `catalog_part`, `with_imports`);
   each module imports only the ones before it in that order, and `__init__.py` re-exports every public name
   (`__all__`), so `from winkickoff.core import admx` and `admx.<name>` are unchanged.
-- Values a clean Windows 11 holds that the read of this PC reports as rules in effect (the read of 12.10.2026 of a PC
-  installed from a profile): `RunAsPPL` 2 (`lsa.protection`; 24H2 and later write it on a clean installation, also
-  `RunAsPPLBoot`), `EnhancedStorageDevices\TCGSecurityActivationDisabled` 0 and `Network Connections\
-  NC_PersonalFirewallConfig` 0 under `SOFTWARE\Policies` (imported policies whose Disabled and Enabled states those
-  values are), `Geo\Nation` and `Geo\Name` of the user (`default-user.region`; Windows Setup writes the region of the
-  answer file). The read judges the default-user rules by HKCU of the current user, which Windows changes after the
-  account is made (`ContentDeliveryManager`, `International\User Profile`), and an app that is not installed yet
-  (Edge Game Assist comes with an Edge update) counts as removed. Known, not changed.
+- Values a clean Windows 11 holds that the read of this PC used to report as rules in effect (the reads of 12.10 and
+  14.10.2026 of PCs installed from a profile): `RunAsPPL` 2 (`lsa.protection`; 24H2 and later write it on a clean
+  installation, also `RunAsPPLBoot`; unchanged), `EnhancedStorageDevices\TCGSecurityActivationDisabled` 0 and
+  `Network Connections\NC_PersonalFirewallConfig` 0 under `SOFTWARE\Policies` (imported policies whose Disabled and
+  Enabled states those values are; since 14.10.2026 `capture.CLEAN_POLICY_VALUES` makes them no evidence, so such a
+  policy is `as-default` and keeps its state), `Geo\Nation` and `Geo\Name` of the user (`default-user.region`;
+  Windows Setup writes the region of the answer file). The read judges the default-user rules by HKCU of the current
+  user, which Windows changes after the first sign-in (`ContentDeliveryManager`, `TaskbarDa`,
+  `HttpAcceptLanguageOptOut`, `International\User Profile`): since 14.10.2026 a default-user rule partly or not in
+  effect there keeps the state of the open profile with an info line (`CaptureSummary.unreliable`); only a rule whose
+  values are all in place is read as in effect. An app that is not installed yet (Edge Game Assist comes with an Edge
+  update) counts as removed.
+- A rule that removes a value and then writes it (`defender.realtime`: `DisableRealtimeMonitoring` removed under
+  `Windows Defender\Real-Time Protection` and then written 0 there, as v0.2 does, which `test_coverage_v02` keeps)
+  failed its own absent check in every audit, so the read of 14.10.2026 showed it partly in effect, switched it off
+  and freed its four Defender policies: `apply.audited_actions(rule)` leaves such a `reg-remove` out of the audit
+  (`render_audit_block`, `capture._check_owners` and the `checks` helper of `tests/test_capture.py` use it); the
+  apply still removes and writes. `scripts.open-in-notepad` off in that read was real: the `(Default)` handlers of
+  the script classes were back, Windows servicing rewrites them.
 - Accounts asked during installation (customer request 2 of 04.10.2026): profile format 3 adds `install.account_mode`
   (`file` or `ask`). In `ask` the answer file has no `UserAccounts` (`Profile.answer_file_accounts()` is empty, also for
   Post-OOBE and Apply), so Windows Setup asks for one account and makes it an administrator; the accounts stay in the
@@ -713,14 +809,14 @@ The same checks as CI, on a Linux machine with Podman and Python 3.14, from the 
 | GitHub repository | Renamed to WinKickOff; the local clone and `origin/main` match; CI in GitHub Actions | 26.09.2026 | https://github.com/supakov/WinKickOff |
 | Editor specification | Revision 0.2, English | 25.09.2026 | `docs/technical/editor/` |
 | Editor tasks | T01-T12, T14, T16-T26 done (the build runs in GitHub Actions; T23: the catalogs of the program wait for the license check); T13 blocked on the acceptance checklist; T15 implemented with return to defaults, acceptance in a VM pending | 04.10.2026 | `docs/technical/editor/todo/` |
-| Rule catalog | 0.6: 278 rules, 40 groups (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer and the desktop 41; keys that switch the input language), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.6 adds the File Explorer namespaces and desktop icons (generated), the switch keys of the sign-in screen and new accounts, registry functions of the per-user and post-OOBE scripts; since 1.3.0 (T23) strict JSON in a canonical layout instead of TOML, the same content | 04.10.2026 | `WinKickOff/rules/` |
-| Editor code | 1.4.0-rc.2 (T26: drafts, diff profiles, the comparison as a tree, applying the changes only, the elevated read; T25: the settings of this PC read into a profile, in the window and through MCP behind the option read_pc; T24: the computer name, a name or a template, and account texts outside ASCII; T23: the catalog in JSON, export and import of catalog files, catalogs of the program, saved imports checked and conformed on load, trust order of imports and the provenance of imported choices; the tree root of unknown rules and policies, the account asked during installation, File Explorer namespaces and desktop icons, the switch keys of the input language, a security fix of placeholders; Home preset; customer specifics removed; skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 842 tests; 13.10.2026: `main_window.py` split into mixins and `admx.py` into a package | 13.10.2026 | `WinKickOff/` |
+| Rule catalog | 0.11: 284 rules, 40 groups (0.11: the action `xml-setting` with the first two rules, Dynamic Update and the Setup diagnostics off, branch `unattend-tree`; 0.10: the tree by mechanism, three roots and 21 mirrors of thematic groups, branch `unattend-tree`; 0.9 adds the automatic activation off, the automatic sign-in without a password and the support contacts, branch `unattend-tree`); 0.6: 278 rules (130 carry v0.2; browsers 64; list MoreOptions: AI, telemetry, advertising, search, speech, Office, OneDrive, drivers; File Explorer and the desktop 41; keys that switch the input language), Windows defaults for return, integrity and v0.2 coverage confirmed by tests; 0.6 adds the File Explorer namespaces and desktop icons (generated), the switch keys of the sign-in screen and new accounts, registry functions of the per-user and post-OOBE scripts; since 1.3.0 (T23) strict JSON in a canonical layout instead of TOML, the same content | 04.10.2026 | `WinKickOff/rules/` |
+| Editor code | 1.4.0-rc.2 (T26: drafts, diff profiles, the comparison as a tree, applying the changes only, the elevated read; T25: the settings of this PC read into a profile, in the window and through MCP behind the option read_pc; T24: the computer name, a name or a template, and account texts outside ASCII; T23: the catalog in JSON, export and import of catalog files, catalogs of the program, saved imports checked and conformed on load, trust order of imports and the provenance of imported choices; the tree root of unknown rules and policies, the account asked during installation, File Explorer namespaces and desktop icons, the switch keys of the input language, a security fix of placeholders; Home preset; customer specifics removed; skill for agents that use WinKickOff, also served over MCP; error kinds in tool error texts; MCP server, T22; import of ADMX templates with lists of values, T19; Back and Forward, shared imports, T20; links to built-in rules, T21): generator, profile, XML and catalog checks, import of built files and of v0.2, PowerShell check, four presets, window with check boxes, parameters, forms, profiles, comparison, recent files and build; English source with Russian and Ukrainian translation files, languages and colour themes (Light, Dark, Latte, Matrix, as in Windows) found from files; 860 tests; 13.10.2026: `main_window.py` split into mixins and `admx.py` into a package; branch `unattend-tree`: the parameter editor above the description, long texts of imported templates cut with tips | 13.10.2026 | `WinKickOff/` |
 | Installation from a WinKickOff build | Confirmed by the customer on real hardware (accounts, languages, minimal questions) | 26.09.2026 | release 1.0.0-rc.1 |
 | Applying rules to a running Windows | T15: read-only audit, apply (rules on are applied, rules off return to Windows defaults) and return to Windows defaults with backup and undo, through UAC after a one-time permission; acceptance in a VM pending | 29.09.2026 | `WinKickOff/winkickoff/core/apply.py`, `docs/user/*/this-pc.md` |
 | Repository layout | T17 done; 26.09.2026 the repository was renamed to WinKickOff, the old umbrella name is gone | 26.09.2026 | `README.md`, `docs/appendices/` |
 | Documentation split | T16 done: technical in English, user documentation in ru, uk, en; since T18 the catalog is English with complete ru and uk translations | 30.09.2026 | `docs/technical/`, `docs/user/`, `WinKickOff/rules/lang/` |
 | GitHub issues | #1 "Web Browsers debloat" done: section "Browsers" (Edge, Chrome, Brave), 46 rules off by default, card 18. The customer closes issues | 25.09.2026 | `WinKickOff/rules/14-browsers.json`, `docs/technical/reference/18-browsers.md` |
-| Release candidate | 1.4.0-rc.8 published on 13.10.2026 (tag on b728715: the module split, no behaviour change; prerelease built by CI); 1.4.0-rc.7 published on 13.10.2026 (tag on 795b2a3: the read of this PC keeps the state of rules it cannot decide and of policies a built-in rule covers; prerelease built by CI); 1.4.0-rc.6 published on 11.10.2026 (tag on 067463a: the comparison of profiles with several differences of the data forms; prerelease built by CI); 1.4.0-rc.5 published on 11.10.2026 (tag on 3318062: MCP tokens without a leading hyphen, the progress bar stopped before its window closes; prerelease built by CI); 1.4.0-rc.4 published on 11.10.2026 (tag on f089424 with the fix of the splash, which had left tkinter without a default root; prerelease built by CI); 1.4.0-rc.3 published on 10.10.2026 (the folder agents/; tag on 1ef6ef2, prerelease built by CI); 1.4.0-rc.2 published on 10.10.2026 (tag on 148ff70, prerelease built by CI); 1.4.0-rc.1 published on 10.10.2026 (tag on b2c482d, prerelease built by CI; a tag only on the customer's command); 1.3.0-rc.2 in the code since 08.10.2026, never tagged; 1.3.0-rc.1 published on 08.10.2026 (tag on 7e25d20, prerelease built by CI); 1.2.0-rc.4 published (Home preset with its own list of rules, customer specifics removed, Appendix A and the review of the original deleted); earlier 1.2.0-rc.3 (the skill served over MCP, error kinds in tool error texts, pi-agent an MCP-only assistant), 1.2.0-rc.2 (skill `skills/winkickoff` in the build, clipboard fix, F9 hint), 1.2.0-rc.1 (MCP server, after the review fixes of 01.10.2026), 1.1.0-rc.4 (imported policies follow the built-in rules), 1.1.0-rc.3 (Back and Forward, shared imports), 1.1.0-rc.2 (lists of values), 1.1.0-rc.1 (import of ADMX templates) and 1.0.0-rc.1 to rc.4 of 26.09-30.09.2026: tag and GitHub release built by CI | 04.10.2026 | `docs/releases/v1.2.0-rc.4.md`, `docs/releases/v1.3.0-rc.1.md` |
+| Release candidate | 1.5.0-rc.1 published on 14.10.2026 from `main` after the merge of pull request #3 (the branch `unattend-tree`: every stage of the plan `docs/reports/2026-10-13-plan-unattend.md` and the read fixes of 14.10.2026; prerelease built by CI); 1.4.0-rc.12 published on 13.10.2026 from the branch `unattend-tree` (tag on 2d80b9d: stages 6 and 7 of the plan, the last ones: the workgroup, the installation partition, drivers from the media; for the acceptance in a VM; prerelease built by CI; not in `main` until pull request #3 is merged); 1.4.0-rc.11 published on 13.10.2026 from the branch `unattend-tree` (tag on 5779280: stage 5 of the plan, the action `xml-setting`, for the acceptance in a VM; prerelease built by CI; not in `main` until pull request #3 is merged); 1.4.0-rc.10 published on 13.10.2026 from the branch `unattend-tree` (tag on f87a4fa: stage 3 of the plan, the tree by mechanism, for the acceptance in a VM; prerelease built by CI; not in `main` until pull request #3 is merged); 1.4.0-rc.9 published on 13.10.2026 from the branch `unattend-tree` (tag on 252fc83: stages 1, 2 and 4 of the plan, for the acceptance in a VM; prerelease built by CI; not in `main` until pull request #3 is merged); 1.4.0-rc.8 published on 13.10.2026 (tag on b728715: the module split, no behaviour change; prerelease built by CI); 1.4.0-rc.7 published on 13.10.2026 (tag on 795b2a3: the read of this PC keeps the state of rules it cannot decide and of policies a built-in rule covers; prerelease built by CI); 1.4.0-rc.6 published on 11.10.2026 (tag on 067463a: the comparison of profiles with several differences of the data forms; prerelease built by CI); 1.4.0-rc.5 published on 11.10.2026 (tag on 3318062: MCP tokens without a leading hyphen, the progress bar stopped before its window closes; prerelease built by CI); 1.4.0-rc.4 published on 11.10.2026 (tag on f089424 with the fix of the splash, which had left tkinter without a default root; prerelease built by CI); 1.4.0-rc.3 published on 10.10.2026 (the folder agents/; tag on 1ef6ef2, prerelease built by CI); 1.4.0-rc.2 published on 10.10.2026 (tag on 148ff70, prerelease built by CI); 1.4.0-rc.1 published on 10.10.2026 (tag on b2c482d, prerelease built by CI; a tag only on the customer's command); 1.3.0-rc.2 in the code since 08.10.2026, never tagged; 1.3.0-rc.1 published on 08.10.2026 (tag on 7e25d20, prerelease built by CI); 1.2.0-rc.4 published (Home preset with its own list of rules, customer specifics removed, Appendix A and the review of the original deleted); earlier 1.2.0-rc.3 (the skill served over MCP, error kinds in tool error texts, pi-agent an MCP-only assistant), 1.2.0-rc.2 (skill `skills/winkickoff` in the build, clipboard fix, F9 hint), 1.2.0-rc.1 (MCP server, after the review fixes of 01.10.2026), 1.1.0-rc.4 (imported policies follow the built-in rules), 1.1.0-rc.3 (Back and Forward, shared imports), 1.1.0-rc.2 (lists of values), 1.1.0-rc.1 (import of ADMX templates) and 1.0.0-rc.1 to rc.4 of 26.09-30.09.2026: tag and GitHub release built by CI | 04.10.2026 | `docs/releases/v1.2.0-rc.4.md`, `docs/releases/v1.3.0-rc.1.md` |
 | Imported ADMX templates | T19 done: ADMX menu, store `admx/` next to the program, policies as rules with parameters, links to built-in rules; since 1.1.0-rc.2 list and multi-line elements too (20 of 3552 policies of this Windows skipped); acceptance of lists on This PC in a VM pending; T20 (1.1.0-rc.3): an import of an imported folder asks to update it or add a tree, a policy in several trees has one check mark, trees can be renamed; Back and Forward in the window; T21 (1.1.0-rc.4): an imported policy follows the built-in rule that sets the same values; T23 (1.3.0-rc.1): export and import of catalog files, catalogs of the program (none shipped until the license check), the trust order of imports, saved imports checked on load | 04.10.2026 | `WinKickOff/winkickoff/core/admx/`, `docs/user/*/admx.md` |
 | Customer list MoreOptions | Done: BitLocker off in every preset; 57 rules on by default (AI, telemetry, advertising, search, speech, Office, OneDrive, drivers, Edge AI and sign-in, Gallery hidden), This PC folders as options off by default; corrections in card 19 | 28.09.2026 | `docs/technical/reference/19-more-privacy.md` |
 | MCP server | T22 done in code: stdio and HTTP transports, 19 tools (T25 added read_this_pc), resources, modes read/edit/files, monitor, second executable in CI; acceptance with real clients (Claude Code, Claude Desktop) in a VM pending | 30.09.2026 | `WinKickOff/winkickoff/mcp/`, `docs/user/*/mcp.md` |

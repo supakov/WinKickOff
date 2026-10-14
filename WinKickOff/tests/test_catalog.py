@@ -64,7 +64,20 @@ class RealCatalogTest(unittest.TestCase):
     def test_loads_with_rules_and_groups(self) -> None:
         self.assertGreater(len(self.catalog.rules), 60)
         self.assertGreater(len(self.catalog.groups), 15)
-        self.assertEqual(self.catalog.version, "0.8")
+
+    def test_the_tree_roots_follow_the_mechanism_of_each_rule(self) -> None:
+        # catalog 0.10 (plan of 13.10.2026, section 3): what the answer file does itself, the policies, the rest
+        from winkickoff.core.catalog import MECHANISM_ROOTS, TREE_ROOTS, mechanism
+
+        self.assertEqual([g.id for g in self.catalog.children(None)], list(TREE_ROOTS))
+        self.assertEqual(mechanism(self.catalog.rules["oobe.hide-eula"]), "unattend")
+        self.assertEqual(mechanism(self.catalog.rules["defender.pua"]), "policy")
+        self.assertEqual(mechanism(self.catalog.rules["apps.remove.onedrive"]), "other")
+        self.assertEqual(mechanism(self.catalog.rules["uac.baseline"]), "other")  # a policy and a Winlogon value: a mix
+        for rule in self.catalog.rules.values():
+            self.assertEqual(self.catalog.root_of(rule.group), MECHANISM_ROOTS[mechanism(rule)], rule.id)
+        self.assertEqual(self.catalog.imported_roots(), [])
+        self.assertEqual(self.catalog.version, "0.11")
 
     def test_the_catalog_has_no_toml_left(self) -> None:
         self.assertEqual(sorted(p.name for p in (ROOT / "rules").rglob("*.toml")), [])
@@ -105,6 +118,17 @@ class RealCatalogTest(unittest.TestCase):
 
 
 class BrokenCatalogTest(unittest.TestCase):
+    def test_xml_setting_actions(self) -> None:
+        # catalog 0.11: any setting of a component of the answer file; the pass fixes the phase of the rule
+        setting = {"type": "xml-setting", "pass": "windowsPE", "component": "Microsoft-Windows-Setup", "path": "DynamicUpdate/Enable",
+                   "value": "false"}
+        catalog = self._load([rule(phase="windowspe", actions=[setting])])
+        self.assertEqual(catalog.rules["a.one"].actions[0].fields["path"], "DynamicUpdate/Enable")
+        self._expect([rule(phase="specialize", actions=[setting])], "belongs to phase 'windowspe'")
+        self._expect([rule(phase="windowspe", actions=[dict(setting, **{"pass": "auditUser"})])], "unknown pass")
+        self._expect([rule(phase="windowspe", actions=[dict(setting, component="Setup")])], "Microsoft-Windows-<name>")
+        self._expect([rule(phase="windowspe", actions=[dict(setting, path="Dynamic Update/Enable")])], "separated by")
+
     def _expect(self, rules: list[dict[str, Any]] | str, fragment: str, groups: list[dict[str, Any]] | str = GROUPS) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = write_catalog(tmp, rules, groups)

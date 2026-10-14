@@ -16,7 +16,7 @@ from winkickoff.core import computername, jsonfile
 from winkickoff.core.admx import safe_name
 from winkickoff.core.catalog import Catalog, CatalogError, heading_anchors, is_imported, load_catalog
 from winkickoff.core.i18n import N_, catalog_texts, tr
-from winkickoff.core.profile import ACCOUNT_MODES, Profile
+from winkickoff.core.profile import ACCOUNT_MODES, DISK_MODES, Profile
 from winkickoff.core.render import EDITION_KEYS
 from winkickoff.core.resources import find_keyboard
 from winkickoff.core.verify import rollback_steps, verify_steps
@@ -34,6 +34,13 @@ EXT = "{urn:workgroup-unattend}"
 MAX_PATH = 259
 MAX_LIST_ITEM = 4096  # characters of one item of a list parameter
 DEVICE_ENCRYPTION_RULE = "encryption.prevent-auto-bitlocker"
+# stage 4 of the plan of 13.10.2026: the automatic sign-in only for an account of the profile without a password
+# (customer decision 3), the support texts in ASCII, the activation hint for the editions of the KMS client keys
+AUTOLOGON_RULE = "accounts.autologon"
+SUPPORT_RULE = "system.support-info"
+ACTIVATION_RULE = "install.skip-auto-activation"
+DIGITAL_LICENCE_EDITIONS = ("Pro", "Education")  # generic keys; the other editions of EDITION_KEYS are KMS client keys
+_WORKGROUP_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,14}$")  # a NetBIOS name as the form takes it (stage 6)
 
 
 @dataclass(frozen=True)
@@ -189,6 +196,23 @@ def validate_profile(profile: Profile, catalog: Catalog, keyboards: list[dict[st
                computername.template_problem(computer_name) if name_mode == "template" else None)
     if problem:
         issues.append(Issue("error", "install.computer_name", tr("Computer name: {0}", problem)))
+    workgroup = str(profile.install.get("workgroup", "")).strip()
+    if workgroup and not _WORKGROUP_RE.match(workgroup):
+        issues.append(Issue("error", "install.workgroup", tr("Workgroup: up to 15 Latin letters, digits and hyphens")))
+    disk_mode = profile.install.get("disk_mode", "ask")
+    if disk_mode not in DISK_MODES:
+        issues.append(Issue("error", "install.disk_mode", tr("Unknown disk mode '{0}'", disk_mode)))
+    elif disk_mode == "partition":
+        disk, partition = str(profile.install.get("disk_id", "")).strip(), str(profile.install.get("partition_id", "")).strip()
+        disk_ok, partition_ok = disk.isdigit() and int(disk) <= 99, partition.isdigit() and 1 <= int(partition) <= 128
+        if not disk_ok:
+            issues.append(Issue("error", "install.disk_id", tr("Disk number: 0 to 99")))
+        if not partition_ok:
+            issues.append(Issue("error", "install.partition_id", tr("Partition number: 1 to 128")))
+        if disk_ok and partition_ok:
+            issues.append(Issue("warning", "install.disk_mode", tr(
+                "Windows Setup installs to disk {0}, partition {1} without asking: the partition must exist and be "
+                "formatted, and what is on it is replaced", disk, partition)))
 
     for key, title in (("ui_language", tr("Display language")), ("system_locale", tr("Language for non-Unicode programs")), ("user_locale", tr("Date and number format"))):
         value = str(profile.languages.get(key, ""))
@@ -255,6 +279,41 @@ def validate_profile(profile: Profile, catalog: Catalog, keyboards: list[dict[st
             "check Get-BitLockerVolume C: and store the key (manage-bde -protectors -get C:) away from "
             "the computer; otherwise the data will be lost if the TPM fails or the motherboard is "
             "replaced."), encryption.doc))
+    autologon = catalog.rules.get(AUTOLOGON_RULE)
+    if autologon is not None and profile.is_enabled(autologon.id):
+        title = catalog_texts().rule(autologon, "title")
+        name = str(profile.param(catalog, autologon.id, "account")).strip()
+        account = next((a for a in profile.accounts if a.name.lower() == name.lower()), None)
+        if not name:
+            issues.append(Issue("error", autologon.id, tr("\"{0}\": the account name is empty", title), autologon.doc))
+        elif profile.asks_for_account():
+            issues.append(Issue("warning", autologon.id, tr(
+                "\"{0}\": Windows Setup asks for the account, so the account made during Setup must be named {1} and have "
+                "no password", title, name), autologon.doc))
+        elif account is None:
+            issues.append(Issue("error", autologon.id, tr("\"{0}\": the profile has no account named {1}", title, name), autologon.doc))
+        elif account.password:
+            issues.append(Issue("error", autologon.id, tr(
+                "\"{0}\": the account {1} has a password; the automatic sign-in is only for an account without one",
+                title, name), autologon.doc))
+    support = catalog.rules.get(SUPPORT_RULE)
+    if support is not None and profile.is_enabled(support.id):
+        title = catalog_texts().rule(support, "title")
+        values = {pname: str(profile.param(catalog, support.id, pname)) for pname in support.params}
+        if not any(value.strip() for value in values.values()):
+            issues.append(Issue("warning", support.id, tr("\"{0}\" is on, but every text is empty", title), support.doc))
+        for pname, value in values.items():
+            if not value.isascii():
+                issues.append(Issue("error", support.id, tr(
+                    "\"{0}\": \"{1}\" may hold ASCII characters only: the installation scripts are read without a code page",
+                    title, catalog_texts().param(support, support.params[pname])), support.doc))
+    activation = catalog.rules.get(ACTIVATION_RULE)
+    if (activation is not None and not profile.is_enabled(activation.id) and profile.install.get("product_key_mode") == "generic"
+            and edition in EDITION_KEYS and edition not in DIGITAL_LICENCE_EDITIONS):
+        issues.append(Issue("info", activation.id, tr(
+            "The generic key of {0} is a KMS client key: without a KMS host Windows keeps trying to activate and shows "
+            "errors until the key of the licence is typed. \"{1}\" stops the attempts.",
+            edition, catalog_texts().rule(activation, "title")), activation.doc))
     issues.extend(Issue("error", target, tr(HALF_CHARACTER)) for target in half_characters(profile, catalog))
     if profile.unknown:
         issues.append(Issue("info", "profile", tr("The profile contains rules that are not in the catalog: ") + ", ".join(sorted(profile.unknown))))

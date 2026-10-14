@@ -103,6 +103,63 @@ class ProfileValidationTest(unittest.TestCase):
         issues = self.check()
         self.assertIn("warning", {i.level for i in issues if i.target == rule.id})
 
+    def test_automatic_sign_in_needs_an_account_of_the_profile_without_a_password(self) -> None:
+        # stage 4 of the plan of 13.10.2026 (customer decision 3: only an account without a password)
+        self.profile.rules["accounts.autologon"].enabled = True
+        self.profile.set_param("accounts.autologon", "account", "User")
+        self.assertFalse(errors(self.check(), "accounts.autologon"))  # the starter account User has no password
+        self.profile.set_param("accounts.autologon", "account", "Nobody")
+        self.assertTrue(errors(self.check(), "accounts.autologon"))
+        self.profile.set_param("accounts.autologon", "account", "user")  # names compare without case
+        self.assertFalse(errors(self.check(), "accounts.autologon"))
+        next(a for a in self.profile.accounts if a.name == "User").password = "secret"
+        self.assertTrue(errors(self.check(), "accounts.autologon"))
+        self.profile.set_param("accounts.autologon", "account", "")
+        self.assertTrue(errors(self.check(), "accounts.autologon"))
+        self.profile.set_param("accounts.autologon", "account", "Somebody")
+        self.profile.install["account_mode"] = "ask"  # the account is made during Setup: a warning, not an error
+        issues = [i for i in self.check() if i.target == "accounts.autologon"]
+        self.assertFalse(errors(issues))
+        self.assertIn("warning", {i.level for i in issues})
+
+    def test_support_texts_are_ascii_and_not_all_empty(self) -> None:
+        self.profile.rules["system.support-info"].enabled = True
+        issues = [i for i in self.check() if i.target == "system.support-info"]
+        self.assertEqual([i.level for i in issues], ["warning"])  # every text empty
+        self.profile.set_param("system.support-info", "support_phone", "+380 44 000 00 00")
+        self.assertEqual([i for i in self.check() if i.target == "system.support-info"], [])
+        self.profile.set_param("system.support-info", "support_hours", "9-18 " + chr(0x41F) + chr(0x43D))  # Cyrillic
+        self.assertTrue(errors(self.check(), "system.support-info"))
+
+    def test_kms_client_key_editions_get_the_activation_hint(self) -> None:
+        self.assertEqual([i for i in self.check() if i.target == "install.skip-auto-activation"], [])  # Pro: a digital licence
+        self.profile.install["edition"] = "Enterprise"
+        issues = [i for i in self.check() if i.target == "install.skip-auto-activation"]
+        self.assertEqual([i.level for i in issues], ["info"])
+        self.profile.rules["install.skip-auto-activation"].enabled = True
+        self.assertEqual([i for i in self.check() if i.target == "install.skip-auto-activation"], [])
+        self.profile.rules["install.skip-auto-activation"].enabled = False
+        self.profile.install["product_key_mode"] = "ask"  # the edition is chosen during Setup: no hint
+        self.assertEqual([i for i in self.check() if i.target == "install.skip-auto-activation"], [])
+
+    def test_workgroup_and_installation_partition(self) -> None:
+        # stage 6 of the plan of 13.10.2026
+        self.profile.install["workgroup"] = "BUH-1"
+        self.assertFalse(errors(self.check(), "install.workgroup"))
+        for bad in ("A" * 16, "BUH 1", "-BUH"):
+            self.profile.install["workgroup"] = bad
+            self.assertTrue(errors(self.check(), "install.workgroup"), bad)
+        self.profile.install["workgroup"] = ""
+        self.profile.install["disk_mode"] = "partition"
+        issues = [i for i in self.check() if i.target in ("install.disk_mode", "install.disk_id", "install.partition_id")]
+        self.assertEqual([i.level for i in issues], ["warning"])  # disk 0, partition 3: nothing asks during Setup
+        self.profile.install["partition_id"] = "0"
+        self.assertTrue(errors(self.check(), "install.partition_id"))
+        self.profile.install["disk_id"] = "x"
+        self.assertTrue(errors(self.check(), "install.disk_id"))
+        self.profile.install["disk_mode"] = "nope"
+        self.assertTrue(errors(self.check(), "install.disk_mode"))
+
     def test_param_out_of_range_is_an_error(self) -> None:
         rule, param = next(
             (r, p) for r in self.catalog.rules.values() for p in r.params.values() if p.type == "int" and p.max is not None

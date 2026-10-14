@@ -20,7 +20,7 @@ from tkinter import font as tkfont
 from typing import Any
 
 from winkickoff import APP_NAME, APP_VERSION
-from winkickoff.core.catalog import Catalog, Param, Rule, is_imported
+from winkickoff.core.catalog import Catalog, Param, Rule, is_imported, POLICIES_ROOT, TREE_ROOTS, UNATTEND_ROOT
 from winkickoff.core import admx as admx_module
 from winkickoff.core import linked
 from winkickoff.core import package as package_module
@@ -43,6 +43,7 @@ from winkickoff.ui.window_detail import DetailPanel
 from winkickoff.ui.window_mcp import McpActions
 from winkickoff.ui.window_profiles import ProfileActions
 from winkickoff.ui.window_thispc import ThisPcActions
+from winkickoff.ui.tooltip import Tooltip
 from winkickoff.ui.window_common import (
     WORKFLOW_NODE,
     MODE_TITLES,
@@ -57,6 +58,8 @@ from winkickoff.ui.window_common import (
     rule_of,
     user_docs,
     _profile_name,
+    TREE_TITLE_LIMIT,
+    shorten,
 )
 
 
@@ -86,7 +89,7 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
         self.dirty = False
         self._search_job: str | None = None
         self._suppress_search = False
-        self._open_groups: set[str] = set()
+        self._open_groups: set[str] = {"g:" + root for root in TREE_ROOTS}  # the three roots start open
         self._param_vars: list[tk.Variable] = []
         self._param_marks: dict[str, ttk.Label] = {}
         self._param_boxes: dict[str, tk.Text] = {}  # the text boxes of list parameters, by parameter name
@@ -461,6 +464,7 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
         self.tree.bind("<<TreeviewSelect>>", self._on_tree_select)
         self.tree.bind("<<TreeviewOpen>>", lambda _e: self._open_groups.add(self.tree.focus()))
         self.tree.bind("<<TreeviewClose>>", lambda _e: self._open_groups.discard(self.tree.focus()))
+        self.tree_tip = Tooltip(self.tree, self._tree_tip)  # the whole title of a row the tree shows cut
 
         self.right = ttk.Frame(horizontal, padding=(3, 2, 8, 0))
         horizontal.add(self.right, weight=3)
@@ -473,7 +477,33 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
         ttk.Label(nav, text=tr("Alt+Left, Alt+Right"), style="Note.TLabel").pack(side=tk.LEFT, padx=(10, 0))
         self.back_button.state(["disabled"])
         self.forward_button.state(["disabled"])
+        # a native theme has no colours of its own: a canvas takes the frame colour of the ttk style then
+        canvas_bg = self.color("background") or ttk.Style(self).lookup("TFrame", "background") or self.cget("background")
+        # the data forms live in a canvas that scrolls, since the forms "Installation" and "Accounts" outgrew small
+        # screens (customer request of 13.10.2026); a focused field scrolls into view, so Tab works without a mouse
+        self.form_host = ttk.Frame(self.right)
+        self.form_canvas = tk.Canvas(self.form_host, highlightthickness=0, borderwidth=0, background=canvas_bg)
+        self.form_scroll = ttk.Scrollbar(self.form_host, orient=tk.VERTICAL, command=self.form_canvas.yview)
+        self.form_canvas.configure(yscrollcommand=self.form_scroll.set)
+        self.form_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.form_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.form_window: int | None = None  # the canvas item that shows the current form
+        self.form_canvas.bind("<Configure>", self._fit_form)
+        self.form_canvas.bind("<MouseWheel>", self._scroll_form)
         self.detail_view = ttk.Frame(self.right)
+        # the parameter editor (or the buttons of a group) above the description, scrolled when it is taller than
+        # PARAMS_SHARE of the panel (customer request of 13.10.2026: the controls on top, the description below them)
+        self.params_host = ttk.Frame(self.detail_view)
+        self.params_canvas = tk.Canvas(self.params_host, highlightthickness=0, borderwidth=0, background=canvas_bg)
+        self.params_scroll = ttk.Scrollbar(self.params_host, orient=tk.VERTICAL, command=self.params_canvas.yview)
+        self.params_canvas.configure(yscrollcommand=self.params_scroll.set)
+        self.params_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.params_frame = ttk.LabelFrame(self.params_canvas, padding=(10, 6))
+        self.params_window = self.params_canvas.create_window((0, 0), window=self.params_frame, anchor="nw")
+        self.params_frame.bind("<Configure>", self._fit_params)
+        self.params_canvas.bind("<Configure>", lambda e: self.params_canvas.itemconfigure(self.params_window, width=e.width))
+        self.params_canvas.bind("<MouseWheel>", lambda e: self.params_canvas.yview_scroll(-int(e.delta / 120), "units"))
+        self.detail_view.bind("<Configure>", self._fit_params)
         self.text_frame = ttk.Frame(self.detail_view)
         self.text_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         self.detail = tk.Text(self.text_frame, wrap=tk.WORD, font=self.font_text, state=tk.DISABLED, padx=10, pady=8, height=12, relief=tk.FLAT)
@@ -492,7 +522,6 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
         self.detail.tag_bind("link", "<Enter>", lambda _e: self.detail.configure(cursor="hand2"))
         self.detail.tag_bind("link", "<Leave>", lambda _e: self.detail.configure(cursor=""))
         self._link_tags: list[str] = []
-        self.params_frame = ttk.LabelFrame(self.detail_view, padding=(10, 6))
         self.detail_view.pack(fill=tk.BOTH, expand=True)
 
         messages = ttk.Frame(vertical, padding=(8, 2, 8, 2))
@@ -554,11 +583,14 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
         it may also name ids of the profile's unknown choices."""
         self._update_covered()
         self.tree.delete(*self.tree.get_children(""))
+        self._full_titles: dict[str, str] = {}  # item: the whole title of an item whose text was cut (the tree tip)
         if visible is None:
             self.tree.insert("", tk.END, iid=WORKFLOW_NODE, text="  " + tr("Workflow"), tags=("info",))
-            for iid, title in DATA_NODES:
-                self.tree.insert("", tk.END, iid=iid, text="  " + tr(title))
         self._insert_groups("", None, visible)
+        if visible is None:  # the data forms belong to the answer file: the first items of its root (catalog 0.10)
+            parent = "g:" + UNATTEND_ROOT if self.tree.exists("g:" + UNATTEND_ROOT) else ""
+            for index, (iid, title) in enumerate(DATA_NODES):
+                self.tree.insert(parent, index, iid=iid, text="  " + tr(title))
         self._insert_unknown(visible)
 
     def _insert_unknown(self, visible: set[str] | None) -> None:
@@ -568,7 +600,9 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
         if not entries:
             return
         is_open = visible is not None or UNKNOWN_NODE in self._open_groups
-        self.tree.insert("", tk.END, iid=UNKNOWN_NODE, text=self._unknown_text(), tags=("unknown",), open=is_open)
+        # the last item of the policies root (catalog 0.10); at the top while a search hides that root
+        parent = "g:" + POLICIES_ROOT if self.tree.exists("g:" + POLICIES_ROOT) else ""
+        self.tree.insert(parent, tk.END, iid=UNKNOWN_NODE, text=self._unknown_text(), tags=("unknown",), open=is_open)
         for rule_id, enabled, _params in entries:
             self.tree.insert(UNKNOWN_NODE, tk.END, iid=UNKNOWN_PREFIX + rule_id, text=" " + rule_id,
                              image=self.images["on" if enabled else "off"], tags=() if enabled else ("off",))
@@ -589,7 +623,15 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
             for rule in self.catalog.rules_in_group(group.id, recursive=False):
                 if visible is None or rule.id in visible:
                     iid = "r:" + rule.id if rule.group == group.id else f"r:{rule.id}@{group.id}"
-                    self.tree.insert(item, tk.END, iid=iid, text=" " + self.rule_title(rule.id), image=self._rule_image(rule), tags=self._rule_tags(rule))
+                    title = self.rule_title(rule.id)
+                    shown = shorten(title, TREE_TITLE_LIMIT)
+                    if shown != title:
+                        self._full_titles[iid] = title
+                    self.tree.insert(item, tk.END, iid=iid, text=" " + shown, image=self._rule_image(rule), tags=self._rule_tags(rule))
+
+    def _tree_tip(self, event: tk.Event) -> str:  # type: ignore[type-arg]
+        """The whole title of the row under the pointer when the tree shows it cut."""
+        return self._full_titles.get(self.tree.identify_row(event.y), "")
 
     def _update_covered(self) -> None:
         self._covered = {rid for rid in self._overlapping if linked.covering(self.catalog, self.profile, rid) is not None}
@@ -624,7 +666,11 @@ class MainWindow(DetailPanel, ProfileActions, ThisPcActions, AdmxActions, McpAct
 
     def _group_text(self, group_id: str) -> str:
         on, total = self._group_counts(group_id)
-        return " " + tr("{0}   {1} of {2}", self.group_title(group_id), on, total)
+        title = self.group_title(group_id)
+        shown = shorten(title, TREE_TITLE_LIMIT)
+        if shown != title:
+            self._full_titles["g:" + group_id] = title
+        return " " + tr("{0}   {1} of {2}", shown, on, total)
 
     # ----------------------------------------------------------------- texts in the interface language
 

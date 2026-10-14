@@ -170,3 +170,25 @@ devices (printers, NAS) that look for shares anonymously; in that case use the v
 - Verification: `Get-BitLockerVolume C: | Select ProtectionStatus, VolumeStatus` → Off, FullyDecrypted;
   `manage-bde -status`.
 - Rollback: delete the value, then Settings → Privacy & security → Device encryption.
+
+## AutoLogon
+
+- Rule: `accounts.autologon` (off by default, level risky; branch `unattend-tree`, stage 4 of the plan of 13.10.2026).
+- Values in `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon`: `AutoAdminLogon = "1"` (a string; the
+  Windows default is "0"), `DefaultUserName = <account>` (the parameter; Windows keeps the last account there, so the
+  default is unknown and the revert leaves it), `AutoLogonCount = <count>` (DWord, absent by default). No
+  `DefaultPassword`: customer decision 3 of 13.10.2026 allows the automatic sign-in only for an account without a
+  password, and the profile check refuses an account that has one or that the profile does not list.
+- What it does: Winlogon signs the account in by itself at the next starts, counts `AutoLogonCount` down and turns
+  `AutoAdminLogon` off when it reaches 0. A blank password works at the console because the policy "Limit local
+  account use of blank passwords to console logon only" (`LimitBlankPasswordUse`, 1 by default) limits only network use.
+- Why the registry and not the unattend setting `Microsoft-Windows-Shell-Setup\AutoLogon`: the same values, and they
+  work on a running Windows ("This PC") and can be reverted (customer decision 5).
+- Expected effect: after OOBE the account signs in without anybody at the keyboard, so Setup-User.ps1 and the post-OOBE
+  task run right away; with a large count a kiosk stays signed in.
+- Cross-links: `install.account_mode` `ask` (Windows Setup asks for the account): the check warns that the account made
+  during Setup must have the parameter's name and no password. `accounts.inactivity-lock` still locks the screen after
+  the idle time.
+- Verification: `Get-ItemProperty ...\Winlogon -Name AutoAdminLogon, DefaultUserName, AutoLogonCount`.
+- Rollback: `AutoAdminLogon = "0"`, delete `AutoLogonCount`.
+- Pending: acceptance in a VM (the sign-in right after OOBE with an account from the answer file).

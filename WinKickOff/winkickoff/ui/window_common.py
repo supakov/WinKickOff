@@ -56,6 +56,20 @@ UNKNOWN_RULE = N_("A rule that is not in rule catalog {0}: the profile was proba
                   "The profile keeps its state and parameters and brings them back when the catalog has the rule. Until "
                   "then the rule is not written to autounattend.xml, not checked and not applied to this PC.")
 VALUE_LIMIT = 300  # characters of a kept parameter value shown in the description
+PARAMS_SHARE = 0.45  # the parameter editor above the description takes at most this share of the panel, then scrolls
+PARAMS_MIN_HEIGHT = 120  # pixels the editor may always take, however small the window
+# texts of imported templates can be a few hundred characters long (customer request of 13.10.2026): the tree and the
+# lists of options show them cut, with the whole text in a tip; labels wrap with the panel
+TREE_TITLE_LIMIT = 90  # characters of a rule or group title in the tree and in the comparison window
+OPTION_TITLE_LIMIT = 80  # characters of an option in a drop-down list
+CELL_LIMIT = 60  # characters of a value in a column of the comparison window
+LABEL_WRAP_SHARE = 0.4  # a parameter label wraps at this share of the panel width
+LABEL_WRAP_MIN = 220  # pixels, however narrow the panel
+
+
+def shorten(text: str, limit: int) -> str:
+    """The text cut to limit characters with three dots, or the text itself when it fits."""
+    return text if len(text) <= limit else text[:limit - 3].rstrip() + "..."
 READ_PC_TIMEOUT = 600  # seconds the read of this PC may take
 DRAFT_INTERVAL_MS = 60_000  # how often unsaved changes go to the draft
 BUSY_NOTE = N_("This may take a few minutes. The window closes by itself when the work is done.")
@@ -88,7 +102,7 @@ WORKFLOW = [
     ("h2", N_("3. Description and parameters")),
     ("", N_("On the right, for the selected rule: what it does technically (registry keys, services, "
             "commands), effect, risks, Windows versions, check and rollback. The rule parameters "
-            "(hours, modes, thresholds) are changed there too, below the description.")),
+            "(hours, modes, thresholds) are changed there too, above the description.")),
     ("h2", N_("4. Installation data")),
     ("", N_("The \"Installation\", \"Accounts\" and \"Languages and region\" nodes at the top of the tree: "
             "edition and key, time zone, initial accounts, display language (same as the ISO language) "

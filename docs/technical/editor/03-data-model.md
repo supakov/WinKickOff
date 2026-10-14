@@ -203,6 +203,7 @@ templates use them (section 8).
 | xml-pe-command | command, description | `RunSynchronousCommand` in windowsPE |
 | xml-specialize-command | command, description | `RunSynchronousCommand` in specialize |
 | xml-oobe | element, value | element inside `<OOBE>` |
+| xml-setting | pass (`windowsPE`, `specialize`, `oobeSystem`), component (`Microsoft-Windows-<name>`), path (element names from the component down, separated by `/`), value | an element of that component in that pass (catalog 0.11); the settings of one component and pass merge into one `<component>`, a path shared by two settings makes one parent element; the pass fixes the phase of the rule |
 
 An action holds the fields of its type and no other (an unknown field is an error naming it). A `ps` script of
 several lines is written as a list of lines; the loader joins them with a line break, without a trailing one, and
@@ -348,7 +349,8 @@ the frame (attribute 20), which older builds understand.
   "modified": "2026-09-25T10:00:00",
   "comment": "",
   "install": { "edition": "Pro", "product_key_mode": "generic", "product_key": "", "time_zone": "FLE Standard Time",
-               "account_mode": "file", "computer_name_mode": "random", "computer_name": "" },
+               "account_mode": "file", "computer_name_mode": "random", "computer_name": "",
+               "workgroup": "", "disk_mode": "ask", "disk_id": "0", "partition_id": "3" },
   "languages": { "ui_language": "uk-UA", "system_locale": "uk-UA", "user_locale": "uk-UA", "input": ["en-US", "uk-UA", "ru-UA"] },
   "accounts": [
     { "name": "Admin", "display_name": "Admin", "group": "Administrators", "description": "Local administrator (starter account)", "password": "" },
@@ -448,9 +450,11 @@ third-party one), the import parses the actions from the scripts and matches the
 
 ## 7. Versioning
 
-- Profile `format_version`: 4 (in 0.1 it was 1; migration: `config.*` → rule states via a mapping table; format 3 of
+- Profile `format_version`: 5 (in 0.1 it was 1; migration: `config.*` → rule states via a mapping table; format 3 of
   catalog 0.6 adds `install.account_mode`, and a format 2 profile loads as `file` without a warning; format 4 of catalog
-  0.7 adds `install.computer_name_mode` and `install.computer_name`, and formats 2 and 3 load as `random`).
+  0.7 adds `install.computer_name_mode` and `install.computer_name`, and formats 2 and 3 load as `random`; format 5
+  (branch `unattend-tree`) adds `install.workgroup`, `disk_mode`, `disk_id` and `partition_id`, strings like every
+  value of the form, and earlier formats load with an empty workgroup and `disk_mode` `ask`).
 - `catalog_version` = the contents of `templates/VERSION`; if they differ, the profile is loaded with
   a warning and completed.
 - The application version is independent.

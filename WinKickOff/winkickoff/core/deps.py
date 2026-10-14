@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from winkickoff.core.catalog import PHASE_ORDER, Catalog
+from winkickoff.core.catalog import PHASE_ORDER, Catalog, is_imported
 from winkickoff.core.profile import Profile
 
 
@@ -58,8 +58,12 @@ class Resolver:
         return self.enable(profile, rule_id) if enabled else self.disable(profile, rule_id)
 
     def set_group(self, profile: Profile, group_id: str, enabled: bool) -> list[Change]:
+        """Every rule of a group on or off; imported policies are only switched off by a group (a root such as
+        "policies" holds thousands of them, each is chosen one by one)."""
         changes: list[Change] = []
         for rule in self.catalog.rules_in_group(group_id):
+            if enabled and is_imported(rule.id):
+                continue
             changes.extend(self.set_rule(profile, rule.id, enabled))
         return changes
 

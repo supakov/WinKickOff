@@ -33,6 +33,10 @@ NAME_MODES = (
     ("fixed", N_("This name")),
     ("template", N_("A name from a template, computed on each computer during installation")),
 )
+DISK_CHOICES = (
+    ("ask", N_("Windows Setup asks where to install")),
+    ("partition", N_("Install to this partition without asking (ImageInstall/InstallTo)")),
+)
 ACCOUNT_MODE_TITLES = (
     ("file", N_("Create these accounts")),
     ("ask", N_("Ask for the account during installation")),
@@ -67,7 +71,7 @@ class InstallForm(_Form):
             master,
             window,
             tr("Installation"),
-            tr("Windows edition, product key, time zone and computer name. The display language and input languages are set in the \"Languages and region\" node."),
+            tr("Windows edition, product key, time zone, computer name, workgroup and the installation disk. The display language and input languages are set in the \"Languages and region\" node."),
         )
         self.edition = tk.StringVar()
         self.mode = tk.StringVar()
@@ -119,6 +123,36 @@ class InstallForm(_Form):
                         "6, 6 and 4 characters). A part that cannot be read becomes random characters. The name is set "
                         "during installation only."))
 
+        # the workgroup and the installation partition: unattend settings, set during installation only (stage 6)
+        self.workgroup = tk.StringVar()
+        ttk.Label(self, text=tr("Workgroup")).grid(row=9, column=0, sticky="w", padx=(0, 12), pady=(12, 0))
+        self.workgroup_entry = ttk.Entry(self, textvariable=self.workgroup, width=20)
+        self.workgroup_entry.grid(row=9, column=1, sticky="w", pady=(12, 0))
+        self.workgroup.trace_add("write", lambda *_: self._save())
+        self.note(10, tr("The workgroup of the local network: up to 15 Latin letters, digits and hyphens; empty leaves "
+                         "WORKGROUP, the Windows default. Joined during installation (JoinWorkgroup)."))
+        self.disk_mode = tk.StringVar()
+        self.disk_id = tk.StringVar()
+        self.partition_id = tk.StringVar()
+        ttk.Label(self, text=tr("Disk")).grid(row=11, column=0, sticky="nw", padx=(0, 12))
+        disk = ttk.Frame(self)
+        disk.grid(row=11, column=1, sticky="w")
+        for value, text in DISK_CHOICES:
+            ttk.Radiobutton(disk, text=tr(text), value=value, variable=self.disk_mode, command=self._save).pack(anchor="w", pady=1)
+        numbers = ttk.Frame(disk)
+        numbers.pack(anchor="w", padx=(22, 0), pady=(2, 0))
+        ttk.Label(numbers, text=tr("disk")).pack(side="left")
+        self.disk_box = ttk.Spinbox(numbers, textvariable=self.disk_id, from_=0, to=99, width=4)
+        self.disk_box.pack(side="left", padx=(4, 12))
+        ttk.Label(numbers, text=tr("partition")).pack(side="left")
+        self.partition_box = ttk.Spinbox(numbers, textvariable=self.partition_id, from_=1, to=128, width=4)
+        self.partition_box.pack(side="left", padx=(4, 0))
+        for var in (self.disk_id, self.partition_id):
+            var.trace_add("write", lambda *_: self._save())
+        self.note(12, tr("Numbers as diskpart shows them: on a usual UEFI disk Windows is partition 3, after the EFI and "
+                         "MSR partitions. The partition must exist and be formatted; what is on it is replaced, and Setup "
+                         "stops with an error when it is missing. The disk is not repartitioned."))
+
     def refresh(self) -> None:
         self._loading = True
         install = self.window.profile.install
@@ -127,6 +161,10 @@ class InstallForm(_Form):
         self.key.set(str(install.get("product_key", "")))
         self.name_mode.set(str(install.get("computer_name_mode", "random")))
         self.computer_name.set(str(install.get("computer_name", "")))
+        self.workgroup.set(str(install.get("workgroup", "")))
+        self.disk_mode.set(str(install.get("disk_mode", "ask")))
+        self.disk_id.set(str(install.get("disk_id", "0")))
+        self.partition_id.set(str(install.get("partition_id", "3")))
         title_key = "title" if language() == "ru" else f"title_{language()}"
         self._zones = [(str(z["id"]), str(z.get(title_key) or z["title"])) for z in self.window.resources.timezones]
         current = str(install.get("time_zone", ""))
@@ -141,6 +179,8 @@ class InstallForm(_Form):
         self.key_entry.configure(state="normal" if self.mode.get() == "custom" else "disabled")
         self.edition_box.configure(state="readonly" if self.mode.get() == "generic" else "disabled")
         self.name_entry.configure(state="disabled" if self.name_mode.get() == "random" else "normal")
+        for box in (self.disk_box, self.partition_box):
+            box.configure(state="normal" if self.disk_mode.get() == "partition" else "disabled")
 
     def _save(self) -> None:
         self._update_state()
@@ -152,6 +192,10 @@ class InstallForm(_Form):
         install["product_key"] = self.key.get().strip().upper()
         install["computer_name_mode"] = self.name_mode.get()
         install["computer_name"] = self.computer_name.get().strip()
+        install["workgroup"] = self.workgroup.get().strip()
+        install["disk_mode"] = self.disk_mode.get()
+        install["disk_id"] = self.disk_id.get().strip()
+        install["partition_id"] = self.partition_id.get().strip()
         title = self.zone.get()
         install["time_zone"] = next((z for z, t in self._zones if t == title), title)
         self.changed()

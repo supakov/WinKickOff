@@ -112,3 +112,61 @@ run in WinPE before copying starts.
 | `ImageInstall` | The edition is selected by the key; the image does not need to be specified | None |
 | `Microsoft-Windows-International-Core-WinPE` | The Setup language depends on the ISO | The first Setup screen for choosing the language and keyboard layout remains (a constructor parameter) |
 | `UseConfigurationSet` | There is no `$OEM$` folder | None |
+
+## SkipAutoActivation
+
+- Rule: `install.skip-auto-activation` (off by default; branch `unattend-tree`, stage 4 of the plan of 13.10.2026).
+- Value: `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform\Activation\Manual = 1`
+  (DWord; the Windows default is 0), written by Setup-System.ps1 in specialize. The unattend setting
+  `Microsoft-Windows-Security-SPP\SkipAutoActivation` writes the same value; the registry is used because it also works
+  on a running Windows ("This PC") and can be reverted (customer decision 5 of 13.10.2026: a native setting only where
+  the registry does not work during installation).
+- What it does: Windows does not try to activate on its own; activation starts when a key is typed or `slmgr /ato` runs.
+- Why: twelve of the fourteen editions of the generic key table (section "ProductKey / Key") are KMS client keys;
+  without a KMS host such a Windows keeps trying to activate and shows errors. Pro and Education use generic keys that
+  activate with a digital licence and do not need the rule.
+- Expected effect: no activation errors until the key of the licence is typed.
+- Verification: `Get-ItemProperty '...\SoftwareProtectionPlatform\Activation' -Name Manual`.
+- Rollback: `Manual = 0`.
+- Pending: acceptance in a VM (the value must be in place before the first attempt, which comes after OOBE); whether
+  the digital licence of Pro still activates with the value set (then the rule could be on by default).
+
+## DynamicUpdate
+
+- Rule: `install.no-dynamic-update` (off by default; branch `unattend-tree`, stage 5 of the plan of 13.10.2026).
+- Settings: `Microsoft-Windows-Setup\DynamicUpdate\Enable = false` and `DynamicUpdate\WillShowUI = Never` in the
+  windowsPE pass, written by the action `xml-setting` (the first use of it: the registry cannot act in windowsPE, so
+  customer decision 5 of 13.10.2026 allows a native setting here). The settings of one component and pass merge into
+  one `<component>` element with the product key.
+- What it does: Setup does not download updates of itself, of drivers and of the image from Windows Update before the
+  installation starts, and shows no Dynamic Update page.
+- Expected effect: the installation runs the same offline and online and finishes sooner; a known problem of the
+  Setup of the image is not fixed by a download.
+- Verification: `C:\Windows\Panther\setupact.log` holds no Dynamic Update download.
+- Rollback: applies only during installation.
+- Pending: acceptance in a VM.
+
+## Diagnostics
+
+- Rule: `install.no-setup-diagnostics` (off by default; branch `unattend-tree`, stage 5 of the plan of 13.10.2026).
+- Setting: `Microsoft-Windows-Setup\Diagnostics\OptIn = false` in the windowsPE pass (an `xml-setting` action).
+- What it does: Windows Setup sends no diagnostic data about the installation to Microsoft; the diagnostic data of
+  the installed Windows is the matter of the telemetry policy (`privacy.telemetry-minimal`).
+- Verification: `setupact.log` reports the opt-in as false.
+- Rollback: applies only during installation.
+- Pending: acceptance in a VM.
+
+## ImageInstall / InstallTo
+
+- Form "Installation", block "Disk" (`install.disk_mode` `partition`, `disk_id`, `partition_id`; profile format 5,
+  branch `unattend-tree`, stage 6 of the plan of 13.10.2026). The default `ask` writes nothing: Windows Setup asks
+  where to install, as before.
+- Settings in windowsPE: `Microsoft-Windows-Setup\ImageInstall\OSImage\InstallTo\DiskID` and `PartitionID`, and
+  `OSImage\WillShowUI = OnError`; written by the generator from the form through the same merge as the `xml-setting`
+  actions, so they share the `Microsoft-Windows-Setup` component with the product key.
+- What it does: Setup installs the image to that partition without the disk page. The partition must exist and be
+  formatted; what is on it is replaced, and Setup stops with an error when it is missing (customer decision 2 of
+  13.10.2026: no `DiskConfiguration`, the disk is not repartitioned; that may come later).
+- Numbers as diskpart shows them: on a usual UEFI disk Windows is partition 3, after the EFI (1) and MSR (2)
+  partitions. The check reports the mode as a warning, so that nobody installs without asking by accident.
+- Pending: acceptance in a VM (a prepared partition; a second disk).

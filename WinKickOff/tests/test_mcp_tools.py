@@ -77,7 +77,7 @@ def representative(file_name: str = "mcp-test") -> dict[str, dict[str, Any]]:
         "get_profile": {}, "list_profiles": {}, "diff_profile": {"name": "strict"}, "check_profile": {},
         "preview_build": {"part": "Setup-System.ps1"}, "get_messages": {},
         "set_rules": {"items": [{"id": "defender.pua", "enabled": False}]},
-        "set_group": {"id": "printing", "action": "defaults"},
+        "set_group": {"id": "update", "action": "defaults"},
         "set_param": {"id": INT_RULE, "name": INT_PARAM, "value": 9},
         "set_profile_info": {"name": "MCP test", "author": "unittest", "comment": "written by the test"},
         "load_profile": {"name": "office", "force": True},
@@ -261,7 +261,7 @@ class ModeTest(McpToolsTestCase):
 
     def test_edit_mode_still_refuses_files(self) -> None:
         self.mode = MODE_EDIT
-        self.ok("set_group", id="printing", action="off")
+        self.ok("set_group", id="update", action="off")
         self.refused("write_answer_file", "mode_required", name="x")
         self.assertEqual(list(self.paths.output.iterdir()), [])
 
@@ -350,9 +350,10 @@ class GroupsTest(McpToolsTestCase):
     def test_roots_in_catalog_order(self) -> None:
         groups = self.ok("list_groups")["groups"]
         self.assertEqual([g["id"] for g in groups], [g.id for g in self.catalog.children(None)])
-        defender = next(g for g in groups if g["id"] == "defender")
+        self.assertEqual([g["id"] for g in groups], ["unattend", "policies", "other"])  # the three roots (catalog 0.10)
+        defender = next(g for g in self.ok("list_groups", parent="policies")["groups"] if g["id"] == "defender")
         rules = self.catalog.rules_in_group("defender")
-        self.assertEqual(defender, {"id": "defender", "parent": None, "title": self.catalog.groups["defender"].title,
+        self.assertEqual(defender, {"id": "defender", "parent": "policies", "title": self.catalog.groups["defender"].title,
                                     "summary": self.catalog.groups["defender"].summary, "rules": len(rules),
                                     "enabled": sum(1 for r in rules if self.profile.is_enabled(r.id)), "children": ["defender.asr"],
                                     "imported": False, "text_language": "en"})
@@ -375,7 +376,7 @@ class GroupsTest(McpToolsTestCase):
 
     def test_an_imported_tree_follows_the_program_language(self) -> None:
         info = self.import_templates()
-        groups = self.ok("list_groups", language="uk")["groups"]
+        groups = self.ok("list_groups", language="uk", parent="policies")["groups"]  # imported trees: policies of Windows
         tree = next(g for g in groups if g["id"] == "admx." + info.id)
         self.assertEqual((tree["imported"], tree["text_language"], tree["title"]), (True, "en", info.name))
         self.assertTrue(tree["children"])
@@ -819,10 +820,10 @@ class SetGroupTest(McpToolsTestCase):
     def test_off_and_on_equal_the_resolver(self) -> None:
         for action in ("off", "on"):
             with self.subTest(action=action):
-                expected = Resolver(self.catalog).set_group(self.profile.copy(), "printing", action == "on")
-                data = self.ok("set_group", id="printing", action=action)
-                self.assertEqual(data, {"id": "printing", "action": action, "changes": change_rows(expected), "dirty": True, "issues_errors": 0})
-        self.assertTrue(all(self.profile.is_enabled(r.id) for r in self.catalog.rules_in_group("printing")))
+                expected = Resolver(self.catalog).set_group(self.profile.copy(), "update", action == "on")
+                data = self.ok("set_group", id="update", action=action)
+                self.assertEqual(data, {"id": "update", "action": action, "changes": change_rows(expected), "dirty": True, "issues_errors": 0})
+        self.assertTrue(all(self.profile.is_enabled(r.id) for r in self.catalog.rules_in_group("update")))
 
     def test_defaults_equal_reset_group(self) -> None:
         self.ok("set_group", id="defender", action="off")
@@ -847,8 +848,8 @@ class SetGroupTest(McpToolsTestCase):
 
     def test_unknown_group_and_bad_action(self) -> None:
         self.assertEqual(self.refused("set_group", "unknown_id", id="nope", action="on")["id"], "nope")
-        self.refused("set_group", "invalid_arguments", id="printing", action="toggle")
-        self.refused("set_group", "invalid_arguments", id="printing")
+        self.refused("set_group", "invalid_arguments", id="update", action="toggle")
+        self.refused("set_group", "invalid_arguments", id="update")
         self.assertFalse(self.workspace.dirty)
 
 
@@ -1239,7 +1240,7 @@ class ReadThisPcTest(McpToolsTestCase):
     def test_load_needs_edit_and_keeps_unsaved_changes(self) -> None:
         self.refused("read_this_pc", "mode_required", load=True)
         self.mode = MODE_EDIT
-        self.ok("set_group", id="printing", action="off")
+        self.ok("set_group", id="update", action="off")
         self.refused("read_this_pc", "unsaved_changes", load=True)
         data = self.ok("read_this_pc", load=True, force=True)
         self.assertTrue(data["loaded"])

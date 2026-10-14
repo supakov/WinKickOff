@@ -3,7 +3,7 @@
   "rules": [
     {
       "id": "privacy.telemetry-minimal",
-      "group": "privacy.telemetry",
+      "group": "privacy.other",
       "phase": "specialize",
       "title": "Minimal telemetry without disabling compatibility assessment",
       "level": "recommended",
@@ -114,7 +114,7 @@
     },
     {
       "id": "privacy.consumer-content",
-      "group": "privacy.ads",
+      "group": "privacy.ads.other",
       "phase": "specialize",
       "title": "No ads, preinstalled apps or automatic Teams installation (machine policies)",
       "level": "recommended",
@@ -181,7 +181,7 @@
     },
     {
       "id": "privacy.copilot-recall-off",
-      "group": "privacy.ai",
+      "group": "privacy.ai.other",
       "phase": "specialize",
       "title": "Copilot, Recall and Click to Do turned off",
       "level": "recommended",
@@ -228,7 +228,7 @@
     },
     {
       "id": "privacy.widgets-off",
-      "group": "privacy.ads",
+      "group": "privacy",
       "phase": "specialize",
       "title": "Widgets and news feed turned off",
       "level": "recommended",
@@ -259,7 +259,7 @@
     },
     {
       "id": "privacy.web-search-off",
-      "group": "privacy.search",
+      "group": "privacy",
       "phase": "specialize",
       "title": "No Bing web results in Start menu search",
       "level": "recommended",
@@ -318,6 +318,75 @@
           "kind": "DWord",
           "value": 1,
           "default": 0
+        }
+      ]
+    },
+    {
+      "id": "system.support-info",
+      "group": "system",
+      "phase": "specialize",
+      "title": "Support contacts of the organisation in Settings",
+      "level": "optional",
+      "default": false,
+      "tags": ["oeminformation", "support", "phone", "about", "manufacturer", "model"],
+      "doc": "docs/technical/reference/13-services-apps.md#supportinformation",
+      "summary": "Settings, System, About shows the support phone, hours and site of the organisation and a manufacturer and model text (the OEMInformation key).",
+      "effect": "A person who needs help sees whom to call without searching; the texts replace what the vendor of the PC wrote there, if anything. ASCII only: the installation scripts are read without a code page.",
+      "versions": "Windows 7 and later; the Logo value (a bitmap) is not written.",
+      "verify": "Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OEMInformation",
+      "rollback": "Delete the values; the texts of the vendor, if there were any, are not restored.",
+      "params": {
+        "manufacturer": {
+          "type": "string",
+          "title": "Manufacturer (the organisation)",
+          "default": "",
+          "required": false
+        },
+        "model": {"type": "string", "title": "Model (any text)", "default": "", "required": false},
+        "support_phone": {"type": "string", "title": "Support phone", "default": "", "required": false},
+        "support_hours": {"type": "string", "title": "Support hours", "default": "", "required": false},
+        "support_url": {"type": "string", "title": "Support site (URL)", "default": "", "required": false}
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OEMInformation",
+          "name": "Manufacturer",
+          "kind": "String",
+          "value": "{manufacturer}",
+          "default": "unknown"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OEMInformation",
+          "name": "Model",
+          "kind": "String",
+          "value": "{model}",
+          "default": "unknown"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OEMInformation",
+          "name": "SupportPhone",
+          "kind": "String",
+          "value": "{support_phone}",
+          "default": "unknown"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OEMInformation",
+          "name": "SupportHours",
+          "kind": "String",
+          "value": "{support_hours}",
+          "default": "unknown"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OEMInformation",
+          "name": "SupportURL",
+          "kind": "String",
+          "value": "{support_url}",
+          "default": "unknown"
         }
       ]
     },
@@ -563,7 +632,7 @@
     },
     {
       "id": "ai.typing-insights-off",
-      "group": "privacy.ai",
+      "group": "privacy.ai.other",
       "phase": "default-user",
       "title": "No typing statistics (Typing insights)",
       "level": "optional",
@@ -773,7 +842,7 @@
     },
     {
       "id": "telemetry.feedback-user-off",
-      "group": "privacy.telemetry",
+      "group": "privacy.other",
       "phase": "default-user",
       "title": "Feedback frequency: never",
       "level": "optional",
@@ -798,7 +867,7 @@
     },
     {
       "id": "ads.lock-screen-spotlight-off",
-      "group": "privacy.ads",
+      "group": "privacy.ads.other",
       "phase": "default-user",
       "title": "Lock screen without \"Windows spotlight\" and suggested content",
       "level": "optional",
@@ -831,7 +900,7 @@
     },
     {
       "id": "ads.suggestions-user-policies",
-      "group": "privacy.ads",
+      "group": "privacy",
       "phase": "default-user",
       "title": "No tailored tips or third-party app suggestions",
       "level": "optional",
@@ -862,7 +931,7 @@
     },
     {
       "id": "ads.account-notifications-off",
-      "group": "privacy.ads",
+      "group": "privacy.ads.other",
       "phase": "default-user",
       "title": "No account notifications in Settings",
       "level": "optional",
@@ -887,7 +956,7 @@
     },
     {
       "id": "ads.advertising-id-user-off",
-      "group": "privacy.ads",
+      "group": "privacy.ads.other",
       "phase": "default-user",
       "title": "Advertising ID turned off in the new settings store too",
       "level": "optional",
@@ -912,7 +981,7 @@
     },
     {
       "id": "search.cloud-off",
-      "group": "privacy.search",
+      "group": "privacy",
       "phase": "specialize",
       "title": "Windows Search without the cloud, search highlights and location",
       "level": "optional",
@@ -950,7 +1019,7 @@
     },
     {
       "id": "search.user-cloud-off",
-      "group": "privacy.search",
+      "group": "privacy.other",
       "phase": "default-user",
       "title": "Search without cloud content and history (user profile)",
       "level": "optional",
@@ -999,7 +1068,7 @@
     },
     {
       "id": "search.start-track-off",
-      "group": "privacy.search",
+      "group": "privacy.other",
       "phase": "default-user",
       "title": "Do not track app launches for the Start menu and search",
       "level": "optional",
@@ -1024,7 +1093,7 @@
     },
     {
       "id": "speech.online-off",
-      "group": "privacy.speech",
+      "group": "privacy",
       "phase": "specialize",
       "title": "No cloud speech recognition or handwriting improvement",
       "level": "optional",
@@ -1057,7 +1126,7 @@
     },
     {
       "id": "speech.online-user-off",
-      "group": "privacy.speech",
+      "group": "privacy.speech.other",
       "phase": "default-user",
       "title": "Speech and input personalization turned off in the user profile",
       "level": "optional",
@@ -1115,7 +1184,7 @@
     },
     {
       "id": "speech.narrator-online-off",
-      "group": "privacy.speech",
+      "group": "privacy.speech.other",
       "phase": "default-user",
       "title": "Narrator without online services",
       "level": "optional",
@@ -1141,7 +1210,7 @@
     },
     {
       "id": "speech.narrator-extensions-off",
-      "group": "privacy.speech",
+      "group": "privacy.speech.other",
       "phase": "default-user",
       "title": "Narrator without extensions",
       "level": "optional",
@@ -1167,7 +1236,7 @@
     },
     {
       "id": "drivers.coinstallers-off",
-      "group": "system.drivers",
+      "group": "system",
       "phase": "specialize",
       "title": "Do not run companion programs of driver installers (co-installers)",
       "level": "optional",
@@ -1194,7 +1263,7 @@
     },
     {
       "id": "drivers.metadata-off",
-      "group": "system.drivers",
+      "group": "policies",
       "phase": "specialize",
       "title": "Do not download device apps and icons from the internet",
       "level": "optional",

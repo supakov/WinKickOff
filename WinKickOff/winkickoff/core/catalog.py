@@ -56,7 +56,14 @@ ACTION_FIELDS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "xml-pe-command": (("command", "description"), ()),
     "xml-specialize-command": (("command", "description"), ()),
     "xml-oobe": (("element", "value"), ()),
+    "xml-setting": (("pass", "component", "path", "value"), ()),
 }
+# xml-setting (catalog 0.11, plan of 13.10.2026): any setting of a component of the answer file, for what the registry
+# cannot do during installation. The pass gives the phase of the rule; settings of one component and pass merge into
+# one <component> element; the path is the element names from the component down, separated by "/".
+SETTING_PASS_PHASE: dict[str, str] = {"windowsPE": "windowspe", "specialize": "specialize-xml", "oobeSystem": "oobe-xml"}
+_COMPONENT_RE = re.compile(r"^Microsoft-Windows-[A-Za-z0-9-]+$")
+_SETTING_PATH_RE = re.compile(r"^[A-Za-z][A-Za-z0-9]*(?:/[A-Za-z][A-Za-z0-9]*)*$")
 XML_ACTION_PHASE: dict[str, str] = {
     "xml-pe-command": "windowspe",
     "xml-specialize-command": "specialize-xml",
@@ -98,6 +105,34 @@ OPTION_KEYS: tuple[str, ...] = ("value", "title")
 def is_imported(item_id: str) -> bool:
     """A rule or group made from an imported policy template."""
     return item_id.startswith(IMPORTED_PREFIX)
+
+
+# The three roots of the rule tree (catalog 0.10, plan of 13.10.2026, section 3): what the answer file does by its own
+# means, the policies of Windows (built-in rules that write policy values only, and every imported template) and the
+# rest. The root of a group must agree with the mechanism of each of its rules (test_catalog): a rule of another
+# mechanism lives in a mirror of its thematic group under the right root, "<group>.<root>".
+UNATTEND_ROOT, POLICIES_ROOT, OTHER_ROOT = "unattend", "policies", "other"
+TREE_ROOTS: tuple[str, ...] = (UNATTEND_ROOT, POLICIES_ROOT, OTHER_ROOT)
+MECHANISM_ROOTS = {"unattend": UNATTEND_ROOT, "policy": POLICIES_ROOT, "other": OTHER_ROOT}
+_POLICY_PATH = re.compile(r"(?i)(^|\\)policies(\\|$)")  # a "Policies" segment of a registry path, in any hive or view
+
+
+def mechanism(rule: Rule) -> str:
+    """How a built-in rule acts: "unattend" (only settings and commands of the answer file), "policy" (only registry
+    values under a Policies key, which Windows documents as policies) or "other" (anything else, or a mix)."""
+    kinds: set[str] = set()
+    for action in rule.actions:
+        if action.type.startswith("xml-"):
+            kinds.add("unattend")
+        elif action.type in ("reg", "reg-remove", "reg-list"):
+            kinds.add("policy" if _POLICY_PATH.search(str(action.fields.get("path", ""))) else "other")
+        else:
+            kinds.add("other")
+    if kinds == {"unattend"}:
+        return "unattend"
+    if kinds == {"policy"}:
+        return "policy"
+    return "other"
 
 
 class CatalogError(ValueError):
@@ -273,6 +308,17 @@ class Catalog:
 
     def children(self, parent: str | None) -> list[Group]:
         return list(self._children.get(parent, ()))
+
+    def root_of(self, group_id: str) -> str:
+        """The root group of a group (itself for a root)."""
+        while group_id in self.groups and self.groups[group_id].parent:
+            group_id = str(self.groups[group_id].parent)
+        return group_id
+
+    def imported_roots(self) -> list[Group]:
+        """The root group of every shown import, in catalog order: under the policies root since catalog 0.10, at the
+        top before it."""
+        return [g for g in self.children(POLICIES_ROOT) + self.children(None) if is_imported(g.id)]
 
     def descendant_groups(self, group_id: str) -> list[str]:
         result: list[str] = []
@@ -697,6 +743,19 @@ def _check(catalog: Catalog, docs_root: Path | None) -> None:
 
 
 def _check_action_phase(rule: Rule, action: Action) -> None:
+    if action.type == "xml-setting":
+        pass_name = str(action.fields["pass"])
+        if pass_name not in SETTING_PASS_PHASE:
+            raise CatalogError(f"xml-setting: unknown pass '{pass_name}' (one of {', '.join(SETTING_PASS_PHASE)})",
+                               file=rule.source, rule_id=rule.id)
+        if rule.phase != SETTING_PASS_PHASE[pass_name]:
+            raise CatalogError(f"an xml-setting of pass '{pass_name}' belongs to phase '{SETTING_PASS_PHASE[pass_name]}'",
+                               file=rule.source, rule_id=rule.id)
+        if not _COMPONENT_RE.match(str(action.fields["component"])):
+            raise CatalogError("xml-setting: the component must be Microsoft-Windows-<name>", file=rule.source, rule_id=rule.id)
+        if not _SETTING_PATH_RE.match(str(action.fields["path"])):
+            raise CatalogError("xml-setting: the path is element names separated by '/'", file=rule.source, rule_id=rule.id)
+        return
     expected = XML_ACTION_PHASE.get(action.type)
     if expected is not None and rule.phase != expected:
         raise CatalogError(f"action type '{action.type}' belongs to phase '{expected}'", file=rule.source, rule_id=rule.id)

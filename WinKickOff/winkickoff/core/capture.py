@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from winkickoff.core.apply import _audit_path, audit_rules, parse_audit_report, render_audit
+from winkickoff.core.apply import _audit_path, audit_rules, audited_actions, parse_audit_report, render_audit
 from winkickoff.core.catalog import DEFAULT_ABSENT, DEFAULT_UNKNOWN, Action, Catalog, Param, Rule, is_imported
 from winkickoff.core.i18n import tr
 from winkickoff.core.profile import Account, Profile, RuleState, one_line
@@ -57,6 +57,7 @@ class CaptureSummary:
     not_in_effect: list[str] = field(default_factory=list)
     as_default: list[str] = field(default_factory=list)  # every check matches only what a clean Windows has: state kept
     covered: list[str] = field(default_factory=list)  # imported policies an enabled built-in rule writes: state kept
+    unreliable: list[str] = field(default_factory=list)  # default-user rules the current user's profile contradicts: kept
     unknown: list[str] = field(default_factory=list)  # the audit could not read them: their state is the open profile's
     kept: list[str] = field(default_factory=list)  # no running Windows shows them: their state is the open profile's
     params: list[tuple[str, str, Any]] = field(default_factory=list)  # (rule, parameter, value read)
@@ -160,9 +161,17 @@ def _check_owners(rule: Rule, checks: list[dict[str, str]]) -> list[Action | Non
     """The action behind each check, in the order Audit.runtime.ps1 reports them (one check per action, one per app
     name), or [] when the report holds another number of checks."""
     owners: list[Action | None] = []
-    for action in rule.actions:
+    for action in audited_actions(rule):
         owners += [action] * (len(action.fields.get("names") or []) if action.type == "appx" else 1)
     return owners if len(owners) == len(checks) else []
+
+
+# values a clean Windows 11 holds under SOFTWARE\Policies (the reads of 12.10 and 14.10.2026 of a PC installed from a
+# profile): an imported policy whose state writes the same value is not in effect because of them
+CLEAN_POLICY_VALUES: dict[tuple[str, str], str] = {
+    ("hklm:\\software\\policies\\microsoft\\windows\\enhancedstoragedevices", "tcgsecurityactivationdisabled"): "0",
+    ("hklm:\\software\\policies\\microsoft\\windows\\network connections", "nc_personalfirewallconfig"): "0",
+}
 
 
 def _evidence(action: Action, params: dict[str, Any], current: str = "") -> bool:
@@ -173,6 +182,9 @@ def _evidence(action: Action, params: dict[str, Any], current: str = "") -> bool
     fields = substitute_fields(action.fields, params)
     default = action.fields.get("default")
     if action.type == "reg":
+        key = (str(fields.get("path", "")).lower(), str(fields.get("name", "")).lower())
+        if CLEAN_POLICY_VALUES.get(key) == str(fields.get("value")):
+            return False
         return default in (None, DEFAULT_ABSENT, DEFAULT_UNKNOWN) or str(default) != str(fields.get("value"))
     if action.type == "reg-list":
         return bool(fields.get("value"))
@@ -302,6 +314,12 @@ def capture_profile(catalog: Catalog, base: Profile, report_text: str, keyboards
             # ship): no evidence for the rule and none against it, so the state of the open profile stays
             summary.as_default.append(rule_id)
             continue
+        if status in ("partial", "not-applied") and rule.phase == "default-user":
+            # the audit reads the profile of the current user, which Windows changes after the first sign-in
+            # (ContentDeliveryManager, the language profile, the taskbar): a difference there is no proof against
+            # the rule, which wrote the default profile (the reads of 12.10 and 14.10.2026)
+            summary.unreliable.append(rule_id)
+            continue
         state.enabled = status == "applied"
         if status == "applied":
             summary.in_effect.append(rule_id)
@@ -352,6 +370,9 @@ def summary_lines(summary: CaptureSummary, title: Any) -> list[tuple[str, str, s
     lines += [("info", rule_id, tr("Parameter {0} read from this PC: {1}", name, value)) for rule_id, name, value in summary.params]
     lines += [("info", rule_id, tr("As in the open profile: an enabled built-in rule writes the same values"))
               for rule_id in summary.covered]
+    lines += [("info", rule_id, tr("As in the open profile: the profile of the current user differs from \"{0}\", but Windows "
+                                   "may have changed it after the first sign-in", title(rule_id)))
+              for rule_id in summary.unreliable]
     lines += [("info", "profile", note) for note in summary.notes]
     if summary.forms:
         lines.append(("info", "profile", tr("Data forms read from this PC: {0}", ", ".join(summary.forms))))

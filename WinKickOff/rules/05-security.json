@@ -3,7 +3,7 @@
   "rules": [
     {
       "id": "uac.baseline",
-      "group": "security.uac",
+      "group": "security",
       "phase": "specialize",
       "title": "UAC enabled, prompts on the secure desktop, Win+L works",
       "level": "baseline",
@@ -80,7 +80,7 @@
     },
     {
       "id": "uac.admin-always-notify",
-      "group": "security.uac",
+      "group": "security.policies",
       "phase": "specialize",
       "title": "UAC for administrators: always notify",
       "level": "recommended",
@@ -119,7 +119,7 @@
     },
     {
       "id": "accounts.inactivity-lock",
-      "group": "security.accounts",
+      "group": "security.policies",
       "phase": "specialize",
       "title": "Lock the screen after inactivity",
       "level": "recommended",
@@ -348,6 +348,59 @@
       "actions": [{"type": "exe", "file": "net.exe", "args": ["accounts", "/maxpwage:unlimited"]}]
     },
     {
+      "id": "accounts.autologon",
+      "group": "security.accounts",
+      "phase": "specialize",
+      "title": "Automatic sign-in of an account without a password",
+      "level": "risky",
+      "default": false,
+      "tags": ["autologon", "autoadminlogon", "winlogon", "kiosk", "sign-in"],
+      "doc": "docs/technical/reference/08-accounts-uac-lsa-remote.md#autologon",
+      "summary": "At the next starts Windows signs the named account in by itself, as many times as the count says, then the sign-in screen is back; only for an account without a password, so no password is written anywhere.",
+      "effect": "The first sign-in after installation needs nobody at the keyboard, so the per-user script and the post-OOBE task run right away; a large count keeps a kiosk signed in. Whoever starts the PC gets the desktop of that account.",
+      "risk": "While the automatic sign-in lasts, the sign-in screen protects nothing: use it only where the PC is physically protected or the account has no rights that matter.",
+      "versions": "All versions; Winlogon counts AutoLogonCount down and turns AutoAdminLogon off at 0. Acceptance in a VM pending: the sign-in right after OOBE.",
+      "verify": "Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon' -Name AutoAdminLogon, DefaultUserName, AutoLogonCount",
+      "rollback": "AutoAdminLogon 0 and delete AutoLogonCount; DefaultUserName stays (Windows keeps the last account there).",
+      "params": {
+        "account": {"type": "string", "title": "Account name (an account without a password)", "default": "User"},
+        "count": {
+          "type": "int",
+          "title": "Automatic sign-ins before the sign-in screen returns",
+          "default": 1,
+          "min": 1,
+          "max": 9999
+        }
+      },
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon",
+          "name": "AutoAdminLogon",
+          "kind": "String",
+          "value": "1",
+          "why": "sign in by itself",
+          "default": "0"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon",
+          "name": "DefaultUserName",
+          "kind": "String",
+          "value": "{account}",
+          "default": "unknown"
+        },
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon",
+          "name": "AutoLogonCount",
+          "kind": "DWord",
+          "value": "{count}",
+          "default": "absent"
+        }
+      ]
+    },
+    {
       "id": "remote.assistance-off",
       "group": "security.remote",
       "phase": "specialize",
@@ -447,7 +500,7 @@
     },
     {
       "id": "encryption.prevent-auto-bitlocker",
-      "group": "security.encryption",
+      "group": "security",
       "phase": "specialize",
       "title": "Prevent automatic device encryption (BitLocker without a saved key)",
       "level": "recommended",
@@ -474,7 +527,7 @@
     },
     {
       "id": "accounts.block-aad-join",
-      "group": "security.accounts",
+      "group": "security.policies",
       "phase": "specialize",
       "title": "No \"Allow my organization to manage my device\" prompt",
       "level": "baseline",

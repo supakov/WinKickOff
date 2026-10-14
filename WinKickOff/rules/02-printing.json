@@ -3,7 +3,7 @@
   "rules": [
     {
       "id": "printing.spooler-automatic",
-      "group": "printing",
+      "group": "other",
       "phase": "specialize",
       "title": "Print Spooler starts automatically",
       "level": "baseline",
@@ -27,7 +27,7 @@
     },
     {
       "id": "printing.point-and-print-admins",
-      "group": "printing",
+      "group": "policies",
       "phase": "specialize",
       "title": "Only administrators can install printer drivers",
       "level": "recommended",

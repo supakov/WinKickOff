@@ -843,7 +843,7 @@ class WindowTest(AdmxTestCase):
         from winkickoff.ui.main_window import UNKNOWN_NODE
 
         win, info, paths = self.hidden_window()
-        self.assertEqual(win.tree.get_children("")[-1], UNKNOWN_NODE)  # the last root
+        self.assertEqual(win.tree.get_children("g:policies")[-1], UNKNOWN_NODE)  # the last item of the policies root
         self.assertEqual(list(win.tree.get_children(UNKNOWN_NODE)), ["u:" + TOGGLE, "u:" + ELEMENTS])  # by id
         self.assertIn("Unknown rules and policies   1 of 2", win.tree.item(UNKNOWN_NODE, "text"))
         self.assertIn("off", win.tree.item("u:" + ELEMENTS, "tags"))  # kept for its parameter, without a check mark

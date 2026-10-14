@@ -145,3 +145,18 @@ A fix is planned in the constructor: bind `MapsBroker` to the Maps removal.
 - Rollback: for one user run `%SystemRoot%\System32\OneDriveSetup.exe`; to restore it for future users add
   the value back to the default profile. On a running PC (This PC menu) the rule changes the default profile
   only; OneDrive of an existing user is removed in «Параметры, Приложения» (Settings, Apps).
+
+## SupportInformation
+
+- Rule: `system.support-info` (off by default; branch `unattend-tree`, stage 4 of the plan of 13.10.2026).
+- Values in `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation`: `Manufacturer`, `Model`, `SupportPhone`,
+  `SupportHours`, `SupportURL` (strings, the five parameters of the rule; `Logo`, a bitmap path, is not written).
+  Their Windows default is unknown: a vendor may ship them, a clean image has no key, so the revert leaves them.
+- What it does: "Settings, System, About" shows the texts under "Support" and "Device specifications", so a person who
+  needs help sees whom to call.
+- Why the registry and not the unattend setting `Microsoft-Windows-Shell-Setup\OEMInformation`: the same values, and
+  they work on a running Windows ("This PC") (customer decision 5 of 13.10.2026).
+- Limits: ASCII only (the check refuses other characters: the embedded scripts are read without a code page, see T24
+  for the account texts); the check warns when the rule is on and every text is empty.
+- Verification: `Get-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation`.
+- Rollback: delete the values (the vendor's texts, if there were any, are not restored).

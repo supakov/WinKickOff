@@ -1,6 +1,6 @@
 # WinKickOff MCP tools
 
-Exact reference for the server of WinKickOff 1.4.0-rc.8 (catalog 0.8). Server name `winkickoff`, protocol 2025-06-18.
+Exact reference for the server of WinKickOff 1.4.0-rc.12 (catalog 0.11). Server name `winkickoff`, protocol 2025-06-18.
 
 ## Contents
 
@@ -51,7 +51,10 @@ All work in every mode. They change nothing, not even the selection in the windo
 
 - Arguments: `parent?` (group id), `language?`.
 - Returns: `groups` `[{id, parent, title, summary, rules, enabled, children, imported, text_language}]`, `language`.
-- Without `parent`: the root groups (16 built-in ones, plus one per imported template). With `parent`: its direct children only.
+- Without `parent`: the three roots (catalog 0.10): `unattend` (what the answer file does by itself, with the data forms),
+  `policies` (the policies of Windows: the built-in policy rules and every imported template, one group `admx.<id>` per
+  import) and `other` (the rest). With `parent`: its direct children only. A thematic group whose rules act both ways
+  is under two roots, the smaller part with the suffix of its root (`security.policies`, `privacy.other`).
 - Error: `unknown_id` "unknown group X".
 
 ### list_rules
@@ -98,7 +101,7 @@ All work in every mode. They change nothing, not even the selection in the windo
 
 - Arguments: none.
 - Returns the open profile without secrets: `format_version`, `catalog_version`, `name`, `author_text`, `created`,
-  `modified`, `comment_text`, `install` `{edition, product_key_mode, has_product_key, time_zone, account_mode}`, `languages`
+  `modified`, `comment_text`, `install` `{edition, product_key_mode, has_product_key, time_zone, account_mode, computer_name_mode, computer_name, workgroup, disk_mode, disk_id, partition_id}`, `languages`
   `{ui_language, system_locale, user_locale, input}`, `accounts` `[{name, display_name, group, description_text,
   has_password}]`, `rules` `{<id>: {enabled, params?, source?}}`, `unknown`, plus `file`, `dirty`, `enabled_count`,
   `changed_from_defaults` (ids that differ from the catalog defaults or have parameters set).

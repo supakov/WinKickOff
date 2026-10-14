@@ -465,11 +465,17 @@ them to paste the file: it may hold passwords.
 
 ## 11. Groups of the rule tree
 
-Root groups: `install`, `oobe`, `printing`, `update`, `defender`, `security`, `network`, `removable`, `browsers`,
-`logging`, `privacy`, `system`, `apps`, `default-user`, `user-logon`, `post-oobe`. Frequent subgroups:
-`defender.asr`, `security.uac`, `security.accounts`, `security.lsa`, `security.remote`, `security.encryption`,
-`browsers.edge`, `browsers.chrome`, `browsers.brave`, `privacy.ai`, `privacy.telemetry`, `privacy.ads`,
-`privacy.search`, `privacy.speech`, `privacy.office`, `system.drivers`, `system.explorer`, `system.explorer.thispc`,
+Roots (catalog 0.10): `unattend` ("Installation": what the answer file does by itself, `install` and `oobe`, and the
+data forms), `policies` (the policies of Windows: `update`, `defender`, `browsers`, `privacy`, `apps.onedrive`, the
+mirrors `security.policies` and `apps.policies`, a few rules directly under the root, and every imported template
+`admx.<id>`) and `other` (the rest: `security`, `network`, `logging`, `system`, `apps`, `default-user`, `post-oobe`,
+the mirrors `install.other`, `privacy.other`, and a few rules directly under the root). A thematic group whose rules
+act both ways is under two roots, the smaller part with the suffix of its root; a group of one or two rules does not
+exist, its rules sit in the parent; `list_groups` without `parent` returns the three roots.
+Frequent subgroups:
+`defender.asr`, `security.accounts`, `security.lsa`, `security.remote`,
+`browsers.edge`, `browsers.chrome`, `browsers.brave`, `privacy.ai`, `privacy.telemetry`,
+`privacy.office`, `system.explorer`, `system.explorer.thispc`,
 `system.explorer.nav`, `system.explorer.desktop`, `apps.remove`,
 `apps.onedrive`. `list_rules` with a `group` includes its subgroups. The id prefix is not always the group: `uac.*` is
-in `security.uac`, `asr.*` in `defender.asr`, `edge.*` in `browsers.edge`.
+in `security` and `security.policies`, `asr.*` in `defender.asr`, `edge.*` in `browsers.edge`.

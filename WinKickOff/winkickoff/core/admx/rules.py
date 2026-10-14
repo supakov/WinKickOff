@@ -10,7 +10,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from winkickoff.core.catalog import IMPORTED_PREFIX, Action, Catalog, Group, Param, Rule, RuleOrigin, merge
+from winkickoff.core.catalog import (
+    IMPORTED_PREFIX,
+    Action,
+    Catalog,
+    Group,
+    Param,
+    Rule,
+    RuleOrigin,
+    merge,
+    POLICIES_ROOT,
+)
 from winkickoff.core.i18n import tr
 from winkickoff.core.admx.base import (
     LEGACY_SKIPS,
@@ -220,7 +230,7 @@ def catalog_part(info: ImportInfo, data: dict[str, Any], language: str, taken: s
     titles = {key: pick(value.get("title"), language) or key.split(":", 1)[-1] for key, value in categories.items()}
     rank = {key: index for index, key in enumerate(sorted(titles, key=lambda k: (titles[k].lower(), k)))}
     number = {key: index for index, key in enumerate(sorted(categories))}
-    part.groups[root] = Group(root, info.name, order, None, "", f"admx:{info.id}")
+    part.groups[root] = Group(root, info.name, order, POLICIES_ROOT, "", f"admx:{info.id}")
     made: dict[tuple[str, str], str] = {}  # (side, category) -> group id, so a chain is walked once per category
 
     def group_for(side: str, category: str) -> str:
@@ -286,7 +296,7 @@ def catalog_part(info: ImportInfo, data: dict[str, Any], language: str, taken: s
     if older:
         counts += tr("; {0} policies with lists were skipped by an earlier version of WinKickOff, import the templates "
                      "again to get them", older)
-    part.groups[root] = Group(root, info.name, order, None, tr("Imported from {0} on {1}: {2}. Languages: {3}.", info.folder,
+    part.groups[root] = Group(root, info.name, order, POLICIES_ROOT, tr("Imported from {0} on {1}: {2}. Languages: {3}.", info.folder,
                               info.created.replace("T", " "), counts, ", ".join(info.cultures) or "-"), f"admx:{info.id}")
     return part
 

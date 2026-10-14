@@ -106,6 +106,61 @@
       ]
     },
     {
+      "id": "install.no-setup-diagnostics",
+      "group": "install",
+      "phase": "windowspe",
+      "title": "No diagnostic data from Windows Setup",
+      "level": "optional",
+      "default": false,
+      "tags": ["diagnostics", "telemetry", "windowspe", "setup", "optin"],
+      "doc": "docs/technical/reference/01-windows-pe.md#diagnostics",
+      "summary": "Windows Setup sends no diagnostic data about the installation to Microsoft (Microsoft-Windows-Setup, Diagnostics/OptIn false).",
+      "effect": "The installation itself reports nothing; the diagnostic data of the installed Windows is the telemetry rule of the policies.",
+      "versions": "Since Windows Vista. Acceptance in a VM pending.",
+      "verify": "C:\\Windows\\Panther\\setupact.log: Diagnostics opt-in false",
+      "rollback": "Applies only during installation.",
+      "actions": [
+        {
+          "type": "xml-setting",
+          "pass": "windowsPE",
+          "component": "Microsoft-Windows-Setup",
+          "path": "Diagnostics/OptIn",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "id": "install.no-dynamic-update",
+      "group": "install",
+      "phase": "windowspe",
+      "title": "No Dynamic Update during installation",
+      "level": "optional",
+      "default": false,
+      "tags": ["dynamic update", "windowspe", "offline", "setup"],
+      "doc": "docs/technical/reference/01-windows-pe.md#dynamicupdate",
+      "summary": "Windows Setup does not download updates of itself, of drivers and of the image from Windows Update in windowsPE (Microsoft-Windows-Setup, DynamicUpdate/Enable false, WillShowUI Never).",
+      "effect": "The installation runs the same with and without a network and finishes sooner; Setup does not get the latest fixes of itself, so a known Setup problem of the image stays. The first unattend setting written by an xml-setting action: the registry cannot do it, the pass runs before Windows exists.",
+      "versions": "Since Windows Vista. Acceptance in a VM pending (setupact.log without a Dynamic Update download).",
+      "verify": "C:\\Windows\\Panther\\setupact.log: no Dynamic Update download",
+      "rollback": "Applies only during installation.",
+      "actions": [
+        {
+          "type": "xml-setting",
+          "pass": "windowsPE",
+          "component": "Microsoft-Windows-Setup",
+          "path": "DynamicUpdate/Enable",
+          "value": "false"
+        },
+        {
+          "type": "xml-setting",
+          "pass": "windowsPE",
+          "component": "Microsoft-Windows-Setup",
+          "path": "DynamicUpdate/WillShowUI",
+          "value": "Never"
+        }
+      ]
+    },
+    {
       "id": "install.bypass-nro",
       "group": "install",
       "phase": "specialize-xml",
@@ -129,7 +184,7 @@
     },
     {
       "id": "install.netfx3",
-      "group": "install",
+      "group": "install.other",
       "phase": "specialize",
       "title": ".NET Framework 3.5 from the installation media",
       "level": "optional",
@@ -157,6 +212,65 @@
             "if ($src) { Invoke-Exe 'dism.exe' @('/Online','/Enable-Feature','/FeatureName:NetFx3','/All','/LimitAccess',\"/Source:$src\",'/NoRestart','/Quiet') }",
             "else { Write-Log 'sources\\sxs not found on any drive, .NET 3.5 skipped (can be added later from Windows Update)' 'WARN' }"
           ]
+        }
+      ]
+    },
+    {
+      "id": "install.drivers-from-media",
+      "group": "install.other",
+      "phase": "specialize",
+      "title": "Drivers from the Drivers folder of the installation media",
+      "level": "optional",
+      "default": false,
+      "tags": ["drivers", "pnputil", "inf", "media", "usb", "network adapter", "storage"],
+      "doc": "docs/technical/reference/04-users-and-media.md#driversfrommedia",
+      "summary": "Searches connected drives for a Drivers folder with .inf files and installs every driver in it, subfolders included, with pnputil during the first restart, before the first sign-in.",
+      "effect": "Network, chipset and storage drivers of new PCs work right after installation without internet access. A driver that windowsPE itself needs to see the disk cannot be added this way: that needs the image (DISM).",
+      "risk": "Every .inf of the folder is installed as trusted: keep the folder to the signed packages of the vendor for this model. Drivers from third parties are a known way in for malware.",
+      "versions": "pnputil /add-driver with /subdirs and /install since Windows 10 1607. Acceptance in a VM pending.",
+      "verify": "pnputil /enum-drivers; C:\\ProgramData\\Unattend\\Logs\\Setup-System.log",
+      "rollback": "pnputil /delete-driver oemNN.inf /uninstall for each driver (pnputil /enum-drivers lists them).",
+      "actions": [
+        {
+          "type": "ps",
+          "script": [
+            "$src = $null",
+            "foreach ($d in [System.IO.DriveInfo]::GetDrives()) {",
+            "    try {",
+            "        if (-not $d.IsReady) { continue }",
+            "        $p = Join-Path $d.RootDirectory.FullName 'Drivers'",
+            "        if ((Test-Path $p) -and (Get-ChildItem -Path $p -Filter '*.inf' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1)) { $src = $p; break }",
+            "    } catch { }",
+            "}",
+            "if ($src) { Invoke-Exe 'pnputil.exe' @('/add-driver', (Join-Path $src '*.inf'), '/subdirs', '/install') }",
+            "else { Write-Log 'no Drivers folder with .inf files on any drive, drivers skipped' 'WARN' }"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "install.skip-auto-activation",
+      "group": "install.other",
+      "phase": "specialize",
+      "title": "No automatic activation attempts",
+      "level": "optional",
+      "default": false,
+      "tags": ["activation", "kms", "gvlk", "manual", "licence"],
+      "doc": "docs/technical/reference/01-windows-pe.md#skipautoactivation",
+      "summary": "Windows does not try to activate on its own until a key is typed or activation is started by hand: the value Manual that the unattend setting SkipAutoActivation writes.",
+      "effect": "The twelve editions whose generic key in WinKickOff is a KMS client key stay unactivated without a KMS host, and the automatic attempts fail again and again with activation errors on the desktop; with this rule Windows waits for the key of the licence. Pro and Education activate with a digital licence and do not need the rule.",
+      "versions": "Windows 8 and later. Acceptance in a VM pending: the value must be in place before the first attempt, which comes after OOBE.",
+      "verify": "Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\SoftwareProtectionPlatform\\Activation' -Name Manual",
+      "rollback": "Set Manual to 0 (the Windows default).",
+      "actions": [
+        {
+          "type": "reg",
+          "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\SoftwareProtectionPlatform\\Activation",
+          "name": "Manual",
+          "kind": "DWord",
+          "value": 1,
+          "why": "no automatic activation",
+          "default": 0
         }
       ]
     }

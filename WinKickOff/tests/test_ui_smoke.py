@@ -10,8 +10,10 @@ import quiet_tk  # noqa: F401 - first: every window these tests open stays invis
 import json
 import tempfile
 import time
+import tkinter as tk
 import unittest
 from pathlib import Path
+from tkinter import ttk
 from unittest import mock
 
 from ui_patch import patch_window
@@ -67,6 +69,7 @@ class MainWindowSmokeTest(unittest.TestCase):
     def setUp(self) -> None:
         profile, _ = Profile.load(self.office_path, self.catalog)
         self.win.set_profile(profile, dirty=False)
+        self.win.tree.yview_moveto(0)  # a test that selected a rule far down leaves the first group without geometry
         self.win.update()
 
     # ----------------------------------------------------------------- helpers
@@ -96,7 +99,9 @@ class MainWindowSmokeTest(unittest.TestCase):
 
         top = self.win.tree.get_children("")
         self.assertEqual(top[0], WORKFLOW_NODE)
-        self.assertIn("data:install", top)
+        self.assertEqual(list(top[1:]), ["g:unattend", "g:policies", "g:other"])  # the three roots (catalog 0.10)
+        self.assertEqual(list(self.win.tree.get_children("g:unattend"))[:3], ["data:install", "data:accounts", "data:languages"])
+        self.assertIn("g:install", self.win.tree.get_children("g:unattend"))
         rules = [i for i in self.win._all_items() if i.startswith("r:")]
         self.assertEqual(len(rules), len(self.catalog.rules))
 
@@ -116,6 +121,113 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.assertIn("hours = 4", text)
         self.assertEqual(self.win.params_frame.winfo_children(), [])  # no templates to show or import for a rule
         self.assertFalse(self.win.params_frame.winfo_ismapped())
+
+    def test_parameters_and_group_buttons_sit_above_the_description(self) -> None:
+        # customer request of 13.10.2026: the controls on top, the description below; a tall editor scrolls
+        from winkickoff.ui.window_common import PARAMS_MIN_HEIGHT, PARAMS_SHARE
+
+        self.win.select_node("r:accounts.inactivity-lock")  # a rule with a parameter
+        self.win.update()
+        self.assertTrue(self.win.params_host.winfo_ismapped())
+        self.assertLess(self.win.params_host.winfo_y(), self.win.text_frame.winfo_y())
+        self.assertFalse(self.win.params_scroll.winfo_ismapped())  # one parameter: no scroll bar
+        self.win.select_node(self.first_group())
+        self.win.update()
+        self.assertLess(self.win.params_host.winfo_y(), self.win.text_frame.winfo_y())  # the group buttons too
+        for index in range(40):  # an editor taller than its share of the panel scrolls
+            ttk.Label(self.win.params_frame, text=f"line {index}").pack(anchor=tk.W)
+        self.win._show_params("many")
+        self.win.update()
+        limit = max(PARAMS_MIN_HEIGHT, int(self.win.detail_view.winfo_height() * PARAMS_SHARE))
+        self.assertLessEqual(self.win.params_canvas.winfo_height(), limit + 1)
+        self.assertTrue(self.win.params_scroll.winfo_ismapped())
+        self.assertGreater(self.win.text_frame.winfo_height(), limit)  # the description keeps most of the panel
+        self.win.select_node("r:accounts.inactivity-lock")
+        self.win.update()
+        self.assertFalse(self.win.params_scroll.winfo_ismapped())
+
+    def test_data_forms_scroll_and_tab_brings_the_field_into_view(self) -> None:
+        # customer request of 13.10.2026: the forms outgrew small screens; Tab works without a mouse
+        self.win.geometry("1200x420")
+        try:
+            self.win.update()
+            self.win.select_node("data:install")
+            self.win.update()
+            form = self.win.forms["data:install"]
+            self.assertTrue(self.win.form_host.winfo_ismapped())
+            self.assertFalse(self.win.detail_view.winfo_ismapped())
+            self.assertGreater(form.winfo_reqheight(), self.win.form_canvas.winfo_height())  # taller than the panel
+            self.assertEqual(self.win.form_canvas.yview()[0], 0.0)
+            self.win._scroll_to_widget(form.partition_box)  # the last field, as Tab reaches it
+            self.win.update()
+            down = self.win.form_canvas.yview()[0]
+            self.assertGreater(down, 0.0)
+            self.win._scroll_to_widget(form.edition_box)  # back to the first field: it comes into view again
+            self.win.update()
+            self.assertLess(self.win.form_canvas.yview()[0], down)
+            top = form.edition_box.winfo_rooty() - self.win.form_canvas.winfo_rooty()
+            self.assertTrue(0 <= top <= self.win.form_canvas.winfo_height() - form.edition_box.winfo_height(), top)
+            self.win.select_node("data:accounts")
+            self.win.update()
+            self.assertIs(self.win._current_form(), self.win.forms["data:accounts"])
+            self.win.select_node(self.first_group())
+            self.win.update()
+            self.assertFalse(self.win.form_host.winfo_ismapped())
+            self.assertTrue(self.win.detail_view.winfo_ismapped())
+        finally:
+            self.win.geometry("1200x800")
+            self.win.update()
+
+    def test_the_group_view_offers_the_commands_of_the_context_menu(self) -> None:
+        self.win.select_node(self.first_group())
+        self.win.update()
+        pc = next(w for w in self.win.params_frame.winfo_children() if isinstance(w, ttk.LabelFrame))
+        self.assertEqual(str(pc.cget("text")), "This PC")
+        texts = [str(b.cget("text")) for line in pc.winfo_children() for b in line.winfo_children()]
+        self.assertEqual(texts, ["Check the selection on this PC", "Read the selection on this PC into the open profile...",
+                                 "Apply the selection now...", "Return the selection to Windows defaults now...",
+                                 "Save an apply script for the selection..."])
+        self.assertIn("Enable all", [str(b.cget("text")) for b in self.win.params_frame.winfo_children()])
+
+    def test_long_titles_are_cut_in_the_tree_and_shown_whole_in_a_tip(self) -> None:
+        # customer request of 13.10.2026: titles of imported templates (up to 200 characters) did not fit the screen
+        from types import SimpleNamespace
+
+        from winkickoff.ui.window_common import TREE_TITLE_LIMIT, shorten
+
+        self.assertEqual(shorten("short", 10), "short")
+        self.assertEqual(shorten("a" * 20, 10), "a" * 7 + "...")
+        long_title = "A policy title of an imported template " * 6
+        item = "r:accounts.inactivity-lock"
+        with mock.patch.object(type(self.win), "rule_title", return_value=long_title):
+            self.win.rebuild_tree()
+        self.assertEqual(self.win.tree.item(item, "text"), " " + shorten(long_title, TREE_TITLE_LIMIT))
+        self.assertEqual(self.win._full_titles[item], long_title)
+        self.win.tree.see(item)
+        self.win.update()
+        box = self.win.tree.bbox(item)
+        if box:
+            self.assertEqual(self.win._tree_tip(SimpleNamespace(y=box[1] + box[3] // 2)), long_title)
+        self.win.rebuild_tree()  # ordinary titles: nothing cut, no tip
+        self.assertNotIn(item, self.win._full_titles)
+        self.assertEqual(self.win._tree_tip(SimpleNamespace(y=-1)), "")
+
+    def test_long_option_titles_are_cut_in_the_list_and_labels_wrap(self) -> None:
+        from winkickoff.ui.window_common import LABEL_WRAP_MIN, OPTION_TITLE_LIMIT
+
+        long_options = [(2, "Enabled without a UEFI lock, reversible " * 4), (1, "Enabled with a UEFI lock, irreversible " * 4)]
+        with mock.patch.object(type(self.win), "param_options", return_value=long_options):
+            self.win.select_node("r:lsa.protection")  # an enum parameter
+            self.win.update()
+            box = next(w for w in self.win.params_frame.winfo_children() if isinstance(w, ttk.Combobox))
+            values = [str(v) for v in self.win.tk.splitlist(box.cget("values"))]
+            self.assertEqual(len(values), 2)
+            self.assertTrue(all(len(v) <= OPTION_TITLE_LIMIT and v.endswith("...") for v in values), values)
+            box.current(1)
+            box.event_generate("<<ComboboxSelected>>")
+            self.assertEqual(self.win.profile.param(self.catalog, "lsa.protection", "mode"), 1)  # chosen by position
+        label = next(w for w in self.win.params_frame.winfo_children() if isinstance(w, ttk.Label))
+        self.assertGreaterEqual(int(label.cget("wraplength")), LABEL_WRAP_MIN)
 
     def test_plus_only_opens_the_branch(self) -> None:
         group = self.first_group()

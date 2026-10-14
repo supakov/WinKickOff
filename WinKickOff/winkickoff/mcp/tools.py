@@ -217,7 +217,7 @@ def _issue_json(issue: Issue) -> dict[str, Any]:
 
 def _imports_shown(catalog: Catalog) -> list[dict[str, Any]]:
     return [{"id": g.id[len("admx."):], "name": clean_text(g.title, TITLE), "policies": len(catalog.rules_in_group(g.id))}
-            for g in catalog.children(None) if is_imported(g.id)]
+            for g in catalog.imported_roots()]
 
 
 def _unknown_id(catalog: Catalog, rule_id: str) -> ToolError:

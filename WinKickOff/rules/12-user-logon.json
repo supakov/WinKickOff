@@ -7,7 +7,7 @@
   "rules": [
     {
       "id": "user-logon.pin-ui-language",
-      "group": "user-logon",
+      "group": "other",
       "phase": "user-first-logon",
       "title": "Pin the display language to the image language",
       "level": "baseline",
@@ -33,7 +33,7 @@
     },
     {
       "id": "user-logon.input-languages",
-      "group": "user-logon",
+      "group": "other",
       "phase": "user-first-logon",
       "title": "User input language list from the profile (including \"Russian (Ukraine)\")",
       "level": "recommended",

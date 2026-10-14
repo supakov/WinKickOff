@@ -29,6 +29,7 @@ from winkickoff.core.render import RenderError, render_action, substitute
 from winkickoff.core.validate import list_problem
 from winkickoff.core.verify import rollback_steps, verify_steps
 from winkickoff.ui.data_forms import AccountsForm, InstallForm, LanguagesForm
+from winkickoff.ui.tooltip import Tooltip
 from winkickoff.ui.window_common import (
     WORKFLOW_NODE,
     HISTORY_LIMIT,
@@ -46,6 +47,12 @@ from winkickoff.ui.window_common import (
     VALUE_LIMIT,
     WORKFLOW,
     rule_of,
+    PARAMS_MIN_HEIGHT,
+    PARAMS_SHARE,
+    LABEL_WRAP_MIN,
+    LABEL_WRAP_SHARE,
+    OPTION_TITLE_LIMIT,
+    shorten,
 )
 
 log = logging.getLogger(__name__)
@@ -57,20 +64,69 @@ class DetailPanel:
     # ----------------------------------------------------------------- right panel
 
     def _show_panel(self, form_key: str | None) -> None:
-        for key, form in self.forms.items():
-            if key != form_key:
-                form.pack_forget()
+        """The description panel, or one data form inside the scrolling canvas (customer request of 13.10.2026)."""
         if form_key is None:
+            self.form_host.pack_forget()
             if not self.detail_view.winfo_ismapped():
                 self.detail_view.pack(fill=tk.BOTH, expand=True)
             return
         self.detail_view.pack_forget()
         if form_key not in self.forms:
             factory = {"data:install": InstallForm, "data:accounts": AccountsForm, "data:languages": LanguagesForm}[form_key]
-            self.forms[form_key] = factory(self.right, self)
+            form = factory(self.form_canvas, self)
+            self.forms[form_key] = form
+            form.bind("<Configure>", self._fit_form, add="+")
+            for widget in self._descendants(form):  # Tab brings a field into view; the wheel scrolls over any field
+                widget.bind("<FocusIn>", lambda _e, w=widget: self._scroll_to_widget(w), add="+")
+                widget.bind("<MouseWheel>", self._scroll_form, add="+")
         form = self.forms[form_key]
         form.refresh()
-        form.pack(fill=tk.BOTH, expand=True)
+        if self.form_window is None:
+            self.form_window = self.form_canvas.create_window((0, 0), window=form, anchor="nw")
+        else:
+            self.form_canvas.itemconfigure(self.form_window, window=form)
+        self.form_host.pack(fill=tk.BOTH, expand=True)
+        self.form_canvas.yview_moveto(0)
+        self._fit_form()
+
+    def _descendants(self, widget: tk.Misc) -> list[tk.Misc]:
+        found: list[tk.Misc] = []
+        for child in widget.winfo_children():
+            found.append(child)
+            found += self._descendants(child)
+        return found
+
+    def _current_form(self) -> tk.Widget | None:
+        return next((form for form in self.forms.values() if self.form_window is not None
+                     and str(self.form_canvas.itemcget(self.form_window, "window")) == str(form)), None)
+
+    def _fit_form(self, _event: tk.Event | None = None) -> None:  # type: ignore[type-arg]
+        """The form fills the width of the canvas; the scroll region is its own height."""
+        form = self._current_form()
+        if form is None or not self.form_host.winfo_manager():
+            return
+        width = max(self.form_canvas.winfo_width(), form.winfo_reqwidth())
+        self.form_canvas.itemconfigure(self.form_window, width=width)
+        self.form_canvas.configure(scrollregion=(0, 0, width, form.winfo_reqheight()))
+
+    def _scroll_form(self, event: tk.Event) -> str:  # type: ignore[type-arg]
+        self.form_canvas.yview_scroll(-int(event.delta / 120), "units")
+        return "break"
+
+    def _scroll_to_widget(self, widget: tk.Misc) -> None:
+        """Scroll the canvas so that the focused field of the form is visible (Tab from the keyboard)."""
+        form = self._current_form()
+        if form is None or not self.form_host.winfo_manager() or not widget.winfo_ismapped():
+            return
+        height = max(1, form.winfo_reqheight())
+        top = widget.winfo_rooty() - form.winfo_rooty()
+        bottom = top + widget.winfo_height()
+        view_top = self.form_canvas.canvasy(0)
+        view_height = self.form_canvas.winfo_height()
+        if top < view_top:
+            self.form_canvas.yview_moveto(max(0, top - 8) / height)
+        elif bottom > view_top + view_height:
+            self.form_canvas.yview_moveto(max(0, bottom + 8 - view_height) / height)
 
     def show_item(self, item: str) -> None:
         self._current_item = item
@@ -325,10 +381,9 @@ class DetailPanel:
             buttons += [(text, command) for kind, text, command in commands if import_rank(kind) <= widest]
         if not buttons:
             return
-        self.params_frame.configure(text=tr("Imported templates"))
-        self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
         for text, command in buttons:
             ttk.Button(self.params_frame, text=text, command=command).pack(side=tk.LEFT, padx=(0, 6))
+        self._show_params(tr("Imported templates"))
 
     def _action_text(self, action: Action, params: dict[str, Any]) -> str:
         f = action.fields
@@ -430,12 +485,42 @@ class DetailPanel:
         self._param_vars = []
         self._param_marks = {}
         self._param_boxes = {}
-        self.params_frame.pack_forget()
+        self._param_labels: list[ttk.Label] = []
+        self.params_host.pack_forget()
+
+    def _label_wrap(self) -> int:
+        """Pixels a parameter label wraps at: a share of the panel width (titles of imported policies are long)."""
+        width = self.detail_view.winfo_width()
+        return max(LABEL_WRAP_MIN, int(width * LABEL_WRAP_SHARE)) if width > 1 else LABEL_WRAP_MIN
+
+    def _show_params(self, title: str) -> None:
+        """The parameter editor (params_frame, filled by the caller) above the description."""
+        self.params_frame.configure(text=title)
+        self.params_host.pack(side=tk.TOP, fill=tk.X, before=self.text_frame, pady=(0, 6))
+        self._fit_params()
+
+    def _fit_params(self, _event: tk.Event | None = None) -> None:  # type: ignore[type-arg]
+        """The editor takes its own height up to PARAMS_SHARE of the panel; a taller one scrolls (an imported policy
+        with many elements), so the description stays in view."""
+        if not self.params_host.winfo_manager():
+            return
+        wrap = self._label_wrap()
+        for label in self._param_labels:
+            if int(label.cget("wraplength")) != wrap:
+                label.configure(wraplength=wrap)
+        needed = self.params_frame.winfo_reqheight()
+        panel = self.detail_view.winfo_height()
+        limit = max(PARAMS_MIN_HEIGHT, int(panel * PARAMS_SHARE)) if panel > 1 else needed
+        height = min(needed, limit)
+        self.params_canvas.configure(height=height, scrollregion=(0, 0, self.params_frame.winfo_reqwidth(), needed))
+        if needed > height:
+            self.params_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        else:
+            self.params_scroll.pack_forget()
+            self.params_canvas.yview_moveto(0)
 
     def _build_group_buttons(self, group_id: str) -> None:
         self._clear_params()
-        self.params_frame.configure(text=tr("Whole group"))
-        self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
         buttons = [
             (tr("Enable all"), lambda: self._group_action(group_id, True)),
             (tr("Disable all"), lambda: self._group_action(group_id, False)),
@@ -446,8 +531,23 @@ class DetailPanel:
             if group_id.count(".") == 1:  # the root of an imported tree: "admx.<import id>"
                 import_id = group_id[len(IMPORTED_PREFIX):]
                 buttons.append((tr("Rename..."), lambda: self.rename_templates(import_id, self.group_title(group_id))))
+        # the commands of the context menu of the tree, for the group that is shown (customer request of 13.10.2026);
+        # packed first at the bottom, so the group buttons take the row above it (a LabelFrame: the tests read "text")
+        pc = ttk.LabelFrame(self.params_frame, text=tr("This PC"), padding=(8, 4))
+        pc.pack(side=tk.BOTTOM, fill=tk.X, pady=(8, 0))
+        rows = (((tr("Check the selection on this PC"), self.audit_selected),
+                 (tr("Read the selection on this PC into the open profile..."), self.read_selection)),
+                ((tr("Apply the selection now..."), self.apply_now),
+                 (tr("Return the selection to Windows defaults now..."), self.revert_now),
+                 (tr("Save an apply script for the selection..."), self.save_apply_scripts)))
+        for row in rows:
+            line = ttk.Frame(pc)
+            line.pack(anchor=tk.W, pady=(0, 4))
+            for text, command in row:
+                ttk.Button(line, text=text, command=command).pack(side=tk.LEFT, padx=(0, 6))
         for text, command in buttons:
             ttk.Button(self.params_frame, text=text, command=command).pack(side=tk.LEFT, padx=(0, 6))
+        self._show_params(tr("Whole group"))
 
     def _group_action(self, group_id: str, enabled: bool) -> None:
         scope = {r.id for r in self.catalog.rules_in_group(group_id)}
@@ -463,23 +563,25 @@ class DetailPanel:
         self._clear_params()
         if not rule.params:
             return
-        self.params_frame.configure(text=tr("Rule parameters"))
         if rule.id in self._covered and not self.profile.is_enabled(rule.id):
-            self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
             ttk.Label(self.params_frame, style="Note.TLabel", text=tr(
                 "The values come from the built-in rule while it is on; to set them separately, switch that rule off.")).pack(anchor=tk.W)
+            self._show_params(tr("Rule parameters"))
             return
-        self.params_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_frame, pady=(6, 4))
         for row, param in enumerate(rule.params.values()):
             sticky = tk.NW if param.type == "list" else tk.W
-            ttk.Label(self.params_frame, text=self.param_title(rule, param)).grid(row=row, column=0, sticky=sticky, padx=(0, 12), pady=2)
+            label = ttk.Label(self.params_frame, text=self.param_title(rule, param), wraplength=self._label_wrap())
+            label.grid(row=row, column=0, sticky=sticky, padx=(0, 12), pady=2)
+            self._param_labels.append(label)
             self._param_widget(rule, param).grid(row=row, column=1, sticky=tk.W, pady=2)
             hint = tr("default: {0}", self._param_display(rule, param, param.default))
             if param.type == "int" and (param.min is not None or param.max is not None):
                 hint += tr(", range {0}..{1}", param.min, param.max)
             if param.type == "list":
                 hint = (tr("one item per line, as name=value") if param.pairs else tr("one item per line")) + "\n" + hint
-            ttk.Label(self.params_frame, text=hint, style="Note.TLabel").grid(row=row, column=2, sticky=sticky, padx=(10, 0))
+            note = ttk.Label(self.params_frame, text=hint, style="Note.TLabel", wraplength=self._label_wrap())
+            note.grid(row=row, column=2, sticky=sticky, padx=(10, 0))
+            self._param_labels.append(note)
             mark = ttk.Label(self.params_frame, style="Changed.TLabel")
             mark.grid(row=row, column=3, sticky=tk.W, padx=(10, 0))
             self._param_marks[param.name] = mark
@@ -487,6 +589,7 @@ class DetailPanel:
         ttk.Button(self.params_frame, text=tr("Restore defaults"), command=lambda: self._reset_params(rule)).grid(
             row=len(rule.params), column=1, sticky=tk.W, pady=(6, 0)
         )
+        self._show_params(tr("Rule parameters"))
 
     def _param_display(self, rule: Rule, param: Param, value: Any) -> str:
         if param.type == "enum":
@@ -531,9 +634,14 @@ class DetailPanel:
             return self._list_widget(rule, param, value)
         if param.type == "enum":
             options = self.param_options(rule, param)
-            var = tk.StringVar(value=self._param_display(rule, param, value))
-            box = ttk.Combobox(self.params_frame, textvariable=var, values=[t for _, t in options], state="readonly", width=46)
-            box.bind("<<ComboboxSelected>>", lambda _e: self._set_param(rule, param, next(v for v, t in options if t == var.get())))
+            titles = [shorten(title, OPTION_TITLE_LIMIT) for _v, title in options]  # the list shows long titles cut
+            chosen = next((i for i, (v, _title) in enumerate(options) if v == value), -1)
+            var = tk.StringVar(value=titles[chosen] if chosen >= 0 else self._param_display(rule, param, value))
+            box = ttk.Combobox(self.params_frame, textvariable=var, values=titles, state="readonly", width=46)
+            box.bind("<<ComboboxSelected>>", lambda _e: self._set_param(rule, param, options[box.current()][0]))
+            if any(title != shown for (_v, title), shown in zip(options, titles)):  # the whole title in a tip
+                Tooltip(box, lambda _e: options[box.current()][1] if 0 <= box.current() < len(options)
+                        and titles[box.current()] != options[box.current()][1] else "")
             widget: tk.Widget = box
         elif param.type == "bool":
             var = tk.BooleanVar(value=bool(value))
