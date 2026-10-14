@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from winkickoff.core import admx, i18n
-from winkickoff.core.apply import _audit_path, render_audit
+from winkickoff.core.apply import _audit_path, audited_actions, render_audit, render_audit_block
 from winkickoff.core.capture import _evidence, capture_profile, capture_rules, read_rule, render_capture, summary_lines
 from winkickoff.core.catalog import Action, Catalog, Rule, load_catalog
 from winkickoff.core.profile import Profile
@@ -62,9 +62,9 @@ CAPTURE_ADML = """<?xml version="1.0" encoding="utf-8"?>
 
 def checks(rule: Rule, status: str = "ok", currents: dict[int, str] | None = None,
            statuses: dict[int, str] | None = None) -> list[dict[str, str]]:
-    """The checks Audit.runtime.ps1 reports for a rule, one per action, with the check text it writes."""
+    """The checks Audit.runtime.ps1 reports for a rule, one per audited action, with the check text it writes."""
     out = []
-    for index, action in enumerate(rule.actions):
+    for index, action in enumerate(audited_actions(rule)):
         fields = action.fields
         if action.type in ("reg", "reg-remove"):
             what = f"{_audit_path(str(fields['path']))[0]}\\{fields['name']}"
@@ -190,6 +190,47 @@ class CaptureTest(unittest.TestCase):
         disabled = checks(ps2, "ok", {0: "Disabled", 1: "Disabled"})  # the feature is there and off: the rule acted
         profile, _ = capture_profile(self.catalog, self.office(), fake_report(self.catalog, extra=disabled), self.resources.keyboards)
         self.assertTrue(profile.is_enabled("logging.powershell-v2-off"))
+
+    def test_a_removal_that_a_later_write_replaces_is_not_checked(self) -> None:
+        # the read of 14.10.2026: defender.realtime removes DisableRealtimeMonitoring and then writes it 0 (as v0.2 does),
+        # so the "absent" check failed by design and the rule looked partly in effect, which freed its four policies
+        rule = self.catalog.rules["defender.realtime"]
+        audited = audited_actions(rule)
+        self.assertEqual(len(audited), len(rule.actions) - 1)
+        self.assertEqual([a.fields["name"] for a in audited if a.type == "reg-remove"], ["DisableAntiSpyware", "DisableAntiVirus"])
+        self.assertEqual(render_audit_block(rule, {}).count("Test-RegAbsent"), 2)
+        status, _, _ = read_rule(rule, checks(rule, "ok", {2: "0", 3: "0", 4: "0", 5: "0"}), {})
+        self.assertEqual(status, "applied")
+
+    def test_values_of_a_clean_windows_under_policies_are_no_evidence(self) -> None:
+        # TCGSecurityActivationDisabled 0 and NC_PersonalFirewallConfig 0 exist on every Windows 11: an imported policy
+        # whose state writes them is not in effect because of them (the reads of 12.10 and 14.10.2026)
+        tcg = Action("reg", {"path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\EnhancedStorageDevices",
+                             "name": "TCGSecurityActivationDisabled", "kind": "DWord", "value": 0}, "admx.x")
+        self.assertFalse(_evidence(tcg, {}))
+        self.assertTrue(_evidence(Action("reg", dict(tcg.fields, value=1), "admx.x"), {}))
+        firewall = Action("reg", {"path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Network Connections",
+                                  "name": "NC_PersonalFirewallConfig", "kind": "DWord", "value": "{state}"}, "admx.y")
+        self.assertFalse(_evidence(firewall, {"state": 0}))
+        self.assertTrue(_evidence(firewall, {"state": 1}))
+
+    def test_default_user_rules_keep_the_state_when_the_current_user_differs(self) -> None:
+        # the audit reads HKCU of the current user, which Windows rewrites after the first sign-in
+        rule = self.catalog.rules["default-user.no-consumer-content"]
+        differs = checks(rule, "ok", {0: "1"}, {0: "differs"})
+        for enabled in (True, False):
+            base = self.office()
+            base.rules[rule.id].enabled = enabled
+            profile, summary = capture_profile(self.catalog, base, fake_report(self.catalog, extra=differs), self.resources.keyboards)
+            self.assertEqual(profile.is_enabled(rule.id), enabled)
+            self.assertEqual(summary.unreliable, [rule.id])
+            self.assertNotIn(rule.id, summary.not_in_effect + summary.partly)
+        self.assertTrue(any(target == rule.id and "profile of the current user" in text
+                            for _level, target, text in summary_lines(summary, lambda r: r)))
+        profile, summary = capture_profile(self.catalog, self.office(), fake_report(self.catalog, extra=checks(rule, "ok", {0: "0"})),
+                                           self.resources.keyboards)
+        self.assertTrue(profile.is_enabled(rule.id))  # every value in place: in effect as before
+        self.assertEqual(summary.unreliable, [])
 
     def test_a_policy_a_built_in_rule_covers_keeps_its_state_and_parameters(self) -> None:
         # the read of 12.10.2026: 55 Edge and Chrome policies of a profile differed after a read only in the parameter

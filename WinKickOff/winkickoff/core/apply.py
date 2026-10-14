@@ -347,11 +347,22 @@ def _audit_path(path: str) -> tuple[str, str]:
     return path, ""
 
 
+def audited_actions(rule: Rule) -> list[Action]:
+    """The actions the audit checks, one check per action (an appx action one per name): a reg-remove whose value a
+    later reg action of the same rule writes gets no check, since the written value makes "absent" false by design
+    (defender.realtime of v0.2 removes DisableRealtimeMonitoring and then writes it 0; the read of 14.10.2026 saw the
+    rule partly in effect and switched it off). capture._check_owners pairs the checks with the same list."""
+    written = {(str(a.fields.get("path", "")).lower(), str(a.fields.get("name", "")).lower()) for a in rule.actions
+               if a.type == "reg"}
+    return [a for a in rule.actions
+            if not (a.type == "reg-remove" and (str(a.fields.get("path", "")).lower(), str(a.fields.get("name", "")).lower()) in written)]
+
+
 def render_audit_block(rule: Rule, params: dict[str, Any]) -> str:
     """Read-only checks of one rule (Test-* calls of Audit.runtime.ps1)."""
     rid = ps_quote(rule.id)
     lines = [f"# [{rule.id}]"]
-    for action in rule.actions:
+    for action in audited_actions(rule):
         f = substitute_fields(action.fields, params)
         t = action.type
         if t == "reg":

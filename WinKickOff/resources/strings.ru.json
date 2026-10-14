@@ -694,5 +694,6 @@
  "Disk number: 0 to 99": "Номер диска: от 0 до 99",
  "Partition number: 1 to 128": "Номер раздела: от 1 до 128",
  "Windows Setup installs to disk {0}, partition {1} without asking: the partition must exist and be formatted, and what is on it is replaced": "Установщик Windows устанавливает на диск {0}, раздел {1} без вопроса: раздел должен существовать и быть отформатирован, его содержимое заменяется",
- "Windows edition, product key, time zone, computer name, workgroup and the installation disk. The display language and input languages are set in the \"Languages and region\" node.": "Редакция Windows, ключ продукта, часовой пояс, имя компьютера, рабочая группа и диск установки. Язык интерфейса и языки ввода задаются в узле «Языки и регион»."
+ "Windows edition, product key, time zone, computer name, workgroup and the installation disk. The display language and input languages are set in the \"Languages and region\" node.": "Редакция Windows, ключ продукта, часовой пояс, имя компьютера, рабочая группа и диск установки. Язык интерфейса и языки ввода задаются в узле «Языки и регион».",
+ "As in the open profile: the profile of the current user differs from \"{0}\", but Windows may have changed it after the first sign-in": "Как в открытом профиле: профиль текущего пользователя отличается от «{0}», но Windows могла изменить его после первого входа"
 }
